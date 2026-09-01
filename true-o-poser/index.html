@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TRUE o POSER</title>
+<style>
+  :root{--noche:#000000;--humo:#141018;--hueso:#F3ECE6;--sangre:#FF2350;--ambar:#FFC400;--violeta:#8A63FF;--cian:#00E5FF;--magenta:#FF2BD1;--verde:#3DDC5B;--azul:#2E9BFF;--naranja:#FF7A18;--ceniza:#8A7E92;--corte:18px;--radio:0px;--rot:-.5deg;--grano:.05;--foco:.2}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--noche)}
+  body{color:var(--hueso);font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.35;
+    padding:10px 12px 16px;max-width:480px;margin:0 auto;
+    background:radial-gradient(120% 55% at 8% -12%,rgba(255,43,209,calc(var(--foco)*1.4)),transparent 58%),
+      radial-gradient(110% 50% at 94% -8%,rgba(0,229,255,calc(var(--foco)*1.1)),transparent 60%),
+      radial-gradient(95% 60% at 50% 114%,rgba(255,35,80,calc(var(--foco)*.9)),transparent 62%),var(--noche);
+    transition:background .8s ease}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.05) 1px,transparent 1px);
+    background-size:4px 4px;mix-blend-mode:screen;opacity:calc(var(--grano)*20);transition:opacity .8s ease}
+  .impact{font-family:Impact,Haettenschweiler,"Arial Black","Arial Narrow",sans-serif;font-weight:400;
+    text-transform:uppercase;line-height:.8;letter-spacing:-.015em}
+
+  /* barra superior */
+  .hud{display:flex;justify-content:space-between;align-items:baseline;font-size:10px;
+    letter-spacing:.16em;text-transform:uppercase;color:var(--ceniza);margin-bottom:7px}
+  .hud b{color:var(--ambar);font-variant-numeric:tabular-nums;letter-spacing:.05em}
+
+  /* medidores en cuatro columnas */
+  .med{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:9px}
+  .m .et{font-size:8.5px;letter-spacing:.14em;color:var(--ceniza);text-transform:uppercase}
+  .m .nu{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:26px;
+    font-variant-numeric:tabular-nums;line-height:.95;margin:2px 0 4px;letter-spacing:-.02em}
+  .m .ba{height:5px;background:rgba(243,236,230,.12);transform:skewX(-22deg);overflow:hidden}
+  .m .ba i{display:block;height:100%;transition:width .35s cubic-bezier(.2,.8,.2,1)}
+  .c1 i{background:var(--ambar)}.c1 .nu{color:var(--ambar)}
+  .c2 i{background:var(--hueso)}
+  .c3 i{background:var(--violeta)}.c3 .nu{color:var(--violeta)}
+  .c4 i{background:var(--sangre)}.c4 .nu{color:var(--sangre)}
+
+  /* eje */
+  .eje{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .eje .lb{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase}
+  .eje .lb.p{color:var(--sangre)}.eje .lb.t{color:var(--violeta)}
+  .eje-bar{flex:1;height:8px;position:relative;transform:skewX(-22deg);opacity:.9;
+    background:linear-gradient(90deg,var(--sangre),#6B4A5E 42%,#5B4A8A 58%,var(--violeta))}
+  .eje-bar b{position:absolute;top:-4px;bottom:-4px;width:4px;background:var(--hueso);
+    box-shadow:0 0 12px rgba(243,236,230,.9);transition:left .35s cubic-bezier(.2,.8,.2,1)}
+
+  details.form{margin-bottom:9px}
+  details.form summary{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ceniza);cursor:pointer;list-style:none}
+  details.form summary::-webkit-details-marker{display:none}
+  details.form p{margin:5px 0 0;font-size:11px;color:var(--ceniza);line-height:1.35}
+
+  /* afiche */
+  .flyer{padding:14px 14px 12px;background:linear-gradient(155deg,var(--humo),#150C1D);
+    border-top:3px solid var(--sangre);box-shadow:0 14px 34px rgba(0,0,0,.6),0 0 0 1px rgba(243,236,230,.08) inset;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - var(--corte)),calc(100% - var(--corte)) 100%,0 100%);border-radius:var(--radio);transform:rotate(var(--rot))}
+  .flyer.mal{border-top-color:var(--ambar);transform:rotate(.6deg);background:linear-gradient(155deg,#2A1119,#170A12)}
+  .kicker{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ambar);margin-bottom:5px}
+  .kicker.alerta{color:var(--sangre)}
+  h2{margin:0 0 9px;font-size:clamp(30px,9.6vw,44px);transform:skewX(-7deg);
+    text-shadow:3px 3px 0 var(--sangre)}
+  .texto{font-size:13.5px;margin:0 0 11px;color:rgba(243,236,230,.82)}
+
+  button.opt{display:block;width:100%;text-align:left;font-family:inherit;font-size:15px;font-weight:bold;line-height:1.25;
+    background:rgba(243,236,230,.05);color:var(--hueso);border:0;border-left:3px solid rgba(243,236,230,.28);
+    padding:8px 11px;margin-bottom:6px;cursor:pointer;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%);
+    transition:background .15s,border-color .15s,transform .15s}
+  button.opt:hover,button.opt:focus-visible{background:rgba(255,35,80,.16);border-left-color:var(--sangre);transform:translateX(3px);outline:none}
+  button.opt .costo{display:block;color:var(--ceniza);font-size:11px;font-weight:normal;
+    letter-spacing:.06em;text-transform:uppercase;margin-top:3px}
+  button.opt:hover .costo{color:rgba(243,236,230,.7)}
+  button.opt:last-child{margin-bottom:0}
+
+  .resultado{border-left:3px solid var(--ambar);padding:2px 0 2px 11px;margin:0 0 10px;font-size:13.5px;color:rgba(243,236,230,.88)}
+  .deltas{display:flex;flex-wrap:wrap;gap:5px;font-size:11px;margin-bottom:9px}
+  .d{padding:2px 8px;transform:skewX(-14deg);font-variant-numeric:tabular-nums;background:rgba(243,236,230,.08);color:var(--ceniza)}
+  .d.mas{background:rgba(138,99,255,.22);color:#C4B2FF}
+  .d.menos{background:rgba(255,35,80,.2);color:#FF7A97}
+  .balance{font-size:10px;color:var(--ceniza);margin:0 0 9px;letter-spacing:.03em}
+
+  /* inicio */
+  h1{margin:0;font-size:clamp(48px,17vw,82px);transform:skewX(-7deg);position:relative;
+    background:linear-gradient(180deg,#FFFFFF 0%,#DCE6F0 38%,#5C6675 50%,#F2F7FF 58%,#FFFFFF 78%,#9AA6B4 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(4px 4px 0 var(--sangre)) drop-shadow(0 0 26px rgba(255,43,209,.5))}
+  h1 .rojo{background:linear-gradient(180deg,#FFE8A8,#FFC400 45%,#8A5A00 52%,#FFD966 62%,#FFF3C4);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  h1 .rojo{color:var(--sangre)}
+  .intro{font-size:12.5px;color:var(--ceniza);margin:8px 0 12px;line-height:1.4}
+  .nombre-wrap{display:flex;gap:8px;margin-bottom:12px}
+  input[type=text]{flex:1;min-width:0;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;
+    text-transform:uppercase;font-size:32px;letter-spacing:-.01em;background:transparent;border:0;border-bottom:2px solid rgba(243,236,230,.35);
+    padding:3px 2px;color:var(--hueso);text-shadow:0 0 14px rgba(255,35,80,.5)}
+  input[type=text]:focus{outline:none;border-bottom-color:var(--sangre)}
+  .dado{border:0;background:rgba(243,236,230,.08);font-size:18px;padding:0 14px;cursor:pointer;color:var(--ambar);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%)}
+  .dado:hover{background:var(--sangre);color:var(--hueso)}
+  .banda-opt{padding:10px 12px;margin-bottom:7px;cursor:pointer;background:rgba(243,236,230,.05);
+    border-left:3px solid rgba(243,236,230,.25);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);
+    transition:background .15s,border-color .15s,transform .15s}
+  .banda-opt:hover,.banda-opt:focus-visible{background:rgba(255,35,80,.14);border-left-color:var(--sangre);transform:translateX(3px);outline:none}
+  .banda-opt h3{margin:0;font-size:27px;transform:skewX(-7deg)}
+  .banda-opt p{margin:2px 0 0;font-size:12px;color:rgba(243,236,230,.75)}
+  .banda-opt .datos{font-size:10px;letter-spacing:.06em;color:var(--ceniza);margin-top:3px}
+
+  /* final */
+  .final{padding:16px 14px;background:linear-gradient(155deg,var(--humo),#140B1C);border-top:3px solid var(--ambar);
+    box-shadow:0 14px 34px rgba(0,0,0,.65),0 0 0 1px rgba(243,236,230,.08) inset;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 20px),calc(100% - 20px) 100%,0 100%)}
+  .final h2{font-size:clamp(32px,10vw,46px);margin-bottom:10px}
+  .rank{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--sangre);margin-bottom:5px}
+  .marcador{font-size:11px;color:var(--ceniza);margin:12px 0 0;padding-top:9px;border-top:1px solid rgba(243,236,230,.16);line-height:1.5}
+  .marcador b{color:var(--hueso);font-variant-numeric:tabular-nums}
+  .reiniciar{margin-top:12px;width:100%;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;
+    text-transform:uppercase;font-size:28px;letter-spacing:-.01em;padding:9px;background:var(--sangre);color:var(--hueso);border:0;cursor:pointer;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);box-shadow:0 0 26px rgba(255,35,80,.35)}
+  .reiniciar:hover{background:var(--ambar);color:var(--noche)}
+
+  /* ---- iconos ---- */
+  .ico{display:inline-block;flex:0 0 auto;color:var(--ambar)}
+  .ico svg{display:block;width:100%;height:100%;stroke-linecap:round;stroke-linejoin:round}
+  .cab{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+  .cab .ico{width:34px;height:34px;padding:5px;background:rgba(255,176,32,.12);
+    transform:skewX(-12deg);animation:late .5s ease-out both}
+  .cab.alerta .ico{color:var(--sangre);background:rgba(255,35,80,.15)}
+  .cab .kicker{margin:0}
+  .m .et{display:flex;align-items:center;gap:3px}
+  .m .et .ico{width:11px;height:11px;color:inherit;opacity:.85}
+  .miniband{display:inline-flex;gap:3px;vertical-align:middle;margin-left:7px}
+  .miniband i{width:7px;height:7px;border-radius:50%;background:var(--sangre);display:block;opacity:.85}
+  .hero{width:100%;height:96px;margin-bottom:2px;color:var(--hueso)}
+  .hero svg{width:100%;height:100%}
+
+
+
+  .m .ba{position:relative;overflow:visible}
+  .m .ba u{position:absolute;left:88%;top:-4px;bottom:-4px;width:0;
+    border-left:2px dotted rgba(243,236,230,.75)}
+  .m .ba u.ok,.eje-bar u.ok{border-color:var(--ambar);box-shadow:0 0 8px var(--ambar)}
+  .eje-bar u{position:absolute;left:72.5%;top:-5px;bottom:-5px;width:0;
+    border-left:2px dotted rgba(243,236,230,.75);background:none}
+
+  /* objetivo */
+  .alborde{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--sangre);
+    border-left:3px solid var(--sangre);padding:4px 8px;margin-bottom:8px;background:rgba(255,35,80,.1);
+    animation:pulso 1.6s ease-in-out infinite}
+  @keyframes pulso{50%{background:rgba(255,35,80,.22)}}
+
+  /* avatares */
+  .avs{display:flex;flex-direction:column;gap:5px;margin-top:6px}
+  .av{display:flex;align-items:center;gap:7px;font-size:11px;color:var(--ceniza)}
+  .av i{width:19px;height:19px;flex:0 0 auto;border-radius:50%;color:var(--noche);font-style:normal;
+    font-weight:bold;font-size:11px;display:flex;align-items:center;justify-content:center}
+  .av b{color:rgba(243,236,230,.75);font-weight:normal}
+
+  /* parate */
+  button.opt.parate{border-left-color:var(--violeta);background:rgba(138,99,255,.09)}
+  button.opt.parate:hover{background:rgba(138,99,255,.22);border-left-color:var(--violeta)}
+
+  /* corte de semestre */
+  .flashsem{position:fixed;inset:0;z-index:20;pointer-events:none;display:flex;align-items:center;justify-content:center;
+    animation:golpe .7s ease-out forwards}
+  .flashsem span{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:44vw;color:var(--hueso);
+    letter-spacing:-.04em;
+    opacity:.9;text-shadow:0 0 60px rgba(255,35,80,.8)}
+  @keyframes golpe{0%{opacity:0;transform:scale(1.3)}18%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.96)}}
+
+  /* afiche final */
+  .afiche{padding:15px 14px 13px;background:linear-gradient(160deg,var(--humo),#100815 70%);
+    border-top:4px solid var(--sangre);box-shadow:0 18px 44px rgba(0,0,0,.7),0 0 0 1px rgba(243,236,230,.09) inset;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - var(--corte)),calc(100% - var(--corte)) 100%,0 100%);
+    border-radius:var(--radio);animation:entra .45s cubic-bezier(.2,.8,.2,1) both}
+  .afiche .an{font-size:10px;letter-spacing:.3em;color:var(--ceniza);margin-bottom:6px}
+  .afiche .nb{font-size:clamp(30px,11vw,46px);color:var(--hueso);transform:skewX(-5deg);
+    text-shadow:0 0 26px rgba(255,35,80,.45);margin-bottom:6px;word-break:break-word}
+  .afiche h2{font-size:clamp(19px,6vw,26px);color:var(--ambar);margin-bottom:9px}
+  .afiche .texto{font-size:13.5px;margin-bottom:12px}
+  .form-fin{font-size:11px;color:var(--ceniza);letter-spacing:.04em;padding:8px 0;
+    border-top:1px solid rgba(243,236,230,.16);border-bottom:1px solid rgba(243,236,230,.16)}
+  .form-fin b{color:rgba(243,236,230,.7);font-weight:normal}
+  .linea{margin-top:11px;padding-top:9px;border-top:1px solid rgba(243,236,230,.16)}
+  .linea summary{font-size:9.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--ambar);cursor:pointer;list-style:none}
+  .linea summary::-webkit-details-marker{display:none}
+  .linea ol{list-style:none;margin:8px 0 0;padding:0;font-size:11.5px;color:var(--ceniza);line-height:1.5}
+  .linea li{padding:3px 0;border-bottom:1px solid rgba(243,236,230,.07)}
+  .linea li span{display:inline-block;width:20px;color:var(--sangre);font-variant-numeric:tabular-nums}
+  .linea li b{color:rgba(243,236,230,.85);font-weight:normal}
+  .noviste{font-size:10px;color:var(--ceniza);margin-top:9px;font-style:italic}
+  .linea ol{max-height:230px;overflow:auto}
+
+  .hito{display:flex;gap:9px;align-items:flex-start;margin:9px 0 0;padding:8px 10px;
+    background:rgba(255,176,32,.12);border-left:3px solid var(--ambar);font-size:12px;color:rgba(243,236,230,.85);
+    animation:chip .4s .25s both}
+  .hito .ico{width:16px;height:16px;flex:0 0 auto;margin-top:1px}
+  .hito b{color:var(--ambar);font-size:13px}
+  .cabf{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}
+  .afiche .an{font-size:9.5px;letter-spacing:.2em;color:var(--ceniza);margin:0}
+  .afiche .rank{margin:0}
+  .afiche .nb{font-size:clamp(36px,13vw,56px);margin-bottom:6px;transform:skewX(-7deg);
+    text-shadow:4px 4px 0 var(--sangre)}
+  .afiche h2{font-size:clamp(24px,7.6vw,34px);margin-bottom:9px;text-shadow:3px 3px 0 rgba(255,35,80,.55)}
+  .afiche .texto{font-size:13px;margin-bottom:10px}
+  .cifras{font-size:11px;color:var(--ceniza);line-height:1.6;padding-top:8px;
+    border-top:1px solid rgba(243,236,230,.16)}
+  .cifras b{color:var(--hueso);font-variant-numeric:tabular-nums;font-weight:normal}
+  .cifras.b{border-top:none;padding-top:2px}
+  .lgs{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 4px}
+  .lg{font-size:10.5px;padding:2px 7px;background:rgba(255,176,32,.14);color:var(--ambar);transform:skewX(-12deg)}
+  .lg.vacio{background:none;color:var(--ceniza);font-style:italic}
+  .posterbox{margin-top:12px;text-align:center;border:1px solid rgba(243,236,230,.14);padding:5px;background:rgba(0,0,0,.3)}
+  .posterbox canvas{display:block;margin:0 auto;max-height:290px;width:auto;max-width:100%}
+  .botones{display:flex;gap:8px;margin-top:10px}
+  .botones .reiniciar{margin-top:0;font-size:22px;padding:8px}
+  .reiniciar.alt{background:transparent;color:var(--hueso);box-shadow:none;
+    border:2px solid rgba(243,236,230,.35);margin-top:8px}
+  .reiniciar.alt:hover{background:rgba(243,236,230,.12);color:var(--hueso)}
+
+  .escena svg{width:100%;height:100%;display:block}
+  .escena .gente{opacity:.9}
+  .escena .gente circle{stroke:rgba(255,43,209,.55);stroke-width:.9}
+  .hud{align-items:center}
+  .snd{background:none;border:0;padding:0 8px 0 0;cursor:pointer;color:var(--ceniza);width:26px;height:18px}
+  .snd svg{width:16px;height:16px;stroke-linecap:round;stroke-linejoin:round}
+  .snd:hover{color:var(--ambar)}
+  .tostada{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;
+    background:var(--humo);color:var(--hueso);border-left:3px solid var(--ambar);
+    padding:9px 14px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.6);animation:chip .3s both}
+
+  .med.tres{grid-template-columns:repeat(3,1fr)}
+  button.opt.exclusiva{border-left-color:var(--ambar);background:rgba(255,176,32,.07)}
+  button.opt.exclusiva:hover{background:rgba(255,176,32,.18);border-left-color:var(--ambar)}
+  .prensa{display:flex;gap:8px;align-items:flex-start;margin-top:10px;padding-top:9px;
+    border-top:1px dashed rgba(243,236,230,.18);font-size:11.5px;font-style:italic;color:var(--ceniza)}
+  .prensa .ico{width:14px;height:14px;flex:0 0 auto;color:var(--ceniza);margin-top:1px}
+
+  .lema{font-size:13px;color:var(--ceniza);margin:8px 0 16px;line-height:1.4}
+  .expl{margin-bottom:16px}
+  .ex{display:flex;gap:11px;align-items:flex-start;padding:10px 0;
+    border-top:1px solid rgba(243,236,230,.13);font-size:12.5px;color:rgba(243,236,230,.8);line-height:1.4}
+  .ex .ico{width:22px;height:22px;flex:0 0 auto;color:var(--ambar);margin-top:2px}
+  .ex b{display:block;color:var(--hueso);font-weight:normal;font-size:19px;margin-bottom:4px;
+    font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;text-transform:uppercase;letter-spacing:.02em}
+
+  .escena{width:100%;height:112px;color:var(--hueso);opacity:1;margin-bottom:3px}
+  .fig{transform-box:fill-box;transform-origin:50% 100%;animation:bailar 1.7s ease-in-out infinite}
+  .fig.salta{animation-name:festejar;animation-duration:.7s}
+  .fig.cae{animation-name:desplomar;animation-duration:3.4s}
+  .fig.discute{animation-name:discutir;animation-duration:1.1s}
+  @keyframes bailar{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-2px) rotate(2deg)}}
+  @keyframes festejar{0%,100%{transform:translateY(0) scale(1)}45%{transform:translateY(-9px) scale(1.04)}}
+  @keyframes desplomar{0%,100%{transform:translateY(2px) rotate(6deg)}50%{transform:translateY(4px) rotate(9deg)}}
+  @keyframes discutir{0%,100%{transform:translateX(-3px) rotate(-4deg)}50%{transform:translateX(3px) rotate(4deg)}}
+  .trastes{display:flex;gap:3px;margin-bottom:8px}
+  .trastes span{flex:1;height:3px;background:rgba(243,236,230,.12)}
+  .trastes span.ido{background:rgba(243,236,230,.4)}
+  .trastes span.hoy{background:var(--cian);box-shadow:0 0 9px var(--cian);height:5px;margin-top:-1px}
+
+  .rst{background:none;border:0;padding:0 2px;cursor:pointer;color:var(--ceniza);width:22px;height:20px;flex:0 0 auto}
+  .rst svg{width:17px;height:17px;stroke-linecap:round;stroke-linejoin:round}
+  .rst:hover{color:var(--sangre)}
+  .modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.82);display:flex;
+    align-items:center;justify-content:center;padding:22px;animation:chip .2s both}
+  .modal .caja{max-width:340px;width:100%;background:linear-gradient(155deg,var(--humo),#0A0710);
+    border-top:3px solid var(--sangre);padding:20px 18px;
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%)}
+  .modal h3{margin:0 0 9px;font-size:30px;transform:skewX(-7deg);text-shadow:3px 3px 0 var(--sangre)}
+  .modal p{margin:0 0 16px;font-size:13px;color:rgba(243,236,230,.82)}
+  .modal .reiniciar{font-size:22px}
+
+  /* luces en movimiento */
+  .haz{transform-box:view-box}
+  .haz.a{animation:barrido1 7s ease-in-out infinite}
+  .haz.b{animation:barrido2 9s ease-in-out infinite}
+  .haz.c{animation:latido 4.5s ease-in-out infinite}
+  @keyframes barrido1{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(6deg)}}
+  @keyframes barrido2{0%,100%{transform:rotate(6deg)}50%{transform:rotate(-8deg)}}
+  @keyframes latido{0%,100%{opacity:.35;transform:rotate(2deg)}50%{opacity:1;transform:rotate(-2deg)}}
+  .lampara{animation:brillar 3.2s ease-in-out infinite}
+  .lampara.b{animation-duration:4.1s;animation-delay:.6s}
+  @keyframes brillar{0%,100%{opacity:.55}50%{opacity:1}}
+  .gente circle{animation:saltar 1.9s ease-in-out infinite}
+  .gente circle:nth-child(3n){animation-delay:.35s}
+  .gente circle:nth-child(3n+1){animation-delay:.7s}
+  @keyframes saltar{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.6px)}}
+  .escena svg{overflow:visible}
+
+  /* fondo que respira */
+  body::before{content:"";position:fixed;inset:-20%;z-index:-1;pointer-events:none;
+    background:radial-gradient(38% 30% at 22% 8%,rgba(255,35,80,.20),transparent 70%),
+      radial-gradient(34% 26% at 80% 4%,rgba(255,176,32,.15),transparent 70%);
+    animation:respira 14s ease-in-out infinite}
+  @keyframes respira{0%,100%{transform:translate3d(0,0,0) scale(1)}50%{transform:translate3d(3%,2%,0) scale(1.09)}}
+
+  /* medidores con vida */
+  .m.cambia .ba i{animation:destello .7s ease-out both}
+  @keyframes destello{0%{filter:brightness(2.4)}100%{filter:none}}
+  .eje-bar b{animation:marcador 2.6s ease-in-out infinite}
+  @keyframes marcador{0%,100%{box-shadow:0 0 10px rgba(243,236,230,.7)}50%{box-shadow:0 0 20px rgba(243,236,230,1)}}
+  button.opt:active{transform:translateX(8px) scale(.99)}
+  .cab .ico{animation:late .5s ease-out both, respirico 5s 1s ease-in-out infinite}
+  @keyframes respirico{0%,100%{transform:skewX(-12deg) scale(1)}50%{transform:skewX(-12deg) scale(1.07)}}
+
+  /* estructura de escenario */
+  .truss{display:flex;align-items:center;gap:0;height:13px;margin-bottom:-1px;position:relative}
+  .truss i{flex:1;height:5px;background:
+    repeating-linear-gradient(90deg,rgba(243,236,230,.42) 0 2px,transparent 2px 9px),
+    linear-gradient(180deg,rgba(243,236,230,.5),rgba(243,236,230,.14));}
+  .truss b{width:9px;height:9px;border-radius:50%;background:#4a4550;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
+
+  /* multiplicador y star power */
+  .juego{display:flex;align-items:center;gap:8px;margin:0 0 7px}
+  .mult{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:26px;line-height:1;
+    letter-spacing:-.02em;color:var(--ceniza);transition:color .2s}
+  .mult.on{color:var(--cian);text-shadow:0 0 18px var(--cian);animation:multpop .35s ease-out}
+  @keyframes multpop{0%{transform:scale(1.5) rotate(-6deg)}100%{transform:scale(1)}}
+  .racha{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ceniza)}
+  .sp{flex:1;height:9px;background:rgba(243,236,230,.1);transform:skewX(-22deg);overflow:hidden;position:relative}
+  .sp i{display:block;height:100%;background:linear-gradient(90deg,#0077FF,var(--cian));
+    transition:width .4s cubic-bezier(.2,.8,.2,1)}
+  .sp.full i{animation:spfull 1.1s ease-in-out infinite}
+  @keyframes spfull{0%,100%{filter:brightness(1)}50%{filter:brightness(2.2)}}
+  .spbtn{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;text-transform:uppercase;
+    font-size:15px;letter-spacing:.02em;border:0;padding:3px 9px;cursor:pointer;
+    background:var(--cian);color:#001018;clip-path:polygon(0 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%)}
+  .spbtn[disabled]{background:rgba(243,236,230,.12);color:var(--ceniza);cursor:default}
+  .spbtn.armado{background:var(--magenta);color:#180010;animation:spfull .8s ease-in-out infinite}
+  body.starpower{--foco:.42}
+  body.starpower .flyer{border-top-color:var(--cian);box-shadow:0 0 44px rgba(0,229,255,.35),0 18px 44px rgba(0,0,0,.7)}
+
+  /* puntaje */
+  .marcadorpts{margin-left:auto;text-align:right}
+  .marcadorpts b{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:22px;
+    color:var(--hueso);letter-spacing:-.02em;line-height:1;display:block}
+  .marcadorpts span{font-size:8.5px;letter-spacing:.14em;color:var(--ceniza);text-transform:uppercase}
+  .flota{position:fixed;left:50%;top:34%;transform:translateX(-50%);z-index:25;pointer-events:none;
+    font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:52px;color:var(--cian);
+    text-shadow:0 0 26px var(--cian);animation:flotar 1.1s ease-out forwards}
+  .flota.mal{color:var(--sangre);text-shadow:0 0 26px var(--sangre)}
+  @keyframes flotar{0%{opacity:0;transform:translateX(-50%) scale(.6)}
+    20%{opacity:1;transform:translateX(-50%) scale(1.1)}
+    100%{opacity:0;transform:translateX(-50%) translateY(-70px) scale(1)}}
+
+  /* chispas y sacudida */
+  .chispa{position:fixed;width:5px;height:5px;z-index:26;pointer-events:none;border-radius:50%;
+    animation:chispear .55s ease-out forwards}
+  @keyframes chispear{0%{opacity:1;transform:translate(0,0) scale(1)}
+    100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(.2)}}
+  body.mala{animation:tembleque .4s ease-out}
+  body.mala main{filter:saturate(.25) contrast(1.2)}
+  @keyframes tembleque{0%,100%{transform:translate(0,0)}20%{transform:translate(-6px,3px)}
+    40%{transform:translate(5px,-4px)}60%{transform:translate(-4px,-2px)}80%{transform:translate(3px,3px)}}
+
+  /* zona roja del eje */
+  .eje-bar .zona{position:absolute;left:0;top:0;bottom:0;width:35%;
+    background:repeating-linear-gradient(-45deg,rgba(0,0,0,.45) 0 3px,transparent 3px 7px)}
+  .eje-bar.tiembla{animation:tembleque .35s ease-out}
+
+  /* resultados finales */
+  .puntuacion{text-align:center;padding:6px 0 14px}
+  .estrellas{display:flex;justify-content:center;gap:6px;margin-bottom:10px}
+  .estrellas span{width:38px;height:38px;color:rgba(243,236,230,.18)}
+  .estrellas span.on{color:var(--ambar);filter:drop-shadow(0 0 12px var(--ambar));animation:multpop .4s ease-out both}
+  .estrellas span svg{width:100%;height:100%}
+  .ptotal{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:52px;line-height:1;
+    color:var(--hueso);letter-spacing:-.02em}
+  .pdet{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ceniza);margin-top:5px}
+
+  /* ---- animaciones ---- */
+  @keyframes entra{from{opacity:0;transform:translateY(16px) rotate(var(--rot))}to{opacity:1;transform:translateY(0) rotate(var(--rot))}}
+  @keyframes sacude{0%,100%{transform:translateX(0) rotate(.6deg)}15%{transform:translateX(-7px) rotate(-.8deg)}
+    30%{transform:translateX(6px) rotate(1deg)}45%{transform:translateX(-4px) rotate(0deg)}60%{transform:translateX(3px) rotate(.8deg)}}
+  @keyframes late{from{transform:skewX(-12deg) scale(.6);opacity:0}to{transform:skewX(-12deg) scale(1);opacity:1}}
+  @keyframes chip{from{opacity:0;transform:skewX(-14deg) translateY(8px)}to{opacity:1;transform:skewX(-14deg) translateY(0)}}
+  @keyframes subeop{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+  .flyer{animation:entra .34s cubic-bezier(.2,.8,.2,1) both}
+  .flyer.mal{animation:sacude .5s cubic-bezier(.3,.7,.4,1) both}
+  .final{animation:entra .4s cubic-bezier(.2,.8,.2,1) both}
+  button.opt{animation:subeop .3s cubic-bezier(.2,.8,.2,1) both}
+  .d{animation:chip .3s cubic-bezier(.2,.8,.2,1) both}
+  button.opt.elegida{background:var(--sangre)!important;border-left-color:var(--hueso)!important;
+    transform:translateX(8px) scale(1.015)!important;box-shadow:0 0 26px rgba(255,35,80,.5)}
+  button.opt.apagada{opacity:.12;transform:translateX(-10px)!important}
+  button.opt{transition:background .18s,border-color .18s,transform .22s,opacity .22s,box-shadow .22s}
+  .m.cambia .nu{animation:flash .55s ease-out both}
+  @keyframes flash{0%{text-shadow:0 0 22px currentColor;transform:scale(1.16)}100%{text-shadow:none;transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){
+    .flyer,.final,button.opt,.d,.cab .ico,.m.cambia .nu,.haz,.lampara,
+    .gente circle,.fig,body::before,.m.cambia .ba i,.eje-bar b{animation:none!important}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const app=document.getElementById('app'),TOTAL=16;
+const NB=["Los Perros del Asfalto","Vitrina Rota","Cemento Húmedo","Las Hienas","Motor Sur","Kerosene","Anfibios","Ruido Blanco","Fósforo","Doble Fondo","Los Sismógrafos","Aguacero","Fauna Menor","Hormigón"];
+const PN=["Nacho","Vero","Kiko","Lu","Tato","Sol","Ramiro","Chino","Male","Pipo","Dani","Bruno","Cata","Zeta","Fede","Mora","Titi","Ale","Juanpi","Nadia","Coco","Rulo"];
+const ROLES=["voz","guitarra","bajo","batería","teclados"];
+const VICIOS=[{k:"copas",t:"toma de más"},{k:"corazon",t:"se enamora en gira"},{k:"lengua",t:"publica todo"},{k:"ancla",t:"sostiene el grupo"},{k:"motor",t:"ensaya el doble"},{k:"ego",t:"cree que es su banda"}];
+const FORMS=[
+ {n:3,nom:"Trío",desc:"Tres opiniones y ningún lugar donde esconderse.",st:{publico:6,forma:56,union:78,verdad:38,caja:520},gasto:60},
+ {n:4,nom:"Cuarteto",desc:"Gente suficiente para sonar grande y para armar bandos.",st:{publico:8,forma:61,union:62,verdad:32,caja:460},gasto:70},
+ {n:5,nom:"Quinteto",desc:"Sonido enorme, logística imposible, un cumpleaños por mes.",st:{publico:11,forma:67,union:46,verdad:26,caja:400},gasto:78}];
+const LUG=[[0,"El garaje"],[14,"Bar de 20 sillas"],[28,"Sala de 200"],[42,"Teatro del centro"],[56,"Festival provincial"],[70,"Estadio chico"],[84,"Los llama Rock in Rio"]];
+function lugarDe(p){let r=LUG[0][1];for(const[u,t]of LUG)if(p>=u)r=t;return r}
+
+const EV=[
+{t:"Primer semestre en la sala",e:1,d:"Dos canciones terminadas y un alquiler mensual que hay que pagar igual.",o:[
+ {tx:"Ensayar hasta que duela",cs:"oficio y desgaste",ef:{oficio:14,union:-9,desgaste:9,caja:-90},r:"Tocan como una máquina y se hablan como compañeros de oficina."},
+ {tx:"Dos ensayos y un asado",cs:"lento y sano",ef:{oficio:6,union:10,caja:-60},r:"Poco progreso, ninguna renuncia."},
+ {tx:"Grabar el demo sucio",cs:"salir antes de estar listos",ef:{publico:10,oficio:-2,verdad:6,caja:-70},r:"Suena a lata vieja y por eso mismo gusta."},
+ {tx:"Que {m} arme un plan de ensayo",req:'motor',cs:"solo si alguien empuja",ef:{forma:16,union:6,publico:4},r:"Aparece una rutina que la banda cumple durante años."}]},
+{t:"El algoritmo los encuentra",e:1,d:"Una lista automática multiplica las reproducciones por veinte.",o:[
+ {tx:"Sacar tres temas iguales",cs:"exprimir la ola",ef:{publico:15,oficio:-6,verdad:-14,caja:120},r:"Funciona, y los deja atados a un sonido que eligió una máquina."},
+ {tx:"Anunciar una gira",cs:"números a gente real",ef:{publico:10,union:5,desgaste:7,caja:-80},r:"La mitad no se traduce en nadie. La otra mitad llena tres salas."},
+ {tx:"No hacer nada",cs:"dejarla pasar",ef:{oficio:7,verdad:8,publico:2},r:"En dos semanas vuelven al piso, iguales a sí mismos."}]},
+{t:"Reproducciones compradas",e:1,cond:s=>s.publico<50,d:"Un servicio ofrece inflar los números. Barato, feo y efectivo.",o:[
+ {tx:"Comprar el paquete grande",cs:"riesgo alto",riesgo:.6,
+  ok:{ef:{publico:16,verdad:-22,caja:-160},r:"Convencen a un programador de festivales que no revisa demasiado."},
+  mal:{ef:{publico:-9,verdad:-24,caja:-160},r:"La plataforma detecta el fraude y baja la canción."}},
+ {tx:"Pagar publicidad honesta",cs:"caro y lento",ef:{publico:8,caja:-190,verdad:-3},r:"Crecen despacio y sin nada que esconder."},
+ {tx:"Rechazarlo",cs:"sin atajos",ef:{verdad:9,union:4},r:"Siguen con doscientos oyentes y la cabeza en su lugar."}]},
+{t:"{m} y {m2} están juntos",d:"Nadie lo dijo en voz alta y la banda entera lo sabe hace meses.",o:[
+ {tx:"Que hagan lo que quieran",cs:"silencio cómodo",ef:{union:5,desgaste:4},r:"Funciona seis meses. Después se verá."},
+ {tx:"Poner una regla clara",cs:"incómodo",ef:{union:-8,oficio:5,verdad:3},r:"Se cumple a medias y todos quedan resentidos."},
+ {tx:"Escribir un disco sobre eso",cs:"el lío como material",ef:{oficio:9,publico:8,union:-6,verdad:10},r:"Las mejores canciones que hicieron y las más difíciles de tocar."}]},
+{t:"Ruptura en plena gira",cond:s=>s.desgaste>35,d:"{m} terminó su relación en la ruta y quedan once fechas.",o:[
+ {tx:"Seguir la gira completa",cs:"aguantar",ef:{publico:11,union:-11,desgaste:14,caja:180},r:"Cada show sale bien y cada viaje es un funeral."},
+ {tx:"Cancelar cuatro fechas",cs:"cuidar a la persona",ef:{publico:-6,union:14,caja:-160,desgaste:-8},r:"Pierden plata y en un mes recuperan a alguien entero."},
+ {tx:"Taparlo con alcohol",cs:"solución de una noche",ef:{union:4,desgaste:20,oficio:-6},r:"Funciona esa semana. El semestre pasa factura."}]},
+{t:"La botella en el escenario",cond:s=>s.desgaste>30,d:"{mCopas} llegó a la prueba de sonido en un estado que nadie nombró.",o:[
+ {tx:"Hablarlo en serio",cs:"conversación difícil",ef:{union:12,desgaste:-16,publico:-3},r:"Se enoja, después agradece. La gira sigue con reglas nuevas."},
+ {tx:"Mirar para otro lado",cs:"evitar el conflicto",ef:{desgaste:16,union:-7,publico:3},r:"Todos aprenden a fingir que no pasa nada."},
+ {tx:"Suspender la gira",cs:"carísimo y sano",ef:{caja:-320,desgaste:-30,union:16,publico:-9},r:"Vuelven en seis meses con la misma formación."},
+ {tx:"Que {m} se haga cargo del asunto",req:'ancla',cs:"solo si hay quien sostenga",ef:{forma:14,union:15,publico:-2},r:"Sin escándalo y sin sermón, la gira sigue y el problema se achica."}]},
+{t:"Declaración incendiaria",d:"{mLengua} publicó a las cuatro de la mañana algo sobre otra banda querida.",o:[
+ {tx:"Bancar lo dicho",cs:"ruido asegurado",ef:{publico:11,union:-9,verdad:7,desgaste:6},r:"Medio circuito los odia y el otro medio compra entradas."},
+ {tx:"Borrar y disculparse",cs:"apagar el incendio",ef:{publico:-4,verdad:-6,union:5},r:"Se apaga con un comunicado que no convence a nadie."},
+ {tx:"Culpar al community manager",cs:"mentira transparente",ef:{publico:-7,verdad:-14,union:-4},r:"La banda no tiene community manager y todo el mundo lo sabe."},
+ {tx:"Que {m} redoble la apuesta en vivo",req:'lengua',cs:"solo si hay alguien así",ef:{publico:15,verdad:11,union:-9},r:"Lo dice de nuevo arriba del escenario y el video no para de circular."}]},
+{t:"Los acusan de poser",cond:s=>s.verdad<35,d:"Una banda vieja dice en una nota que ustedes son un disfraz con amplificadores.",o:[
+ {tx:"Contestar con una canción",cs:"riesgo de oficio",riesgo:.55,
+  ok:{ef:{verdad:18,publico:11,oficio:6,union:7},r:"El tema es demoledor y hasta los que dudaban salen a bancarlos."},
+  mal:{ef:{verdad:-9,publico:-5,union:-5},r:"El tema es flojo y confirma la acusación en tres minutos."}},
+ {tx:"Invitarlos a tocar juntos",cs:"gesto arriesgado",ef:{verdad:12,publico:7,union:4},r:"Aceptan, la fecha se agota y la pelea termina en abrazo incómodo."},
+ {tx:"Ignorar y seguir vendiendo",cs:"sin respuesta",ef:{publico:6,verdad:-11},r:"El apodo se pega y vive en los comentarios durante años."}]},
+{t:"La nota sobre influencias",e:1,d:"Preguntan qué discos escucharon de chicos.",o:[
+ {tx:"Decir la verdad poco cool",cs:"honestidad expuesta",ef:{verdad:14,publico:-3,union:6},r:"Confiesan una infancia de radio comercial y ganan más gente de la que pierden."},
+ {tx:"Nombrar discos que no oyeron",cs:"riesgo de repregunta",riesgo:.45,
+  ok:{ef:{publico:9,verdad:-6},r:"Nadie repregunta y quedan como una banda con buen gusto."},
+  mal:{ef:{publico:-7,verdad:-20,union:-6},r:"Preguntan por el lado B y el silencio se escucha en todo el país."}}]},
+{t:"El cambio de look",cond:s=>s.publico>28,d:"Alguien sugiere una estética más definida para las fotos.",o:[
+ {tx:"Construirla desde lo que son",cs:"lento y propio",ef:{verdad:11,publico:6,caja:-140,oficio:2},r:"Tardan un año y después nadie los confunde con nadie."},
+ {tx:"Copiar la que está de moda",cs:"rápido y prestado",ef:{publico:13,verdad:-19},r:"Funciona seis meses, hasta que la moda cambia."},
+ {tx:"Salir como salgan",cs:"sin estética",ef:{verdad:5,publico:-4},r:"Fotos feas y auténticas, en ese orden."}]},
+{t:"Acusación de plagio",cond:s=>s.publico>30,d:"Un video compara el estribillo con una canción de 1997. Son idénticos.",o:[
+ {tx:"Reconocerlo y dar crédito",cs:"caro y digno",ef:{caja:-260,verdad:12,publico:-3,union:6},r:"El autor original agradece en público y el tema queda limpio."},
+ {tx:"Negarlo con abogados",cs:"defensa costosa",riesgo:.5,
+  ok:{ef:{caja:-180,publico:6,verdad:-8},r:"El video se borra y el tema sigue sonando."},
+  mal:{ef:{caja:-420,publico:-12,verdad:-16,union:-8},r:"Pierden el juicio, la canción y bastante dignidad."}},
+ {tx:"Hacer un chiste y seguir",cs:"desparpajo",ef:{publico:7,verdad:4,union:-4},r:"Sacan una remera con las dos partituras y se agota."}]},
+{t:"Una marca quiere el estribillo",cond:s=>s.publico>26,d:"Ofrecen dos años de tranquilidad a cambio del tema para un aviso.",o:[
+ {tx:"Vender el tema",cs:"plata contra credibilidad",cad:'marca',ef:{caja:900,publico:9,verdad:-26,union:-8},r:"Se acaban las deudas y el estribillo pasa a ser de una gaseosa."},
+ {tx:"Venderles uno del demo",cs:"astucia",ef:{caja:420,verdad:-9,publico:4},r:"Una canción que nadie escuchaba paga el disco nuevo."},
+ {tx:"Decir que no y contarlo",cs:"gesto público",ef:{verdad:16,publico:6,union:9},r:"El circuito aplaude. El alquiler vence igual."}]},
+{t:"Contrato de sello grande",e:3,cond:s=>s.publico>45,d:"Adelanto generoso, cinco discos y una cláusula sobre la imagen.",o:[
+ {tx:"Firmar todo",cs:"dueños nuevos",ef:{caja:1500,publico:18,verdad:-30,union:-12},r:"La plata entra el martes. En julio les eligen el vestuario."},
+ {tx:"Negociar tres y libertad",cs:"pueden retirarse",riesgo:.45,
+  ok:{ef:{caja:850,publico:14,verdad:-6,union:6},r:"Aceptan casi todo y el abogado los mira con respeto nuevo."},
+  mal:{ef:{publico:-6,union:-6},r:"Se levantan de la mesa y firman con la banda que tocaba antes."}},
+ {tx:"Seguir independientes",cs:"coherencia cara",ef:{verdad:18,union:10,publico:-5},r:"Nadie les dice qué hacer y nadie les abre puertas."}]},
+{t:"{m} renuncia",cond:s=>s.union<58,d:"Avisa por mensaje, a las once de la noche, con un texto largo y educado.",o:[
+ {tx:"Convencerlo de quedarse",cs:"puede salir peor",riesgo:.45,
+  ok:{ef:{union:14,desgaste:5},r:"Se queda y por primera vez hablan de lo que estaba mal."},
+  mal:{ef:{union:-14,publico:-5},salida:true,r:"Se va igual y el intento deja a todos peor parados."}},
+ {tx:"Dejarlo ir y reemplazarlo",cs:"formación nueva",cad:'exint',ef:{oficio:6,union:-8,publico:-3},salida:true,r:"El nuevo toca mejor y no sabe ningún chiste interno."},
+ {tx:"Seguir sin reemplazo",cs:"banda más chica",ef:{oficio:-9,union:6,verdad:6},salida:true,reponer:false,r:"El sonido queda más flaco y más propio."}]},
+{t:"Un músico de sesión con oficio",cond:s=>s.oficio<62,d:"Toca mejor que cualquiera de ustedes y quiere entrar.",o:[
+ {tx:"Sumarlo",cs:"más oficio, más gastos",ef:{oficio:16,union:-9,verdad:-6},entra:true,r:"El nivel sube de golpe y entra alguien sin ninguna historia compartida."},
+ {tx:"Contratarlo solo para grabar",cs:"acotado",ef:{oficio:8,caja:-220},r:"Graba en dos días lo que a ustedes les llevaría dos meses."},
+ {tx:"Rechazarlo",cs:"defender el club",ef:{union:9,verdad:7,oficio:-2},r:"La banda sigue con sus límites de siempre."}]},
+{t:"Telonear a una banda enorme",d:"Media hora antes de un grupo que llena estadios, pagando producción.",o:[
+ {tx:"Pagar y tocar",cs:"caro y decisivo",ef:{caja:-380,publico:20,oficio:4,desgaste:6},r:"Seis mil personas y las primeras remeras firmadas."},
+ {tx:"No pagar por tocar",cs:"principio caro",ef:{verdad:11,publico:-4,union:5},r:"Se quedan afuera y lo cuentan en cada entrevista durante años."}]},
+{t:"Vinilos o nada",d:"Hay que decidir cuánta plata inmovilizar en objetos.",o:[
+ {tx:"Tirada grande de vinilos",cs:"riesgo alto",riesgo:.55,
+  ok:{ef:{caja:640,publico:8,verdad:6},r:"Se agotan en dos meses y aparecen en reventa a triple precio."},
+  mal:{ef:{caja:-480},r:"Doscientos vinilos viviendo bajo la cama de {m}."}},
+ {tx:"Remeras y stickers",cs:"poco riesgo",ef:{caja:170,publico:5},r:"El logo empieza a aparecer en postes de luz."},
+ {tx:"Todo digital",cs:"sin romance",ef:{caja:90,verdad:-5},r:"Cero cajas que cargar y cero fotos con la remera puesta."}]},
+{t:"Entradas dinámicas",e:3,cond:s=>s.publico>50,d:"El ticketing propone precios que suben solos con la demanda.",o:[
+ {tx:"Activarlas",cs:"mucha plata, mala prensa",ef:{caja:900,publico:5,verdad:-24,union:-6},r:"Recaudación histórica y el público del bar no puede pagar la entrada."},
+ {tx:"Precio fijo y bajo",cs:"menos plata, más gente",ef:{caja:220,publico:12,verdad:16},r:"Se agota en horas y queda una comunidad que no los suelta."},
+ {tx:"Fijo con cupo popular",cs:"trabajoso",ef:{caja:480,publico:8,verdad:7,desgaste:5},r:"Funciona, y organizarlo se lleva dos semanas de sus vidas."}]},
+{t:"Festival en el desierto",cond:s=>s.publico>40,d:"Pagan el triple. El auspiciante tiene juicios ambientales abiertos.",o:[
+ {tx:"Tocar y cobrar",cs:"sin discurso",ef:{caja:1100,publico:9,verdad:-22},r:"Cobran muy bien y la foto circula durante años."},
+ {tx:"Denunciarlo desde el escenario",cs:"pueden cortar el sonido",riesgo:.5,
+  ok:{ef:{caja:700,publico:16,verdad:20,union:9},r:"Cortan el sonido en la última canción y el video da la vuelta al continente."},
+  mal:{ef:{caja:-120,publico:-6,verdad:12,union:-5},r:"Los bajan antes de empezar y no cobran ni el viaje."}},
+ {tx:"Rechazar la fecha",cs:"sin ingreso",ef:{verdad:15,publico:-3},r:"Otra banda ocupa el lugar y nadie se entera."}]},
+{t:"Gira de veinte fechas",d:"Dos meses de ruta y una camioneta con doscientos mil kilómetros.",o:[
+ {tx:"Hacerla completa",cs:"desgaste severo",ef:{publico:19,oficio:8,desgaste:22,union:-10,caja:280},r:"Público en veinte ciudades, una muñeca lesionada y una amistad rota."},
+ {tx:"Recortarla a la mitad",cs:"sostenible",ef:{publico:9,oficio:4,desgaste:9,caja:90},r:"Menos historias y nadie termina en la guardia."},
+ {tx:"Cancelar y componer",cs:"apostar al repertorio",ef:{oficio:12,union:6,desgaste:-10,publico:-6,verdad:7},r:"Cinco canciones nuevas y ninguna anécdota."}]},
+{t:"Quince segundos virales",d:"Un fragmento del segundo tema aparece en miles de videos de cocina.",o:[
+ {tx:"Ir con todo detrás de la ola",cs:"todo al momento",ef:{publico:20,verdad:-16,oficio:-5,caja:260},r:"Entran en listas y quedan pegados a esa canción para siempre."},
+ {tx:"Sacar el tema y nada más",cs:"aprovechar sin humillarse",ef:{publico:12,caja:120},r:"Funciona y la banda sigue pareciendo una banda."},
+ {tx:"Ignorarlo",cs:"vista larga",ef:{oficio:9,union:6,verdad:9,publico:2},r:"La ola pasa y el disco siguiente es el mejor que hicieron."}]},
+{t:"El ego de {mEgo}",cond:s=>s.publico>25,d:"Habla de la banda en primera persona del singular en las entrevistas.",o:[
+ {tx:"Frenarlo en público",cs:"humillación cruzada",ef:{union:-13,verdad:6,publico:5},r:"El intercambio queda grabado y la prensa lo usa meses."},
+ {tx:"Hablarlo en privado",cs:"sin escándalo",ef:{union:9,publico:-2},r:"Baja un cambio y el resentimiento queda flotando."},
+ {tx:"Que sea la cara de la banda",cs:"rendirse a lo práctico",ef:{publico:12,union:-8,verdad:-9},r:"Funciona, y la banda pasa a ser el proyecto de una sola persona."}]},
+{t:"Rehabilitación",e:3,cond:s=>s.desgaste>62,d:"El médico fue claro con {mCopas}: así no hay banda que aguante.",o:[
+ {tx:"Parar todo y acompañarlo",cs:"un año perdido",ef:{publico:-14,caja:-360,desgaste:-45,union:20,verdad:12},r:"Vuelven un año después, más lentos y todos enteros."},
+ {tx:"Seguir con un reemplazo",cs:"la banda sigue",ef:{publico:6,desgaste:-12,union:-16,verdad:-8},r:"La gira se completa y el que quedó afuera tarda en volver."},
+ {tx:"Hacer de cuenta que no pasa",cs:"la peor opción",ef:{desgaste:18,union:-14,publico:4},r:"Nadie dice nada y todos saben cómo termina esto."}]},
+{t:"Televisión al mediodía",d:"Quieren playback entre una nota de cocina y el pronóstico.",o:[
+ {tx:"Ir y hacer playback",cs:"masivo y ridículo",ef:{publico:14,verdad:-13,union:-5},r:"Los ve muchísima gente fingiendo tocar."},
+ {tx:"Exigir tocar en vivo",cs:"pueden cancelar",riesgo:.55,
+  ok:{ef:{publico:16,verdad:9,union:7,oficio:3},r:"Tocan en vivo y el momento se comparte toda la semana."},
+  mal:{ef:{publico:-4,verdad:5},r:"Cancelan la nota y ponen a un humorista."}},
+ {tx:"No ir",cs:"sin exposición",ef:{verdad:7,publico:-4},r:"Pierden un mediodía y ganan una siesta."}]},
+{t:"El disco raro",d:"Las canciones nuevas salieron lentas, largas y sin estribillo.",o:[
+ {tx:"Publicarlas como están",cs:"apuesta de identidad",riesgo:.5,
+  ok:{ef:{publico:15,oficio:12,verdad:18,union:7},r:"Hablan de madurez y aparece público nuevo que se queda."},
+  mal:{ef:{publico:-13,oficio:10,verdad:14},r:"El público viejo no las entiende y el nuevo todavía no nació."}},
+ {tx:"Volver a la fórmula",cs:"conocido",ef:{publico:9,verdad:-12,oficio:-3,union:-5},r:"Funciona como siempre, con la mitad del entusiasmo."},
+ {tx:"Guardarlas",cs:"postergar",ef:{oficio:7,union:4},r:"Quedan en un disco rígido, madurando o pudriéndose."}]},
+{t:"Se rompió la camioneta",d:"Caja de cambios rota a doscientos kilómetros del próximo show.",o:[
+ {tx:"Alquilar y llegar como sea",cs:"caro y heroico",ef:{caja:-320,publico:7,union:8,desgaste:9},r:"Llegan quince minutos antes y hacen uno de los mejores shows del año."},
+ {tx:"Cancelar la fecha",cs:"prudente",ef:{publico:-7,caja:-90,union:-4},r:"Doscientas devoluciones que duelen."},
+ {tx:"Pedirle plata al público",cs:"mostrar la grieta",ef:{caja:280,publico:6,verdad:8,union:5},r:"La colecta se llena en cuarenta horas."}]},
+{t:"Jurado de un programa",e:3,cond:s=>s.publico>55,d:"Le ofrecen a {m} un sillón en televisión toda la temporada.",o:[
+ {tx:"Que acepte",cs:"fama de un lado",ef:{publico:17,caja:800,verdad:-24,union:-13},r:"La cara de {m} está en todas partes y la banda no ensaya en seis meses."},
+ {tx:"Que lo rechace",cs:"fidelidad al proyecto",ef:{union:12,verdad:12,publico:-3},r:"Lo rechaza en vivo y la frase queda como consigna del circuito."},
+ {tx:"Aceptar solo si van todos",cs:"contraoferta rara",riesgo:.4,
+  ok:{ef:{publico:13,caja:520,verdad:-9},r:"Aceptan la locura y la banda entera termina de jurado."},
+  mal:{ef:{publico:-4,union:4},r:"El canal se ríe y llama a otro músico."}}]},
+{t:"Comunidad o clientela",cond:s=>s.publico>34,d:"Hay que decidir cómo tratar a la gente que los sigue.",o:[
+ {tx:"Canal directo con ellos",cs:"trabajo constante",ef:{publico:9,verdad:14,union:5,desgaste:7},r:"Se arma una comunidad chica y feroz que los sostiene los años malos."},
+ {tx:"Suscripción paga",cs:"ingreso estable",ef:{caja:520,publico:4,verdad:-13},r:"Entra plata todos los meses y aparece la palabra cliente."},
+ {tx:"Mantener distancia",cs:"misterio",ef:{verdad:5,publico:-3},r:"El misterio funciona con algunos y aburre al resto."}]},
+{t:"Las cuentas no cierran",cond:s=>s.caja>600,d:"Falta plata de la gira y {m} manejaba la caja.",o:[
+ {tx:"Auditar todo",cs:"verdad incómoda",riesgo:.5,
+  ok:{ef:{union:11,caja:180,verdad:8},r:"Era un error de planilla y se disculpan todos con todos."},
+  mal:{ef:{union:-22,caja:-260,publico:-4},salida:true,r:"Faltaba plata de verdad y esa persona no vuelve a subirse con ustedes."}},
+ {tx:"Dejarlo pasar",cs:"paz comprada",ef:{union:-7,caja:-160,verdad:-6},r:"Nadie vuelve a confiar en nadie con una factura en la mano."}]},
+{t:"Asesor de imagen",e:2,cond:s=>s.publico>48,d:"Propone ropa nueva, fotos nuevas y hablar menos de política.",o:[
+ {tx:"Hacerle caso en todo",cs:"producto pulido",ef:{publico:15,verdad:-22,caja:-240,union:-4},r:"Impecables en las fotos y ajenos en el espejo."},
+ {tx:"Tomar solo lo de las fotos",cs:"punto medio",ef:{publico:8,verdad:-6,caja:-140},r:"Mejores fotos, mismo discurso."},
+ {tx:"Echarlo de la reunión",cs:"sin asesor",ef:{verdad:13,union:8,publico:-4},r:"Siguen vistiéndose como el primer día."}]},
+{t:"Los llaman de Rock in Rio",e:3,cond:s=>s.publico>62,d:"Escenario secundario, tres de la tarde. No es el cartel principal.",o:[
+ {tx:"Aceptar sin dudar",cs:"un pie adentro",ef:{publico:15,caja:600,oficio:4,desgaste:8},r:"Diez mil personas y el productor los anota para la edición siguiente."},
+ {tx:"Pedir horario nocturno",cs:"pueden decir que no",riesgo:.4,
+  ok:{ef:{publico:24,caja:800,union:7,verdad:5},r:"Les dan las nueve. Es la mejor decisión de la carrera."},
+  mal:{ef:{publico:-9,union:-6,verdad:-4},r:"Llaman a otra banda y el productor recuerda la exigencia."}},
+ {tx:"Rechazar por el auspiciante",cs:"coherencia extrema",ef:{verdad:20,publico:-10,union:-6},r:"El gesto se comenta un mes y la factura no se paga sola."}]},
+{t:"Sala grande o mediana",e:2,cond:s=>s.publico>44,d:"Hay que firmar el alquiler antes de saber cuánta gente va a ir.",o:[
+ {tx:"La sala grande",cs:"puede quedar vacía",riesgo:.5,
+  ok:{ef:{publico:18,caja:780,union:9},r:"Se agota en cuatro días y agregan una segunda fecha."},
+  mal:{ef:{caja:-620,publico:-9,union:-9},r:"Media sala vacía en todas las fotos y una factura enorme."}},
+ {tx:"La sala mediana",cs:"casi seguro",ef:{publico:9,caja:340},r:"Se llena, queda gente afuera y la próxima es más fácil."}]},
+{t:"Un tema para una serie",e:2,cond:s=>s.publico>36,d:"Quieren la canción más triste para un final de temporada.",o:[
+ {tx:"Cederla",cs:"alcance enorme",ef:{publico:17,caja:640,verdad:-8},r:"Millones la escuchan sin saber de quién es. Algunos averiguan."},
+ {tx:"Cederla con nombre en pantalla",cs:"negociación chica",riesgo:.6,
+  ok:{ef:{publico:22,caja:520,verdad:2},r:"El nombre queda cuatro segundos en cien países."},
+  mal:{ef:{publico:-2,verdad:6},r:"Usan una canción parecida de otra banda sin condiciones."}},
+ {tx:"No cederla",cs:"sin exposición",ef:{verdad:10,union:4},r:"La canción sigue siendo de ustedes y de cuatrocientas personas."}]},
+{t:"El tema que odian",e:3,cond:s=>s.publico>40,d:"El público lo pide en cada show y la banda lo detesta hace tres años.",o:[
+ {tx:"Sacarlo del repertorio",cs:"impopular",ef:{publico:-8,union:11,verdad:12},r:"Silban en dos ciudades y después se acostumbran."},
+ {tx:"Tocarlo siempre al final",cs:"servicio al público",ef:{publico:9,union:-7,verdad:-6},r:"Todos los shows terminan igual."},
+ {tx:"Reescribirlo irreconocible",cs:"riesgo artístico",riesgo:.55,
+  ok:{ef:{publico:8,oficio:11,verdad:14,union:6},r:"La versión nueva es mejor y hasta los que lo pedían lo admiten."},
+  mal:{ef:{publico:-9,oficio:6,union:-4},r:"Nadie lo reconoce y el público espera un estribillo que no llega."}}]},
+{t:"La banda está en rojo",cond:s=>s.caja<-250,d:"Hay deudas y el próximo alquiler de la sala vence el viernes.",o:[
+ {tx:"Tocar en casamientos",cs:"plata segura, orgullo no",ef:{caja:560,verdad:-13,oficio:4,union:-4},r:"Cuatro fiestas, dos meses de covers y las cuentas al día."},
+ {tx:"Vender parte del equipo",cs:"sale caro después",ef:{caja:420,oficio:-9},r:"Se van dos amplificadores y algo del sonido se va con ellos."},
+ {tx:"Buscar trabajo y espaciar fechas",cs:"pausa forzada",ef:{caja:640,publico:-7,desgaste:-12,union:5},r:"Medio año de turnos ajenos y una banda que sobrevive tocando poco."}]},
+{t:"Franquicia de la banda",e:3,cond:s=>s.verdad<10,d:"Proponen una versión juvenil del grupo, otros músicos, mismo nombre.",o:[
+ {tx:"Aceptar y cobrar regalías",cs:"el nombre deja de ser suyo",ef:{caja:1400,publico:8,verdad:-30,union:-14},r:"Hay dos bandas con el mismo nombre y una sola cobra por las dos."},
+ {tx:"Rechazarlo con insultos",cs:"cero dudas",ef:{verdad:16,union:11,publico:-2},r:"El correo de respuesta circula por toda la industria."}]},
+{t:"El nombre de la banda",e:1,d:"Un amigo dice que el nombre es horrible y que nadie lo va a buscar.",o:[
+ {tx:"Dejarlo como está",cs:"feo pero propio",ef:{verdad:12,publico:-3,union:6},r:"Se quedan con el nombre que eligieron borrachos y le terminan tomando cariño."},
+ {tx:"Cambiarlo por algo que suene actual",cs:"buscable",ef:{publico:9,verdad:-15},r:"El nombre nuevo funciona en las listas y no significa nada."},
+ {tx:"Someterlo a votación en redes",cs:"decisión ajena",ef:{publico:6,verdad:-8,union:-5},r:"Gana una opción que a nadie de la banda le gusta."}]},
+{t:"Covers o temas propios",e:1,d:"El bar promete el doble si tocan una hora de canciones conocidas.",o:[
+ {tx:"Una hora de covers",cs:"paga bien",ef:{caja:280,oficio:6,verdad:-14},r:"El lugar se llena, la gente canta y ninguna canción es suya."},
+ {tx:"Solo temas propios",cs:"medio bar vacío",ef:{verdad:13,publico:4,caja:-60},r:"Cuarenta personas escuchan diez canciones que nadie conocía."},
+ {tx:"Mitad y mitad",cs:"acuerdo tibio",ef:{caja:140,publico:5,verdad:-4},r:"Funciona, aunque los covers siempre salen mejor y eso duele."}]},
+{t:"Fiesta de quince",e:1,d:"Ofrecen buena plata por tocar en el salón, con lista de temas incluida.",o:[
+ {tx:"Aceptar y no contarlo",cs:"plata rápida",cad:'casorio',ef:{caja:420,verdad:-16,union:-4},r:"Alguien filma y el video aparece dos años después."},
+ {tx:"Aceptar y contarlo con orgullo",cs:"sin vergüenza",ef:{caja:400,verdad:6,union:8},r:"Lo cuentan en cada entrevista y les queda bien."},
+ {tx:"Rechazarlo",cs:"sin ingreso",ef:{verdad:8,publico:-2},r:"Se quedan sin la fecha y con la dignidad intacta, que no paga la sala."}]},
+{t:"Radio universitaria",e:1,d:"Un programa nocturno de poca audiencia quiere entrevistarlos.",o:[
+ {tx:"Ir y hablar en serio",cs:"poca gente, buena gente",ef:{verdad:11,publico:5,oficio:2},r:"Los escuchan trescientas personas y quince van al próximo show."},
+ {tx:"Ir con un personaje armado",cs:"pose ensayada",ef:{publico:8,verdad:-11},r:"Suena impostado y el conductor lo nota en el aire."},
+ {tx:"No ir",cs:"sin nada",ef:{oficio:4,publico:-2},r:"Ensayan esa noche, que también sirve."}]},
+{t:"El fanzine del barrio",e:1,d:"Una revista fotocopiada quiere hacerles una nota de cuatro páginas.",o:[
+ {tx:"Darles toda la tarde",cs:"prensa chica",ef:{verdad:12,publico:4,union:5},r:"La nota es la mejor que les hicieron y la leyeron doscientas personas."},
+ {tx:"Contestar por mensaje entre ensayos",cs:"rápido",ef:{publico:2},r:"Sale una nota correcta y olvidable."},
+ {tx:"Pedir que la revisen antes",cs:"control de imagen",ef:{verdad:-9,publico:3},r:"Aceptan, corrigen tres frases y la nota pierde lo que tenía."}]},
+{t:"Concurso de bandas",e:1,d:"Inscripción paga, jurado dudoso y un premio que incluye grabar un disco.",o:[
+ {tx:"Anotarse y jugársela",cs:"puede salir mal",riesgo:.45,
+  ok:{ef:{publico:16,caja:380,oficio:5},r:"Ganan, y el disco financiado cambia el año entero."},
+  mal:{ef:{caja:-90,union:-6},r:"Pierden contra una banda peor y se pelean en el estacionamiento."}},
+ {tx:"No anotarse",cs:"nada cambia",ef:{union:3,verdad:4},r:"Miran la final por internet y opinan mucho."}]},
+{t:"El video musical",e:2,d:"Hay que decidir cómo se ve la banda en movimiento por primera vez.",o:[
+ {tx:"Video caro con productora",cs:"pulido",ef:{caja:-380,publico:14,verdad:-9},r:"Queda impecable y podría ser de cualquier otra banda."},
+ {tx:"Filmarlo entre ustedes",cs:"barato y torpe",ef:{publico:7,verdad:12,union:6},r:"Se nota el presupuesto y también quiénes son."},
+ {tx:"Contratar a alguien del circuito",cs:"punto medio",ef:{caja:-160,publico:9,verdad:4},r:"Sale bien y encima le dan trabajo a alguien conocido."}]},
+{t:"Un ex integrante habla",e:2,d:"Cuenta en una nota que en esta banda lo trataron mal.",o:[
+ {tx:"Responder con hechos",cs:"pelea pública",ef:{publico:7,union:-8,verdad:3},r:"Sale una nota cruzada que no deja bien a nadie."},
+ {tx:"Reconocer la parte propia",cs:"incómodo y honesto",ef:{verdad:14,union:9,publico:-3},r:"El comunicado sorprende por lo poco defensivo y baja el ruido en dos días."},
+ {tx:"No decir nada",cs:"silencio",ef:{publico:-5,union:-3},r:"La versión de él queda como la única versión."}]},
+{t:"Festival autogestionado",e:2,d:"Los invitan a un festival sin auspiciantes, con entrada a la gorra.",o:[
+ {tx:"Tocar y ayudar a organizar",cs:"cero plata, mucha escena",ef:{verdad:16,publico:9,union:7,caja:-80,desgaste:6},r:"Tres días de trabajo y una red de bandas que después les devuelve el favor."},
+ {tx:"Tocar y nada más",cs:"cumplir",ef:{publico:6,verdad:5},r:"Tocan bien, saludan y se van."},
+ {tx:"Pedir caché",cs:"incomodidad",ef:{caja:120,verdad:-12,publico:-4},r:"Pagan a regañadientes y no vuelven a invitarlos."}]},
+{t:"La sala de ensayo cara",e:2,d:"Se libera una sala mejor, con mejor sonido y el doble de alquiler.",o:[
+ {tx:"Mudarse",cs:"caro",ef:{caja:-240,oficio:11,union:4},r:"Ensayar deja de ser un castigo y las canciones lo notan."},
+ {tx:"Quedarse donde están",cs:"ahorro",ef:{oficio:-3,verdad:5},r:"Siguen en la sala húmeda de siempre, que ya es parte del sonido."}]},
+{t:"Una banda nueva los imita",e:3,d:"Tienen su estética, su sonido y diez años menos.",o:[
+ {tx:"Llevarlos de teloneros",cs:"generosidad",ef:{verdad:14,publico:6,union:5},r:"El gesto se comenta y la escena los adopta como referencia."},
+ {tx:"Ignorarlos",cs:"indiferencia",ef:{publico:2},r:"En dos años son más grandes que ustedes."},
+ {tx:"Acusarlos en público",cs:"pelea desigual",ef:{publico:6,verdad:-13,union:-6},r:"Quedan como los viejos que se quejan."}]},
+{t:"La casa discográfica quiere un hit",e:3,d:"Piden una canción con estribillo en los primeros veinte segundos.",o:[
+ {tx:"Escribirla como piden",cs:"a pedido",ef:{publico:16,caja:340,verdad:-20,oficio:-3},r:"Funciona exactamente como estaba previsto, que es lo peor que se puede decir."},
+ {tx:"Entregar el tema más largo del disco",cs:"desafío",riesgo:.5,
+  ok:{ef:{publico:12,verdad:16,oficio:8},r:"Lo aceptan por cansancio y termina siendo el más escuchado."},
+  mal:{ef:{publico:-8,caja:-140,union:-5},r:"Lo rechazan, retrasan el disco seis meses y culpan a la banda."}},
+ {tx:"Negarse a escribir por encargo",cs:"tensión con el sello",ef:{verdad:15,publico:-6,caja:-100},r:"El sello baja la promoción y la banda respira mejor."}]},
+{t:"El primer disco",e:1,d:"Juntaron plata para grabar y hay que decidir cómo se hace.",o:[
+ {tx:"Grabarlo en dos días, en vivo",cs:"crudo",ef:{oficio:5,verdad:14,publico:6,caja:-150},r:"Suena a la banda tocando en una habitación, con los errores incluidos."},
+ {tx:"Tres meses de estudio",cs:"perfeccionismo caro",ef:{oficio:13,caja:-420,union:-7},r:"Queda impecable y la banda sale del estudio sin hablarse."},
+ {tx:"Grabarlo por partes, cuando se pueda",cs:"lento",ef:{oficio:7,publico:3,caja:-200},r:"Tarda un año y suena a cuatro discos distintos pegados."}]},
+{t:"Un fan se tatúa el logo",e:2,d:"Aparece una foto del logo de la banda tatuado en un antebrazo.",o:[
+ {tx:"Invitarlo al camarín",cs:"gesto humano",cad:'tatu',ef:{verdad:10,publico:5,union:4},r:"La historia circula y la gente empieza a contar la suya."},
+ {tx:"Usarlo en la campaña del disco",cs:"aprovechar el afecto",ef:{publico:9,verdad:-12},r:"Funciona, y el tipo se entera de que es publicidad por Internet."},
+ {tx:"No decir nada",cs:"distancia",ef:{publico:-2},r:"Nadie contesta el mensaje y él lo cuenta igual."}]},
+{t:"Se filtra el disco entero",e:2,d:"Aparece completo en Internet tres semanas antes del lanzamiento.",o:[
+ {tx:"Adelantar el lanzamiento",cs:"reacción rápida",ef:{publico:11,caja:-90,desgaste:7},r:"Sale el viernes siguiente y la filtración termina jugando a favor."},
+ {tx:"Buscar al responsable",cs:"caza interna",ef:{union:-13,publico:-3},r:"Era alguien del entorno y la desconfianza queda instalada."},
+ {tx:"Regalarlo y pedir aporte voluntario",cs:"apuesta rara",riesgo:.5,
+  ok:{ef:{caja:520,publico:14,verdad:18},r:"La gente paga más de lo que costaba y el gesto define a la banda."},
+  mal:{ef:{caja:-120,publico:5,verdad:9},r:"Lo descargan cien mil personas y aportan doscientas."}}]},
+{t:"La prensa los destroza",e:2,d:"Una reseña larga y bien escrita dice que el disco es un ejercicio vacío.",o:[
+ {tx:"Leerla y tomar nota",cs:"tragar orgullo",ef:{oficio:9,verdad:8,union:-4},r:"Tenía razón en tres cosas y el disco siguiente lo demuestra."},
+ {tx:"Responder en redes",cs:"ruido",cad:'prensa',ef:{publico:8,verdad:-7,union:-6},r:"La discusión dura una semana y le da lectores a la reseña."},
+ {tx:"Citarla en la remera",cs:"convertir el insulto",ef:{publico:11,verdad:11,caja:80},r:"La frase en el pecho se agota en dos fechas."}]},
+{t:"Un tema para un videojuego",e:2,d:"Quieren una canción para la banda sonora de un juego de carreras.",o:[
+ {tx:"Cederla",cs:"público nuevo",ef:{publico:15,caja:480,verdad:-6},r:"Una generación entera asocia el tema con doblar a doscientos por hora."},
+ {tx:"Componer una nueva a medida",cs:"trabajo extra",ef:{publico:11,caja:560,oficio:5,desgaste:8},r:"Sale un tema que en vivo funciona mejor que varios del disco."},
+ {tx:"No cederla",cs:"sin exposición",ef:{verdad:9},r:"Usan otra canción y nadie extraña la de ustedes."}]},
+{t:"Streaming en vivo pago",e:2,d:"Proponen transmitir un show con entrada digital.",o:[
+ {tx:"Hacerlo con producción grande",cs:"inversión",riesgo:.55,
+  ok:{ef:{caja:680,publico:13,verdad:-4},r:"Se conectan doce mil personas de nueve países."},
+  mal:{ef:{caja:-380,publico:-4,union:-5},r:"Falla el audio veinte minutos y devuelven casi todo."}},
+ {tx:"Transmitir gratis desde la sala",cs:"sin plata",ef:{publico:9,verdad:12,caja:-60},r:"Lo ven cuatro mil personas y el video queda dando vueltas años."},
+ {tx:"No transmitir nada",cs:"solo presencial",ef:{verdad:6,publico:-3},r:"Quien quiera verlos, que vaya."}]},
+{t:"Se les rompe la voz",e:2,d:"El médico habla de reposo y de una técnica que nunca aprendieron.",o:[
+ {tx:"Reposo y clases",cs:"pausa útil",ef:{publico:-5,oficio:12,desgaste:-14,caja:-180},r:"Vuelve cantando mejor que en toda su vida."},
+ {tx:"Bajar los tonos y seguir",cs:"parche",ef:{oficio:-5,publico:4,desgaste:8},r:"Los temas suenan raros y el público lo nota."},
+ {tx:"Seguir igual",cs:"riesgo real",ef:{publico:7,desgaste:18,oficio:-8},r:"Aguanta la gira y después no puede hablar durante un mes."}]},
+{t:"Muere el dueño del bar",e:3,d:"El lugar donde tocaron la primera vez cierra sus puertas.",o:[
+ {tx:"Tocar gratis en el homenaje",cs:"volver al origen",ef:{verdad:16,union:11,publico:6,caja:-70},r:"Ochenta personas, el mismo escenario y una noche que nadie filma."},
+ {tx:"Mandar flores y un video",cs:"gesto a distancia",ef:{verdad:2,publico:2},r:"Queda bien y no significa gran cosa."},
+ {tx:"Comprar el local",cs:"apuesta grande",ef:{caja:-900,verdad:20,union:9,publico:5},r:"El bar reabre con el nombre de siempre y una sala de ensayo atrás."}]},
+{t:"Un político usa la canción",e:3,d:"Suena en un acto de campaña sin haber pedido permiso.",o:[
+ {tx:"Exigir que la saquen",cs:"conflicto público",ef:{verdad:15,publico:9,union:6},r:"El comunicado es breve y contundente, y lo comparte medio país."},
+ {tx:"Cobrar y callarse",cs:"plata incómoda",ef:{caja:700,verdad:-24,union:-11},r:"Entra el dinero y la banda queda pegada a una foto para siempre."},
+ {tx:"No decir nada",cs:"dejar correr",ef:{verdad:-9,publico:3},r:"El silencio se lee como consentimiento."}]},
+{t:"Dueto con una estrella pop",e:3,d:"Proponen reversionar el hit con alguien que llena estadios sin banda.",o:[
+ {tx:"Hacerlo",cs:"alcance enorme",ef:{publico:22,caja:820,verdad:-22},r:"La versión supera a la original en todos lados menos en los shows."},
+ {tx:"Hacerlo, pero a la manera de ustedes",cs:"negociación",riesgo:.5,
+  ok:{ef:{publico:18,caja:540,verdad:6,oficio:6},r:"Viene al estudio, canta como nunca y el tema queda de los dos."},
+  mal:{ef:{publico:-4,verdad:5,union:-4},r:"Su equipo lo baja a último momento sin dar explicaciones."}},
+ {tx:"Rechazarlo",cs:"sin dudas",ef:{verdad:14,publico:-5},r:"El circuito lo celebra y el contador no."}]},
+{t:"Una IA imita la voz",e:3,d:"Circula un tema falso que suena exactamente a la banda.",o:[
+ {tx:"Denunciarlo y dar batalla",cs:"legal y largo",ef:{caja:-320,verdad:14,publico:7},r:"La pelea dura dos años y termina sentando un precedente."},
+ {tx:"Sacar la versión real",cs:"competir",ef:{publico:13,oficio:5,caja:120},r:"La suya es mejor, aunque mucha gente sigue prefiriendo la falsa."},
+ {tx:"Licenciar la voz",cs:"ingreso pasivo",ef:{caja:900,verdad:-28,union:-10},r:"Aparecen doce canciones que ustedes nunca cantaron y todas pagan."}]},
+{t:"Residencia en un casino",e:3,d:"Cuarenta shows en el mismo teatro, sueldo fijo y horario de cena.",o:[
+ {tx:"Aceptar el año completo",cs:"jubilación anticipada",ef:{caja:1600,publico:-6,verdad:-26,desgaste:-16,union:6},r:"Nunca ganaron tanto ni tocaron para gente que se importara menos."},
+ {tx:"Aceptar diez fechas",cs:"acotado",ef:{caja:600,verdad:-10,desgaste:-6},r:"Pagan las deudas y se van antes de acostumbrarse."},
+ {tx:"Rechazarlo",cs:"seguir en la ruta",ef:{verdad:13,desgaste:8,publico:5},r:"Eligen la camioneta, con todo lo que eso implica."}]},
+{t:"Gira por Europa",e:3,d:"Un promotor arma quince fechas, con pérdidas casi garantizadas el primer año.",o:[
+ {tx:"Ir igual",cs:"inversión a futuro",ef:{caja:-680,publico:18,oficio:7,desgaste:16,verdad:6},r:"Tocan para veinte personas en Praga y para setecientas en Bilbao."},
+ {tx:"Ir solo si pagan los pasajes",cs:"prudente",riesgo:.5,
+  ok:{ef:{caja:-120,publico:12,desgaste:9},r:"Consiguen apoyo y la gira sale casi sin pérdida."},
+  mal:{ef:{publico:-3,union:-4},r:"El promotor se ofende y la ventana se cierra un par de años."}},
+ {tx:"Quedarse",cs:"sin riesgo",ef:{publico:2,caja:120},r:"Siguen tocando cerca de casa, que también es una decisión."}]},
+{t:"Cambio de manager",e:2,d:"Aparece alguien con mejores contactos y peor reputación.",o:[
+ {tx:"Cambiar",cs:"puertas nuevas",ef:{publico:14,caja:-120,verdad:-11,union:-5},r:"Consigue todo lo que promete y nadie quiere saber cómo."},
+ {tx:"Quedarse con el actual",cs:"lealtad",ef:{union:9,verdad:8,publico:-2},r:"Siguen creciendo despacio con alguien que los conoce."},
+ {tx:"Manejarse solos",cs:"trabajo extra",ef:{caja:180,desgaste:9,union:-4,verdad:6},r:"Se ahorran la comisión y pierden dos noches por semana escribiendo correos."}]},
+{t:"El Comendador quiere hablar",e:2,d:"El viejo cantante de estadios, mitad leyenda y mitad museo, los invita a su camarín.",o:[
+ {tx:"Escuchar todo lo que tenga para decir",cs:"tres horas de anécdotas",ef:{forma:11,verdad:12,union:6},r:"Habla de bandas que ya no existen y deja tres consejos que van a usar toda la vida."},
+ {tx:"Pedirle una fecha de telonero",cs:"aprovechar el momento",ef:{publico:16,verdad:-7,caja:180},r:"Acepta con una sonrisa cansada. Tocan para veinte mil personas que vinieron por él."},
+ {tx:"Decirle que sus últimos discos son flojos",cs:"honestidad suicida",riesgo:.4,
+  ok:{ef:{verdad:19,publico:11,union:8},r:"Se ríe, dice que tienen razón y los recomienda en cada entrevista del año."},
+  mal:{ef:{publico:-9,verdad:6},r:"Los echa del camarín y su gente se encarga de que no los llamen de ningún festival grande."}}]},
+{t:"Lady Vinilo los quiere en su disco",e:3,d:"La diva que colecciona bandas de culto pide una colaboración para su próximo álbum.",o:[
+ {tx:"Grabar con ella",cs:"otro planeta de público",ef:{publico:21,caja:640,verdad:-13},r:"El tema explota y la mitad de ese público nuevo nunca los escucha de nuevo."},
+ {tx:"Invitarla a un tema de ustedes",cs:"jugar de local",riesgo:.5,
+  ok:{ef:{publico:18,verdad:9,forma:7},r:"Viene al estudio sin equipo y canta como no cantaba hacía años."},
+  mal:{ef:{publico:-5,union:-5},r:"Su equipo dice que la agenda no da, que es como decir que no."}},
+ {tx:"Rechazarla",cs:"sin explicaciones",ef:{verdad:12,publico:-6},r:"Ella lo cuenta en una entrevista y queda como una banda difícil."}]},
+{t:"Tuco Malandra los cruza",e:1,d:"El padrino del punk local dice en la puerta del bar que ustedes no vivieron nada.",o:[
+ {tx:"Bancarle la mirada",cs:"aguantar",ef:{verdad:13,union:7,publico:4},r:"Dos años después los sube a tocar con él y no vuelve a mencionar el tema."},
+ {tx:"Contestarle mal",cs:"pelea de barrio",ef:{publico:8,verdad:-5,union:-7},r:"La escena se divide y varias puertas se cierran sin aviso."},
+ {tx:"Invitarle una cerveza",cs:"desarmarlo",ef:{verdad:9,union:5,caja:-30},r:"Termina contando su vida hasta las seis de la mañana."}]},
+{t:"Simón Reverb sale de su cueva",e:2,d:"El productor que no trabaja hace diez años escuchó el demo y quiere grabarlos.",o:[
+ {tx:"Encerrarse tres meses con él",cs:"método extremo",riesgo:.55,
+  ok:{ef:{forma:20,publico:15,verdad:17},r:"Sale un disco raro y perfecto que los define para siempre."},
+  mal:{ef:{forma:8,publico:-8,union:-11,caja:-260},r:"Los hace grabar la misma toma cuarenta veces y la banda sale odiándolo."}},
+ {tx:"Grabar solo dos temas con él",cs:"prudencia",ef:{forma:10,publico:7,caja:-160},r:"Los dos temas son los mejores del disco y se nota demasiado."},
+ {tx:"Decirle que no",cs:"seguir solos",ef:{verdad:7,union:5},r:"Vuelve a su cueva y nadie sabe nada de él por otros diez años."}]},
+{t:"La Doctora Fuzz da una clínica",e:1,d:"La guitarrista más respetada del país da un taller a dos cuadras de la sala.",o:[
+ {tx:"Ir todos",cs:"tarde de humildad",ef:{forma:14,union:6,caja:-90},r:"Salen sabiendo cuánto les falta, que es la única forma de avanzar."},
+ {tx:"Mandar a uno solo",cs:"solución mínima",ef:{forma:6,caja:-30},r:"Vuelve con apuntes que nadie más lee."},
+ {tx:"No ir, ya saben tocar",cs:"soberbia",ef:{verdad:-6,forma:-3,publico:2},r:"Siguen tocando igual que el año pasado."}]},
+{t:"Los Hermanos Ruina se pelean en el festival",e:2,d:"El dúo que odia todo se baja del cartel una hora antes y hay un hueco en el horario central.",o:[
+ {tx:"Ofrecerse a cubrirlos",cs:"tocar sin prueba de sonido",riesgo:.6,
+  ok:{ef:{publico:19,forma:6,union:9},r:"Salen sin probar nada y hacen el show del año delante de la gente equivocada, que se vuelve la gente correcta."},
+  mal:{ef:{publico:-7,forma:-5,union:-4},r:"Suena todo mal, el monitor no anda y el video queda dando vueltas."}},
+ {tx:"Quedarse en el horario propio",cs:"sin sobresaltos",ef:{publico:5},r:"Tocan a las cinco de la tarde como estaba previsto."}]},
+{t:"El Pastor Eléctrico los bendice",e:3,d:"El cantautor místico dice en una nota que ustedes son lo único que se salva.",o:[
+ {tx:"Agradecer y seguir",cs:"discreción",ef:{verdad:11,publico:9},r:"La frase se cita durante años en cada reseña que les hacen."},
+ {tx:"Usarla en toda la publicidad",cs:"exprimir el elogio",ef:{publico:14,verdad:-11},r:"La frase aparece hasta en las entradas y pierde todo el sentido."},
+ {tx:"Salir a decir que no están de acuerdo",cs:"incomodar",ef:{verdad:15,publico:-5,union:4},r:"El gesto los vuelve todavía más respetados, cosa que nadie entiende."}]},
+{t:"DJ Marabunta quiere remixarlos",e:3,d:"El productor urbano del momento pide el tema más lento para darlo vuelta.",o:[
+ {tx:"Darle libertad total",cs:"soltar el control",riesgo:.5,
+  ok:{ef:{publico:20,caja:420,verdad:5},r:"El remix es mejor que el original y les abre un público que no sabía que existían."},
+  mal:{ef:{publico:6,verdad:-15},r:"Queda irreconocible, funciona igual, y los fans de siempre lo toman como una traición."}},
+ {tx:"Producirlo juntos",cs:"trabajo compartido",ef:{publico:14,caja:280,forma:6},r:"Dos semanas de estudio y un tema que ninguno de los dos habría hecho solo."},
+ {tx:"No prestárselo",cs:"cerrarse",ef:{verdad:8,publico:-4},r:"Remixa a otra banda del circuito y le va muy bien."}]},
+{t:"Nina Cassette vuelve a tocar",e:2,d:"La artista de culto de los noventa arma una gira y busca banda soporte.",o:[
+ {tx:"Aceptar y acompañarla",cs:"aprender mirando",ef:{publico:13,forma:9,verdad:10,caja:220},r:"Veinte fechas al lado de alguien que ya perdió todo y volvió igual."},
+ {tx:"Pedir horario y caché de banda grande",cs:"soberbia temprana",ef:{publico:-6,verdad:-8},r:"Llama a otra banda y su público se entera de por qué."}]},
+{t:"Chelo Bandoneón propone un cruce",e:3,d:"El folclorista más prestigioso quiere mezclar su música con la de ustedes.",o:[
+ {tx:"Hacer el disco cruzado",cs:"riesgo artístico",riesgo:.55,
+  ok:{ef:{publico:17,forma:15,verdad:20,caja:300},r:"El disco gana premios que ninguno de los dos géneros suele mirar."},
+  mal:{ef:{publico:-9,forma:9,verdad:8,caja:-180},r:"Queda hermoso y nadie sabe en qué estante ponerlo."}},
+ {tx:"Un tema y nada más",cs:"probar de a poco",ef:{publico:8,forma:6,verdad:9},r:"El tema es raro y precioso, y lo tocan en cada show desde entonces."},
+ {tx:"Declinar con respeto",cs:"quedarse en lo suyo",ef:{verdad:3,union:4},r:"Él lo entiende. Ustedes se quedan pensando qué habría pasado."}]},
+{t:"El sonidista los odia",e:1,d:"El que maneja la consola del bar decide que la voz va enterrada toda la noche.",o:[
+ {tx:"Discutirle en pleno show",cs:"escándalo",ef:{publico:-5,union:-6,verdad:5},r:"El show queda arruinado y el bar no vuelve a llamarlos."},
+ {tx:"Aguantar y hablar después",cs:"paciencia",ef:{union:6,forma:4},r:"Termina disculpándose y en la próxima fecha los mezcla como corresponde."},
+ {tx:"Traer sonidista propio",cs:"gasto fijo nuevo",ef:{caja:-220,forma:9,publico:7},r:"Todo suena mejor desde esa noche y ya no pueden volver atrás."}]},
+{t:"Hackean las redes de la banda",e:2,d:"Alguien publica cosas horribles desde la cuenta oficial a las tres de la mañana.",o:[
+ {tx:"Explicarlo con calma y pruebas",cs:"trámite aburrido",ef:{publico:-3,verdad:6},r:"Se resuelve en dos días y quedan como gente ordenada."},
+ {tx:"Aprovechar el caos para anunciar el disco",cs:"oportunismo",ef:{publico:12,verdad:-13},r:"Funciona muchísimo y varios sospechan que fue todo armado."},
+ {tx:"Borrar las cuentas y desaparecer un mes",cs:"corte radical",ef:{publico:-9,union:9,forma:8,verdad:11},r:"Vuelven descansados y con menos gente mirando."}]},
+{t:"Cheques sin fondo",e:2,d:"El productor de la gira pagó con papeles que el banco rechazó.",o:[
+ {tx:"Ir a buscarlo en persona",cs:"método viejo",riesgo:.5,
+  ok:{ef:{caja:620,union:8},r:"Aparece la plata completa y una disculpa por escrito."},
+  mal:{ef:{caja:-140,union:-7,forma:-4},r:"No lo encuentran, pierden dos semanas y el abogado cobra igual."}},
+ {tx:"Denunciarlo públicamente",cs:"aviso a la escena",ef:{verdad:13,publico:6,caja:-60},r:"Otras seis bandas cuentan lo mismo y el tipo desaparece del circuito."},
+ {tx:"Asumir la pérdida",cs:"seguir",ef:{caja:-100,union:-4},r:"Aprenden a pedir por adelantado, que era la lección cara."}]},
+{t:"Entradas falsas",e:3,d:"Doscientas personas llegan al show con entradas truchas y no entran.",o:[
+ {tx:"Hacerlas pasar igual",cs:"pérdida asumida",ef:{caja:-380,publico:14,verdad:16,union:6},r:"Entran todos, el video del gesto circula más que el show."},
+ {tx:"Cumplir el reglamento",cs:"lo correcto y frío",ef:{publico:-8,caja:60},r:"Doscientas personas se van a su casa y lo cuentan durante años."},
+ {tx:"Armarles un show gratis al otro día",cs:"trabajo extra",ef:{publico:11,verdad:12,forma:-5,caja:-160},r:"Tocan dos noches seguidas y ganan doscientos fanáticos de por vida."}]},
+{t:"Ciudadanos ilustres",e:3,d:"El pueblo donde tocaron por primera vez quiere declararlos ilustres en un acto oficial.",o:[
+ {tx:"Ir con traje y agradecer",cs:"ceremonia",ef:{publico:7,verdad:6,union:8},r:"Los abuelos aplauden y la foto termina en el diario local."},
+ {tx:"Ir y tocar gratis en la plaza",cs:"devolver el gesto",ef:{publico:12,verdad:14,union:9,caja:-70},r:"Va todo el pueblo. Es el show más chico y más importante del año."},
+ {tx:"Mandar un video",cs:"agenda apretada",ef:{verdad:-8,publico:2},r:"En el pueblo lo toman como lo que es."}]},
+{t:"Un pibe pide consejo",e:3,d:"Una banda de dieciséis años les pregunta cómo se hace.",o:[
+ {tx:"Contarles todo, incluso lo feo",cs:"honestidad",ef:{verdad:13,union:6,publico:4},r:"Dos años después esa banda los agradece desde un escenario grande."},
+ {tx:"Prestarles la sala y el equipo",cs:"gesto concreto",ef:{verdad:15,caja:-120,publico:6},r:"Graban su demo con el equipo de ustedes y no se olvidan nunca."},
+ {tx:"Decirles que no se metan",cs:"amargura",ef:{verdad:-7,union:-4},r:"Se meten igual, y lo cuentan."}]},
+{t:"Endorsement de instrumentos",e:2,d:"Una marca ofrece equipos gratis a cambio de aparecer con su logo siempre.",o:[
+ {tx:"Aceptar todo",cs:"equipo nuevo",ef:{forma:12,caja:340,verdad:-14},r:"Tocan mejor y todas las fotos parecen un catálogo."},
+ {tx:"Aceptar solo lo que ya usaban",cs:"coherencia práctica",ef:{forma:7,caja:160,verdad:2},r:"Nadie miente y igual les llega equipo."},
+ {tx:"Rechazarlo",cs:"seguir con lo roto",ef:{verdad:10,forma:-5},r:"El amplificador sigue haciendo ese ruido que ya es parte del sonido."}]},
+{t:"Convocan a un supergrupo",e:3,d:"Juntan a un integrante de cada banda importante para un proyecto único.",o:[
+ {tx:"Que vaya {m}",cs:"prestigio individual",ef:{publico:12,union:-11,verdad:-4},r:"Sale un disco correcto y una banda que espera seis meses."},
+ {tx:"Proponer que vayan todos o ninguno",cs:"bloque",riesgo:.45,
+  ok:{ef:{publico:15,union:12,verdad:9},r:"Aceptan la locura y el supergrupo termina siendo ustedes con invitados."},
+  mal:{ef:{publico:-4,union:5},r:"Llaman a otro y la banda se queda entera, que no es poco."}},
+ {tx:"No participar",cs:"sin distracciones",ef:{union:8,forma:6,publico:-3},r:"Usan esos meses para ensayar y se nota."}]},
+{t:"Llueve sobre el festival propio",e:2,d:"Organizaron su primer festival al aire libre y el pronóstico da tormenta toda la tarde.",o:[
+ {tx:"Hacerlo igual",cs:"apuesta climática",riesgo:.5,
+  ok:{ef:{publico:17,caja:520,union:11,verdad:9},r:"Para de llover a las seis y queda una tarde perfecta y barrosa."},
+  mal:{ef:{publico:-8,caja:-560,forma:-6},r:"Llueve ocho horas, van cuatrocientas personas y el escenario queda flotando."}},
+ {tx:"Moverlo a un galpón",cs:"menos capacidad",ef:{publico:8,caja:120,union:5},r:"Entra la mitad de la gente y no se moja nadie."},
+ {tx:"Suspenderlo",cs:"pérdida segura",ef:{caja:-260,publico:-5,union:-4},r:"Nadie se moja y nadie se acuerda."}]},
+{t:"{m} va a ser madre o padre",e:3,d:"La noticia llega justo cuando se estaba armando la gira más larga hasta ahora.",o:[
+ {tx:"Reorganizar la gira alrededor",cs:"la banda se adapta",ef:{union:16,publico:-6,verdad:9},r:"Menos fechas, más años juntos."},
+ {tx:"Salir con un reemplazo",cs:"la gira manda",ef:{publico:11,union:-12,caja:280},r:"La gira sale completa y hay alguien que se pierde los primeros seis meses."},
+ {tx:"Frenar seis meses",cs:"pausa completa",ef:{forma:16,union:12,publico:-9},r:"Vuelven descansados, con canciones nuevas y una foto en el estudio con un bebé."}]},
+{t:"Un fan que no afloja",e:2,d:"La misma persona aparece en todos los shows, en la puerta del hotel y afuera de la sala.",o:[
+ {tx:"Poner límites claros y seguridad",cs:"incómodo y necesario",ef:{union:9,forma:5,publico:-3},r:"Se resuelve sin escándalo y todos duermen mejor."},
+ {tx:"Hacer como si nada",cs:"evitar el tema",ef:{union:-9,forma:-6},r:"El problema crece hasta que ya no se puede ignorar."},
+ {tx:"Hablarle de frente",cs:"riesgo humano",riesgo:.45,
+  ok:{ef:{verdad:9,union:6},r:"Entiende, pide disculpas y sigue yendo a los shows como cualquiera."},
+  mal:{ef:{union:-7,publico:-4},r:"Lo toma como una invitación y todo empeora."}}]},
+{t:"Los meten en una lista de la década",e:3,d:"Un medio grande pone el segundo disco entre los mejores de los últimos diez años.",o:[
+ {tx:"Festejarlo con una fecha aniversario",cs:"aprovechar",ef:{publico:13,caja:380,verdad:-4},r:"Se agota en dos días y tocan el disco entero."},
+ {tx:"Decir que el mejor está por venir",cs:"mirar adelante",ef:{verdad:11,forma:7,publico:5},r:"Suena a frase hecha hasta que sacan el disco siguiente."},
+ {tx:"Discutir la lista en público",cs:"pelea innecesaria",ef:{publico:6,verdad:-9,union:-5},r:"Nadie entiende por qué se quejan de un elogio."}]},
+{t:"El primer show afuera",e:2,d:"Los invitan a cruzar la frontera para tocar en un festival chico.",o:[
+ {tx:"Ir con todo el equipo",cs:"caro y completo",ef:{caja:-420,publico:15,forma:7,union:8},r:"Suena igual que en casa y la gente canta en otro acento."},
+ {tx:"Ir con lo puesto y pedir equipo prestado",cs:"austeridad",ef:{caja:-120,publico:11,forma:-4},r:"El amplificador prestado suena raro y el show igual sale bien."},
+ {tx:"Postergarlo",cs:"otra vez será",ef:{publico:-4,caja:60},r:"El festival no vuelve a invitarlos."}]}
+];
+
+const CAT=[
+ {t:"Show cancelado",d:"{mCopas} no llegó en condiciones y hubo que devolver ochocientas entradas.",ef:{publico:-9,caja:-380,union:-10,desgaste:8}},
+ {t:"Se filtra un audio",d:"{mLengua} hablando mal del público de una ciudad entera, en todas partes.",ef:{publico:-11,verdad:-8,union:-9}},
+ {t:"Pelea en el camarín",d:"{m} y {m2} separados por el plomo, con un espejo roto y una denuncia.",ef:{union:-18,publico:-5,caja:-200,desgaste:10}},
+ {t:"Lesión en la gira",d:"{m} se lastimó la mano y se caen ocho fechas.",ef:{publico:-7,caja:-300,desgaste:12,oficio:-5}},
+ {t:"Se fue sin avisar",d:"{m} dejó las llaves en el buzón y bloqueó a todos.",ef:{union:-12,publico:-4,oficio:-6},salida:true},
+ {t:"Robo del equipo",d:"Abrieron la camioneta durante la cena y se llevaron todo.",ef:{caja:-560,oficio:-4,desgaste:8}},
+ {t:"Boicot en redes",d:"Una vieja polémica vuelve y tres festivales los bajan del cartel.",ef:{publico:-13,caja:-260,union:-6}}];
+
+
+const SV=(c)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">'+c+'</svg>';
+const ICO={
+ pua:SV('<path d="M12 3c4.5 0 7.5 2.6 7.5 5.6 0 4.6-4.6 10.4-7.5 12.4C9.1 19 4.5 13.2 4.5 8.6 4.5 5.6 7.5 3 12 3z"/>'),
+ onda:SV('<path stroke-width="2" d="M3 11v2M7 7.5v9M11 4v16M15 8.5v7M19 11v2"/>'),
+ billete:SV('<rect x="2.5" y="6" width="19" height="12" rx="1.5"/><circle cx="12" cy="12" r="3"/><path d="M6 9v6M18 9v6"/>'),
+ corazon:SV('<path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.6-7 9-7 9z"/>'),
+ botella:SV('<path d="M10 3h4v3.2c0 1 .4 1.6 1 2.3.8.9 1 1.6 1 2.8V20a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1v-8.7c0-1.2.2-1.9 1-2.8.6-.7 1-1.3 1-2.3V3z"/><path d="M8 13.5h8"/>'),
+ rayo:SV('<path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>'),
+ gente:SV('<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><path d="M16 14.9c2.6.2 5 2 5 5.1"/>'),
+ camioneta:SV('<path d="M2 16V8h11v8"/><path d="M13 10h4l4 3.5V16"/><circle cx="7" cy="17.4" r="2"/><circle cx="17" cy="17.4" r="2"/>'),
+ vinilo:SV('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><circle cx="12" cy="12" r=".9" fill="currentColor" stroke="none"/>'),
+ tv:SV('<rect x="3" y="8" width="18" height="12" rx="1.5"/><path d="m8 3.5 4 4.5 4-4.5"/><path d="M17.5 12v4"/>'),
+ escenario:SV('<path d="M3 20.5h18"/><path d="M4.5 20.5v-3.2h15v3.2"/><path d="M7 17.3 5.6 7M17 17.3 18.4 7"/><circle cx="5.4" cy="4.6" r="1.7"/><circle cx="18.6" cy="4.6" r="1.7"/>'),
+ calavera:SV('<path d="M12 3c4.4 0 7 3 7 6.8 0 2.4-1 3.8-1.8 4.7-.5.6-.7 1-.7 1.8V18H7.5v-1.7c0-.8-.2-1.2-.7-1.8C6 13.6 5 12.2 5 9.8 5 6 7.6 3 12 3z"/><circle cx="9.3" cy="10.3" r="1.5" fill="currentColor" stroke="none"/><circle cx="14.7" cy="10.3" r="1.5" fill="currentColor" stroke="none"/><path d="M9.5 18v3M12 18v3M14.5 18v3"/>'),
+ prensa:SV('<path d="M4 5h13v14H5.5A1.5 1.5 0 0 1 4 17.5V5z"/><path d="M17 9h3v8.5a1.5 1.5 0 0 1-3 0V9z"/><path d="M7 8.5h7M7 12h7M7 15.5h4" stroke-opacity=".6"/>'),
+ dado:SV('<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="15" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/>'),
+ estrella:SV('<path d="M12 3.2l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L3.4 9.5l6-.8z"/>'),
+ reinicio:SV('<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3v5h-5"/>'),
+ audio:SV('<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9.5a4 4 0 0 1 0 5"/>'),
+ mudo:SV('<path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="m17 10 4 4M21 10l-4 4"/>'),
+ avion:SV('<path d="M10.2 21 12 15l7 2 2-2-7-4 3-6-2.4-2-4 5.6L5 7 3 9l4.5 4.2L4.6 18l1.5 1.4 3.6-2.2z"/>'),
+ robot:SV('<rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 4v4"/><circle cx="12" cy="3.2" r="1.2"/><path d="M9 12.5v1.5M15 12.5v1.5M9.5 16.5h5"/>'),
+ camara:SV('<rect x="2.5" y="7" width="13" height="10" rx="2"/><path d="m16 11.5 5.5-3v7l-5.5-3z"/>'),
+ micro:SV('<rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17.2V21M9 21h6"/>')
+};
+const REGLAS=[[/sala|ensay|tema que odian|disco raro|influenc/i,'pua'],
+ [/algoritmo|reproduc|viral|comunidad|clientela/i,'onda'],
+ [/marca|contrato|sello|entradas|franquicia|cuentas|rojo|serie|vinilos|casamiento/i,'billete'],
+ [/juntos|ruptura/i,'corazon'],
+ [/botella|rehabilit/i,'botella'],
+ [/declaraci|plagio|poser|acusan|audio|boicot|ego/i,'rayo'],
+ [/renuncia|sesi|se fue|pelea|look|asesor/i,'gente'],
+ [/gira|camioneta|lesi/i,'camioneta'],
+ [/nota sobre|jurado/i,'vinilo'],
+ [/televis|programa/i,'tv'],
+ [/festival|rock in rio|telonear|sala grande|desierto/i,'escenario'],
+ [/robo|cancelado/i,'calavera'],
+ [/europa|casino/i,'avion'],
+ [/ia |imita la voz/i,'robot'],
+ [/video|streaming|filtra/i,'camara']];
+
+
+const TIT=[
+ '"{n}: la banda que no sabe frenar", en la contratapa del diario del domingo.',
+ 'Un portal titula: "Lo que hizo {n} este semestre divide a la escena".',
+ 'En la radio dijeron que {n} es "el mejor secreto mal guardado del circuito".',
+ 'Un hilo sobre {n} junta miles de comentarios y ninguna conclusión.',
+ 'La revista del sábado los pone en la sección "bandas para seguir de cerca".',
+ 'Un canal de reseñas dedica veinte minutos a discutir la última decisión de {n}.',
+ 'En los comentarios del video se pelean por {n} durante tres días.',
+ 'El fanzine local titula: "{n}, otra vez en el lugar exacto".'
+];
+const TIT_MAL=[
+ 'Un portal titula: "El mal semestre de {n}".',
+ 'En una nota corta describen a {n} como "una banda en problemas".',
+ 'El hilo sobre {n} de esta semana no tiene un solo comentario amable.',
+ 'Una cuenta grande escribe que {n} "perdió el rumbo" y lo comparten miles.'
+];
+function titular(){
+  const d=ultDelta,pts=(d.publico||0)+(d.union||0)+(d.verdad||0);
+  const t=rnd(pts>=0?TIT:TIT_MAL).replace(/\{n\}/g,nom);
+  return `<div class="prensa"><span class="ico">${ICO.prensa}</span>${t}</div>`;
+}
+function iconoDe(t){for(const[r,k]of REGLAS)if(r.test(t))return ICO[k];return ICO.micro}
+
+let S,banda,mazo,sem,form,nom,ultDelta={},prevN={},bitacora=[],vistos=new Set(),aviso='',logros=[],RIVAL=null,animo='toca',racha=0,mejorRacha=0,SP=0,armado=false,PTS=0,ST=nuevoST();
+function nuevoST(){return{pubMax:0,ganado:0,gastado:0,cat:0,cambios:0,tr:0,po:0,mejor:{s:0,d:0},elenco:new Set()}}
+const clamp=(v,a=0,b=100)=>Math.max(a,Math.min(b,v));
+const azar=Math.random;
+const rnd=a=>a[Math.floor(azar()*a.length)];
+const baraja=a=>a.slice().sort(()=>azar()-.5);
+function nuevaPersona(rol){const u=banda?banda.map(m=>m.nom):[];let n;do{n=rnd(PN)}while(u.includes(n));return{nom:n,rol,vicio:rnd(VICIOS)}}
+
+const HERO=`<div class="hero"><svg viewBox="0 0 320 100" fill="none">
+ <defs><linearGradient id="luz" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#FFB020" stop-opacity=".55"/><stop offset="1" stop-color="#FFB020" stop-opacity="0"/></linearGradient>
+  <linearGradient id="luz2" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#FF2350" stop-opacity=".5"/><stop offset="1" stop-color="#FF2350" stop-opacity="0"/></linearGradient></defs>
+ <path class="haz a" style="transform-origin:83px 6px" d="M74 6 40 96h44L92 6z" fill="url(#luz2)"/>
+ <path class="haz b" style="transform-origin:237px 6px" d="M246 6 280 96h-44L228 6z" fill="url(#luz)"/>
+ <circle class="lampara" cx="83" cy="7" r="5" fill="#FF2350"/><circle class="lampara b" cx="237" cy="7" r="5" fill="#FFB020"/>
+ <g stroke="#F3ECE6" stroke-width="2">
+  <rect x="118" y="40" width="84" height="26" rx="2" fill="#1E1226"/>
+  <rect x="112" y="66" width="96" height="30" rx="2" fill="#1E1226"/>
+  <path d="M124 46h72M124 52h72M124 58h72" stroke-opacity=".35"/>
+  <path d="M120 74h80M120 82h80M120 90h80" stroke-opacity=".35"/>
+  <circle cx="128" cy="36" r="3"/><circle cx="140" cy="36" r="3"/><circle cx="152" cy="36" r="3"/>
+  <path d="M118 36h-6" stroke-opacity=".5"/>
+ </g>
+ <g stroke="#F3ECE6" stroke-width="2" stroke-linecap="round">
+  <path d="M262 96V54"/><path d="M254 54h16"/><rect x="256" y="36" width="12" height="16" rx="6" fill="#1E1226"/>
+ </g>
+</svg></div>`;
+function nuevo(){S=null;banda=null;sem=0;prevN={};bitacora=[];vistos=new Set();aviso='';logros=[];
+  racha=0;mejorRacha=0;SP=0;armado=false;PTS=0;ST=nuevoST();bienvenida()}
+
+
+function bienvenida(){
+  app.innerHTML=HERO+`<h1 class="impact"><span class="rojo">True</span> o Poser</h1>
+   <p class="lema">Un simulador de banda de rock que dura lo que un tema largo.</p>
+   <div class="expl">
+     <div class="ex"><span class="ico">${ICO.escenario}</span><div><b>De qué se trata</b>
+       Armás una banda y jugás ocho años de carrera, un evento por semestre. Dieciséis decisiones, unos seis minutos.</div></div>
+     <div class="ex"><span class="ico">${ICO.gente}</span><div><b>Qué se cuida</b>
+       Público, Forma y Unión. El público se olvida si no le das novedades, la forma se gasta con las giras y la unión se rompe con cada pelea.</div></div>
+     <div class="ex"><span class="ico">${ICO.rayo}</span><div><b>El eje true o poser</b>
+       Cada decisión te corre hacia un lado. El éxito y la plata te empujan solos hacia poser, y si caés muy abajo, la escena deja de creerte.</div></div>
+     <div class="ex"><span class="ico">${ICO.estrella}</span><div><b>Cómo se gana</b>
+       Para cerrar la noche en Rock in Rio hacen falta 88 de público y +45 en el eje true. Casi nadie llega, y arriba de eso todavía queda un final más. Hay otros catorce, y ninguno es igual de bueno.</div></div>
+   </div>
+   <button class="reiniciar" id="empezar">Formar la banda</button>`;
+  document.getElementById('empezar').onclick=()=>{riff();inicio()};
+}
+function inicio(){
+  app.innerHTML=`<h1 class="impact">La banda</h1>
+  <p class="intro">Elegí el nombre y con cuánta gente te subís al escenario. Cuanta más gente, mejor suena y más difícil es sostenerla.</p>
+  <div class="nombre-wrap"><input type="text" id="nom" value="${rnd(NB)}" maxlength="22" aria-label="Nombre de la banda"><button class="dado" id="dado" title="Otro nombre">&#9834;</button></div>
+
+  ${FORMS.map((f,i)=>`<div class="banda-opt" tabindex="0" data-i="${i}"><h3 class="impact">${f.nom}<span class="miniband">${'<i></i>'.repeat(f.n)}</span></h3><p>${f.desc}</p><div class="datos">Forma ${f.st.forma} · Unión ${f.st.union} · True ${f.st.verdad} · $${f.st.caja}${f.n===5?' · difícil':''}</div></div>`).join('')}`;
+  document.getElementById('dado').onclick=()=>document.getElementById('nom').value=rnd(NB);
+  app.querySelectorAll('.banda-opt').forEach(el=>{const go=()=>empezar(+el.dataset.i);el.onclick=go;
+    el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}});
+}
+
+function empezar(i){
+  form=FORMS[i];nom=(document.getElementById('nom').value.trim()||"Sin Nombre").toUpperCase();
+
+  S=Object.assign({},form.st);banda=[];
+  for(let k=0;k<form.n;k++)banda.push(nuevaPersona(ROLES[k]));
+  ST=nuevoST();logros=[];bitacora=[];vistos=new Set();pendientes=[];racha=0;mejorRacha=0;SP=0;armado=false;PTS=0;
+  RIVAL={nom:rnd(NB.filter(n=>n!==nom)),p:8};
+  banda.forEach(m=>ST.elenco.add(m.nom));
+  animo='toca';sem=1;mazo=baraja(EV.concat(EV_RIVAL));turno();
+}
+
+const ICM={'Público':'gente','Forma':'pua','Unión':'corazon'};
+const med=(et,v,c)=>{const k=et,ant=prevN[k]===undefined?Math.round(v):prevN[k],cam=ant!==Math.round(v);
+  const marca=et==='Público'?`<u class="${v>=88?'ok':''}" style="left:88%"></u>`:'';
+  return `<div class="m ${c} ${cam?'cambia':''}"><div class="et"><span class="ico">${ICO[ICM[et]]}</span>${et}</div>`+
+  `<div class="nu" data-k="${k}" data-a="${ant}" data-b="${Math.round(v)}">${ant}</div>`+
+  `<div class="ba"><i style="width:${clamp(v)}%"></i>${marca}</div></div>`};
+function mezcla(a,b,t){const h=x=>[1,3,5].map(i=>parseInt(x.substr(i,2),16));
+  const A=h(a),B=h(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*t).toString(16).padStart(2,'0')).join('')}
+function tema(){
+  if(!S)return;
+  const q=Math.max(0,Math.min(1,(45-S.verdad)/110));      // 0 true, 1 poser
+  const r=document.documentElement.style;
+  r.setProperty('--violeta',mezcla('#8A63FF','#E0C060',q));
+  r.setProperty('--ambar',mezcla('#FFB020','#E8D9A8',q));
+  r.setProperty('--grano',(0.05*(1-q)).toFixed(3));
+  r.setProperty('--corte',Math.round(18*(1-q))+'px');
+  r.setProperty('--radio',Math.round(10*q)+'px');
+  r.setProperty('--rot',(-0.5*(1-q)).toFixed(2)+'deg');
+  r.setProperty('--foco',(0.16+S.publico/320).toFixed(3));
+}
+function pinta(html){tema();app.innerHTML=html;animarNums();flash();scrollTo(0,0)}
+function flash(){
+  if(!S||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  if(flash.ult===sem)return;flash.ult=sem;
+  const d=document.createElement('div');d.className='flashsem';d.innerHTML=`<span>${sem}</span>`;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),700);
+}
+function animarNums(){
+  const red=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  app.querySelectorAll('.nu[data-k]').forEach(el=>{
+    const a=+el.dataset.a,b=+el.dataset.b;prevN[el.dataset.k]=b;
+    if(red||a===b){el.textContent=b;return}
+    const t0=performance.now();
+    (function paso(t){const p=Math.min(1,(t-t0)/420),e=1-Math.pow(1-p,3);
+      el.textContent=Math.round(a+(b-a)*e);if(p<1)requestAnimationFrame(paso)})(t0);
+  });
+}
+
+
+// ---------- escena del lugar ----------
+function publico_puntos(n){
+  let d='';for(let i=0;i<n;i++){
+    const fila=i%3,col=Math.floor(i/3);
+    const x=14+col*(292/Math.ceil(n/3)||10)+(fila*7)%13, y=52-fila*6;
+    d+=`<circle cx="${x.toFixed(1)}" cy="${y}" r="${(2.6-fila*.35).toFixed(1)}"/>`}
+  return d;
+}
+function figura(m,i,animo){
+  const c=colorDe(m), rol=m.rol;
+  const cabeza=`<circle cx="0" cy="-30" r="6.2" fill="#0B0B10" stroke="${c}" stroke-width="1.6"/>
+    <path d="M-6.4 -32c1-6 11-6 12.8 0" fill="${c}" opacity=".85"/>`;
+  const torso=`<path d="M0 -24V-9" stroke="${c}" stroke-width="6" stroke-linecap="round" opacity=".95"/>`;
+  const piernas=`<path d="M0 -9-5 1M0 -9 5 1" stroke="${c}" stroke-width="3.4" stroke-linecap="round" opacity=".8"/>`;
+  let brazos='', instr='';
+  if(rol==='batería'){
+    instr=`<ellipse cx="0" cy="-7" rx="13" ry="9" fill="#0B0B10" stroke="${c}" stroke-width="1.7"/>
+      <circle cx="0" cy="-7" r="4" fill="none" stroke="${c}" stroke-width="1" opacity=".6"/>
+      <path d="M-19 -26 -13 -19M19 -26 13 -19" stroke="${c}" stroke-width="1.6"/>
+      <path d="M-25 -26h12M14 -26h12" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>`;
+    brazos=`<path d="M0 -22-13 -28M0 -22 13 -28" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
+  }else if(rol==='voz'){
+    instr=`<path d="M13 2V-25" stroke="${c}" stroke-width="1.6"/><circle cx="13" cy="-28" r="3" fill="${c}"/>`;
+    brazos=animo==='festeja'?`<path d="M0 -22-11 -34M0 -22 11 -34" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`
+      :`<path d="M0 -21 11 -27M0 -21-9 -14" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
+  }else if(rol==='teclados'){
+    instr=`<rect x="-15" y="-17" width="30" height="5" rx="1" fill="#0B0B10" stroke="${c}" stroke-width="1.5"/>
+      <path d="M-9 -17v5M-3 -17v5M3 -17v5M9 -17v5" stroke="${c}" stroke-width=".9" opacity=".7"/>
+      <path d="M-12 -12v10M12 -12v10" stroke="${c}" stroke-width="1.2" opacity=".5"/>`;
+    brazos=`<path d="M0 -21-9 -17M0 -21 9 -17" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
+  }else{
+    instr=`<path d="M-13 -8c-5 0-7-4-5-7 2-3 7-3 9-1l14-9 2 3-14 9c1 3-1 5-6 5z" fill="#0B0B10" stroke="${c}" stroke-width="1.6"/>
+      <path d="M6 -25 20 -33" stroke="${c}" stroke-width="2" stroke-linecap="round"/>`;
+    brazos=`<path d="M0 -21-11 -12M0 -21 9 -24" stroke="${c}" stroke-width="3" stroke-linecap="round"/>`;
+  }
+  const salto=animo==='festeja'?'salta':animo==='agotado'?'cae':animo==='pelea'?'discute':'toca';
+  return `<g class="fig ${salto}" style="animation-delay:${(i*0.17).toFixed(2)}s">${instr}${piernas}${torso}${brazos}${cabeza}</g>`;
+}
+
+function escena(){
+  const p=S.publico, n=Math.min(46,3+Math.round(p*0.5)), int=(0.24+p/320).toFixed(2);
+  const bat=banda.filter(m=>m.rol==='batería'), resto=banda.filter(m=>m.rol!=='batería');
+  let figs='';
+  bat.forEach((m,i)=>{figs+=`<g transform="translate(160,84) scale(.85)">${figura(m,i,animo)}</g>`});
+  const paso=Math.min(58,196/Math.max(resto.length,1));
+  resto.forEach((m,i)=>{const x=Math.round(160+(i-(resto.length-1)/2)*paso);
+    figs+=`<g transform="translate(${x},90)">${figura(m,i+1,animo)}</g>`});
+  let cab='';
+  for(let i=0;i<n;i++){const f=i%3,c2=Math.floor(i/3),tot=Math.ceil(n/3);
+    const x=6+c2*(308/Math.max(tot,1))+(f*9)%15, y=112-f*6;
+    cab+=`<circle cx="${x.toFixed(1)}" cy="${y}" r="${(4-f*.6).toFixed(1)}"/>`}
+  const amp=p>=28?`<rect x="52" y="66" width="26" height="24" rx="2" fill="#0B0B10" stroke="rgba(243,236,230,.4)" stroke-width="1.4"/>
+    <rect x="242" y="66" width="26" height="24" rx="2" fill="#0B0B10" stroke="rgba(243,236,230,.4)" stroke-width="1.4"/>`:'';
+  const torres=p>=56?`<path d="M30 92V26M290 92V26" stroke="rgba(243,236,230,.35)" stroke-width="2"/>
+    <path d="M30 26h260" stroke="rgba(243,236,230,.3)" stroke-width="2"/>
+    <circle cx="70" cy="31" r="3" fill="var(--magenta)"/><circle cx="160" cy="31" r="3" fill="var(--cian)"/>
+    <circle cx="250" cy="31" r="3" fill="var(--ambar)"/>`:'';
+  return `<div class="escena"><svg viewBox="0 0 320 118" fill="none">
+    <defs>
+      <linearGradient id="hz1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF2BD1" stop-opacity="${int}"/><stop offset="1" stop-color="#FF2BD1" stop-opacity="0"/></linearGradient>
+      <linearGradient id="hz2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#00E5FF" stop-opacity="${int}"/><stop offset="1" stop-color="#00E5FF" stop-opacity="0"/></linearGradient>
+      <linearGradient id="hz3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC400" stop-opacity="${(int*0.9).toFixed(2)}"/><stop offset="1" stop-color="#FFC400" stop-opacity="0"/></linearGradient>
+    </defs>
+    <g class="haces">
+      <polygon class="haz a" style="transform-origin:60px 18px" points="60,18 96,92 158,92" fill="url(#hz1)"/>
+      <polygon class="haz b" style="transform-origin:260px 18px" points="260,18 164,92 226,92" fill="url(#hz2)"/>
+      <polygon class="haz c" style="transform-origin:160px 18px" points="160,18 126,92 194,92" fill="url(#hz3)"/>
+    </g>
+    ${torres}${amp}
+    <path d="M18 90h284" stroke="rgba(243,236,230,.45)" stroke-width="2"/>
+    <path d="M18 90 6 100h308l-12-10" fill="rgba(243,236,230,.05)"/>
+    ${figs}
+    <g class="gente" fill="#05060a">${cab}</g></svg></div>
+    <div class="trastes">${Array.from({length:TOTAL},(_,i)=>
+      `<span class="${i+1<sem?'ido':i+1===sem?'hoy':''}"></span>`).join('')}</div>`;
+}
+
+const multi=()=>Math.min(4,1+Math.floor(racha/3));
+function chispas(btn,col){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const r=btn.getBoundingClientRect();
+  for(let i=0;i<16;i++){
+    const d=document.createElement('div');d.className='chispa';
+    const a=Math.random()*Math.PI*2,dist=40+Math.random()*90;
+    d.style.left=(r.left+r.width*Math.random())+'px';d.style.top=(r.top+r.height/2)+'px';
+    d.style.background=col;d.style.boxShadow='0 0 8px '+col;
+    d.style.setProperty('--dx',(Math.cos(a)*dist)+'px');
+    d.style.setProperty('--dy',(Math.sin(a)*dist-30)+'px');
+    d.style.animationDelay=(Math.random()*.12)+'s';
+    document.body.appendChild(d);setTimeout(()=>d.remove(),780);
+  }
+}
+function flota(t,mal){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const d=document.createElement('div');d.className='flota'+(mal?' mal':'');d.textContent=t;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),1200);
+}
+function sacudir(){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  document.body.classList.add('mala');setTimeout(()=>document.body.classList.remove('mala'),450);
+}
+function aplausos(bien){
+  if(!sonido)return;const x=ac();if(!x)return;const t=x.currentTime;
+  if(bien){
+    const n=x.createBuffer(1,x.sampleRate*2.2,x.sampleRate),d=n.getChannelData(0);
+    for(let i=0;i<d.length;i++){const e=Math.min(1,i/8000)*Math.pow(1-i/d.length,.6);
+      d[i]=(Math.random()*2-1)*e*(Math.random()<.06?1:.35)}
+    const src=x.createBufferSource();src.buffer=n;
+    const bp=x.createBiquadFilter();bp.type='bandpass';bp.frequency.value=2000;bp.Q.value=.7;
+    const g=x.createGain();g.gain.value=.3;src.connect(bp);bp.connect(g);g.connect(x.destination);src.start(t);
+  }else{
+    [92,98,104].forEach((f,i)=>{const o=x.createOscillator(),g=x.createGain();o.type='sawtooth';
+      o.frequency.setValueAtTime(f,t);o.frequency.linearRampToValueAtTime(f*.75,t+1.6);
+      g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.09,t+.15);
+      g.gain.exponentialRampToValueAtTime(.0001,t+1.7);o.connect(g);g.connect(x.destination);
+      o.start(t+i*.05);o.stop(t+1.8)});
+  }
+}
+
+function confirmarReinicio(){
+  if(document.getElementById('modal'))return;
+  const d=document.createElement('div');d.id='modal';d.className='modal';
+  d.innerHTML=`<div class="caja">
+    <h3 class="impact">¿Dejar la banda?</h3>
+    <p>Van ${sem} de ${TOTAL} semestres. Si reiniciás, se pierde todo: el público, los hitos y el puntaje.</p>
+    <button class="reiniciar" id="sisi">Sí, empezar de cero</button>
+    <button class="reiniciar alt" id="nono">Seguir tocando</button></div>`;
+  document.body.appendChild(d);
+  d.querySelector('#nono').onclick=()=>d.remove();
+  d.querySelector('#sisi').onclick=()=>{d.remove();vidrio();nuevo()};
+  d.onclick=e=>{if(e.target===d)d.remove()};
+}
+
+function riesgos(){
+  const r=[];
+  if(S.union<18)r.push('la banda se está rompiendo');
+  if(S.caja<-650)r.push('las deudas los están hundiendo');
+  if(S.forma<16)r.push('el cuerpo no da más');
+  if(S.quemados)r.push('la escena ya no les cree');
+  return r;
+}
+function hud(){
+  const pos=((S.verdad+100)/200)*100, rg=riesgos(), mult=multi();
+  const juego=`<div class="juego">
+    <span class="mult ${mult>1?'on':''}">x${mult}</span><span class="racha">racha<br>${racha}</span>
+    <span class="sp ${SP>=100?'full':''}"><i style="width:${Math.min(100,SP)}%"></i></span>
+    <button class="spbtn ${armado?'armado':''}" id="spb" ${SP>=100||armado?'':'disabled'}>${armado?'listo':'star power'}</button>
+    <button class="rst" id="rst" title="Reiniciar">${ICO.reinicio}</button>
+    <span class="marcadorpts"><b class="nu" data-k="pts" data-a="${prevN.pts===undefined?PTS:prevN.pts}" data-b="${PTS}">${PTS}</b><span>puntos</span></span></div>`;
+  setTimeout(()=>{const rb=document.getElementById('rst');if(rb)rb.onclick=confirmarReinicio;
+    const b=document.getElementById('spb');if(b)b.onclick=()=>{
+    if(SP>=100&&!armado){armado=true;SP=0;document.body.classList.add('starpower');brillo();pinta(hud()+document.querySelector('.flyer').outerHTML);
+      const c=document.getElementById('ops');}}},0);
+  const al=rg.length?`<div class="alborde">Al borde: ${rg.join(' y ')}</div>`:'';
+  setTimeout(()=>{const b=document.getElementById('snd');if(b)b.onclick=()=>{sonido=!sonido;if(sonido)riff();
+    b.innerHTML=sonido?ICO.audio:ICO.mudo}},0);
+  return escena()+juego+`<div class="hud"><span>${nom} · ${lugarDe(S.publico)}</span><button class="snd" id="snd">${sonido?ICO.audio:ICO.mudo}</button><b style="color:${S.caja<0?'#FF2350':'#FFB020'};margin-left:auto">$${S.caja} · ${Math.min(sem,TOTAL)}/${TOTAL}</b></div>
+  <div class="med tres">${med('Público',S.publico,'c1')}${med('Forma',S.forma,'c2')}${med('Unión',S.union,'c3')}</div>
+  <div class="eje"><span class="lb p">Poser</span><span class="eje-bar"><span class="zona"></span><u class="${S.verdad>=45?'ok':''}"></u><b style="left:calc(${pos}% - 2px)"></b></span><span class="lb t">True</span></div>
+  ${al}
+  <details class="form"><summary>Formación (${banda.length})</summary><div class="avs">${banda.map(av).join('')}</div></details>`;
+}
+
+const TRASTE=['#3DDC5B','#FF2350','#FFC400','#2E9BFF','#FF7A18'];
+const colorDe=m=>TRASTE[banda.indexOf(m)%5];
+const av=m=>`<span class="av"><i style="background:${colorDe(m)};box-shadow:0 0 12px ${colorDe(m)}">${m.nom[0]}</i>${m.nom} <b>${m.rol}</b>, ${m.vicio.t}</span>`;
+function porVicio(k){const c=banda.filter(m=>m.vicio.k===k);return c.length?rnd(c):rnd(banda)}
+function mapaN(){const a=rnd(banda),o=banda.filter(m=>m!==a),b=o.length?rnd(o):a;
+  return{m:a.nom,m2:b.nom,mCopas:porVicio('copas').nom,mCorazon:porVicio('corazon').nom,mLengua:porVicio('lengua').nom,mEgo:porVicio('ego').nom}}
+const pers=(t,mp)=>t.replace(/\{riv\}/g,RIVAL?RIVAL.nom:'la otra banda').replace(/\{(m2|mCopas|mCorazon|mLengua|mEgo|m)\}/g,(_,k)=>mp[k]||mp.m);
+
+
+const HITOS=[
+ {k:'p20',c:s=>s.publico>=20,t:"Primer show agotado",d:"Cien entradas vendidas y gente en la puerta."},
+ {k:'p35',c:s=>s.publico>=35,t:"Disco propio en la calle",d:"Existe un objeto con el nombre de la banda encima."},
+ {k:'p50',c:s=>s.publico>=50,t:"Nota en la prensa grande",d:"Media página en un diario que lee gente que no los conoce."},
+ {k:'p65',c:s=>s.publico>=65,t:"Cabeza de cartel en su ciudad",d:"El nombre arriba de todo, en letras más grandes que el resto."},
+ {k:'p78',c:s=>s.publico>=80,t:"Suena el teléfono de Rock in Rio",d:"Ya están en la lista corta de la curaduría."},
+ {k:'p92',c:s=>s.publico>=92&&s.verdad>=55,t:"Candidatos a cerrar la noche",d:"Los ponen en la conversación del último lugar del sábado."},
+ {k:'o75',c:s=>s.forma>=82,t:"Suenan como una banda de verdad",d:"Nadie que los vea sospecha que empezaron en un garaje."},
+ {k:'u85',c:s=>s.union>=85,t:"Nadie se fue",d:"Años juntos sin una sola renuncia."},
+ {k:'c2000',c:s=>s.caja>=2000,t:"Viven de la música",d:"Ninguno tiene que pedir permiso en otro trabajo."},
+ {k:'v70',c:s=>s.verdad>=70,t:"Referencia de la escena",d:"Las bandas nuevas los nombran cuando les preguntan."},
+ {k:'vm50',c:s=>s.verdad<=-50,t:"Los llaman vendidos",d:"El apodo ya aparece en los comentarios de todo lo que publican."},
+ {k:'d85',c:s=>s.forma<=18,t:"La cuerda al límite",d:"Todos saben que así no se puede seguir mucho más."},
+ {k:'oro',c:s=>s.publico>=45,t:"Disco de oro",d:"Un cuadro con un vinilo dorado en la casa de la madre de alguien."},
+ {k:'disco',c:s=>s.forma>=70&&s.publico>=48,t:"Disco del año",d:"Tres medios distintos lo ponen primero en su lista anual."},
+ {k:'tapa',c:s=>s.publico>=55&&s.verdad>=35,t:"Tapa de la revista",d:"La foto sale en blanco y negro y ocupa toda la portada."},
+ {k:'plat',c:s=>s.publico>=70,t:"Disco de platino",d:"Vendieron más de lo que creyeron posible cuando ensayaban en el garaje."},
+ {k:'crit',c:s=>s.verdad>=55&&s.forma>=62,t:"Premio de la crítica",d:"Ganan una terna que ni sabían que existía y les cambia la agenda."},
+ {k:'himno',c:s=>s.publico>=64&&s.verdad>=20,t:"Una canción se vuelve himno",d:"La cantan en canchas y en marchas, con letra cambiada."},
+ {k:'ruta',c:s=>sem>=12,t:"Seis años en la ruta",d:"Muy pocas bandas de su camada siguen existiendo."},
+ {k:'orig',c:s=>sem>=10&&ST.cambios===0,t:"Formación original intacta",d:"Los mismos cuatro nombres desde el primer ensayo."},
+ {k:'gira',c:s=>ST.cambios>=4,t:"Puerta giratoria",d:"Por la banda ya pasó más gente de la que cabe en la camioneta."},
+ {k:'sob',c:s=>ST.cat>=3,t:"Sobrevivieron a tres desastres",d:"Robo, pelea, cancelación, y siguen tocando."},
+ {k:'sind',c:s=>s.caja>=3000,t:"Cuentas en orden",d:"Por primera vez hay dinero guardado para el disco siguiente."},
+ {k:'inter',c:s=>s.publico>=60&&s.caja>=1500,t:"Primera gira internacional",d:"Sellos en el pasaporte y un aeropuerto a las cinco de la mañana."}
+];
+function chequearHitos(){
+  const n=[];
+  HITOS.forEach(h=>{if(!logros.some(l=>l.k===h.k)&&h.c(S)){logros.push(h);n.push(h)}});
+  return n.map(h=>`<div class="hito"><span class="ico">${ICO.estrella}</span><div><b>${h.t}</b><br>${h.d}</div></div>`).join('');
+}
+
+const EV_RIVAL=[
+{t:"La banda de al lado",e:2,d:"{riv} llena las mismas salas y firmó antes que ustedes.",o:[
+ {tx:"Proponerles una fecha compartida",cs:"sumar",ef:{publico:11,verdad:9,union:5},r:"La fecha doble se agota y las dos bandas ganan."},
+ {tx:"Competir por las mismas fechas",cs:"guerra fría",ef:{publico:7,union:-7,verdad:-7},r:"Se pisan los anuncios todo el año y los dos pierden público."},
+ {tx:"Hablar mal de ellos en una nota",cs:"ruido barato",ef:{publico:9,verdad:-14},r:"Funciona una semana y queda escrito para siempre."}]},
+{t:"{riv} se separa",e:3,d:"La banda con la que compitieron seis años anuncia su último show.",o:[
+ {tx:"Tocar en su despedida",cs:"cerrar bien",ef:{verdad:15,publico:9,union:8},r:"Suben al escenario juntos y la foto queda en la historia del circuito."},
+ {tx:"Contratar a su guitarrista",cs:"aprovechar",ef:{forma:13,union:-9,verdad:-8},entra:true,r:"Toca mejor que cualquiera y llega con el rencor de otra banda encima."},
+ {tx:"No hacer nada",cs:"seguir",ef:{publico:3},r:"Se disuelven un martes y nadie de ustedes dice nada."}]}
+];
+
+const CADENAS={
+ tatu:{t:"El del tatuaje volvió",d:"Trae a treinta personas y una remera hecha por él con el logo.",o:[
+  {tx:"Darle la mesa del merch",cs:"confiar",ef:{publico:12,caja:220,verdad:12,union:5},r:"Vende más que cualquiera y desde entonces viaja con la banda."},
+  {tx:"Agradecer y seguir",cs:"distancia amable",ef:{publico:4,verdad:3},r:"Se va contento y no vuelve a aparecer."}]},
+ casorio:{t:"El video del casamiento",d:"Alguien encontró el video de la fiesta de quince y lo subió.",o:[
+  {tx:"Reírse y compartirlo",cs:"sin vergüenza",ef:{publico:11,verdad:9,union:7},r:"El video es un éxito y la banda queda como gente normal."},
+  {tx:"Pedir que lo bajen",cs:"tarde",ef:{publico:-6,verdad:-11},r:"Lo bajan de un lado y aparece en otros cuatro."}]},
+ exint:{t:"La banda del que se fue",d:"El que dejó el grupo armó otra y le está yendo bien.",o:[
+  {tx:"Ir a verlos y saludar",cs:"cerrar la herida",ef:{union:12,verdad:11,publico:4},r:"Se abrazan en el camarín y esa noche vuelven a ser amigos."},
+  {tx:"Ignorarlo",cs:"seguir de largo",ef:{union:-6,publico:2},r:"Se cruzan en dos festivales y no se hablan en ninguno."},
+  {tx:"Robarle el baterista",cs:"venganza",ef:{forma:11,union:-13,verdad:-12},r:"Funciona, y todo el circuito se entera en una semana."}]},
+ marca:{t:"La marca quiere más",d:"Después del primer aviso, ofrecen un contrato anual de imagen.",o:[
+  {tx:"Firmar el año completo",cs:"ingreso fijo",ef:{caja:1200,publico:9,verdad:-24,union:-8},r:"La banda pasa a tener calendario de campaña antes que de gira."},
+  {tx:"Cortar el vínculo",cs:"volver atrás",ef:{verdad:17,caja:-160,union:6},r:"Devuelven parte del dinero y recuperan algo que no se compra."}]},
+ prensa:{t:"La crítica vuelve al ataque",d:"La misma firma que los destrozó ahora dice que se vendieron.",o:[
+  {tx:"Invitarla al próximo show",cs:"jugar de local",ef:{verdad:12,publico:7},r:"Escribe una nota mucho mejor y admite que se había apurado."},
+  {tx:"Bloquearla",cs:"cortar",ef:{publico:-5,verdad:-6,union:3},r:"El gesto se comenta más que la nota original."}]}
+};
+let pendientes=[];
+const ACTO=[
+{t:"La fecha que define el año",d:"Hay que anunciar un show propio grande y bancarlo con lo que hay.",o:[
+ {tx:"Alquilar el estadio chico",cs:"todo o nada",riesgo:.45,
+  ok:{ef:{publico:24,caja:1400,union:12,verdad:6},r:"Se agota en cinco días. Es la noche que van a contar el resto de sus vidas."},
+  mal:{ef:{publico:-16,caja:-1100,union:-14},r:"Media cancha vacía, las fotos dan vergüenza y la deuda queda para años."}},
+ {tx:"Tres noches en el teatro",cs:"seguro y digno",ef:{publico:11,caja:600,union:7,verdad:8},r:"Las tres se llenan y nadie arriesga nada."},
+ {tx:"Que lo produzca una marca",cs:"sin riesgo, con dueño",ef:{publico:15,caja:900,verdad:-20},r:"Sale perfecto y con el logo en cada entrada, cada vaso y cada foto."}]},
+{t:"El llamado que estaban esperando",d:"La curaduría de Rock in Rio pide material y una reunión.",o:[
+ {tx:"Mandar el disco entero y nada más",cs:"que hable la música",riesgo:.5,
+  ok:{ef:{publico:22,verdad:14,union:9},r:"Lo escuchan completo y los suben dos escalones en la grilla."},
+  mal:{ef:{publico:-4,verdad:10},r:"Nadie contesta durante meses. La música sola no siempre alcanza."}},
+ {tx:"Ir con un equipo de prensa",cs:"jugar el juego",ef:{publico:16,caja:-420,verdad:-14},r:"La reunión sale impecable y muy parecida a la de cualquier otro."},
+ {tx:"Pedir condiciones antes de mostrar nada",cs:"orgullo tardío",ef:{verdad:16,publico:-11},r:"Los toman por difíciles y el nombre queda para la edición siguiente."}]},
+{t:"La última grieta",d:"Después de seis años, alguien pregunta en voz alta si esto tiene sentido.",o:[
+ {tx:"Encerrarse una semana a hablarlo",cs:"cara a cara",ef:{union:22,forma:8,publico:-4},r:"Salen con tres acuerdos escritos y una banda que vuelve a ser una banda."},
+ {tx:"Dejarlo para después de la gira",cs:"postergar",ef:{publico:9,union:-15,caja:300},r:"La gira sale bien y la conversación nunca llega."},
+ {tx:"Repartir todo en partes iguales",cs:"justicia tardía",ef:{union:16,verdad:12,caja:-260},r:"Firman un papel que debieron firmar el primer año."}]},
+{t:"El disco que los define",d:"Es el momento de decidir qué banda quieren ser para siempre.",o:[
+ {tx:"El disco que quieren hacer",cs:"sin cálculo",riesgo:.55,
+  ok:{ef:{publico:20,forma:14,verdad:22,union:10},r:"Es el mejor que hicieron y encima funciona. Pasa una vez cada diez años."},
+  mal:{ef:{publico:-12,forma:12,verdad:20},r:"Es el mejor que hicieron y no lo escucha casi nadie."}},
+ {tx:"El disco que les piden",cs:"cálculo puro",ef:{publico:19,caja:700,verdad:-24,forma:-6},r:"Funciona exactamente como estaba previsto."},
+ {tx:"Un disco a medias",cs:"sin decidir",ef:{publico:7,verdad:-6,union:-6},r:"No enoja a nadie y no entusiasma a nadie."}]}
+];
+const etapa=()=>sem<=6?1:sem<=11?2:3;
+function elegir(){
+  const pe=pendientes.find(x=>x.s<=sem);
+  if(pe){pendientes=pendientes.filter(x=>x!==pe);return CADENAS[pe.k]}
+  if(sem>=15&&ACTO.length){const a=rnd(ACTO.filter(e=>!vistos.has(e.t)).length?ACTO.filter(e=>!vistos.has(e.t)):ACTO);
+    vistos.add(a.t);return a}
+  const libres=mazo.filter(e=>!e.cond||e.cond(S));
+  const dEtapa=libres.filter(e=>!e.e||e.e===etapa());
+  const pool=dEtapa.length?dEtapa:(libres.length?libres:EV.filter(e=>!e.cond||e.cond(S)));
+  const e=rnd(pool.length?pool:EV);
+  const i=mazo.indexOf(e);if(i>=0)mazo.splice(i,1);
+  vistos.add(e.t);return e;
+}
+const riesgoCat=()=>Math.max(0,Math.min(.4,S.desgaste/260+(60-S.union)/420+(sem>4?.04:0)+(S.verdad<-40?.04:0)));
+
+function turno(){
+  if(sem>TOTAL)return final();
+  if(banda.length<2)return final('separacion');
+  if(azar()<riesgoCat())return catastrofe();
+  const ev=elegir(),mp=mapaN();
+  pinta(hud()+`<div class="truss"><b></b><i></i><b></b></div><div class="flyer"><div class="cab"><span class="ico">${iconoDe(ev.t)}</span><div class="kicker">Semestre ${sem}</div></div>
+    <h2 class="impact">${pers(ev.t,mp)}</h2><p class="texto">${pers(ev.d,mp)}</p><div id="ops"></div></div>`);
+  const c=document.getElementById('ops');
+  const ops=ev.o.filter(op=>!op.req||banda.some(m=>m.vicio.k===op.req));
+  ops.forEach((op,i)=>{const b=document.createElement('button');b.className='opt'+(op.req?' exclusiva':'');
+    b.style.animationDelay=(80+i*70)+'ms';
+    b.innerHTML=`${pers(op.tx,mp)}<span class="costo">${op.cs||''}</span>`;
+    b.onclick=()=>{chispas(b,'#00E5FF');elegirOpcion(b,c,()=>resolver(op,mp,ev))};c.appendChild(b)});
+  if(S.forma<=56){const b=document.createElement('button');b.className='opt parate';
+    b.style.animationDelay=(80+ops.length*70)+'ms';
+    b.innerHTML='Parar seis meses<span class="costo">medio año sin fechas</span>';
+    b.onclick=()=>{chispas(b,'#8A63FF');elegirOpcion(b,c,()=>resolver({tx:'Parar seis meses',cs:'pausa',
+      ef:{forma:26,publico:-6,union:9,caja:-90},
+      r:'Medio año sin fechas. Vuelven descansados y con la mitad del envión perdido.'},mp,ev))};c.appendChild(b)}
+}
+
+function elegirOpcion(btn,cont,cb){
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches)return cb();
+  cont.querySelectorAll('button').forEach(b=>{b.disabled=true;b.style.animation='none';
+    b.classList.add(b===btn?'elegida':'apagada')});
+  setTimeout(cb,430);
+}
+function aplicar(ef){
+  const a={publico:S.publico,forma:S.forma,union:S.union,verdad:S.verdad,caja:S.caja};
+  const df=(ef.forma||0)+(ef.oficio||0)-(ef.desgaste||0)*0.8;
+  let dv=(ef.verdad||0);
+  if(S.quemados&&dv>0)dv=dv/2;                       // punto de no retorno
+  S.publico=clamp(S.publico+(ef.publico||0));S.forma=clamp(S.forma+df);
+  S.union=clamp(S.union+(ef.union||0));
+  S.verdad=clamp(S.verdad+dv,-100,100);S.caja+=(ef.caja||0);
+  if(S.verdad<=-50)S.quemados=true;
+  ST.pubMax=Math.max(ST.pubMax||0,S.publico);
+  if(S.caja>a.caja)ST.ganado+=S.caja-a.caja; else ST.gastado+=a.caja-S.caja;
+  if(S.publico-a.publico>(ST.mejor?ST.mejor.d:0))ST.mejor={s:sem,d:Math.round(S.publico-a.publico)};
+  ultDelta={publico:S.publico-a.publico,forma:S.forma-a.forma,union:S.union-a.union,verdad:S.verdad-a.verdad,caja:S.caja-a.caja};
+}
+function chips(){
+  const d=[];[['publico','Púb'],['oficio','Ofi'],['union','Uni'],['verdad','True'],['desgaste','Desg']].forEach(([k,n])=>{
+    const v=Math.round(ultDelta[k]||0);
+    if(v)d.push(`<span class="d ${(k==='desgaste'?v<0:v>0)?'mas':'menos'}">${n} ${v>0?'+':''}${v}</span>`)});
+  const c=Math.round(ultDelta.caja||0);
+  d.push(`<span class="d ${c>=0?'mas':'menos'}">${c>=0?'+':'-'}$${Math.abs(c)}</span>`);
+  return d.map((x,i)=>x.replace('class="d','style="animation-delay:'+(i*60)+'ms" class="d')).join('');
+}
+function salir(nombre,reponer){
+  const f=banda.find(m=>m.nom===nombre)||banda[0];banda=banda.filter(m=>m!==f);ST.cambios++;
+  if(reponer!==false&&banda.length>=2){const n=nuevaPersona(f.rol);banda.push(n);ST.elenco.add(n.nom);
+    return ` Entra ${n.nom}, que ${n.vicio.t}.`}
+  return ` Nadie ocupa el lugar de ${f.nom}.`;
+}
+
+function catastrofe(){
+  const c=rnd(CAT),mp=mapaN();ST.cat++;aplicar(Object.assign({},c.ef));vidrio();racha=0;animo='pelea';sacudir();flota('x1',true);
+  bitacora.push({s:sem,ev:pers(c.t,mp),op:'no lo eligieron'});
+  const extra=c.salida?salir(mp.m,azar()<.7):"";
+  pinta(hud()+`<div class="truss"><b></b><i></i><b></b></div><div class="flyer mal"><div class="cab alerta"><span class="ico">${ICO.calavera}</span><div class="kicker alerta">Semestre ${sem} · se pudrió todo</div></div>
+    <h2 class="impact">${pers(c.t,mp)}</h2><div class="resultado">${pers(c.d,mp)}${extra}</div>
+    <div class="deltas">${chips()}</div>${chequearHitos()}
+    <button class="opt" id="seguir" style="animation-delay:.3s"><b>Levantarse igual</b></button></div>`);
+  document.getElementById('seguir').onclick=avanzar;
+}
+
+function resolver(op,mp,ev){
+  let ef={},txt=op.r||"",salida=op.salida;
+  if(op.riesgo!==undefined){const forzado=armado;if(armado){armado=false;document.body.classList.remove('starpower')}
+    const r=(forzado||azar()<op.riesgo)?op.ok:op.mal;ef=Object.assign({},r.ef);txt=r.r;if(r.salida)salida=true}
+  else ef=Object.assign({},op.ef||{});
+  if((ef.verdad||0)>0)ST.tr++; else if((ef.verdad||0)<0)ST.po++;
+  const gastos=form.gasto*banda.length+Math.round((100-S.forma)*1.2);
+  const trabajos=Math.max(0,Math.round(285-S.publico*3.6));
+  const stream=Math.round(S.publico*3.2*(S.verdad<0?1.5:1));
+  const shows=Math.round(S.publico*S.publico/14*(1+(banda.length-4)*0.07));
+  ef.caja=(ef.caja||0)+trabajos+stream+shows-gastos;
+  ef.forma=(ef.forma||0)-2;
+  if((ef.publico||0)<=0)ef.publico=(ef.publico||0)-Math.round(S.publico*0.115);   // olvido
+  if(S.union>45)ef.publico=(ef.publico||0)+Math.round(S.publico*0.05);
+  if((ef.publico||0)>0)ef.publico=Math.round(ef.publico*Math.max(.38,1-S.publico/168));
+  const deriva=-Math.min(4,Math.round(S.publico/34)+Math.round(Math.max(0,S.caja)/1700));
+  ef.verdad=(ef.verdad||0)+deriva;
+  const dv=Math.round((S.forma-55)/12);if(dv)ef.publico=(ef.publico||0)+dv;
+  if(S.union<28)ef.publico=(ef.publico||0)-4;
+
+  if(S.verdad<-55&&azar()<.5)ef.publico=(ef.publico||0)-4;
+  if(op.cad&&!pendientes.some(x=>x.k===op.cad))pendientes.push({k:op.cad,s:sem+2});
+  if(RIVAL)RIVAL.p=clamp(RIVAL.p+3+azar()*7-(S.publico>RIVAL.p?1:0));
+  aplicar(ef);
+  bitacora.push({s:sem,ev:pers(ev.t,mp),op:pers(op.tx,mp)});
+  let extra="";
+  if(salida)extra=salir(mp.m,op.reponer);
+  if(op.entra){const n=nuevaPersona(rnd(ROLES));banda.push(n);ST.elenco.add(n.nom);ST.cambios++;extra=` Se suma ${n.nom}, que ${n.vicio.t}.`}
+  const hh=chequearHitos();
+  if(hh){brillo();SP=Math.min(100,SP+34)}
+  const d=ultDelta,val=(d.publico||0)+(d.forma||0)+(d.union||0)+Math.abs(d.verdad||0)*.4+(d.caja||0)/240;
+  const bien=val>=1.5, mult=multi();
+  if(bien){racha++;mejorRacha=Math.max(mejorRacha,racha)}else if(val<=-1.5){racha=0}
+  const gan=Math.max(0,Math.round(val*11))*mult;
+  PTS+=gan;
+  animo=hh||racha>=3?'festeja':S.union<30?'pelea':S.forma<28?'agotado':'toca';
+  if(bien){riff();flota('+'+gan)}else if(val<=-1.5){vidrio();sacudir();flota('x1',true)}
+  else suena();
+  pinta(hud()+`<div class="truss"><b></b><i></i><b></b></div><div class="flyer"><div class="cab"><span class="ico">${iconoDe(ev.t)}</span><div class="kicker">Semestre ${sem}</div></div>
+    <h2 class="impact">${pers(ev.t,mp)}</h2><div class="resultado">${pers(txt,mp)}${extra}</div>
+    <div class="deltas">${chips()}</div>${hh}${titular()}
+    <div class="balance">Semestre: ${(trabajos+stream+shows-gastos)>=0?'+':'-'}$${Math.abs(trabajos+stream+shows-gastos)} de operación</div>
+    <button class="opt" id="seguir" style="animation-delay:.32s"><b>Semestre ${sem+1}</b></button></div>`);
+  document.getElementById('seguir').onclick=avanzar;
+}
+
+function avanzar(){
+  if(S.union<=0)return final('separacion');
+  if(S.caja<-1100)return final('quiebra');
+  if(S.forma<=0)return final('colapso');
+  if(banda.length<2)return final('separacion');
+  sem++;turno();
+}
+
+
+
+// ---------- sonido sintetizado ----------
+let AC=null,sonido=true;
+function ac(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();
+  if(AC.state==='suspended')AC.resume();return AC}catch(e){return null}}
+function distor(x,k){const c=new Float32Array(1024);
+  for(let i=0;i<1024;i++){const v=i*2/1024-1;c[i]=(1+k)*v/(1+k*Math.abs(v))}
+  const w=x.createWaveShaper();w.curve=c;return w}
+function riff(){
+  if(!sonido)return;const x=ac();if(!x)return;const t=x.currentTime;
+  const w=distor(x,14),lp=x.createBiquadFilter();lp.type='lowpass';lp.frequency.value=2200;
+  const g=x.createGain();g.gain.value=.0001;w.connect(lp);lp.connect(g);g.connect(x.destination);
+  const acorde=[82.41,123.47,164.81],golpes=[0,.13,.26,.42];
+  golpes.forEach((d,i)=>{acorde.forEach(f=>{
+    const o=x.createOscillator();o.type='sawtooth';
+    o.frequency.setValueAtTime(f*(i===3?1.5:1),t+d);o.connect(w);o.start(t+d);o.stop(t+d+(i===3?.6:.16))})});
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.16,t+.02);
+  g.gain.setValueAtTime(.16,t+.9);g.gain.exponentialRampToValueAtTime(.0001,t+1.15);
+}
+function vidrio(){
+  if(!sonido)return;const x=ac();if(!x)return;const t=x.currentTime;
+  const n=x.createBuffer(1,x.sampleRate*.5,x.sampleRate),d=n.getChannelData(0);
+  for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);
+  const src=x.createBufferSource();src.buffer=n;
+  const hp=x.createBiquadFilter();hp.type='highpass';hp.frequency.value=2400;
+  const g=x.createGain();g.gain.value=.28;src.connect(hp);hp.connect(g);g.connect(x.destination);
+  src.start(t);
+  for(let i=0;i<7;i++){const o=x.createOscillator(),gg=x.createGain();o.type='sine';
+    o.frequency.value=1800+Math.random()*4200;const d2=Math.random()*.22;
+    gg.gain.setValueAtTime(.07,t+d2);gg.gain.exponentialRampToValueAtTime(.0001,t+d2+.18);
+    o.connect(gg);gg.connect(x.destination);o.start(t+d2);o.stop(t+d2+.2)}
+}
+function brillo(){
+  if(!sonido)return;const x=ac();if(!x)return;const t=x.currentTime;
+  [523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=x.createOscillator(),g=x.createGain();
+    o.type='triangle';o.frequency.value=f;g.gain.setValueAtTime(.0001,t+i*.075);
+    g.gain.exponentialRampToValueAtTime(.11,t+i*.075+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,t+i*.075+.5);
+    o.connect(g);g.connect(x.destination);o.start(t+i*.075);o.stop(t+i*.075+.55)})}
+function suena(){
+  const d=ultDelta,pts=(d.publico||0)+(d.oficio||0)+(d.union||0)+(d.verdad||0)-(d.desgaste||0)/2+(d.caja||0)/220;
+  if(pts>=1.5)riff(); else if(pts<=-1.5)vidrio();
+}
+
+// ---------- afiche descargable ----------
+function ajusta(x,txt,max,base){let f=base;x.font=f+'px Impact, Haettenschweiler, "Arial Black", sans-serif';
+  while(x.measureText(txt).width>max&&f>18){f-=4;x.font=f+'px Impact, Haettenschweiler, "Arial Black", sans-serif'}return f}
+function dibujarPoster(titulo,rango,lado){
+  const cv=document.getElementById('poster');if(!cv)return;
+  const W=1080,H=1350;cv.width=W;cv.height=H;const x=cv.getContext('2d');
+  x.fillStyle='#120A18';x.fillRect(0,0,W,H);
+  let g=x.createRadialGradient(200,-60,20,200,-60,900);
+  g.addColorStop(0,'rgba(255,35,80,.55)');g.addColorStop(1,'rgba(255,35,80,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  g=x.createRadialGradient(900,-40,20,900,-40,820);
+  g.addColorStop(0,'rgba(255,176,32,.4)');g.addColorStop(1,'rgba(255,176,32,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  g=x.createRadialGradient(540,1420,40,540,1420,780);
+  g.addColorStop(0,'rgba(138,99,255,.34)');g.addColorStop(1,'rgba(138,99,255,0)');x.fillStyle=g;x.fillRect(0,0,W,H);
+  x.globalAlpha=.05;x.fillStyle='#fff';
+  for(let i=0;i<2600;i++)x.fillRect(Math.random()*W|0,Math.random()*H|0,2,2);
+  x.globalAlpha=1;
+  x.fillStyle='#FF2350';x.fillRect(80,120,W-160,7);
+  x.fillStyle='#8A7E92';x.font='26px Helvetica, Arial, sans-serif';
+  x.fillText('2026 — '+(2026+Math.ceil(sem/2)),80,190);
+  x.textAlign='right';x.fillText(rango.toUpperCase(),W-80,190);x.textAlign='left';
+  const f=ajusta(x,nom,W-160,190);
+  x.fillStyle='#F3ECE6';x.shadowColor='rgba(255,35,80,.6)';x.shadowBlur=50;
+  x.fillText(nom,80,190+f*0.92);x.shadowBlur=0;
+  let y=190+f*0.92+70;
+  x.fillStyle='#FFB020';const f2=ajusta(x,titulo.toUpperCase(),W-160,64);
+  x.fillText(titulo.toUpperCase(),80,y);y+=f2+50;
+  x.fillStyle='#8A7E92';x.font='27px Helvetica, Arial, sans-serif';
+  x.fillText('EN VIVO', 80, y); y+=44;
+  x.fillStyle='#F3ECE6';x.font='31px Helvetica, Arial, sans-serif';
+  banda.forEach(m=>{x.fillText(m.nom+'   '+m.rol,80,y);y+=44});
+  y+=26;x.fillStyle='#8A7E92';x.font='27px Helvetica, Arial, sans-serif';x.fillText('HITOS',80,y);y+=42;
+  x.font='29px Helvetica, Arial, sans-serif';x.fillStyle='#F3ECE6';
+  (logros.length?logros:[{t:'Ninguno'}]).slice(0,6).forEach(h=>{x.fillText('· '+h.t,80,y);y+=40});
+  x.fillStyle='#8A7E92';x.font='25px Helvetica, Arial, sans-serif';
+  x.fillText('Público '+Math.round(S.publico)+'   Forma '+Math.round(S.forma)+'   Unión '+Math.round(S.union)+'   Eje '+Math.round(S.verdad),80,H-110);
+  x.fillText('Caja $'+S.caja+'   ·   '+ST.elenco.size+' integrantes   ·   '+PTS+' puntos   ·   racha '+mejorRacha,80,H-72);
+  x.save();x.translate(W-215,H-235);x.rotate(-.22);
+  x.strokeStyle=lado==='TRUE'?'#8A63FF':lado==='POSER'?'#FF2350':'#8A7E92';
+  x.lineWidth=7;x.strokeRect(-135,-62,270,124);
+  x.fillStyle=x.strokeStyle;x.textAlign='center';
+  x.font='84px Impact, Haettenschweiler, "Arial Black", sans-serif';
+  x.fillText(lado==='TRUE'?'TRUE':lado==='POSER'?'POSER':'NI AHI',0,28);x.restore();
+}
+
+let FIN={};
+async function compartirPoster(){
+  const cv=document.getElementById('poster');if(!cv)return;
+  const txt=`${nom} — ${FIN.titulo}. Público ${Math.round(S.publico)}, lado ${FIN.lado}, ${logros.length} hitos en ${sem} semestres. #TrueOPoser`;
+  cv.toBlob(async b=>{
+    const f=new File([b],'afiche.png',{type:'image/png'});
+    try{
+      if(navigator.canShare&&navigator.canShare({files:[f]})){
+        await navigator.share({files:[f],title:nom,text:txt});return}
+      if(navigator.share){await navigator.share({title:nom,text:txt});return}
+      throw 0;
+    }catch(e){
+      try{await navigator.clipboard.writeText(txt);avisar('Texto copiado. El afiche se descargó.')}
+      catch(e2){avisar('El afiche se descargó.')}
+      bajarPoster();
+    }
+  });
+}
+function avisar(t){const d=document.createElement('div');d.className='tostada';d.textContent=t;
+  document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function bajarPoster(){
+  const cv=document.getElementById('poster');if(!cv)return;
+  cv.toBlob(b=>{const u=URL.createObjectURL(b),a=document.createElement('a');
+    a.href=u;a.download=nom.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-afiche.png';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)});
+}
+function final(motivo){
+  const p=S.publico,v=S.verdad;let rango,titulo,texto;
+  if(motivo==='separacion'){rango="Se cortó antes";titulo="Se separaron";
+    texto=`${nom} duró ${sem} semestres. El grupo de mensajes quedó en silencio y después ya fue tarde.`}
+  else if(motivo==='quiebra'){rango="Se cortó antes";titulo="Fundidos";
+    texto=`Vendieron el equipo para pagar la camioneta. La última fecha fue en la casa de un amigo, a la gorra.`}
+  else if(motivo==='colapso'){rango="Se cortó antes";titulo="El cuerpo dijo basta";
+    texto=`Seis años de ruta terminaron en una internación y una banda en pausa indefinida.`}
+  else if(p>=92&&v>=55&&S.union>=60){rango="Lo máximo que se puede";titulo="La noche que se estudia";
+    texto=`${nom} cierra el sábado, y esa noche entra en la lista corta de shows que la gente cita como el mejor que vio. Ciento veinte mil personas, la formación casi intacta, y ni una sola concesión de la que arrepentirse. Casi ninguna banda llega hasta acá.`}
+  else if(p>=88&&v>=45){rango="Cabeza de cartel";titulo="Rock in Rio, cierre de la noche";
+    texto=`${nom} cierra el sábado. Cien mil personas cantan canciones que salieron de una sala de ensayo, y llegaron ahí sin deberle nada a nadie que no fuera su público.`}
+  else if(p>=84&&v<=-30){rango="Arriba y de mentira";titulo="Cartel de un festival de marca";
+    texto=`${nom} cierra un festival con nombre de bebida energética. Rock in Rio los tuvo en la lista corta y eligió a otros: la curaduría los leyó como lo que son ahora.`}
+  else if(p>=76){rango="Casi arriba";titulo="Anteúltimos en el cartel";
+    texto=`${nom} toca a las nueve, justo antes del número principal. Es enorme y es una espina clavada.`}
+  else if(p>=60&&v>=35){rango="Banda de culto";titulo="Respetadas y sin cartel";
+    texto=`${nom} llena teatros en seis ciudades y no entra en ningún festival grande. Las bandas nuevas las citan como influencia.`}
+  else if(p>=60&&v<=-25){rango="Poser con hits";titulo="Banda de televisión";
+    texto=`${nom} tiene tres canciones que conoce todo el mundo y ningún crítico que las defienda. En el bar donde empezaron tienen prohibida la entrada, medio en broma.`}
+  else if(p>=60){rango="Circuito grande";titulo="Banda de festival del mediodía";
+    texto=`${nom} está en todos los carteles, siempre en letra mediana. Viven de esto y nunca terminan de dar el salto.`}
+  else if(p>=22&&p<32){rango="Del barrio";titulo="La banda del bar de siempre";
+    texto=`${nom} toca cada dos meses en el mismo lugar, para las mismas ochenta personas, que son buenísimas.`}
+  else if(p>=32){rango="Circuito";titulo="Banda de sala mediana";
+    texto=`${nom} llena trescientas localidades dos veces al año. Todos tienen otro trabajo y ninguno lo cambiaría.`}
+  else if(S.union>=80){rango="Nunca se separaron";titulo="La banda que sigue ensayando";
+    texto=`${nom} nunca salió del circuito chico y nunca dejó de tocar. La misma gente en la misma sala, los martes.`}
+  else if(S.forma>=85){rango="Banda de músicos";titulo="Los que admiran los otros músicos";
+    texto=`${nom} toca de manera extraordinaria para muy poca gente. Los conocen todos los que están arriba de un escenario.`}
+  else{rango="Final del camino";titulo="Se apagó despacio";
+    texto=`${nom} nunca salió del bar de la esquina. Un día ${rnd(banda).nom} vendió el amplificador para pagar el alquiler.`}
+  const lado=v>=35?"TRUE":v<=-35?"POSER":"ni una cosa ni la otra";
+  const sinver=EV.length-vistos.size;
+  const est=PTS>=5200?5:PTS>=3700?4:PTS>=2600?3:PTS>=1600?2:1;
+  aplausos(est>=3);
+  app.innerHTML=`<div class="afiche">
+   <div class="puntuacion">
+     <div class="estrellas">${[1,2,3,4,5].map(i=>`<span class="${i<=est?'on':''}" style="animation-delay:${i*.13}s">${ICO.estrella}</span>`).join('')}</div>
+     <div class="ptotal nu" data-k="fin" data-a="0" data-b="${PTS}">0</div>
+     <div class="pdet">puntos · mejor racha ${mejorRacha} · ${logros.length} hitos</div>
+   </div>
+   <div class="cabf"><span class="rank">${rango}</span><span class="an">2026 — ${2026+Math.ceil(sem/2)}</span></div>
+   <div class="nb impact">${nom}</div>
+   <h2 class="impact">${titulo}</h2>
+   <p class="texto">${texto}</p>
+   <div class="cifras">Público <b>${Math.round(p)}</b> · Forma <b>${Math.round(S.forma)}</b> · Unión <b>${Math.round(S.union)}</b> · Eje <b>${Math.round(v)}</b> ${lado} · Caja <b>$${S.caja}</b></div>
+   <div class="cifras b">${RIVAL?`${RIVAL.nom} terminó en <b>${Math.round(RIVAL.p)}</b> · `:''}Pico <b>${Math.round(ST.pubMax)}</b> · entró <b>$${ST.ganado}</b> · true/poser <b>${ST.tr}/${ST.po}</b> · desastres <b>${ST.cat}</b> · pasaron <b>${ST.elenco.size}</b> · hitos <b>${logros.length}/${HITOS.length}</b></div>
+   <details class="linea"><summary>Hitos y bitácora</summary>
+     <div class="lgs">${logros.length?logros.map(h=>`<span class="lg">${h.t}</span>`).join(''):'<span class="lg vacio">Ningún hito.</span>'}</div>
+     <ol>${bitacora.map(b=>`<li><span>${b.s}</span> ${b.ev}: <b>${b.op}</b></li>`).join('')}</ol>
+     <div class="noviste">Quedaron ${sinver} eventos sin vivir. Formación final: ${banda.map(m=>m.nom).join(', ')}.</div></details>
+   <div class="posterbox"><canvas id="poster"></canvas></div>
+   <button class="reiniciar" id="compartir">Compartir el afiche</button>
+   <div class="botones"><button class="reiniciar alt" id="bajar">Guardar</button><button class="reiniciar alt" id="otra">Otra banda</button></div>
+   </div>`;
+  FIN={titulo,rango,lado};prevN={};animarNums();dibujarPoster(titulo,rango,lado);
+  document.getElementById('compartir').onclick=compartirPoster;
+  document.getElementById('bajar').onclick=bajarPoster;
+  document.getElementById('otra').onclick=nuevo;scrollTo(0,0);
+}
+nuevo();
+</script>
+</body>
+</html>

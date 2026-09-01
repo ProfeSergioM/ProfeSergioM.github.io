@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Proyectos</title>
+<meta name="description" content="Juegos y experimentos personales, uno por archivo.">
+<meta property="og:title" content="Proyectos">
+<meta property="og:description" content="Juegos y experimentos personales.">
+<meta property="og:type" content="website">
+<style>
+  :root{--noche:#000;--humo:#141018;--hueso:#F3ECE6;--sangre:#FF2350;--ambar:#FFC400;
+    --cian:#00E5FF;--magenta:#FF2BD1;--ceniza:#8A7E92}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--noche)}
+  body{color:var(--hueso);font-family:Helvetica,Arial,sans-serif;font-size:16px;line-height:1.45;
+    padding:22px 14px 50px;max-width:760px;margin:0 auto;
+    background:radial-gradient(120% 45% at 8% -8%,rgba(255,43,209,.26),transparent 58%),
+      radial-gradient(110% 42% at 94% -6%,rgba(0,229,255,.20),transparent 60%),
+      radial-gradient(95% 50% at 50% 112%,rgba(255,35,80,.16),transparent 62%),var(--noche)}
+  body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:9;opacity:.5;
+    background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,.05) 1px,transparent 1px);
+    background-size:4px 4px;mix-blend-mode:screen}
+  .impact{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-weight:400;
+    text-transform:uppercase;line-height:.8;letter-spacing:-.015em}
+
+  header{margin-bottom:26px}
+  h1{margin:0;font-size:clamp(46px,15vw,92px);transform:skewX(-7deg);
+    background:linear-gradient(180deg,#FFF 0%,#DCE6F0 38%,#5C6675 50%,#F2F7FF 58%,#FFF 78%,#9AA6B4 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(4px 4px 0 var(--sangre)) drop-shadow(0 0 26px rgba(255,43,209,.45))}
+  .bajada{font-size:13.5px;color:var(--ceniza);margin-top:12px;max-width:44ch;line-height:1.5;
+    border-left:2px solid rgba(243,236,230,.2);padding-left:10px}
+
+  .grilla{display:grid;grid-template-columns:1fr;gap:14px}
+  @media (min-width:620px){.grilla{grid-template-columns:1fr 1fr}}
+
+  a.tarjeta{display:block;text-decoration:none;color:inherit;padding:16px 15px 14px;position:relative;
+    background:linear-gradient(155deg,var(--humo),#0A0710);border-top:3px solid var(--sangre);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%);
+    box-shadow:0 14px 34px rgba(0,0,0,.6),0 0 0 1px rgba(243,236,230,.08) inset;
+    transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s}
+  a.tarjeta:hover,a.tarjeta:focus-visible{transform:translateY(-4px);outline:none;
+    box-shadow:0 20px 44px rgba(0,0,0,.7),0 0 0 1px rgba(0,229,255,.35) inset,0 0 30px rgba(0,229,255,.18)}
+  a.tarjeta.cian{border-top-color:var(--cian)}
+  a.tarjeta.ambar{border-top-color:var(--ambar)}
+  .etiqueta{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ambar);margin-bottom:6px}
+  a.tarjeta.cian .etiqueta{color:var(--cian)}
+  h2{margin:0 0 7px;font-size:clamp(26px,7vw,34px);transform:skewX(-7deg);text-shadow:3px 3px 0 var(--sangre)}
+  a.tarjeta.cian h2{text-shadow:3px 3px 0 var(--cian)}
+  a.tarjeta.ambar h2{text-shadow:3px 3px 0 var(--ambar)}
+  .desc{font-size:13px;color:rgba(243,236,230,.8);margin:0 0 10px}
+  .datos{display:flex;flex-wrap:wrap;gap:5px}
+  .dato{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;
+    background:rgba(243,236,230,.09);color:var(--ceniza);transform:skewX(-12deg)}
+  .jugar{margin-top:11px;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;
+    text-transform:uppercase;font-size:19px;color:var(--hueso);letter-spacing:.01em}
+  .jugar span{color:var(--sangre)}
+
+  .proximo{border-top:3px dashed rgba(243,236,230,.22);background:rgba(243,236,230,.03);
+    box-shadow:none;cursor:default}
+  .proximo h2{color:rgba(243,236,230,.35);text-shadow:none}
+  .proximo:hover{transform:none;box-shadow:none}
+
+  footer{margin-top:34px;padding-top:16px;border-top:1px solid rgba(243,236,230,.14);
+    font-size:11px;color:var(--ceniza);letter-spacing:.04em;line-height:1.7}
+  footer a{color:var(--ceniza)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <h1 class="impact">Proyectos</h1>
+  <p class="bajada">Cosas que hice para probar ideas. Todo corre en el navegador, sin instalar nada
+    y sin cuentas. Andan igual en el teléfono que en la computadora.</p>
+</header>
+
+<main class="grilla">
+
+  <a class="tarjeta" href="true-o-poser/">
+    <div class="etiqueta">Juego · 2026</div>
+    <h2 class="impact">True o Poser</h2>
+    <p class="desc">Simulador de banda de rock. Dieciséis semestres de decisiones para llegar a cerrar
+      la noche en Rock in Rio, sin venderse en el camino. Ciento un situaciones, veinticinco hitos
+      y quince finales distintos.</p>
+    <div class="datos">
+      <span class="dato">6 minutos</span>
+      <span class="dato">Un jugador</span>
+      <span class="dato">Con sonido</span>
+    </div>
+    <div class="jugar">Jugar <span>&rarr;</span></div>
+  </a>
+
+  <!-- Duplicá este bloque para cada proyecto nuevo.
+       Cambiá href, título, descripción y las etiquetas.
+       Las clases "cian" y "ambar" cambian el color de acento. -->
+  <div class="tarjeta proximo">
+    <div class="etiqueta">En construcción</div>
+    <h2 class="impact">Lo que venga</h2>
+    <p class="desc">Acá va el próximo. Copiá el bloque de arriba en el HTML, cambiá el enlace
+      y el texto, y listo.</p>
+  </div>
+
+</main>
+
+<footer>
+  Hecho a mano, sin frameworks ni rastreadores.<br>
+  El código de cada proyecto está en <a href="https://github.com/">GitHub</a>.
+</footer>
+
+</body>
+</html>
