@@ -463,7 +463,7 @@ const EV=[
  {tx:"Negarlo con abogados",cs:"defensa costosa",riesgo:.5,
   ok:{ef:{caja:-180,publico:6,verdad:-8},r:"El video se borra y el tema sigue sonando."},
   mal:{ef:{caja:-420,publico:-12,verdad:-16,union:-8},r:"Pierden el juicio, la canción y bastante dignidad."}},
- {tx:"Hacer un chiste y seguir",cs:"desparpajo",ef:{publico:7,verdad:4,union:-4},r:"Sacan una remera con las dos partituras y se agota."}]},
+ {tx:"Hacer un chiste y seguir",cs:"desparpajo",ef:{publico:7,verdad:4,union:-4},r:"Sacan una polera con las dos partituras y se agota."}]},
 {t:"Una marca quiere el estribillo",cond:s=>s.publico>26,d:"Ofrecen dos años de tranquilidad a cambio del tema para un aviso.",o:[
  {tx:"Vender el tema",cs:"plata contra credibilidad",cad:'marca',ef:{caja:900,publico:9,verdad:-26,union:-8},r:"Se acaban las deudas y el estribillo pasa a ser de una gaseosa."},
  {tx:"Venderles uno del demo",cs:"astucia",ef:{caja:420,verdad:-9,publico:4},r:"Una canción que nadie escuchaba paga el disco nuevo."},
@@ -485,14 +485,14 @@ const EV=[
  {tx:"Contratarlo solo para grabar",cs:"acotado",ef:{oficio:8,caja:-220},r:"Graba en dos días lo que a ustedes les llevaría dos meses."},
  {tx:"Rechazarlo",cs:"defender el club",ef:{union:9,verdad:7,oficio:-2},r:"La banda sigue con sus límites de siempre."}]},
 {t:"Telonear a una banda enorme",d:"Media hora antes de un grupo que llena estadios, pagando producción.",o:[
- {tx:"Pagar y tocar",cs:"caro y decisivo",ef:{caja:-380,publico:20,oficio:4,desgaste:6},r:"Seis mil personas y las primeras remeras firmadas."},
+ {tx:"Pagar y tocar",cs:"caro y decisivo",ef:{caja:-380,publico:20,oficio:4,desgaste:6},r:"Seis mil personas y las primeras poleras firmadas."},
  {tx:"No pagar por tocar",cs:"principio caro",ef:{verdad:11,publico:-4,union:5},r:"Se quedan afuera y lo cuentan en cada entrevista durante años."}]},
 {t:"Vinilos o nada",d:"Hay que decidir cuánta plata inmovilizar en objetos.",o:[
  {tx:"Tirada grande de vinilos",cs:"riesgo alto",riesgo:.55,
   ok:{ef:{caja:640,publico:8,verdad:6},r:"Se agotan en dos meses y aparecen en reventa a triple precio."},
   mal:{ef:{caja:-480},r:"Doscientos vinilos viviendo bajo la cama de {m}."}},
- {tx:"Remeras y stickers",cs:"poco riesgo",ef:{caja:170,publico:5},r:"El logo empieza a aparecer en postes de luz."},
- {tx:"Todo digital",cs:"sin romance",ef:{caja:90,verdad:-5},r:"Cero cajas que cargar y cero fotos con la remera puesta."}]},
+ {tx:"Poleras y stickers",cs:"poco riesgo",ef:{caja:170,publico:5},r:"El logo empieza a aparecer en postes de luz."},
+ {tx:"Todo digital",cs:"sin romance",ef:{caja:90,verdad:-5},r:"Cero cajas que cargar y cero fotos con la polera puesta."}]},
 {t:"Entradas dinámicas",e:3,cond:s=>s.publico>50,d:"El ticketing propone precios que suben solos con la demanda.",o:[
  {tx:"Activarlas",cs:"mucha plata, mala prensa",ef:{caja:900,publico:5,verdad:-24,union:-6},r:"Recaudación histórica y el público del bar no puede pagar la entrada."},
  {tx:"Precio fijo y bajo",cs:"menos plata, más gente",ef:{caja:220,publico:12,verdad:16},r:"Se agota en horas y queda una comunidad que no los suelta."},
@@ -651,7 +651,7 @@ const EV=[
 {t:"La prensa los destroza",e:2,d:"Una reseña larga y bien escrita dice que el disco es un ejercicio vacío.",o:[
  {tx:"Leerla y tomar nota",cs:"tragar orgullo",ef:{oficio:9,verdad:8,union:-4},r:"Tenía razón en tres cosas y el disco siguiente lo demuestra."},
  {tx:"Responder en redes",cs:"ruido",cad:'prensa',ef:{publico:8,verdad:-7,union:-6},r:"La discusión dura una semana y le da lectores a la reseña."},
- {tx:"Citarla en la remera",cs:"convertir el insulto",ef:{publico:11,verdad:11,caja:80},r:"La frase en el pecho se agota en dos fechas."}]},
+ {tx:"Citarla en la polera",cs:"convertir el insulto",ef:{publico:11,verdad:11,caja:80},r:"La frase en el pecho se agota en dos fechas."}]},
 {t:"Un tema para un videojuego",e:2,d:"Quieren una canción para la banda sonora de un juego de carreras.",o:[
  {tx:"Cederla",cs:"público nuevo",ef:{publico:15,caja:480,verdad:-6},r:"Una generación entera asocia el tema con doblar a doscientos por hora."},
  {tx:"Componer una nueva a medida",cs:"trabajo extra",ef:{publico:11,caja:560,oficio:5,desgaste:8},r:"Sale un tema que en vivo funciona mejor que varios del disco."},
@@ -770,7 +770,7 @@ const EV=[
  {tx:"Ir con traje y agradecer",cs:"ceremonia",ef:{publico:7,verdad:6,union:8},r:"Los abuelos aplauden y la foto termina en el diario local."},
  {tx:"Ir y tocar gratis en la plaza",cs:"devolver el gesto",ef:{publico:12,verdad:14,union:9,caja:-70},r:"Va todo el pueblo. Es el show más chico y más importante del año."},
  {tx:"Mandar un video",cs:"agenda apretada",ef:{verdad:-8,publico:2},r:"En el pueblo lo toman como lo que es."}]},
-{t:"Un pibe pide consejo",e:3,d:"Una banda de dieciséis años les pregunta cómo se hace.",o:[
+{t:"Un cabro pide consejo",e:3,d:"Una banda de dieciséis años les pregunta cómo se hace.",o:[
  {tx:"Contarles todo, incluso lo feo",cs:"honestidad",ef:{verdad:13,union:6,publico:4},r:"Dos años después esa banda los agradece desde un escenario grande."},
  {tx:"Prestarles la sala y el equipo",cs:"gesto concreto",ef:{verdad:15,caja:-120,publico:6},r:"Graban su demo con el equipo de ustedes y no se olvidan nunca."},
  {tx:"Decirles que no se metan",cs:"amargura",ef:{verdad:-7,union:-4},r:"Se meten igual, y lo cuentan."}]},
@@ -922,11 +922,11 @@ function bienvenida(){
    <p class="lema">Un simulador de banda de rock que dura lo que un tema largo.</p>
    <div class="expl">
      <div class="ex"><span class="ico">${ICO.escenario}</span><div><b>De qué se trata</b>
-       Armás una banda y jugás ocho años de carrera, un evento por semestre. Dieciséis decisiones, unos seis minutos.</div></div>
+       Armas una banda y juegas ocho años de carrera, un evento por semestre. Dieciséis decisiones, unos seis minutos.</div></div>
      <div class="ex"><span class="ico">${ICO.gente}</span><div><b>Qué se cuida</b>
        Público, Forma y Unión. El público se olvida si no le das novedades, la forma se gasta con las giras y la unión se rompe con cada pelea.</div></div>
      <div class="ex"><span class="ico">${ICO.rayo}</span><div><b>El eje true o poser</b>
-       Cada decisión te corre hacia un lado. El éxito y la plata te empujan solos hacia poser, y si caés muy abajo, la escena deja de creerte.</div></div>
+       Cada decisión te corre hacia un lado. El éxito y la plata te empujan solos hacia poser, y si caes muy abajo, la escena deja de creerte.</div></div>
      <div class="ex"><span class="ico">${ICO.estrella}</span><div><b>Cómo se gana</b>
        Para cerrar la noche en Rock in Rio hacen falta 88 de público y +45 en el eje true. Casi nadie llega, y arriba de eso todavía queda un final más. Hay otros catorce, y ninguno es igual de bueno.</div></div>
    </div>
@@ -935,7 +935,7 @@ function bienvenida(){
 }
 function inicio(){
   app.innerHTML=`<h1 class="impact">La banda</h1>
-  <p class="intro">Elegí el nombre y con cuánta gente te subís al escenario. Cuanta más gente, mejor suena y más difícil es sostenerla.</p>
+  <p class="intro">Elige el nombre y con cuánta gente te subes al escenario. Cuanta más gente, mejor suena y más difícil es sostenerla.</p>
   <div class="nombre-wrap"><input type="text" id="nom" value="${rnd(NB)}" maxlength="22" aria-label="Nombre de la banda"><button class="dado" id="dado" title="Otro nombre">&#9834;</button></div>
 
   ${FORMS.map((f,i)=>`<div class="banda-opt" tabindex="0" data-i="${i}"><h3 class="impact">${f.nom}<span class="miniband">${'<i></i>'.repeat(f.n)}</span></h3><p>${f.desc}</p><div class="datos">Forma ${f.st.forma} · Unión ${f.st.union} · True ${f.st.verdad} · $${f.st.caja}${f.n===5?' · difícil':''}</div></div>`).join('')}`;
@@ -1118,7 +1118,7 @@ function confirmarReinicio(){
   const d=document.createElement('div');d.id='modal';d.className='modal';
   d.innerHTML=`<div class="caja">
     <h3 class="impact">¿Dejar la banda?</h3>
-    <p>Van ${sem} de ${TOTAL} semestres. Si reiniciás, se pierde todo: el público, los hitos y el puntaje.</p>
+    <p>Van ${sem} de ${TOTAL} semestres. Si reinicias, se pierde todo: el público, los hitos y el puntaje.</p>
     <button class="reiniciar" id="sisi">Sí, empezar de cero</button>
     <button class="reiniciar alt" id="nono">Seguir tocando</button></div>`;
   document.body.appendChild(d);
@@ -1210,7 +1210,7 @@ const EV_RIVAL=[
 ];
 
 const CADENAS={
- tatu:{t:"El del tatuaje volvió",d:"Trae a treinta personas y una remera hecha por él con el logo.",o:[
+ tatu:{t:"El del tatuaje volvió",d:"Trae a treinta personas y una polera hecha por él con el logo.",o:[
   {tx:"Darle la mesa del merch",cs:"confiar",ef:{publico:12,caja:220,verdad:12,union:5},r:"Vende más que cualquiera y desde entonces viaja con la banda."},
   {tx:"Agradecer y seguir",cs:"distancia amable",ef:{publico:4,verdad:3},r:"Se va contento y no vuelve a aparecer."}]},
  casorio:{t:"El video del casamiento",d:"Alguien encontró el video de la fiesta de quince y lo subió.",o:[
@@ -1566,5 +1566,6 @@ function final(motivo){
 }
 nuevo();
 </script>
+  <script defer src="../volver.js"></script>
 </body>
 </html>
