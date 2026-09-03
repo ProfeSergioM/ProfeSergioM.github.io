@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chao Pescao</title>
+<meta name="description" content="Juego de votaciones para el grupo de WhatsApp. Cada ronda sale el más votado y los eliminados siguen votando.">
+<meta property="og:title" content="Chao Pescao">
+<meta property="og:description" content="Todos votan, cada ronda sale el más votado. Los que ya salieron siguen votando.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&display=swap">
+<!--
+  ═══ SALAS EN FIRESTORE ═════════════════════════════════
+  Cada sala es UN documento de la colección salas_chao, en el mismo
+  proyecto de Firebase que usan Presidente.pe y Agente Agente.
+  La regla de seguridad está en SALAS.md, en la raíz del sitio.
+  Sin esa regla publicada el juego no arranca: es multijugador y no
+  tiene modo local al que caer.
+
+  Nadie arbitra la partida desde un servidor. Las rondas se cierran
+  solas: cuando llegan todos los votos, el primer navegador que se da
+  cuenta escribe el resultado. El cálculo es determinista (mismos
+  votos = mismo resultado), así que si dos escriben a la vez escriben
+  exactamente lo mismo.
+  ════════════════════════════════════════════════════════
+-->
+<style>
+  /* Todo dibujado a mano: borde negro grueso, sombra dura sin difuminar,
+     esquinas irregulares y un par de grados de inclinacion. Cero degradados. */
+  :root{
+    --amarillo:#FFD93D; --papel:#FFF8E7; --tinta:#141414;
+    --rojo:#FF3B30; --azul:#2D9CFF; --verde:#28C76F; --naranja:#FF9F1C;
+    --rosa:#FF5FA2; --celeste:#D8EEFF; --crema:#FFE9A8;
+    --torcido:18px 7px 20px 9px / 9px 20px 7px 18px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background-color:var(--amarillo);
+    background-image:radial-gradient(circle at 1px 1px,rgba(0,0,0,.13) 1.6px,transparent 1.7px);
+    background-size:15px 15px;
+    color:var(--tinta);font-size:17px;line-height:1.5;
+    font-family:"Comic Neue","Comic Sans MS","Chalkboard SE","Segoe Print",cursive,sans-serif;
+    padding:18px 15px 88px;max-width:560px;margin:0 auto;min-height:100vh;
+  }
+  .comic{font-family:"Bangers","Comic Sans MS","Chalkboard SE",cursive,sans-serif;
+    font-weight:400;text-transform:uppercase;letter-spacing:.045em;line-height:.95}
+
+  header{margin-bottom:20px;text-align:center}
+  h1{margin:0;font-size:clamp(58px,17vw,94px);color:#fff;transform:rotate(-3deg);
+    -webkit-text-stroke:4px var(--tinta);paint-order:stroke fill;
+    text-shadow:7px 7px 0 var(--rojo)}
+  .bajada{font-size:15px;margin:18px 0 0;background:var(--papel);
+    border:3px solid var(--tinta);border-radius:var(--torcido);padding:11px 13px;
+    box-shadow:4px 4px 0 var(--tinta);transform:rotate(.8deg);text-align:left}
+
+  .caja{background:var(--papel);border:4px solid var(--tinta);border-radius:var(--torcido);
+    box-shadow:6px 6px 0 var(--tinta);padding:15px 15px 17px;margin-bottom:20px}
+  .caja:nth-of-type(odd){transform:rotate(-.7deg)}
+  .caja:nth-of-type(even){transform:rotate(.6deg)}
+  .caja.cian{background:var(--celeste)}
+  .caja.ambar{background:var(--crema)}
+
+  .et{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.06em;
+    text-transform:uppercase;background:var(--tinta);color:#fff;padding:3px 9px;
+    border-radius:20px 6px 20px 6px;margin-bottom:9px;transform:rotate(-1.5deg)}
+  h2{margin:0 0 10px;font-size:clamp(30px,8vw,40px);color:#fff;transform:rotate(-1.5deg);
+    -webkit-text-stroke:3px var(--tinta);paint-order:stroke fill;
+    text-shadow:4px 4px 0 var(--azul)}
+  .caja.cian h2{text-shadow:4px 4px 0 var(--rojo)}
+  .caja.ambar h2{text-shadow:4px 4px 0 var(--rosa)}
+  p{margin:0 0 10px}
+  .chico{font-size:14.5px;line-height:1.5}
+
+  input{width:100%;font:700 19px "Comic Neue","Comic Sans MS",cursive,sans-serif;
+    color:var(--tinta);background:#fff;border:3px solid var(--tinta);
+    border-radius:14px 6px 16px 8px / 8px 16px 6px 14px;padding:11px 13px;
+    outline:none;margin-bottom:11px}
+  input::placeholder{color:#9a9a9a}
+  input:focus{box-shadow:0 0 0 4px var(--azul)}
+  input.codigo{text-align:center;letter-spacing:.28em;text-transform:uppercase;
+    font-family:"Bangers","Comic Sans MS",cursive,sans-serif;font-size:36px;
+    border-style:dashed}
+
+  button{font-family:"Bangers","Comic Sans MS",cursive,sans-serif;font-size:26px;
+    letter-spacing:.05em;color:#fff;background:var(--rojo);
+    border:4px solid var(--tinta);border-radius:16px 8px 18px 10px / 10px 18px 8px 16px;
+    box-shadow:5px 5px 0 var(--tinta);padding:9px 16px 7px;width:100%;cursor:pointer;
+    text-shadow:2px 2px 0 rgba(0,0,0,.3);transition:transform .08s,box-shadow .08s}
+  button:hover{transform:rotate(-1deg)}
+  button:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--tinta)}
+  button:disabled{background:#CFCFCF;color:#7a7a7a;text-shadow:none;
+    box-shadow:5px 5px 0 rgba(20,20,20,.35);cursor:default;transform:none}
+  button.cian{background:var(--azul)}
+  button.ambar{background:var(--naranja)}
+  button.fantasma{background:#fff;color:var(--tinta);text-shadow:none;font-size:20px}
+  .fila{display:flex;gap:10px;margin-bottom:20px}
+  .fila button{width:auto;flex:1}
+
+
+  .codigazo{font-size:clamp(52px,16vw,78px);letter-spacing:.14em;color:#fff;
+    -webkit-text-stroke:4px var(--tinta);paint-order:stroke fill;
+    text-shadow:6px 6px 0 var(--azul);transform:rotate(-2deg);margin:6px 0 10px}
+
+  .jug{display:flex;align-items:center;gap:9px;padding:9px 2px;font-size:17px;font-weight:700;
+    border-bottom:3px dashed rgba(20,20,20,.22)}
+  .jug:last-child{border-bottom:none}
+  .jug .pt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
+    color:#fff;background:var(--tinta);padding:2px 8px;border-radius:20px 6px 20px 6px;
+    white-space:nowrap}
+  .jug .empuje{margin-left:auto}
+  .jug.fuera .nom{text-decoration:line-through;color:#8a8a8a}
+  .jug .sacar{width:auto;flex:none;background:var(--rojo);color:#fff;font-size:17px;
+    line-height:1;padding:3px 9px 1px;box-shadow:2px 2px 0 var(--tinta);border-width:2px;
+    margin-left:4px}
+  .yo{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    background:var(--naranja);color:var(--tinta);padding:2px 7px;
+    border:2px solid var(--tinta);border-radius:20px 6px 20px 6px}
+
+  .voto{display:block;width:100%;text-align:left;background:#fff;color:var(--tinta);
+    font-family:"Comic Neue","Comic Sans MS",cursive,sans-serif;font-size:20px;font-weight:700;
+    letter-spacing:0;text-shadow:none;padding:13px 14px;margin-bottom:11px}
+  .voto:hover{transform:rotate(-.8deg)}
+  .voto[aria-pressed="true"]{background:var(--verde);color:#fff;
+    text-shadow:1.5px 1.5px 0 rgba(0,0,0,.28)}
+  .voto .marca{float:right;font-family:"Bangers","Comic Sans MS",cursive,sans-serif;
+    font-size:17px;letter-spacing:.05em;background:var(--tinta);color:#fff;
+    padding:2px 9px 0;border-radius:20px 6px 20px 6px;transform:rotate(4deg);
+    display:inline-block}
+
+  .barra{margin-bottom:13px}
+  .barra .top{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
+  .barra .n{margin-left:auto;font-family:"Bangers","Comic Sans MS",cursive,sans-serif;
+    font-size:30px;line-height:1;color:var(--azul);-webkit-text-stroke:2px var(--tinta);
+    paint-order:stroke fill}
+  .barra .riel{height:16px;background:#fff;border:3px solid var(--tinta);
+    border-radius:12px;margin:5px 0;overflow:hidden}
+  .barra .relleno{height:100%;background:var(--azul);transition:width .45s ease}
+  .barra.muere .relleno{background:var(--rojo)}
+  .barra.muere .n{color:var(--rojo)}
+  .barra .quienes{font-size:14px;line-height:1.45;color:#4a4a4a}
+
+  .veredicto{font-size:clamp(32px,9.5vw,50px);color:#fff;transform:rotate(-2.5deg);
+    -webkit-text-stroke:3px var(--tinta);paint-order:stroke fill;
+    text-shadow:6px 6px 0 var(--rojo);margin:10px 0 20px;text-align:center}
+  .veredicto.empate{text-shadow:6px 6px 0 var(--azul)}
+  .veredicto.gana{text-shadow:6px 6px 0 var(--verde)}
+
+  /* globo de dialogo para la pregunta de la ronda */
+  .pregunta{position:relative;z-index:3;background:#fff;border:4px solid var(--tinta);
+    border-radius:var(--torcido);box-shadow:5px 5px 0 var(--tinta);
+    padding:14px 15px;margin:4px 0 24px;font-size:clamp(21px,6vw,27px);
+    font-weight:700;line-height:1.25}
+  .pregunta::after{content:"";position:absolute;left:32px;bottom:-20px;width:0;height:0;
+    border:10px solid transparent;border-top:17px solid var(--tinta)}
+  .pregunta::before{content:"";position:absolute;left:35px;bottom:-11px;width:0;height:0;
+    border:7px solid transparent;border-top:12px solid #fff;z-index:1}
+
+  ol.orden{margin:0;padding-left:26px;font-size:17px;line-height:1.9;font-weight:700}
+  ol.orden li::marker{font-weight:700;color:var(--rojo)}
+
+  #aviso{position:fixed;left:14px;right:14px;bottom:14px;z-index:50;margin:0 auto;max-width:520px;
+    background:#fff;color:var(--tinta);font-size:16px;font-weight:700;line-height:1.4;
+    padding:12px 14px;border:4px solid var(--tinta);border-radius:var(--torcido);
+    box-shadow:5px 5px 0 var(--rojo);display:none;transform:rotate(-1deg)}
+  .cargando{font-size:18px;font-weight:700}
+  footer{margin-top:6px;background:var(--papel);border:3px dashed var(--tinta);
+    border-radius:var(--torcido);padding:12px 14px;font-size:14.5px;line-height:1.55;
+    transform:rotate(.5deg)}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app"><p class="cargando">Cargando…</p></div>
+<div id="aviso" role="status"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, deleteField, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+/* ══════════════════════════════════════════════════════════
+   CHAO PESCAO · votan todos, sale el más votado, y los que
+   salieron siguen votando hasta que quede uno.
+   ══════════════════════════════════════════════════════════ */
+
+const COL = "salas_chao";
+/* Base de datos con nombre, la misma de Presidente.pe. No es la "(default)". */
+const BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
+
+const MAX_JUGADORES = 20;
+const MIN_EMPEZAR   = 3;
+const ESPERA_RED    = 12000;  // sin esto, un botón se queda pegado para siempre
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin I, O, 0, 1: se dictan por WhatsApp
+
+/* Una sola pregunta y siempre la misma: es la gracia del juego. */
+const PREGUNTA = "¿A quién sacas cagando?";
+
+/* ── memoria del navegador ───────────────────────────────── */
+function leer(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function anotar(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+
+let yo = leer("chao-yo");
+if (!yo) {
+  yo = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+  anotar("chao-yo", yo);
+}
+
+/* ── estado de la pantalla ───────────────────────────────── */
+let db = null, ref = null, cortar = null;
+let sala = null;                 // el documento tal cual viene de Firestore
+let vista = "portada";           // portada | sala
+let miNombre = leer("chao-nombre") || "";
+let codigoTecleado = "";
+let ocupado = false;             // hay un getDoc/setDoc en curso
+
+const desdeUrl = (new URLSearchParams(location.search).get("sala") || "")
+  .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+if (desdeUrl) codigoTecleado = desdeUrl;
+/* La última sala en la que estuvo este navegador: si se le cerró la pestaña a
+   mitad de partida, vuelve con un toque y con la misma identidad. */
+let salaGuardada = leer("chao-sala") || "";
+
+const app = document.getElementById("app");
+const aviso = document.getElementById("aviso");
+let relojAviso = null;
+function avisar(txt){
+  aviso.textContent = txt;
+  aviso.style.display = "block";
+  clearTimeout(relojAviso);
+  relojAviso = setTimeout(function(){ aviso.style.display = "none"; }, 5500);
+}
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+/* Firestore no resuelve sus promesas sin conexión: se quedan colgadas para
+   siempre. Todo lo que bloquea un botón corre contra un reloj. */
+function conReloj(p, ms){
+  return Promise.race([
+    p, new Promise((_, no) => setTimeout(() => no(new Error("sin respuesta")), ms))
+  ]);
+}
+
+try {
+  const fb = initializeApp({
+    apiKey:    "AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs",
+    projectId: "gen-lang-client-0964124310",
+    appId:     "1:161151384926:web:48d30816de6e09aab863cf"
+  });
+  db = getFirestore(fb, BD);
+} catch (e) {
+  console.warn("Firestore no disponible:", e);
+}
+
+/* ── atajos sobre la partida ─────────────────────────────── */
+const jugadores = () => (sala && sala.jugadores) || {};
+const listaJug  = () => Object.keys(jugadores())
+  .sort((a, b) => (jugadores()[a].orden || 0) - (jugadores()[b].orden || 0));
+const vivos     = () => listaJug().filter(id => !jugadores()[id].fuera);
+const nombreDe  = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
+const soyMando  = () => !!sala && sala.anfitrion === yo;
+
+/* Las escrituras no se esperan: Firestore ya pinta el cambio local y el
+   onSnapshot redibuja. Si falla de verdad, avisamos. */
+function escribir(cambios){
+  if (!ref) return;
+  updateDoc(ref, cambios).catch(function(err){
+    console.warn(err);
+    avisar(err.code === "permission-denied"
+      ? "Firestore rechazó el cambio. Falta publicar la regla de salas_chao (SALAS.md)."
+      : "No se pudo guardar. Revisá la conexión.");
+  });
+}
+
+/* ── entrar y salir de una sala ──────────────────────────── */
+async function codigoLibre(){
+  for (let intento = 0; intento < 6; intento++) {
+    let c = "";
+    for (let i = 0; i < 4; i++) c += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+    const s = await conReloj(getDoc(doc(db, COL, c)), ESPERA_RED);
+    if (!s.exists()) return c;
+  }
+  throw new Error("no hay códigos libres");
+}
+
+function escuchar(codigo){
+  if (cortar) cortar();
+  ref = doc(db, COL, codigo);
+  salaGuardada = codigo;
+  anotar("chao-sala", codigo);
+  cortar = onSnapshot(ref, function(s){
+    if (!s.exists()) { avisar("La sala se borró."); salirDeLaSala(); return; }
+    sala = s.data();
+    vista = "sala";
+    pintar();
+    quizasCerrarRonda();
+  }, function(err){
+    console.warn(err);
+    avisar(err.code === "permission-denied"
+      ? "Firestore no deja leer la sala. Falta publicar la regla (SALAS.md)."
+      : "Se cortó la conexión con la sala.");
+  });
+}
+
+function salirDeLaSala(){
+  if (cortar) cortar();
+  cortar = null; ref = null; sala = null; vista = "portada";
+  salaGuardada = "";
+  anotar("chao-sala", "");
+  if (location.search) history.replaceState(null, "", location.pathname);
+  pintar();
+}
+
+async function crearSala(){
+  if (!db || !validarNombre()) return;
+  ocupado = true; pintar();
+  try {
+    const codigo = await codigoLibre();
+    await conReloj(setDoc(doc(db, COL, codigo), {
+      codigo: codigo,
+      estado: "sala",
+      ronda: 0,
+      anfitrion: yo,
+      jugadores: { [yo]: { nombre: miNombre, fuera: false, tarde: false, orden: 0 } },
+      votos: {},
+      historial: [],
+      creada: serverTimestamp()
+    }), ESPERA_RED);
+    escuchar(codigo);
+  } catch (e) {
+    console.warn(e);
+    avisar(e.code === "permission-denied"
+      ? "Firestore no deja crear la sala. Falta publicar la regla (SALAS.md)."
+      : "No se pudo crear la sala. Probá de nuevo.");
+  } finally {
+    ocupado = false;
+    if (vista === "portada") pintar();
+  }
+}
+
+async function entrarSala(){
+  if (!db || !validarNombre()) return;
+  const codigo = codigoTecleado.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+  if (codigo.length !== 4) { avisar("El código tiene cuatro letras."); return; }
+  ocupado = true; pintar();
+  try {
+    const s = await conReloj(getDoc(doc(db, COL, codigo)), ESPERA_RED);
+    if (!s.exists()) { avisar("No existe la sala " + codigo + "."); return; }
+    const d = s.data();
+    if (!d.jugadores || !d.jugadores[yo]) {
+      const cuantos = Object.keys(d.jugadores || {}).length;
+      if (cuantos >= MAX_JUGADORES) { avisar("La sala está llena."); return; }
+      /* El que llega con la partida empezada entra como espectador: vota todas
+         las rondas, pero no se lo puede votar. Es la misma regla del juego. */
+      const empezada = d.estado !== "sala";
+      await conReloj(updateDoc(doc(db, COL, codigo), {
+        ["jugadores." + yo]: { nombre: miNombre, fuera: empezada, tarde: empezada, orden: cuantos }
+      }), ESPERA_RED);
+    } else if (d.jugadores[yo].nombre !== miNombre) {
+      await conReloj(updateDoc(doc(db, COL, codigo), {
+        ["jugadores." + yo + ".nombre"]: miNombre
+      }), ESPERA_RED);
+    }
+    escuchar(codigo);
+  } catch (e) {
+    console.warn(e);
+    avisar(e.code === "permission-denied"
+      ? "Firestore no deja entrar. Falta publicar la regla (SALAS.md)."
+      : "No se pudo entrar. Revisá la conexión.");
+  } finally {
+    ocupado = false;
+    if (vista === "portada") pintar();
+  }
+}
+
+function validarNombre(){
+  miNombre = (miNombre || "").trim().slice(0, 14);
+  if (!miNombre) { avisar("Escribí tu nombre primero."); return false; }
+  anotar("chao-nombre", miNombre);
+  return true;
+}
+
+/* ── el corazón: cerrar la ronda ─────────────────────────── */
+/* Cuando votaron todos, el primero que se da cuenta escribe el resultado.
+   No hay árbitro: el cálculo es determinista, así que dos navegadores que
+   escriban a la vez escriben lo mismo. */
+function quizasCerrarRonda(){
+  if (!sala || sala.estado !== "votando") return;
+  const votos = sala.votos || {}, candidatos = vivos();
+  const faltan = listaJug().filter(id => !(votos[id] && candidatos.indexOf(votos[id]) >= 0));
+  if (faltan.length === 0) cerrarRonda();
+}
+
+function cerrarRonda(){
+  if (!sala || sala.estado !== "votando") return;
+  const jug = jugadores(), votos = sala.votos || {}, candidatos = vivos();
+
+  const conteo = {};
+  candidatos.forEach(id => { conteo[id] = 0; });
+  Object.keys(votos).forEach(function(quien){
+    // el voto de alguien que ya no está en la sala no cuenta
+    if (jug[quien] && Object.prototype.hasOwnProperty.call(conteo, votos[quien])) conteo[votos[quien]]++;
+  });
+
+  const tope = Math.max.apply(null, [0].concat(candidatos.map(id => conteo[id])));
+  const punteros = candidatos.filter(id => conteo[id] === tope && tope > 0);
+  /* Empate: no sale nadie. Suena flojo, pero la alternativa (sortear) hace que
+     dos navegadores calculen resultados distintos y la sala se parta al medio. */
+  const empate = punteros.length !== 1;
+  const seVa = empate ? "" : punteros[0];
+
+  const entrada = {
+    ronda: sala.ronda,
+    pregunta: PREGUNTA,
+    conteo: conteo,
+    votos: Object.assign({}, votos),
+    fuera: seVa,
+    empate: empate
+  };
+
+  const quedan = candidatos.filter(id => id !== seVa);
+  const cambios = {
+    estado: quedan.length <= 1 ? "fin" : "reparto",
+    historial: (sala.historial || []).concat([entrada])
+  };
+  if (seVa) cambios["jugadores." + seVa + ".fuera"] = true;
+  escribir(cambios);
+}
+
+/* ── acciones de la interfaz ─────────────────────────────── */
+function sincronizar(){
+  const n = document.getElementById("nombre");
+  if (n) miNombre = n.value;
+  const c = document.getElementById("codigo");
+  if (c) codigoTecleado = c.value;
+}
+
+const acciones = {
+  crear: crearSala,
+  entrar: entrarSala,
+  salir: salirDeLaSala,
+  volver: function(v){ codigoTecleado = v; entrarSala(); },
+  empezar: function(){
+    if (listaJug().length < MIN_EMPEZAR) { avisar("Tienen que ser al menos " + MIN_EMPEZAR + "."); return; }
+    escribir({ estado: "votando", ronda: 1, votos: {}, historial: [] });
+  },
+  votar: function(v){
+    if (!sala || sala.estado !== "votando") return;
+    escribir({ ["votos." + yo]: v });
+  },
+  cerrar: function(){ cerrarRonda(); },
+  siguiente: function(){ escribir({ estado: "votando", ronda: (sala.ronda || 0) + 1, votos: {} }); },
+  mando: function(){ escribir({ anfitrion: yo }); },
+
+  sacar: function(v){
+    if (v === yo) return;
+    escribir({ ["jugadores." + v]: deleteField(), ["votos." + v]: deleteField() });
+  },
+
+  denuevo: function(){
+    const limpios = {};
+    listaJug().forEach(function(id, i){
+      limpios[id] = { nombre: jugadores()[id].nombre, fuera: false, tarde: false, orden: i };
+    });
+    escribir({ estado: "sala", ronda: 0, votos: {}, historial: [], jugadores: limpios });
+  },
+
+  whatsapp: function(){ window.open(enlaceWhatsapp(), "_blank", "noopener"); },
+  copiar: function(){
+    const t = enlace();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(t).then(() => avisar("Link copiado."), () => avisar(t));
+    } else { avisar(t); }
+  }
+};
+
+app.addEventListener("click", function(e){
+  const b = e.target.closest("[data-accion]");
+  if (!b || b.disabled) return;
+  sincronizar();
+  const f = acciones[b.dataset.accion];
+  if (f) f(b.dataset.valor, b);
+});
+app.addEventListener("input", sincronizar);
+app.addEventListener("keydown", function(e){
+  if (e.key !== "Enter") return;
+  const campo = e.target.closest("input");
+  if (!campo) return;
+  sincronizar();
+  if (campo.id === "codigo") entrarSala();
+});
+
+function enlace(){
+  return location.origin + location.pathname + "?sala=" + (sala ? sala.codigo : codigoTecleado);
+}
+function enlaceWhatsapp(){
+  return "https://wa.me/?text=" +
+    encodeURIComponent("Juguemos Chao Pescao. Sala " + sala.codigo + ": " + enlace());
+}
+
+/* ── pantallas ───────────────────────────────────────────── */
+function pintar(){
+  app.innerHTML = (vista === "sala" && sala) ? vistaSala() : vistaPortada();
+}
+
+function vistaPortada(){
+  if (!db) return `
+    <header><h1 class="comic">Chao<br>Pescao</h1></header>
+    <div class="caja"><h2 class="comic">Sin conexión</h2>
+      <p class="chico">Este juego es multijugador y necesita internet. No tiene modo
+        local. Probá recargar la página.</p></div>`;
+
+  const invitado = !!desdeUrl;
+  const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
+  return `
+    <header>
+      <h1 class="comic">Chao<br>Pescao</h1>
+      <p class="bajada">Todos votan, cada ronda sale el más votado. Los que ya salieron
+        siguen votando en todas las rondas: nadie se va del todo. Gana el que queda.</p>
+    </header>
+
+    ${retomar ? `<div class="caja ambar">
+      <span class="et">Quedaste a medias</span>
+      <button class="ambar" data-accion="volver" data-valor="${esc(salaGuardada)}"
+              ${ocupado ? "disabled" : ""}>Volver a la sala ${esc(salaGuardada)}</button>
+    </div>` : ""}
+
+    <div class="caja cian">
+      <span class="et">Paso 1</span>
+      <input id="nombre" maxlength="14" placeholder="Tu nombre" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}">
+      <p class="chico">Con este nombre te van a votar. Poné el que usan en el grupo.</p>
+    </div>
+
+    <div class="caja${invitado ? " ambar" : ""}">
+      <span class="et">${invitado ? "Te invitaron a jugar" : "Si te pasaron un código"}</span>
+      <h2 class="comic">Entrar a una sala</h2>
+      <input id="codigo" class="codigo" maxlength="4" placeholder="ABCD" autocomplete="off"
+             spellcheck="false" value="${esc(codigoTecleado)}">
+      <button class="ambar" data-accion="entrar" ${ocupado ? "disabled" : ""}>
+        ${ocupado ? "Entrando…" : "Entrar"}</button>
+    </div>
+
+    <div class="caja">
+      <span class="et">Si armás vos la partida</span>
+      <h2 class="comic">Crear una sala</h2>
+      <p class="chico" style="margin-bottom:12px">Todas las rondas la misma pregunta:
+        <strong>${esc(PREGUNTA)}</strong> Votan todos y el más votado se va.</p>
+      <button data-accion="crear" ${ocupado ? "disabled" : ""}>
+        ${ocupado ? "Creando…" : "Crear sala"}</button>
+    </div>
+
+    <footer>
+      <strong>Cómo se juega.</strong> Uno crea la sala y pasa el link por WhatsApp.
+      Cuando están todos, arranca. Cada ronda votan todos —también los que ya salieron—
+      y el más votado se va. Si hay empate no sale nadie y va otra ronda.
+      Cuando queda uno solo, ganó.
+    </footer>`;
+}
+
+function vistaSala(){
+  const partes = [ cabecera() ];
+  if (sala.estado === "sala")    partes.push(pantallaLobby());
+  if (sala.estado === "votando") partes.push(pantallaVoto());
+  if (sala.estado === "reparto") partes.push(pantallaReparto());
+  if (sala.estado === "fin")     partes.push(pantallaFin());
+  partes.push(listaDeJugadores());
+  partes.push(pie());
+  return partes.join("");
+}
+
+function cabecera(){
+  const compartir = sala.estado === "sala";
+  const cuantos = listaJug().length;
+  return `
+    <div class="caja cian" style="text-align:center">
+      <span class="et">Sala</span>
+      <div class="comic codigazo">${esc(sala.codigo)}</div>
+      <p class="chico" style="margin-bottom:${compartir ? "12px" : "0"}">
+        ${cuantos} ${cuantos === 1 ? "jugador" : "jugadores"} ·
+        ${sala.estado === "sala" ? "esperando" :
+          sala.estado === "fin" ? "terminó" : "ronda " + sala.ronda}</p>
+      ${compartir ? `<div class="fila">
+        <button class="cian" data-accion="whatsapp">WhatsApp</button>
+        <button class="fantasma" data-accion="copiar">Copiar link</button>
+      </div>` : ""}
+    </div>`;
+}
+
+function pantallaLobby(){
+  const faltan = MIN_EMPEZAR - listaJug().length;
+  return `
+    <div class="caja">
+      <span class="et">Antes de empezar</span>
+      <h2 class="comic">Sala de espera</h2>
+      <p class="chico" style="margin-bottom:12px">
+        Pasales el link a los del grupo: van apareciendo solos acá abajo.
+        Cuando estén todos, arrancá.</p>
+      ${soyMando()
+        ? `<button data-accion="empezar" ${faltan > 0 ? "disabled" : ""}>
+             ${faltan > 0 ? "Faltan " + faltan : "Empezar"}</button>`
+        : `<p class="chico">Esperando que <strong>${esc(nombreDe(sala.anfitrion))}</strong> arranque.</p>`}
+    </div>`;
+}
+
+function pantallaVoto(){
+  const votos = sala.votos || {};
+  const candidatos = vivos().filter(id => id !== yo);
+  const miVoto = votos[yo];
+  const faltan = listaJug().filter(id => !votos[id]);
+  const yoSali = jugadores()[yo] && jugadores()[yo].fuera;
+
+  return `
+    <div class="caja ambar">
+      <span class="et">Ronda ${sala.ronda}${yoSali ? " · ya saliste, pero votás igual" : ""}</span>
+      <p class="pregunta">${esc(PREGUNTA)}</p>
+      ${candidatos.map(id => `
+        <button class="voto" data-accion="votar" data-valor="${esc(id)}"
+                aria-pressed="${miVoto === id}">
+          ${miVoto === id ? '<span class="marca">tu voto</span>' : ""}
+          ${esc(nombreDe(id))}
+        </button>`).join("")}
+      <p class="chico" style="margin-top:10px">
+        Votaron ${listaJug().length - faltan.length} de ${listaJug().length}.
+        ${faltan.length
+          ? "Faltan: " + faltan.map(id => esc(nombreDe(id))).join(", ") + "."
+          : "Cerrando la ronda…"}
+        ${miVoto && faltan.length ? " Podés cambiarlo hasta que voten todos." : ""}</p>
+      ${soyMando() && faltan.length
+        ? `<button class="fantasma" style="margin-top:10px" data-accion="cerrar">
+             Cerrar la votación igual</button>` : ""}
+    </div>`;
+}
+
+function ultima(){
+  const h = sala.historial || [];
+  return h.length ? h[h.length - 1] : null;
+}
+
+function pantallaReparto(){
+  const e = ultima();
+  if (!e) return "";
+  return `
+    <div class="caja">
+      <span class="et">Resultado de la ronda ${e.ronda}</span>
+      ${e.pregunta ? `<p class="pregunta">${esc(e.pregunta)}</p>` : ""}
+      <div class="comic veredicto ${e.empate ? "empate" : ""}">
+        ${e.empate ? "Empate: no sale nadie" : esc(nombreDe(e.fuera)) + ", chao pescao"}</div>
+      ${barras(e)}
+      ${soyMando()
+        ? `<button data-accion="siguiente">Siguiente ronda</button>`
+        : `<p class="chico">Esperando que <strong>${esc(nombreDe(sala.anfitrion))}</strong>
+             largue la ronda ${(sala.ronda || 0) + 1}.</p>`}
+    </div>`;
+}
+
+function pantallaFin(){
+  const e = ultima();
+  const queda = vivos()[0];
+  const salieron = (sala.historial || []).filter(h => h.fuera).map(h => h.fuera);
+  const rondas = (sala.historial || []).length;
+  return `
+    <div class="caja ambar">
+      <span class="et">Se acabó</span>
+      <div class="comic veredicto gana">
+        ${queda ? esc(nombreDe(queda)) + " ganó" : "No quedó nadie"}</div>
+      <p class="chico" style="margin-bottom:14px">
+        ${queda
+          ? "Sobrevivió " + rondas + (rondas === 1 ? " ronda entera." : " rondas enteras.")
+          : "Se vaciaron la sala entre todos."}</p>
+      ${e ? barras(e) : ""}
+      <span class="et" style="margin-top:6px">Orden en que salieron</span>
+      <ol class="orden">
+        ${salieron.map(id => `<li>${esc(nombreDe(id))}</li>`).join("")}
+        ${queda ? `<li><strong>${esc(nombreDe(queda))}</strong> — quedó de pie</li>` : ""}
+      </ol>
+      ${soyMando()
+        ? `<button style="margin-top:14px" data-accion="denuevo">Otra partida</button>`
+        : `<p class="chico" style="margin-top:12px">Si quieren otra, la larga
+             <strong>${esc(nombreDe(sala.anfitrion))}</strong>.</p>`}
+    </div>`;
+}
+
+/* Quién votó a quién: es la mitad de la gracia del juego. */
+function barras(e){
+  const conteo = e.conteo || {};
+  const ids = Object.keys(conteo).sort((a, b) => conteo[b] - conteo[a]);
+  const tope = Math.max.apply(null, [1].concat(ids.map(id => conteo[id])));
+  return ids.map(function(id){
+    const votantes = Object.keys(e.votos || {}).filter(q => e.votos[q] === id);
+    return `
+      <div class="barra ${id === e.fuera ? "muere" : ""}">
+        <div class="top"><span>${esc(nombreDe(id))}</span><span class="n">${conteo[id]}</span></div>
+        <div class="riel"><div class="relleno"
+             style="width:${Math.round(conteo[id] / tope * 100)}%"></div></div>
+        <div class="quienes">${votantes.length
+          ? votantes.map(q => esc(nombreDe(q))).join(", ") : "nadie"}</div>
+      </div>`;
+  }).join("");
+}
+
+function listaDeJugadores(){
+  const votos = sala.votos || {};
+  const filas = listaJug().map(function(id){
+    const j = jugadores()[id];
+    let etiqueta = "";
+    if (j.tarde && j.fuera) etiqueta = "espectador";
+    else if (j.fuera)       etiqueta = "afuera";
+    else if (sala.estado === "votando") etiqueta = votos[id] ? "votó" : "pensando";
+    return `
+      <div class="jug ${j.fuera ? "fuera" : ""}">
+        <span class="nom">${esc(j.nombre)}</span>
+        ${id === yo ? '<span class="yo">vos</span>' : ""}
+        ${id === sala.anfitrion ? '<span class="yo" style="color:var(--cian)">manda</span>' : ""}
+        <span class="empuje"></span>
+        ${etiqueta ? `<span class="pt">${etiqueta}</span>` : ""}
+        ${soyMando() && id !== yo
+          ? `<button class="sacar" data-accion="sacar" data-valor="${esc(id)}"
+                     title="Sacar de la sala" aria-label="Sacar a ${esc(j.nombre)}">&times;</button>`
+          : ""}
+      </div>`;
+  }).join("");
+  return `<div class="caja"><span class="et">En la sala</span>${filas}</div>`;
+}
+
+function pie(){
+  return `
+    <div class="fila">
+      ${!soyMando() ? `<button class="fantasma" data-accion="mando">Tomar el mando</button>` : ""}
+      <button class="fantasma" data-accion="salir">Salir</button>
+    </div>
+    <footer>Si el que manda se fue o se quedó pegado, cualquiera puede tomar el mando
+      y seguir la partida. Los votos se ven recién al final de cada ronda.</footer>`;
+}
+
+/* ── arranque ────────────────────────────────────────────── */
+pintar();
+/* El que llega por el link de WhatsApp y ya tiene nombre guardado entra derecho. */
+if (db && desdeUrl && miNombre) entrarSala();
+</script>
+
+<script defer src="../volver.js" data-pos="bottom-right"></script>
+</body>
+</html>
