@@ -140,7 +140,13 @@
   .barra .relleno{height:100%;background:var(--azul);transition:width .45s ease}
   .barra.muere .relleno{background:var(--rojo)}
   .barra.muere .n{color:var(--rojo)}
-  .barra .quienes{font-size:14px;line-height:1.45;color:#4a4a4a}
+
+  /* la planilla del final: quien voto a quien, ronda por ronda */
+  .ronda-res{margin-bottom:15px}
+  .ronda-res:last-child{margin-bottom:0}
+  .voto-linea{font-size:16.5px;line-height:1.5;padding:2px 0 2px 4px}
+  .voto-linea .flecha{color:var(--rojo);font-weight:700;padding:0 3px}
+  .voto-linea.vacio{color:#8a8a8a}
 
   .veredicto{font-size:clamp(32px,9.5vw,50px);color:#fff;transform:rotate(-2.5deg);
     -webkit-text-stroke:3px var(--tinta);paint-order:stroke fill;
@@ -858,25 +864,54 @@ function pantallaFin(){
         ? `<button style="margin-top:14px" data-accion="denuevo">Otra partida</button>`
         : `<p class="chico" style="margin-top:12px">Si quieren otra, la larga
              <strong>${esc(nombreDe(sala.anfitrion))}</strong>.</p>`}
-    </div>`;
+    </div>
+    ${tarjetaResumen()}`;
 }
 
-/* Quién votó a quién: es la mitad de la gracia del juego. */
+/* Durante la partida solo se ve cuantos votos saco cada uno. Quien voto a
+   quien se guarda y se muestra recien al final, todo junto: si se supiera
+   ronda a ronda, las tres rondas siguientes son venganza. */
 function barras(e){
   const conteo = e.conteo || {};
   const ids = Object.keys(conteo).sort((a, b) => conteo[b] - conteo[a]);
   const tope = Math.max.apply(null, [1].concat(ids.map(id => conteo[id])));
   return ids.map(function(id){
-    const votantes = Object.keys(e.votos || {}).filter(q => e.votos[q] === id);
     return `
       <div class="barra ${id === e.fuera ? "muere" : ""}">
         <div class="top"><span>${esc(nombreDe(id))}</span><span class="n">${conteo[id]}</span></div>
         <div class="riel"><div class="relleno"
              style="width:${Math.round(conteo[id] / tope * 100)}%"></div></div>
-        <div class="quienes">${votantes.length
-          ? votantes.map(q => esc(nombreDe(q))).join(", ") : "nadie"}</div>
       </div>`;
   }).join("");
+}
+
+/* La planilla del final: una linea por votante, ronda por ronda. Incluye a los
+   que ya estaban afuera, que votaron igual. */
+function lineasDeVotos(e){
+  const votos = e.votos || {};
+  const orden = listaJug();
+  /* Si al que voto lo sacaron de la sala despues, igual aparece su voto. */
+  const sueltos = Object.keys(votos).filter(id => orden.indexOf(id) < 0);
+  const lineas = orden.concat(sueltos).filter(id => votos[id]).map(id => `
+    <div class="voto-linea"><b>${esc(nombreDe(id))}</b><span class="flecha">&rarr;</span>${esc(nombreDe(votos[id]))}</div>`);
+  return lineas.length ? lineas.join("") : `<div class="voto-linea vacio">No votó nadie.</div>`;
+}
+
+function tarjetaResumen(){
+  const h = sala.historial || [];
+  if (!h.length) return "";
+  return `
+    <div class="caja cian">
+      <span class="et">Recién ahora</span>
+      <h2 class="comic">Quién votó a quién</h2>
+      ${h.map(e => `
+        <div class="ronda-res">
+          <span class="et">Ronda ${e.ronda} · ${e.empate
+            ? "empate, no salió nadie"
+            : "salió " + esc(nombreDe(e.fuera))}</span>
+          ${lineasDeVotos(e)}
+        </div>`).join("")}
+    </div>`;
 }
 
 function listaDeJugadores(){
@@ -910,7 +945,7 @@ function pie(){
       <button class="fantasma" data-accion="salir">Salir</button>
     </div>
     <footer>Si el que manda se fue o se quedó pegado, cualquiera puede tomar el mando
-      y seguir la partida. Los votos se ven recién al final de cada ronda.</footer>`;
+      y seguir la partida. Quién votó a quién se ve recién cuando termina todo.</footer>`;
 }
 
 /* ── arranque ────────────────────────────────────────────── */

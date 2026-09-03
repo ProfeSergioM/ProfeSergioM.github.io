@@ -130,7 +130,9 @@ está haciendo trampa solo.
   partida empezada: entra como espectador (vota, pero no se lo puede votar).
 - `votos`: mapa `id del que vota → id del votado`. Se vacía en cada ronda.
 - `historial`: una entrada por ronda, con la pregunta (siempre la misma), el conteo, quién votó a
-  quién y quién salió. Es lo que se muestra en el reparto y al final.
+  quién y quién salió. Durante la partida el reparto solo muestra cuántos
+  votos sacó cada uno; quién votó a quién aparece recién al terminar, todo
+  junto, ronda por ronda.
 - `chat`: mapa `id del mensaje → {n: nombre, t: texto}`. Va en el mismo
   documento y se escribe por ruta (`chat.mXXXX`), no como lista: Firestore
   mezcla campo por campo, así que dos que escriben al mismo tiempo no se
