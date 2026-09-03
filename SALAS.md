@@ -131,6 +131,11 @@ está haciendo trampa solo.
 - `votos`: mapa `id del que vota → id del votado`. Se vacía en cada ronda.
 - `historial`: una entrada por ronda, con la pregunta (siempre la misma), el conteo, quién votó a
   quién y quién salió. Es lo que se muestra en el reparto y al final.
+- `chat`: mapa `id del mensaje → {n: nombre, t: texto}`. Va en el mismo
+  documento y se escribe por ruta (`chat.mXXXX`), no como lista: Firestore
+  mezcla campo por campo, así que dos que escriben al mismo tiempo no se
+  pisan. Un array sí se pisaría. Se podan los más viejos pasando los 50
+  mensajes, para que el documento no crezca sin freno.
 
 **Nadie arbitra.** Cuando llegan todos los votos, el primer navegador que se
 da cuenta calcula el resultado y lo escribe. El cálculo es determinista: con
@@ -138,6 +143,12 @@ los mismos votos da lo mismo, así que si dos navegadores escriben al mismo
 tiempo escriben exactamente lo mismo y no se pisan. Por eso los empates **no**
 se sortean: un sorteo daría un resultado distinto en cada navegador y partiría
 la sala al medio. Si hay empate no sale nadie y va otra ronda.
+
+**La ronda dura un minuto.** Cada navegador cuenta su propio minuto desde que
+ve la ronda, así no importa que los relojes de los teléfonos estén desfasados;
+el primero que llega a cero cierra la votación con los votos que haya. Si a
+alguien se le durmió la pestaña, la cierra otro. Al que no votó simplemente no
+se le cuenta.
 
 El anfitrión solo controla el ritmo (empezar, siguiente ronda, cerrar una
 votación que no llega nunca, sacar a alguien). Si se va o se queda pegado,

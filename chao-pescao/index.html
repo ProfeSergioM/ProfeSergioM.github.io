@@ -158,6 +158,27 @@
   .pregunta::before{content:"";position:absolute;left:35px;bottom:-11px;width:0;height:0;
     border:7px solid transparent;border-top:12px solid #fff;z-index:1}
 
+  /* reloj de la ronda */
+  .cabezal{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .reloj{font-size:27px;line-height:1;background:var(--tinta);color:#fff;
+    padding:5px 12px 3px;border-radius:20px 6px 20px 6px;transform:rotate(2deg);
+    white-space:nowrap}
+  .reloj.poco{background:var(--rojo)}
+
+  /* chat: vive fuera de #app para que repintar el juego no borre lo que estas
+     escribiendo ni te saque el teclado del telefono */
+  #chat{background:var(--papel);border:4px solid var(--tinta);border-radius:var(--torcido);
+    box-shadow:6px 6px 0 var(--tinta);padding:13px 14px 14px;margin-bottom:20px;
+    transform:rotate(-.5deg)}
+  #chat-lista{max-height:190px;overflow-y:auto;margin:2px 0 10px;padding-right:4px}
+  .msj{margin:0 0 6px;font-size:15.5px;line-height:1.4;word-break:break-word}
+  .msj b{color:var(--azul)}
+  .msj.vacio{color:#8a8a8a}
+  #chat-form{display:flex;gap:8px}
+  #chat-form input{margin:0;flex:1;font-size:16px;padding:9px 11px}
+  #chat-form button{width:auto;flex:none;font-size:21px;padding:8px 15px 6px;
+    background:var(--verde)}
+
   ol.orden{margin:0;padding-left:26px;font-size:17px;line-height:1.9;font-weight:700}
   ol.orden li::marker{font-weight:700;color:var(--rojo)}
 
@@ -175,6 +196,16 @@
 <body>
 
 <div id="app"><p class="cargando">Cargando…</p></div>
+
+<div id="chat" hidden>
+  <span class="et">Chat</span>
+  <div id="chat-lista"></div>
+  <form id="chat-form" autocomplete="off">
+    <input id="chat-texto" maxlength="140" placeholder="Escribí algo…" spellcheck="false">
+    <button type="submit" class="comic">Enviar</button>
+  </form>
+</div>
+
 <div id="aviso" role="status"></div>
 
 <script type="module">
@@ -191,6 +222,8 @@ const COL = "salas_chao";
 /* Base de datos con nombre, la misma de Presidente.pe. No es la "(default)". */
 const BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
 
+const SEGUNDOS_VOTO = 60;   // la ronda se cierra sola al minuto
+const MAX_CHAT      = 50;   // el chat vive en el mismo documento: hay que podarlo
 const MAX_JUGADORES = 20;
 const MIN_EMPEZAR   = 3;
 const ESPERA_RED    = 25000;  // sin esto, un botón se queda pegado para siempre
@@ -301,7 +334,9 @@ function escuchar(codigo){
     if (!s.exists()) { avisar("La sala se borró."); salirDeLaSala(); return; }
     sala = s.data();
     vista = "sala";
+    ajustarReloj();
     pintar();
+    pintarChat();
     quizasCerrarRonda();
   }, function(err){
     console.warn(err);
@@ -314,6 +349,8 @@ function escuchar(codigo){
 function salirDeLaSala(){
   if (cortar) cortar();
   cortar = null; ref = null; sala = null; vista = "portada";
+  rondaDelReloj = null;
+  pintarChat();
   salaGuardada = "";
   anotar("chao-sala", "");
   if (location.search) history.replaceState(null, "", location.pathname);
@@ -398,6 +435,39 @@ function validarNombre(){
   return true;
 }
 
+/* ── el reloj de la ronda ────────────────────────────────── */
+/* Cada navegador cuenta su propio minuto desde que ve la ronda: asi no importa
+   que los relojes de los telefonos esten desfasados. El primero que llega a
+   cero cierra la votacion con los votos que haya, igual que el boton del
+   anfitrion. Si a alguien se le durmio la pestaña, la cierra otro. */
+let rondaDelReloj = null;
+let finDelReloj   = 0;
+
+function ajustarReloj(){
+  if (!sala || sala.estado !== "votando") { rondaDelReloj = null; return; }
+  if (rondaDelReloj !== sala.ronda) {
+    rondaDelReloj = sala.ronda;
+    finDelReloj = Date.now() + SEGUNDOS_VOTO * 1000;
+  }
+}
+function quedanSegundos(){
+  return Math.max(0, Math.ceil((finDelReloj - Date.now()) / 1000));
+}
+function comoReloj(s){
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+
+setInterval(function(){
+  if (!sala || sala.estado !== "votando" || rondaDelReloj !== sala.ronda) return;
+  const s = quedanSegundos();
+  const e = document.getElementById("reloj");
+  if (e) {
+    e.textContent = comoReloj(s);
+    e.classList.toggle("poco", s <= 10);
+  }
+  if (s === 0) cerrarRonda();
+}, 250);
+
 /* ── el corazón: cerrar la ronda ─────────────────────────── */
 /* Cuando votaron todos, el primero que se da cuenta escribe el resultado.
    No hay árbitro: el cálculo es determinista, así que dos navegadores que
@@ -444,6 +514,57 @@ function cerrarRonda(){
   if (seVa) cambios["jugadores." + seVa + ".fuera"] = true;
   escribir(cambios);
 }
+
+/* ── chat ────────────────────────────────────────────────── */
+/* Los mensajes van en un campo mapa del mismo documento de la sala, escritos
+   por ruta (chat.mXXXX). Firestore mezcla campo por campo, asi que dos que
+   escriben al mismo tiempo no se pisan. Un array si se pisaria. */
+const cajaChat  = document.getElementById("chat");
+const listaChat = document.getElementById("chat-lista");
+const campoChat = document.getElementById("chat-texto");
+let firmaChat = null;
+
+function mensajes(){
+  const c = (sala && sala.chat) || {};
+  return Object.keys(c).sort().map(function (k) {
+    return { id: k, n: c[k].n, t: c[k].t };
+  });
+}
+
+function pintarChat(){
+  cajaChat.hidden = !sala;
+  if (!sala) { firmaChat = null; return; }
+  const ms = mensajes();
+  const firma = ms.map(m => m.id).join(",");
+  if (firma === firmaChat) return;   // no repintar por cada voto que llega
+  firmaChat = firma;
+  const alFondo = listaChat.scrollHeight - listaChat.scrollTop - listaChat.clientHeight < 60;
+  listaChat.innerHTML = ms.length
+    ? ms.map(m => `<p class="msj"><b>${esc(m.n)}</b> ${esc(m.t)}</p>`).join("")
+    : `<p class="msj vacio">Acá pueden hablar (o putearse) mientras votan.</p>`;
+  if (alFondo) listaChat.scrollTop = listaChat.scrollHeight;
+}
+
+function mandarChat(){
+  const t = (campoChat.value || "").trim().slice(0, 140);
+  if (!t || !sala || !ref) return;
+  campoChat.value = "";
+  /* El id empieza con letra y es alfanumerico porque es una ruta de campo, y
+     ordena por si solo: base36 del reloj + un poco de azar contra empates. */
+  const id = "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const cambios = {};
+  cambios["chat." + id] = { n: nombreDe(yo) || miNombre, t: t };
+  const viejos = mensajes().map(m => m.id);
+  for (let i = 0; i < viejos.length + 1 - MAX_CHAT; i++) {
+    cambios["chat." + viejos[i]] = deleteField();
+  }
+  escribir(cambios);
+}
+
+document.getElementById("chat-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  mandarChat();
+});
 
 /* ── acciones de la interfaz ─────────────────────────────── */
 function sincronizar(){
@@ -632,7 +753,10 @@ function pantallaVoto(){
 
   return `
     <div class="caja ambar">
-      <span class="et">Ronda ${sala.ronda}${yoSali ? " · ya saliste, pero votás igual" : ""}</span>
+      <div class="cabezal">
+        <span class="et">Ronda ${sala.ronda}${yoSali ? " · ya saliste, pero votás igual" : ""}</span>
+        <span id="reloj" class="comic reloj">${comoReloj(quedanSegundos())}</span>
+      </div>
       <p class="pregunta">${esc(PREGUNTA)}</p>
       ${candidatos.map(id => `
         <button class="voto" data-accion="votar" data-valor="${esc(id)}"
@@ -645,7 +769,8 @@ function pantallaVoto(){
         ${faltan.length
           ? "Faltan: " + faltan.map(id => esc(nombreDe(id))).join(", ") + "."
           : "Cerrando la ronda…"}
-        ${miVoto && faltan.length ? " Podés cambiarlo hasta que voten todos." : ""}</p>
+        ${miVoto && faltan.length ? " Podés cambiarlo hasta que se cierre." : ""}
+        Al minuto se cierra sola con lo que haya.</p>
       ${soyMando() && faltan.length
         ? `<button class="fantasma" style="margin-top:10px" data-accion="cerrar">
              Cerrar la votación igual</button>` : ""}
@@ -665,7 +790,7 @@ function pantallaReparto(){
       <span class="et">Resultado de la ronda ${e.ronda}</span>
       ${e.pregunta ? `<p class="pregunta">${esc(e.pregunta)}</p>` : ""}
       <div class="comic veredicto ${e.empate ? "empate" : ""}">
-        ${e.empate ? "Empate: no sale nadie" : esc(nombreDe(e.fuera)) + ", chao pescao"}</div>
+        ${e.empate ? "Empate: no sale nadie" : "Chso " + esc(nombreDe(e.fuera))}</div>
       ${barras(e)}
       ${soyMando()
         ? `<button data-accion="siguiente">Siguiente ronda</button>`
@@ -682,6 +807,7 @@ function pantallaFin(){
   return `
     <div class="caja ambar">
       <span class="et">Se acabó</span>
+      ${e && e.fuera ? `<div class="comic veredicto">Chso ${esc(nombreDe(e.fuera))}</div>` : ""}
       <div class="comic veredicto gana">
         ${queda ? esc(nombreDe(queda)) + " ganó" : "No quedó nadie"}</div>
       <p class="chico" style="margin-bottom:14px">
