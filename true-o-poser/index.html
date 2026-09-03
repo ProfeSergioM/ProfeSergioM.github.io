@@ -89,14 +89,31 @@
     -webkit-background-clip:text;background-clip:text;color:transparent}
   h1 .rojo{color:var(--sangre)}
   .intro{font-size:12.5px;color:var(--ceniza);margin:8px 0 12px;line-height:1.4}
-  .nombre-wrap{display:flex;gap:8px;margin-bottom:12px}
+  .et-campo{display:block;font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ambar);margin-bottom:5px}
+  .et-campo i{font-style:normal;color:var(--ceniza);letter-spacing:.1em}
+  .nombre-wrap{display:flex;gap:8px;margin-bottom:6px;align-items:stretch}
+  .campo{flex:1;min-width:0;display:flex;align-items:center;gap:7px;padding:2px 9px;cursor:text;
+    background:rgba(243,236,230,.06);border:1px dashed rgba(255,196,0,.5);border-bottom:2px solid var(--ambar);
+    clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%);
+    transition:background .15s,border-color .15s}
+  .campo .lapiz{width:16px;height:16px;flex:0 0 auto;color:var(--ambar)}
+  .campo .lapiz svg{width:100%;height:100%;stroke-linecap:round;stroke-linejoin:round}
+  .campo:focus-within{background:rgba(255,35,80,.1);border-color:var(--sangre)}
+  .campo:focus-within .lapiz{color:var(--sangre)}
+  .campo.late{animation:latecampo 1.2s ease-in-out 3}
+  @keyframes latecampo{0%,100%{box-shadow:none}50%{box-shadow:0 0 0 3px rgba(255,196,0,.3)}}
   input[type=text]{flex:1;min-width:0;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;
-    text-transform:uppercase;font-size:32px;letter-spacing:-.01em;background:transparent;border:0;border-bottom:2px solid rgba(243,236,230,.35);
-    padding:3px 2px;color:var(--hueso);text-shadow:0 0 14px rgba(255,35,80,.5)}
-  input[type=text]:focus{outline:none;border-bottom-color:var(--sangre)}
-  .dado{border:0;background:rgba(243,236,230,.08);font-size:18px;padding:0 14px;cursor:pointer;color:var(--ambar);
+    text-transform:uppercase;font-size:32px;letter-spacing:-.01em;background:transparent;border:0;
+    padding:3px 0;color:var(--hueso);caret-color:var(--sangre);text-shadow:0 0 14px rgba(255,35,80,.5)}
+  input[type=text]:focus{outline:none}
+  .dado{border:0;background:rgba(243,236,230,.08);cursor:pointer;color:var(--ambar);
+    font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;text-transform:uppercase;
+    font-size:15px;letter-spacing:.04em;padding:0 12px;white-space:nowrap;
     clip-path:polygon(0 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%)}
   .dado:hover{background:var(--sangre);color:var(--hueso)}
+  .pista{font-size:11.5px;color:var(--ceniza);margin:0 0 14px;line-height:1.35}
+  .pista b{color:var(--ambar);font-weight:normal}
   .banda-opt{padding:10px 12px;margin-bottom:7px;cursor:pointer;background:rgba(243,236,230,.05);
     border-left:3px solid rgba(243,236,230,.25);
     clip-path:polygon(0 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%);
@@ -389,7 +406,7 @@
   @keyframes flash{0%{text-shadow:0 0 22px currentColor;transform:scale(1.16)}100%{text-shadow:none;transform:scale(1)}}
   @media (prefers-reduced-motion:reduce){
     .flyer,.final,button.opt,.d,.cab .ico,.m.cambia .nu,.haz,.lampara,
-    .gente circle,.fig,body::before,.m.cambia .ba i,.eje-bar b{animation:none!important}
+    .gente circle,.fig,body::before,.m.cambia .ba i,.eje-bar b,.campo.late{animation:none!important}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -843,7 +860,8 @@ const ICO={
  avion:SV('<path d="M10.2 21 12 15l7 2 2-2-7-4 3-6-2.4-2-4 5.6L5 7 3 9l4.5 4.2L4.6 18l1.5 1.4 3.6-2.2z"/>'),
  robot:SV('<rect x="4" y="8" width="16" height="11" rx="2.5"/><path d="M12 4v4"/><circle cx="12" cy="3.2" r="1.2"/><path d="M9 12.5v1.5M15 12.5v1.5M9.5 16.5h5"/>'),
  camara:SV('<rect x="2.5" y="7" width="13" height="10" rx="2"/><path d="m16 11.5 5.5-3v7l-5.5-3z"/>'),
- micro:SV('<rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17.2V21M9 21h6"/>')
+ micro:SV('<rect x="9" y="3" width="6" height="10" rx="3"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17.2V21M9 21h6"/>'),
+ lapiz:SV('<path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0-3-3L5 17v3z"/><path d="M14.5 6.5l3 3"/>')
 };
 const REGLAS=[[/sala|ensay|tema que odian|disco raro|influenc/i,'pua'],
  [/algoritmo|reproduc|viral|comunidad|clientela/i,'onda'],
@@ -935,11 +953,18 @@ function bienvenida(){
 }
 function inicio(){
   app.innerHTML=`<h1 class="impact">La banda</h1>
-  <p class="intro">Elige el nombre y con cuánta gente te subes al escenario. Cuanta más gente, mejor suena y más difícil es sostenerla.</p>
-  <div class="nombre-wrap"><input type="text" id="nom" value="${rnd(NB)}" maxlength="22" aria-label="Nombre de la banda"><button class="dado" id="dado" title="Otro nombre">&#9834;</button></div>
+  <p class="intro">Ponle nombre a tu banda y elige con cuánta gente te subes al escenario. Cuanta más gente, mejor suena y más difícil es sostenerla.</p>
+  <label class="et-campo" for="nom">Nombre de la banda <i>&mdash; escribe el tuyo</i></label>
+  <div class="nombre-wrap"><span class="campo late" id="campo"><span class="lapiz">${ICO.lapiz}</span><input type="text" id="nom" value="${rnd(NB)}" maxlength="22" aria-label="Nombre de la banda" autocomplete="off" spellcheck="false" enterkeyhint="done"></span><button class="dado" id="dado" title="Sortear otro nombre">&#9834; Otro</button></div>
+  <p class="pista">Te dejamos uno al azar: t&oacute;calo y escribe el tuyo, o dale a <b>&#9834; Otro</b> para sortear.</p>
 
   ${FORMS.map((f,i)=>`<div class="banda-opt" tabindex="0" data-i="${i}"><h3 class="impact">${f.nom}<span class="miniband">${'<i></i>'.repeat(f.n)}</span></h3><p>${f.desc}</p><div class="datos">Forma ${f.st.forma} · Unión ${f.st.union} · True ${f.st.verdad} · $${f.st.caja}${f.n===5?' · difícil':''}</div></div>`).join('')}`;
-  document.getElementById('dado').onclick=()=>document.getElementById('nom').value=rnd(NB);
+  const inp=document.getElementById('nom'),campo=document.getElementById('campo');
+  const tocado=()=>{campo.classList.remove('late')};
+  inp.addEventListener('focus',()=>{tocado();if(!inp.dataset.tocado){inp.dataset.tocado=1;inp.select()}});
+  inp.addEventListener('input',()=>{inp.dataset.tocado=1;tocado()});
+  campo.onclick=e=>{if(e.target!==inp)inp.focus()};
+  document.getElementById('dado').onclick=()=>{tocado();inp.value=rnd(NB)};
   app.querySelectorAll('.banda-opt').forEach(el=>{const go=()=>empezar(+el.dataset.i);el.onclick=go;
     el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go()}}});
 }
