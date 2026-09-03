@@ -135,7 +135,9 @@ está haciendo trampa solo.
   documento y se escribe por ruta (`chat.mXXXX`), no como lista: Firestore
   mezcla campo por campo, así que dos que escriben al mismo tiempo no se
   pisan. Un array sí se pisaría. Se podan los más viejos pasando los 50
-  mensajes, para que el documento no crezca sin freno.
+  mensajes, para que el documento no crezca sin freno. Al terminar la partida
+  se borra entero (`chat: {}`), o sea del servidor y de todas las pantallas;
+  también al empezar otra.
 
 **Nadie arbitra.** Cuando llegan todos los votos, el primer navegador que se
 da cuenta calcula el resultado y lo escribe. El cálculo es determinista: con

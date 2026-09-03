@@ -201,15 +201,19 @@
 </head>
 <body>
 
-<div id="app"><p class="cargando">Cargando…</p></div>
+<div id="app">
+  <div id="arriba"><p class="cargando">Cargando…</p></div>
 
-<div id="chat" hidden>
-  <span class="et">Chat</span>
-  <div id="chat-lista"></div>
-  <form id="chat-form" autocomplete="off">
-    <input id="chat-texto" maxlength="140" placeholder="Escribí algo…" spellcheck="false">
-    <button type="submit" class="comic">Enviar</button>
-  </form>
+  <div id="chat" hidden>
+    <span class="et">Chat</span>
+    <div id="chat-lista"></div>
+    <form id="chat-form" autocomplete="off">
+      <input id="chat-texto" maxlength="140" placeholder="Escribí algo…" spellcheck="false">
+      <button type="submit" class="comic">Enviar</button>
+    </form>
+  </div>
+
+  <div id="abajo"></div>
 </div>
 
 <div id="aviso" role="status"></div>
@@ -263,7 +267,9 @@ if (desdeUrl) codigoTecleado = desdeUrl;
    mitad de partida, vuelve con un toque y con la misma identidad. */
 let salaGuardada = leer("chao-sala") || "";
 
-const app = document.getElementById("app");
+const app    = document.getElementById("app");
+const arriba = document.getElementById("arriba");
+const abajo  = document.getElementById("abajo");
 const aviso = document.getElementById("aviso");
 let relojAviso = null;
 function avisar(txt){
@@ -302,8 +308,15 @@ if (db) getDoc(doc(db, COL, "0000")).catch(function (e) { console.warn("calentan
 
 /* ── atajos sobre la partida ─────────────────────────────── */
 const jugadores = () => (sala && sala.jugadores) || {};
-const listaJug  = () => Object.keys(jugadores())
-  .sort((a, b) => (jugadores()[a].orden || 0) - (jugadores()[b].orden || 0));
+/* Orden fijo para toda la partida y el mismo en todos los teléfonos: por el
+   turno de llegada, y si dos empatan (pasa cuando entran juntos o cuando
+   sacaron a alguien y se reusa el número) desempata el id, que no cambia
+   nunca. Sin el desempate, la lista de opciones se podía dar vuelta sola de
+   una ronda a otra y terminabas votando al que no era. */
+const listaJug  = () => Object.keys(jugadores()).sort(function (a, b) {
+  return ((jugadores()[a].orden || 0) - (jugadores()[b].orden || 0)) ||
+         (a < b ? -1 : a > b ? 1 : 0);
+});
 const vivos     = () => listaJug().filter(id => !jugadores()[id].fuera);
 const nombreDe  = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
 const soyMando  = () => !!sala && sala.anfitrion === yo;
@@ -522,6 +535,9 @@ function cerrarRonda(){
     estado: quedan.length <= 1 ? "fin" : "reparto",
     historial: (sala.historial || []).concat([entrada])
   };
+  /* Se acabó la partida: el chat se borra del documento, o sea de todas las
+     pantallas y del servidor. Lo que se dijeron no queda dando vueltas. */
+  if (quedan.length <= 1) cambios.chat = {};
   if (seVa) cambios["jugadores." + seVa + ".fuera"] = true;
   escribir(cambios);
 }
@@ -612,7 +628,8 @@ const acciones = {
     listaJug().forEach(function(id, i){
       limpios[id] = { nombre: jugadores()[id].nombre, fuera: false, tarde: false, orden: i };
     });
-    escribir({ estado: "sala", ronda: 0, votos: {}, historial: [], jugadores: limpios });
+    escribir({ estado: "sala", ronda: 0, votos: {}, historial: [],
+               jugadores: limpios, chat: {} });
   },
 
   whatsapp: function(){ window.open(enlaceWhatsapp(), "_blank", "noopener"); },
@@ -649,8 +666,15 @@ function enlaceWhatsapp(){
 }
 
 /* ── pantallas ───────────────────────────────────────────── */
+/* Dos cajones separados, con el chat en el medio (ver el HTML). */
 function pintar(){
-  app.innerHTML = (vista === "sala" && sala) ? vistaSala() : vistaPortada();
+  if (vista === "sala" && sala) {
+    arriba.innerHTML = cabecera() + pantallaDelEstado();
+    abajo.innerHTML  = listaDeJugadores() + pie();
+  } else {
+    arriba.innerHTML = vistaPortada();
+    abajo.innerHTML  = "";
+  }
 }
 
 function vistaPortada(){
@@ -710,15 +734,12 @@ function vistaPortada(){
     </footer>`;
 }
 
-function vistaSala(){
-  const partes = [ cabecera() ];
-  if (sala.estado === "sala")    partes.push(pantallaLobby());
-  if (sala.estado === "votando") partes.push(pantallaVoto());
-  if (sala.estado === "reparto") partes.push(pantallaReparto());
-  if (sala.estado === "fin")     partes.push(pantallaFin());
-  partes.push(listaDeJugadores());
-  partes.push(pie());
-  return partes.join("");
+function pantallaDelEstado(){
+  if (sala.estado === "sala")    return pantallaLobby();
+  if (sala.estado === "votando") return pantallaVoto();
+  if (sala.estado === "reparto") return pantallaReparto();
+  if (sala.estado === "fin")     return pantallaFin();
+  return "";
 }
 
 function cabecera(){
