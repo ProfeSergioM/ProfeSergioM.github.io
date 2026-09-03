@@ -193,7 +193,7 @@ const BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
 
 const MAX_JUGADORES = 20;
 const MIN_EMPEZAR   = 3;
-const ESPERA_RED    = 12000;  // sin esto, un botón se queda pegado para siempre
+const ESPERA_RED    = 25000;  // sin esto, un botón se queda pegado para siempre
 const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin I, O, 0, 1: se dictan por WhatsApp
 
 /* Una sola pregunta y siempre la misma: es la gracia del juego. */
@@ -255,6 +255,11 @@ try {
 } catch (e) {
   console.warn("Firestore no disponible:", e);
 }
+
+/* La primera consulta a Firestore tarda varios segundos: hay que levantar la
+   conexion, no solo pedir el dato. Se paga sola apenas carga la pagina, mientras
+   el jugador escribe su nombre, y no cuando aprieta un boton y mira la pantalla. */
+if (db) getDoc(doc(db, COL, "0000")).catch(function (e) { console.warn("calentando:", e); });
 
 /* ── atajos sobre la partida ─────────────────────────────── */
 const jugadores = () => (sala && sala.jugadores) || {};
@@ -320,7 +325,10 @@ async function crearSala(){
   ocupado = true; pintar();
   try {
     const codigo = await codigoLibre();
-    await conReloj(setDoc(doc(db, COL, codigo), {
+    /* La escritura no se espera: Firestore la aplica en local al toque y el
+       onSnapshot pinta la sala enseguida. Si el servidor la rechaza (regla
+       caida), el catch de abajo devuelve al jugador a la portada. */
+    setDoc(doc(db, COL, codigo), {
       codigo: codigo,
       estado: "sala",
       ronda: 0,
@@ -329,7 +337,13 @@ async function crearSala(){
       votos: {},
       historial: [],
       creada: serverTimestamp()
-    }), ESPERA_RED);
+    }).catch(function (err) {
+      console.warn(err);
+      salirDeLaSala();
+      avisar(err.code === "permission-denied"
+        ? "Firestore no deja crear la sala. Falta publicar la regla (SALAS.md)."
+        : "No se pudo crear la sala. Probá de nuevo.");
+    });
     escuchar(codigo);
   } catch (e) {
     console.warn(e);
@@ -552,6 +566,8 @@ function vistaPortada(){
         <strong>${esc(PREGUNTA)}</strong> Votan todos y el más votado se va.</p>
       <button data-accion="crear" ${ocupado ? "disabled" : ""}>
         ${ocupado ? "Creando…" : "Crear sala"}</button>
+      ${ocupado ? `<p class="chico" style="margin:10px 0 0">Conectando con el servidor.
+        La primera vez del día puede tardar unos segundos.</p>` : ""}
     </div>
 
     <footer>
