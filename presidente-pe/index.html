@@ -5,25 +5,60 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>PRESIDENTE.PE</title>
 <!--
-  ═══ SUPABASE SETUP ══════════════════════════════════════════
-  1. Crea el proyecto en https://supabase.com
-  2. En el SQL Editor del proyecto, ejecuta:
+  ═══ RANKING EN FIREBASE ═══════════════════════════════
+  El ranking vive en Firestore, en el mismo proyecto de Firebase
+  que usa Agente Agente. Necesita una regla que permita leer y
+  crear en la coleccion ranking_presidente; esta en RANKING.md,
+  en la raiz del sitio.
 
-  CREATE TABLE leaderboard (
-    id          BIGSERIAL PRIMARY KEY,
-    name        TEXT      NOT NULL DEFAULT 'Anónimo',
-    time_secs   FLOAT8    NOT NULL,
-    score       INTEGER   NOT NULL DEFAULT 0,
-    created_at  TIMESTAMPTZ DEFAULT NOW()
-  );
-  ALTER TABLE leaderboard ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "public_read"   ON leaderboard FOR SELECT USING (true);
-  CREATE POLICY "public_insert" ON leaderboard FOR INSERT WITH CHECK (true);
-
-  3. Pon tu URL y ANON KEY abajo (busca SUPABASE_URL y SUPABASE_KEY)
-  ════════════════════════════════════════════════════════════
+  Si Firestore no responde en RANKING_ESPERA ms, el juego cae
+  solo al ranking guardado en el navegador. Nunca se cuelga.
+  ════════════════════════════════════════════════════
 -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+  /* Lo crea el script clasico (corre ya) y lo resuelve el modulo (corre despues). */
+  window.__rankingListo = new Promise(function (r) { window.__rankingResuelve = r; });
+</script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+  var COL = "ranking_presidente";
+  /* Base de datos con nombre, la que creo AI Studio. No es la "(default)". */
+  var BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
+
+  try {
+    const app = initializeApp({
+      apiKey:    "AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs",
+      projectId: "gen-lang-client-0964124310",
+      appId:     "1:161151384926:web:48d30816de6e09aab863cf"
+    });
+    const db = getFirestore(app, BD);
+
+    window.__rankingResuelve({
+      async top(n) {
+        const q = query(collection(db, COL), orderBy("time", "desc"), limit(n));
+        const s = await getDocs(q);
+        return s.docs.map(function (d) {
+          const v = d.data();
+          return { name: v.name, time: v.time, score: v.score };
+        });
+      },
+      async agregar(name, time, score) {
+        await addDoc(collection(db, COL), {
+          name:  String(name).slice(0, 20),
+          time:  Number(time),
+          score: Math.max(0, Math.round(Number(score) || 0)),
+          ts:    serverTimestamp()
+        });
+      }
+    });
+  } catch (e) {
+    console.warn("Firestore no disponible:", e);
+    window.__rankingResuelve(null);
+  }
+</script>
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body {
@@ -63,29 +98,41 @@ canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; 
 //  PRESIDENTE.PE  ·  ¿Cuánto aguantas en el poder?
 // ════════════════════════════════════════════════════════
 
-// ── SUPABASE ─────────────────────────────────────────
-const SUPABASE_URL = 'https://dkocuykyugdijcioqsbk.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_6MPGcg7mvNc34zdCn3AASQ_-jYVTT4B';
-const USE_SUPABASE  = !SUPABASE_URL.includes('TU-');
+// ── RANKING (Firestore) ───────────────────────
+// La nube es opcional: si falla o tarda, el ranking sigue andando local.
+const RANKING_ESPERA = 6000;   // ms antes de rendirse y usar el ranking local
+let   RANKING_NUBE   = false;  // true en cuanto Firestore contesta de verdad
+let   rankingCaido   = false;  // una vez que falla, no se reintenta en la sesion
 
-let sb = null;
-if (USE_SUPABASE) {
-  try { sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); }
-  catch(e) { console.warn('Supabase init error', e); }
+// Si el modulo de Firebase no llega a cargar, la promesa nunca se resuelve.
+// Por eso corre contra un reloj: sin esto el menu se queda en "Cargando...".
+const rankingApi = Promise.race([
+  window.__rankingListo,
+  new Promise(r => setTimeout(() => r(null), RANKING_ESPERA))
+]);
+
+// Firestore resuelve sus promesas solo cuando el servidor confirma. Sin
+// conexion la escritura queda encolada y addDoc no resuelve NUNCA, asi que
+// toda llamada de red corre contra un reloj.
+function conTiempo(promesa, ms) {
+  return Promise.race([
+    promesa,
+    new Promise((_, rechaza) => setTimeout(() => rechaza(new Error('timeout')), ms))
+  ]);
 }
 
 let lbCache  = [];
 let lbLoaded = false;
 
 async function fetchLB() {
-  if (sb) {
+  const api = await rankingApi;
+  if (api && !rankingCaido) {
     try {
-      const { data } = await sb.from('leaderboard')
-        .select('name,time_secs,score')
-        .order('time_secs', { ascending:false })
-        .limit(5);
-      if (data) { lbCache = data.map(r=>({name:r.name,time:r.time_secs,score:r.score})); lbLoaded=true; return; }
-    } catch(e) { console.warn('fetchLB error', e); }
+      lbCache = await conTiempo(api.top(5), RANKING_ESPERA);
+      lbLoaded = true;
+      RANKING_NUBE = true;
+      return;
+    } catch(e) { rankingCaido = true; console.warn('fetchLB error', e); }
   }
   // fallback local
   try { lbCache = JSON.parse(localStorage.getItem('pres_lb')||'[]'); } catch(e){ lbCache=[]; }
@@ -93,17 +140,17 @@ async function fetchLB() {
 }
 
 async function pushLB(name, time, score) {
-  // always write local backup
+  // el respaldo local se escribe siempre, haya nube o no
   try {
     const loc = JSON.parse(localStorage.getItem('pres_lb')||'[]');
     loc.push({name,time,score}); loc.sort((a,b)=>b.time-a.time); loc.splice(5);
     localStorage.setItem('pres_lb', JSON.stringify(loc));
   } catch(e){}
 
-  if (sb) {
-    try {
-      await sb.from('leaderboard').insert([{name, time_secs:time, score}]);
-    } catch(e) { console.warn('pushLB error', e); }
+  const api = await rankingApi;
+  if (api && !rankingCaido) {
+    try { await conTiempo(api.agregar(name, time, score), RANKING_ESPERA); }
+    catch(e) { rankingCaido = true; console.warn('pushLB error', e); }
   }
   await fetchLB(); // refresh cache
 }
@@ -873,7 +920,7 @@ function drawMenu() {
   ptext('PRESIDENTE.PE',GW/2,60,21,C.gold);
   ptext('🏛️',GW/2,90,30,C.white);
   ptext('¿CUÁNTO AGUANTAS EN EL PODER?',GW/2,118,10,C.white);
-  ptext(USE_SUPABASE?'★ RANKING GLOBAL ★':'★ RANKING LOCAL ★',GW/2,134,9,USE_SUPABASE?C.gold:'#888');
+  ptext(RANKING_NUBE?'★ RANKING GLOBAL ★':'★ RANKING LOCAL ★',GW/2,134,9,RANKING_NUBE?C.gold:'#888');
   ctx.fillStyle='rgba(10,5,32,0.9)'; ctx.fillRect(18,170,GW-36,210);
   ctx.strokeStyle='#4a4a9e'; ctx.lineWidth=2; ctx.strokeRect(18,170,GW-36,210);
   ptext('CÓMO JUGAR:',GW/2,188,13,C.gold);
