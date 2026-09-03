@@ -11,8 +11,8 @@
   crear en la coleccion ranking_presidente; esta en RANKING.md,
   en la raiz del sitio.
 
-  Si Firestore no responde en RANKING_ESPERA ms, el juego cae
-  solo al ranking guardado en el navegador. Nunca se cuelga.
+  Si Firestore no responde a tiempo, el juego cae solo al ranking
+  guardado en el navegador. Nunca se cuelga.
   ════════════════════════════════════════════════════
 -->
 <script>
@@ -100,15 +100,20 @@ canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; 
 
 // ── RANKING (Firestore) ───────────────────────
 // La nube es opcional: si falla o tarda, el ranking sigue andando local.
-const RANKING_ESPERA = 6000;   // ms antes de rendirse y usar el ranking local
-let   RANKING_NUBE   = false;  // true en cuanto Firestore contesta de verdad
-let   rankingCaido   = false;  // una vez que falla, no se reintenta en la sesion
+// Tres esperas distintas, porque el costo de equivocarse es distinto en cada una.
+const ESPERA_MODULO    = 8000;   // cargar el SDK de Firebase desde gstatic
+const ESPERA_LECTURA   = 15000;  // leer el ranking: nadie espera mirando, conviene ser paciente
+const ESPERA_ESCRITURA = 8000;   // guardar al terminar: aca el jugador SI espera mirando
+let   RANKING_NUBE     = false;  // true en cuanto Firestore contesta de verdad
+// Solo lo enciende un fallo de ESCRITURA. Una lectura lenta en frio no alcanza:
+// la primera consulta a Firestore puede tardar >6s y apagar la nube por nada.
+let   rankingCaido     = false;
 
 // Si el modulo de Firebase no llega a cargar, la promesa nunca se resuelve.
 // Por eso corre contra un reloj: sin esto el menu se queda en "Cargando...".
 const rankingApi = Promise.race([
   window.__rankingListo,
-  new Promise(r => setTimeout(() => r(null), RANKING_ESPERA))
+  new Promise(r => setTimeout(() => r(null), ESPERA_MODULO))
 ]);
 
 // Firestore resuelve sus promesas solo cuando el servidor confirma. Sin
@@ -128,11 +133,11 @@ async function fetchLB() {
   const api = await rankingApi;
   if (api && !rankingCaido) {
     try {
-      lbCache = await conTiempo(api.top(5), RANKING_ESPERA);
+      lbCache = await conTiempo(api.top(5), ESPERA_LECTURA);
       lbLoaded = true;
       RANKING_NUBE = true;
       return;
-    } catch(e) { rankingCaido = true; console.warn('fetchLB error', e); }
+    } catch(e) { console.warn('fetchLB error', e); }
   }
   // fallback local
   try { lbCache = JSON.parse(localStorage.getItem('pres_lb')||'[]'); } catch(e){ lbCache=[]; }
@@ -149,7 +154,7 @@ async function pushLB(name, time, score) {
 
   const api = await rankingApi;
   if (api && !rankingCaido) {
-    try { await conTiempo(api.agregar(name, time, score), RANKING_ESPERA); }
+    try { await conTiempo(api.agregar(name, time, score), ESPERA_ESCRITURA); }
     catch(e) { rankingCaido = true; console.warn('pushLB error', e); }
   }
   await fetchLB(); // refresh cache
