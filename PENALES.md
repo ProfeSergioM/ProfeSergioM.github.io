@@ -162,11 +162,27 @@ palo y la que va al medio se la lleva puesta la pierna que arrastra), a media
 altura 0.30, arriba 0.20; diagonal 0.12; más lejos nada. La atajada con la
 pierna se ve en la animación y tiene su propio relato.
 
-Los sonidos (el golpe a la pelota, el "gooool" de la tribuna y el "uuuh" cuando
-se pierde o la atajan) están sintetizados con WebAudio, sin archivos. El
-navegador no deja sonar nada antes del primer toque, así que el contexto de
-audio se crea en el primer botón que se aprieta y de ahí en más la repetición
-suena sola. Hay botón para silenciar y queda guardado en `localStorage`.
+La tribuna es grabada de verdad: tres mp3 en `penales/sonidos/`, recortados al
+momento justo, que se bajan recién con el primer toque (unos 250 KB en total,
+así la página no carga más lento). Si alguno no llega, suena la versión
+sintetizada con WebAudio que sigue estando en el código. El golpe a la pelota
+y el chasquido del guante son sintetizados siempre. El navegador no deja sonar
+nada antes del primer toque, así que el contexto de audio se crea en el primer
+botón que se aprieta y de ahí en más la repetición suena sola. Hay botón para
+silenciar y queda guardado en `localStorage`.
+
+Los tres vienen de Freesound, con licencia **CC0** (dominio público, no piden
+crédito, pero acá va igual):
+
+| Archivo | Original | Autor | Recorte |
+|---|---|---|---|
+| `gol.mp3` | [Goal.wav (494352)](https://freesound.org/s/494352/) | Sandermotions | 5.3 s a 11.3 s |
+| `oehh.mp3` | [Soccer stadium Oehh.wav (494362)](https://freesound.org/s/494362/) | Sandermotions | 2.9 s a 6.0 s |
+| `oh.mp3` | [crowd oh - disappointed (619007)](https://freesound.org/s/619007/) | mrrap4food | 0.2 s a 1.9 s |
+
+`gol` suena en el gol, `oh` en la atajada y `oehh` cuando se va afuera. El
+recorte se hizo cortando el mp3 en los bordes de sus cuadros, sin recodificar,
+y la entrada de 60 ms que le pone WebAudio tapa el corte.
 
 Cada celda tiene una **precisión** (qué tan seguido el tiro va donde se apuntó;
 al ángulo 0.74, abajo a los palos 0.92) y una **atajabilidad** (qué tan seguido

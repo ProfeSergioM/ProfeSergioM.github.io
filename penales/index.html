@@ -321,7 +321,41 @@ function prepararAudio(){
   try {
     if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
     if (audio.state === "suspended") audio.resume();
+    cargarMuestras();
   } catch (e) { audio = null; }
+}
+
+/* ── grabaciones de verdad ───────────────────────────────
+   Tribuna real, de Freesound, con licencia CC0 (los creditos estan en
+   PENALES.md). Son tres mp3 chicos, recortados al momento justo. Se bajan
+   recien con el primer toque, junto con el contexto de audio, asi la pagina
+   no carga mas lento. Si alguno no llega o no se puede decodificar, suena
+   la version sintetizada de abajo, que sigue estando. */
+const MUESTRAS = { gol: "sonidos/gol.mp3", oehh: "sonidos/oehh.mp3", oh: "sonidos/oh.mp3" };
+const muestras = {};
+function cargarMuestras(){
+  if (!audio) return;
+  Object.keys(MUESTRAS).forEach(function(n){
+    if (muestras[n] !== undefined) return;
+    muestras[n] = null;
+    fetch(MUESTRAS[n]).then(r => r.arrayBuffer()).then(b => audio.decodeAudioData(b))
+      .then(function(buf){ muestras[n] = buf; })
+      .catch(function(e){ console.warn("muestra " + n + ":", e); muestras[n] = false; });
+  });
+}
+/* Toca una grabacion con una entrada corta (tapa el corte del mp3) y una
+   salida suave. Devuelve false si todavia no esta, para caer al sintetizado. */
+function tocarMuestra(n, ganancia, salida, t0){
+  const b = muestras[n]; if (!b) return false;
+  const f = audio.createBufferSource(), g = audio.createGain();
+  f.buffer = b;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(ganancia, t0 + 0.06);
+  g.gain.setValueAtTime(ganancia, t0 + Math.max(0.1, b.duration - salida));
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + b.duration);
+  f.connect(g); g.connect(audio.destination);
+  f.start(t0);
+  return true;
 }
 function ruido(dur){
   const n = Math.floor(audio.sampleRate * dur);
@@ -366,6 +400,7 @@ function sonar(tipo){
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
       o.connect(g2); g2.connect(audio.destination); o.start(t0); o.stop(t0 + 0.15);
     } else if (tipo === "gol") {
+      if (tocarMuestra("gol", 1.0, 1.4, t0)) return;
       tribuna(t0, 3.2, 900, 0.55, 0.28);
       tribuna(t0 + 0.05, 2.6, 2400, 0.18, 0.2);
       [[196, 212], [247, 262], [294, 318], [147, 156]].forEach(function(par, i){
@@ -378,6 +413,8 @@ function sonar(tipo){
         g.gain.setValueAtTime(0.45, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
         f.connect(filtro); filtro.connect(g); g.connect(audio.destination); f.start(t0);
       }
+      /* atajada: el "oh" corto; afuera: el "oehh" largo de la tribuna */
+      if (tocarMuestra(tipo === "atajada" ? "oh" : "oehh", 0.9, 0.6, t0 + 0.05)) return;
       tribuna(t0 + 0.05, 1.4, 520, 0.32, 0.12);
       [[262, 205], [330, 262], [196, 155]].forEach(function(par, i){
         voz(t0 + 0.05 + 0.03 * i, 1.1, par[0], par[1], 380, 0.07, "triangle");
