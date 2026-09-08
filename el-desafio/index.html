@@ -411,7 +411,7 @@ function automatizar(){
     const need=necesidad();const cands=G.prospectos.filter(p=>need?p.pos===need:true).sort((a,b)=>b.pot-a.pot);
     const c=cands[0]||(P.ojeador>=3?G.prospectos.slice().sort((a,b)=>b.pot-a.pot)[0]:null);
     if(c&&G.jugadores.length<24&&G.dinero>c.coste*2.5+80000){if(c.pot>avgOvr()+4||need===c.pos){informar('ojeador','Fiché a '+c.nombre+' ('+c.pos+', '+Math.round(c.ovr)+' → '+Math.round(c.pot)+') por '+fmt(c.coste),need===c.pos?'Faltaba un '+need+' en la plantilla y la caja cubre el fichaje más de dos veces.':'Su potencial ('+Math.round(c.pot)+') supera en más de 4 puntos la media de la plantilla ('+avgOvr().toFixed(0)+') y hay caja de sobra.');ficharProspecto(c.id,true)}}
-    for(const c of G.canteranos.slice()){if(G.jugadores.length<24&&(c.pot>avgOvr()+6||necesidad()===c.pos)){informar('ojeador','Subí al canterano '+c.nombre+' al primer equipo','Potencial '+Math.round(c.pot)+' frente a una media de '+avgOvr().toFixed(0)+', y es gratis.');promoverCanterano(c.id,true)}}
+    for(const c of G.canteranos.slice()){if(G.jugadores.length<24&&(c.pot>avgOvr()+2||necesidad()===c.pos)){informar('ojeador','Subí al canterano '+c.nombre+' al primer equipo','Potencial '+Math.round(c.pot)+' frente a una media de '+avgOvr().toFixed(0)+', y es gratis.');promoverCanterano(c.id,true)}}
   }
   if(P.entrenador&&A.entrenador){
     const xi=mejorXI();const avg=p=>{const a=xi.filter(j=>j.pos===p);return a.length?a.reduce((s,j)=>s+j.ovr,0)/a.length:0};
