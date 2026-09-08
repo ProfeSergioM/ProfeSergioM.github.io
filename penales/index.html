@@ -442,8 +442,8 @@ function sonar(tipo){
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
       o.connect(g2); g2.connect(audio.destination); o.start(t0); o.stop(t0 + 0.15);
     } else if (tipo === "gol") {
-      if (tocarMuestra("gol", 0.4, 1.4, t0)) return;
-      tribuna(t0, 3.2, 900, 0.55, 0.28);
+      if (tocarMuestra("gol", 0.18, 1.4, t0)) return;
+      tribuna(t0, 3.2, 900, 0.3, 0.28);
       tribuna(t0 + 0.05, 2.6, 2400, 0.18, 0.2);
       [[196, 212], [247, 262], [294, 318], [147, 156]].forEach(function(par, i){
         voz(t0 + 0.04 * i, 1.9, par[0], par[1], 620, 0.09);
