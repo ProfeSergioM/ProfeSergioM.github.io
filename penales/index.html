@@ -254,8 +254,22 @@ function alcance(celdaArquero, celdaTiro){
 /* Atajada con la pierna: se tiro a una celda de abajo y la pelota fue a la de
    al lado, tambien abajo. Se usa para la animacion y para el relato. */
 function atajadaConElPie(h){
-  return h.fin === "atajada" && h.tiro !== h.palo && FILA(h.palo) === 0 && FILA(h.tiro) === 0;
+  const real = celdaReal(h);
+  return h.fin === "atajada" && h.evento !== "suerte" && real !== h.palo && FILA(h.palo) === 0 && FILA(real) === 0;
 }
+/* Donde fue la pelota de verdad: casi siempre donde se apunto, salvo que le
+   haya salido mas fuerte o se haya tropezado. Las entradas viejas no lo traen. */
+function celdaReal(h){ return (h.real !== undefined && h.real >= 0) ? h.real : h.tiro; }
+
+/* ── lo raro ─────────────────────────────────────────────
+   Poco frecuente, pero pasa. Cada cosa tiene su ventana en un tercer dado y
+   solo ocurre si tiene sentido en esa jugada; si no, el penal es uno normal.
+   Todo sale de la misma semilla, asi que los dos telefonos ven lo mismo. */
+const P_TROPEZON = 0.015;  // se tropieza en la carrera: tiro flojo a cualquier lado
+const P_FUERTE   = 0.020;  // le pega de mas: sube una fila (desde arriba, se va)
+const P_PALO     = 0.012;  // al palo, y despues cincuenta y cincuenta
+const P_RESBALON = 0.050;  // solo si la atajaba: se le escapa de las manos
+const P_SUERTE   = 0.035;  // solo si era gol y le pasaba cerca: la saca de casualidad
 
 /* ── el azar, pero igual en los dos telefonos ────────────
    Un dado comun daria gol en una pantalla y atajada en la otra, y la sala se
@@ -280,11 +294,39 @@ function dado(h){
 /* El corazon del juego: dado un tiro y una eleccion de arquero, que paso. */
 function resolver(codigo, penal, tiro, palo){
   let s = semilla(codigo + "|" + penal + "|" + tiro + "|" + palo);
-  s = dado(s); const r1 = s / 4294967296;
-  s = dado(s); const r2 = s / 4294967296;
+  s = dado(s); const r1 = s / 4294967296;   // ¿va al arco?
+  s = dado(s); const r2 = s / 4294967296;   // ¿la ataja?
+  s = dado(s); const r3 = s / 4294967296;   // ¿pasa algo raro?
+  s = dado(s); const r4 = s / 4294967296;   // detalle de lo raro
 
-  if (r1 > PRECISION[tiro]) return "afuera";
-  return r2 < alcance(palo, tiro) * ATAJABLE[tiro] ? "atajada" : "gol";
+  /* Tropezon: el tiro sale flojo a una celda de abajo cualquiera. La mitad se
+     va afuera; el resto, el arquero la agarra si esta cerca. */
+  if (r3 < P_TROPEZON) {
+    const real = Math.floor(r4 * 3);
+    if (r1 < 0.5) return { fin: "afuera", real: real, evento: "tropezon" };
+    return { fin: Math.min(1, alcance(palo, real) * 1.8) > r2 ? "atajada" : "gol", real: real, evento: "tropezon" };
+  }
+  let real = tiro, evento = "";
+  if (r3 < P_TROPEZON + P_FUERTE) {
+    evento = "fuerte";
+    if (FILA(tiro) === 2) return { fin: "afuera", real: tiro, evento: evento };
+    real = tiro + 3;
+  }
+  if (r1 > PRECISION[real]) return { fin: "afuera", real: real, evento: evento };
+
+  const ventana = P_TROPEZON + P_FUERTE;
+  if (!evento && r3 < ventana + P_PALO && COLU(tiro) !== 1) {
+    return { fin: r4 < 0.5 ? "gol" : "afuera", real: real, evento: "palo" };
+  }
+  let fin = r2 < alcance(palo, real) * ATAJABLE[real] ? "atajada" : "gol";
+  const v2 = ventana + P_PALO;
+  if (!evento && fin === "atajada" && r3 >= v2 && r3 < v2 + P_RESBALON) {
+    fin = "gol"; evento = "resbalon";
+  } else if (!evento && fin === "gol" && r3 >= v2 + P_RESBALON && r3 < v2 + P_RESBALON + P_SUERTE
+             && palo !== real && Math.abs(FILA(palo) - FILA(real)) <= 1 && Math.abs(COLU(palo) - COLU(real)) <= 1) {
+    fin = "atajada"; evento = "suerte";
+  }
+  return { fin: fin, real: real, evento: evento };
 }
 
 /* ── compromiso y revelacion ─────────────────────────────
@@ -400,19 +442,36 @@ function sonar(tipo){
       g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
       o.connect(g2); g2.connect(audio.destination); o.start(t0); o.stop(t0 + 0.15);
     } else if (tipo === "gol") {
-      if (tocarMuestra("gol", 1.0, 1.4, t0)) return;
+      if (tocarMuestra("gol", 0.4, 1.4, t0)) return;
       tribuna(t0, 3.2, 900, 0.55, 0.28);
       tribuna(t0 + 0.05, 2.6, 2400, 0.18, 0.2);
       [[196, 212], [247, 262], [294, 318], [147, 156]].forEach(function(par, i){
         voz(t0 + 0.04 * i, 1.9, par[0], par[1], 620, 0.09);
       });
+    } else if (tipo === "guante") {
+      /* el chasquido del guante, solo */
+      const f = ruido(0.06), filtro = audio.createBiquadFilter(), g = audio.createGain();
+      filtro.type = "highpass"; filtro.frequency.value = 1400;
+      g.gain.setValueAtTime(0.45, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
+      f.connect(filtro); filtro.connect(g); g.connect(audio.destination); f.start(t0);
+    } else if (tipo === "palo") {
+      /* el "clonc" del caño: un tono metalico corto con su golpe */
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.type = "triangle"; o.frequency.setValueAtTime(880, t0); o.frequency.exponentialRampToValueAtTime(620, t0 + 0.25);
+      g.gain.setValueAtTime(0.5, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.3);
+      o.connect(g); g.connect(audio.destination); o.start(t0); o.stop(t0 + 0.32);
+      const f = ruido(0.04), g2 = audio.createGain();
+      g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.04);
+      f.connect(g2); g2.connect(audio.destination); f.start(t0);
+    } else if (tipo === "tropezon") {
+      /* un golpe sordo contra el pasto y un murmullo de la tribuna */
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.setValueAtTime(90, t0); o.frequency.exponentialRampToValueAtTime(40, t0 + 0.2);
+      g.gain.setValueAtTime(0.5, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+      o.connect(g); g.connect(audio.destination); o.start(t0); o.stop(t0 + 0.25);
+      tribuna(t0 + 0.1, 0.9, 700, 0.14, 0.15);
     } else if (tipo === "uuu" || tipo === "atajada") {
-      if (tipo === "atajada") {
-        const f = ruido(0.06), filtro = audio.createBiquadFilter(), g = audio.createGain();
-        filtro.type = "highpass"; filtro.frequency.value = 1400;
-        g.gain.setValueAtTime(0.45, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
-        f.connect(filtro); filtro.connect(g); g.connect(audio.destination); f.start(t0);
-      }
+      if (tipo === "atajada") sonar("guante");
       /* atajada: el "oh" corto; afuera: el "oehh" largo de la tribuna */
       if (tocarMuestra(tipo === "atajada" ? "oh" : "oehh", 0.9, 0.6, t0 + 0.05)) return;
       tribuna(t0 + 0.05, 1.4, 520, 0.32, 0.12);
@@ -881,15 +940,16 @@ async function cerrarPenal(n){
   const okPat = comp[pat] === await hashear(n + "|" + rev[pat].celda + "|" + rev[pat].sal);
   const okArq = comp[arq] === await hashear(n + "|" + rev[arq].celda + "|" + rev[arq].sal);
 
-  let fin;
-  if (!okPat)      fin = "atajada";
-  else if (!okArq) fin = "gol";
-  else             fin = resolver(sala.codigo, n, rev[pat].celda, rev[arq].celda);
+  let r;
+  if (!okPat)      r = { fin: "atajada", real: rev[pat].celda, evento: "" };
+  else if (!okArq) r = { fin: "gol", real: rev[pat].celda, evento: "" };
+  else             r = resolver(sala.codigo, n, rev[pat].celda, rev[arq].celda);
+  const fin = r.fin;
 
   const entrada = {
     penal: n, pateador: pat, arquero: arq,
-    tiro: rev[pat].celda, palo: rev[arq].celda,
-    fin: fin, trampa: (!okPat || !okArq)
+    tiro: rev[pat].celda, real: r.real, palo: rev[arq].celda,
+    fin: fin, evento: r.evento, trampa: (!okPat || !okArq)
   };
 
   const goles = Object.assign({}, sala.goles || {});
@@ -939,8 +999,8 @@ function cobrarAbandono(){
     penal: n + 1,
     ["goles." + pat]: goles[pat],
     historial: (sala.historial || []).concat([{
-      penal: n, pateador: pat, arquero: arq, tiro: -1, palo: -1,
-      fin: fin, abandono: true
+      penal: n, pateador: pat, arquero: arq, tiro: -1, real: -1, palo: -1,
+      fin: fin, evento: "", abandono: true
     }]),
     estado: veredicto.termino ? "fin" : "tanda",
     ganador: veredicto.termino ? veredicto.ganador : ""
@@ -1246,15 +1306,28 @@ function pantallaRepeticion(){
   /* Verde si el resultado te conviene: el gol al que pateaba, el resto al otro. */
   const aFavor = yoPateaba === (h.fin === "gol");
 
+  const real = celdaReal(h), ev = h.evento || "";
   let cuento;
   if (h.abandono)          cuento = "El rival no apareció. Penal cobrado.";
   else if (h.trampa)       cuento = "Alguien cambió su elección después de mandarla. Penal en contra.";
+  else if (ev === "tropezon") cuento = h.fin === "afuera" ? "¡Se tropezó en la carrera! La pelota se fue a cualquier lado."
+                                   : h.fin === "atajada" ? "Se tropezó al patear y le quedó mansita al arquero."
+                                   : "Se tropezó al patear... y la pelota entró rodando igual.";
+  else if (ev === "fuerte")   cuento = h.fin === "afuera" ? "Le pegó de más y la mandó por arriba del travesaño."
+                                   : h.fin === "gol" ? "Le salió más fuerte de lo que quería y entró más alta de lo que apuntó."
+                                   : "Le salió más fuerte y más alta de lo que quería, y el arquero la sacó.";
+  else if (ev === "palo")     cuento = h.fin === "gol" ? "¡Al palo! Y entró." : "¡Al palo! Y se fue afuera.";
+  else if (ev === "resbalon") cuento = "La tenía en las manos y se le escapó. Adentro.";
+  else if (ev === "suerte")   cuento = "Se tiró para otro lado y la pelota le pegó de casualidad. Atajada de suerte.";
   else if (h.fin === "afuera") cuento = "Le pegó demasiado fuerte y se fue afuera.";
-  else if (h.fin === "gol")    cuento = "La puso " + NOMBRE_CELDA[h.tiro] + ". Adentro.";
+  else if (h.fin === "gol")    cuento = "La puso " + NOMBRE_CELDA[real] + ". Adentro.";
   else if (atajadaConElPie(h)) cuento = "Se tiró al otro lado, pero la sacó con la pierna que dejó atrás.";
-  else                     cuento = "Se tiró bien y la sacó: " + NOMBRE_CELDA[h.tiro] + ".";
+  else                     cuento = "Se tiró bien y la sacó: " + NOMBRE_CELDA[real] + ".";
 
-  const extra = (h.tiro < 0) ? "" : `<div class="veredicto ${h.fin}">${palabra}</div>`;
+  /* El cartel aparece cuando la pelota llega, que no es siempre en el mismo
+     momento: el tropezon la hace lenta, y el palo y el resbalon la demoran. */
+  const cuando = (impactoDe(h) + demoraDe(h)).toFixed(2);
+  const extra = (h.tiro < 0) ? "" : `<div class="veredicto ${h.fin}" style="animation-delay:${cuando}s">${palabra}</div>`;
 
   return `
     <div class="caja">
@@ -1365,6 +1438,22 @@ const PUNTO = { x: 0.5, y: 0.86 };                              // el punto del 
 const CELDA_X = [0.275, 0.5, 0.725];
 const CELDA_Y = [0.535, 0.475, 0.428];
 const T_CARRERA = 0.95, T_VUELO = 0.55, T_IMPACTO = T_CARRERA + T_VUELO;
+/* Cuanto tarda la pelota en llegar y cuando se define el penal, que cambian
+   con lo raro: el tropezon la hace lenta, la pegada fuerte mas rapida, y el
+   palo y el resbalon demoran el veredicto. */
+function vueloDe(repe){
+  if (!repe) return T_VUELO;
+  if (repe.evento === "tropezon") return 1.0;
+  if (repe.evento === "fuerte") return 0.42;
+  return T_VUELO;
+}
+function impactoDe(repe){ return T_CARRERA + vueloDe(repe); }
+function demoraDe(repe){
+  if (!repe) return 0;
+  if (repe.evento === "palo") return 0.28;
+  if (repe.evento === "resbalon") return 0.5;
+  return 0;
+}
 
 const PIEL = "#F3C6A3";   // durazno, para los dos
 const KIT_PATEADOR = { camiseta: "#E8232A", short: "#F4F4F4", medias: "#E8232A", botin: "#111111",
@@ -1389,20 +1478,48 @@ function afueraXY(i){
 /* ── la pelota ─────────────────────────────────────────── */
 function pelotaEn(t, repe){
   if (!repe || t < T_CARRERA) return { x: PUNTO.x, y: PUNTO.y, suelo: PUNTO.y, r: 0.018, giro: 0, alfa: 1 };
-  const dest = repe.fin === "afuera" ? afueraXY(repe.tiro) : celdaXY(repe.tiro);
-  const f = FILA(repe.tiro);
-  const u = clamp((t - T_CARRERA) / T_VUELO, 0, 1);
-  const comba = (repe.fin === "afuera" && dest.y < 0.35) ? 0.075 : [0.02, 0.045, 0.06][f];
+  const real = celdaReal(repe), ev = repe.evento || "";
+  const f = FILA(real), c = COLU(real);
+  let dest;
+  if (ev === "palo")            dest = { x: c === 0 ? ARCO.x0 : ARCO.x1, y: CELDA_Y[f] };
+  else if (ev === "tropezon" && repe.fin === "afuera") dest = { x: c === 0 ? 0.12 : c === 2 ? 0.88 : 0.9, y: ARCO.y1 + 0.006 };
+  else if (repe.fin === "afuera") dest = afueraXY(real);
+  else                          dest = celdaXY(real);
+
+  const vuelo = vueloDe(repe), impacto = T_CARRERA + vuelo;
+  const u = clamp((t - T_CARRERA) / vuelo, 0, 1);
+  let comba = (repe.fin === "afuera" && dest.y < 0.35) ? 0.075 : [0.02, 0.045, 0.06][f];
+  if (ev === "tropezon") comba = 0.006;
+  if (ev === "fuerte") comba *= 1.3;
   const base = {
     x: lerp(PUNTO.x, dest.x, u),
     y: lerp(PUNTO.y, dest.y, u) - comba * Math.sin(Math.PI * u),
     suelo: lerp(PUNTO.y, ARCO.y1, u),
-    r: lerp(0.018, 0.0105, u), giro: u * 9, alfa: 1
+    r: lerp(0.018, 0.0105, u), giro: u * (ev === "tropezon" ? 3 : 9), alfa: 1
   };
-  if (t <= T_IMPACTO) return base;
+  if (t <= impacto) return base;
 
-  const v = t - T_IMPACTO;
-  if (repe.fin === "gol") {
+  const v = t - impacto;
+  if (ev === "palo") {
+    /* Rebota en el palo: para adentro o para afuera. */
+    const w = clamp(v / 0.28, 0, 1);
+    if (repe.fin === "gol") {
+      const adentro = celdaXY(real);
+      base.x = lerp(dest.x, adentro.x, w); base.y = lerp(dest.y, adentro.y - 0.004, w);
+      base.r = 0.0102; base.suelo = ARCO.y1 - 0.01;
+    } else {
+      const lado = c === 0 ? -1 : 1;
+      base.x = dest.x + lado * 0.09 * clamp(v / 0.6, 0, 1);
+      base.y = Math.min(ARCO.y1 + 0.03, dest.y + 0.3 * v * v);
+      base.r = 0.011; base.suelo = ARCO.y1 + 0.03;
+    }
+  } else if (ev === "resbalon") {
+    /* La tiene... y se le escapa: cae despacio y entra. */
+    const w = clamp(v / 0.5, 0, 1);
+    base.x = dest.x + (0.5 - dest.x) * 0.1 * w;
+    base.y = dest.y + 0.022 * w;
+    base.r = 0.0102; base.suelo = ARCO.y1 - 0.01;
+  } else if (repe.fin === "gol") {
     const w = clamp(v / 0.22, 0, 1);
     base.x = lerp(dest.x, lerp(dest.x, 0.5, 0.12), w);
     base.y = dest.y - 0.004 * w;
@@ -1413,6 +1530,11 @@ function pelotaEn(t, repe){
     base.x = dest.x + lado * 0.07 * clamp(v / 0.5, 0, 1);
     base.y = Math.min(ARCO.y1 + 0.03, dest.y + 0.32 * v * v);
     base.suelo = ARCO.y1 + 0.03; base.r = 0.012;
+  } else if (ev === "tropezon") {
+    /* Sigue rodando despacio y se pierde por el costado. */
+    base.x = dest.x + (dest.x - PUNTO.x) * 0.25 * v;
+    base.y = dest.y + 0.01 * v;
+    base.r = 0.011; base.alfa = clamp(1 - v / 1.5, 0.15, 1);
   } else {
     /* Sigue de largo y se pierde. */
     base.x = dest.x + (dest.x - PUNTO.x) * 0.35 * v;
@@ -1439,11 +1561,14 @@ function poseArquero(t, repe, reloj){
   };
   if (!repe || repe.tiro < 0) return quieto;
 
-  const p = suave((t - (T_CARRERA + 0.06)) / 0.44);
+  const p = suave((t - (impactoDe(repe) - 0.49)) / 0.44);
   if (p <= 0) return quieto;
 
+  const real = celdaReal(repe), ev = repe.evento || "";
   const conElPie = atajadaConElPie(repe);
-  const celda = (repe.fin === "atajada" && !conElPie) ? repe.tiro : repe.palo;
+  const estira = conElPie || ev === "suerte";                 // va a su celda y estira lo que tenga cerca
+  const llega = (repe.fin === "atajada" && !estira) || ev === "resbalon";   // llega bien a la pelota
+  const celda = llega ? real : repe.palo;
   const obj = celdaXY(celda);
   const f = FILA(celda), dx = obj.x - base.x, lado = dx < 0 ? -1 : 1;
   let fin;
@@ -1485,13 +1610,18 @@ function poseArquero(t, repe, reloj){
       pieI: { x: base.x - 0.018, y: base.y - 0.05 }, pieD: { x: base.x + 0.018, y: base.y - 0.04 }
     };
   }
-  if (conElPie) {
-    /* La pierna que queda del lado de la pelota se estira hasta ella, y el
-       cuerpo se corre un poco para ese lado. */
-    const b = celdaXY(repe.tiro), pie = { x: b.x, y: b.y + 0.004 };
-    const corr = (b.x - fin.cadera.x) * 0.3;
+  if (estira) {
+    /* Lo que queda del lado de la pelota se estira hasta ella (la pierna si
+       va abajo, la mano si va mas alta), y el cuerpo se corre un poco. */
+    const b = celdaXY(real);
+    const corr = (b.x - fin.cadera.x) * (FILA(real) === 0 ? 0.3 : 0.15);
     ["cadera", "cuello", "cabeza"].forEach(k => { fin[k] = { x: fin[k].x + corr, y: fin[k].y }; });
-    if (b.x < fin.cadera.x) fin.pieI = pie; else fin.pieD = pie;
+    if (FILA(real) === 0) {
+      const pie = { x: b.x, y: b.y + 0.004 };
+      if (b.x < fin.cadera.x) fin.pieI = pie; else fin.pieD = pie;
+    } else {
+      if (b.x < fin.cadera.x) fin.manoI = b; else fin.manoD = b;
+    }
   }
   const j = {};
   for (const k of Object.keys(quieto)) j[k] = pt(quieto[k], fin[k], p);
@@ -1519,6 +1649,26 @@ function posePateador(t, repe, reloj){
   }
   if (!repe || repe.tiro < 0) return cuerpo(inicio, reloj * 1.3, 0.006);
 
+  if (repe.evento === "tropezon") {
+    /* Se le traba el pie a mitad de la carrera, se va para adelante y termina
+       en el piso, al lado de la pelota, que sale rodando floja. */
+    const u = clamp(t / T_CARRERA, 0, 1);
+    if (u < 0.55) return cuerpo(pt(inicio, llegada, u * u * (3 - 2 * u)), u * 15, 0.03);
+    const k = suave((u - 0.55) / 0.45), pos = pt(inicio, llegada, 0.55 + 0.45 * u);
+    const parado = cuerpo(pos, 0, 0);
+    const caido = {
+      cadera: { x: llegada.x + 0.01, y: llegada.y - 0.02 },
+      cuello: { x: llegada.x - 0.035, y: llegada.y - 0.05 },
+      cabeza: { x: llegada.x - 0.05, y: llegada.y - 0.058 },
+      manoI:  { x: llegada.x - 0.055, y: llegada.y - 0.012 },
+      manoD:  { x: llegada.x - 0.02, y: llegada.y - 0.002 },
+      pieI:   { x: llegada.x + 0.035, y: llegada.y - 0.004 },
+      pieD:   { x: llegada.x + 0.055, y: llegada.y - 0.016 }
+    };
+    const j = {};
+    for (const q of Object.keys(parado)) j[q] = pt(parado[q], caido[q], k);
+    return j;
+  }
   if (t < T_CARRERA) {
     const u = t / T_CARRERA;
     const pos = pt(inicio, llegada, u * u * (3 - 2 * u));
@@ -1832,20 +1982,30 @@ function dibujarEscena(canvas){
   if (repe && mostrando && t < 8) {
     const id = mostrando.penal + "/" + vuelta();
     if (sonado.id !== id) sonado = { id: id, patada: false, fin: false };
-    if (!sonado.patada && t >= T_CARRERA) { sonado.patada = true; sonar("patada"); }
-    if (!sonado.fin && t >= T_IMPACTO) {
+    const impacto = impactoDe(repe), demora = demoraDe(repe), ev = repe.evento || "";
+    if (!sonado.patada && t >= T_CARRERA) {
+      sonado.patada = true;
+      sonar(ev === "tropezon" ? "tropezon" : "patada");
+    }
+    /* Con palo o resbalon hay un sonido en el impacto y el veredicto despues. */
+    if (!sonado.toque && demora > 0 && t >= impacto) {
+      sonado.toque = true;
+      sonar(ev === "palo" ? "palo" : "guante");
+    }
+    if (!sonado.fin && t >= impacto + demora) {
       sonado.fin = true;
       sonar(repe.fin === "gol" ? "gol" : repe.fin === "atajada" ? "atajada" : "uuu");
     }
   }
 
   const pelota = pelotaEn(t, repe);
-  const esGol = !!repe && repe.fin === "gol" && t > T_IMPACTO;
+  const tGol = repe ? impactoDe(repe) + demoraDe(repe) : 0;
+  const esGol = !!repe && repe.fin === "gol" && t > tGol;
   dibujarRed(ctx, esGol ? { x: pelota.x, y: pelota.y } : null,
-             esGol ? Math.exp(-(t - T_IMPACTO) * 1.6) * (0.6 + 0.4 * Math.cos((t - T_IMPACTO) * 14)) : 0);
-  if (repe && t > T_IMPACTO + 0.3 && repe.tiro >= 0) {
+             esGol ? Math.exp(-(t - tGol) * 1.6) * (0.6 + 0.4 * Math.cos((t - tGol) * 14)) : 0);
+  if (repe && t > tGol + 0.3 && repe.tiro >= 0) {
     marcarCelda(ctx, repe.palo, "rgba(127,212,255,.16)");
-    marcarCelda(ctx, repe.tiro, repe.fin === "gol" ? "rgba(57,255,136,.2)" : "rgba(255,51,85,.18)");
+    marcarCelda(ctx, celdaReal(repe), repe.fin === "gol" ? "rgba(57,255,136,.2)" : "rgba(255,51,85,.18)");
   }
   const arq = poseArquero(t, repe, reloj);
   sombra(ctx, (arq.pieI.x + arq.pieD.x) / 2, ARCO.y1 + 0.004, 0.04, 0.008, 0.35);
