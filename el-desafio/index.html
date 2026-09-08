@@ -188,15 +188,15 @@ const MEJORA_ESTADIO=['','Cancha, una grada y un food truck','Segunda grada y ma
 function premiumEntradas(){const l=G.inst.estadio;return 1+(l>=9?0.08:0)+(l>=11?0.08:0)+(l>=12?0.10:0)+(l>=13?0.15:0)}
 function premiumMerch(){const l=G.inst.estadio;return 1+(l>=10?0.10:0)+(l>=11?0.08:0)+(l>=12?0.10:0)}
 const INST={
-  estadio:{nombre:'Estadio',base:120000,max:12,cap:[0,3000,6000,11000,18000,28000,42000,60000,85000,85000,85000,85000,85000,100000],
+  estadio:{nombre:'Estadio',base:180000,max:12,cap:[0,3000,6000,11000,18000,28000,42000,60000,85000,85000,85000,85000,85000,100000],
     efecto:l=>fmtN(INST.estadio.cap[l])+' plazas · '+MEJORA_ESTADIO[l]},
-  entreno:{nombre:'Centro de entrenamiento',base:70000,max:12,
+  entreno:{nombre:'Centro de entrenamiento',base:105000,max:12,
     efecto:l=>'Progreso de jugadores: +'+Math.round(l*35)+'% · lesiones -'+l*4+'% de duración'+(l>=2?' · vestuarios':'')+(l>=4?' · gimnasio':'')+(l>=6?' · segunda cancha':'')},
-  academia:{nombre:'Academia juvenil',base:90000,max:12,
+  academia:{nombre:'Academia juvenil',base:135000,max:12,
     efecto:l=>'Canterano gratis cada '+Math.max(2,12-l)+' semanas · calidad '+Math.min(30+l*5,70)+'-'+Math.min(42+l*6,84)},
-  oficinas:{nombre:'Oficinas',base:60000,max:12,
+  oficinas:{nombre:'Oficinas',base:90000,max:12,
     efecto:l=>'Patrocinios +'+l*8+'% · campañas -'+Math.min(60,l*8)+'% coste'},
-  tienda:{nombre:'Tienda oficial',base:50000,max:12,
+  tienda:{nombre:'Tienda oficial',base:75000,max:12,
     efecto:l=>'Merchandising: '+(0.3+0.35*l).toFixed(2)+' €/aficionado/semana'},
 };
 const PROYECTOS={
@@ -265,7 +265,7 @@ function genLiga(){
   G.calendario=cal;
 }
 function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[0],
-    dia:1,semana:1,temporada:1,dinero:350000,fans:2500,rep:10,division:4,moral:65,
+    dia:1,semana:1,temporada:1,dinero:150000,fans:2500,rep:10,division:4,moral:65,
     vel:0,jugadores:[],prospectos:[],canteranos:[],
     inst:{estadio:1,entreno:1,academia:1,oficinas:1,tienda:1},
     personal:{ojeador:0,entrenador:0,deportivo:0,comercial:0,marketing:0,gerente:0},
