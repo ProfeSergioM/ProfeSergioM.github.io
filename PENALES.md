@@ -202,11 +202,11 @@ cada cosa solo ocurre si tiene sentido en esa jugada.
 |---|---|---|
 | Tropezón | ~70 | Se cae en la carrera. Tiro flojo a una celda de abajo cualquiera: la mitad se va afuera, el resto la agarra el arquero si está cerca, y si no, entra rodando. |
 | Le pegó de más | ~50 | El tiro sube una fila. Desde arriba, se va por encima del travesaño. |
-| Palo | ~150 | Solo en las columnas de los palos. Después, cincuenta y cincuenta. |
+| Palo | ~30 | Solo en las columnas de los palos. Después, cincuenta y cincuenta. |
 | Se le escapa | ~65 | Solo si la atajaba: la tiene en las manos y se le va adentro. |
 | De suerte | ~100 | Solo si era gol y le pasaba a una celda de distancia: se tiró para otro lado y la sacó con lo que tenía cerca. |
 
-En total, uno de cada quince penales tiene algo raro. Cada uno tiene su
+En total, casi uno de cada diez penales tiene algo raro. Cada uno tiene su
 animación (el pateador en el piso, el rebote en el caño, la pelota que se le
 cae, la mano estirada) y su relato. Las entradas del historial guardan `tiro`
 (a dónde apuntó), `real` (a dónde fue) y `evento`. Con lo raro, la conversión

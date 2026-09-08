@@ -267,7 +267,7 @@ function celdaReal(h){ return (h.real !== undefined && h.real >= 0) ? h.real : h
    Todo sale de la misma semilla, asi que los dos telefonos ven lo mismo. */
 const P_TROPEZON = 0.015;  // se tropieza en la carrera: tiro flojo a cualquier lado
 const P_FUERTE   = 0.020;  // le pega de mas: sube una fila (desde arriba, se va)
-const P_PALO     = 0.012;  // al palo, y despues cincuenta y cincuenta
+const P_PALO     = 0.058;  // al palo, y despues cincuenta y cincuenta (uno cada 30: es comun)
 const P_RESBALON = 0.050;  // solo si la atajaba: se le escapa de las manos
 const P_SUERTE   = 0.035;  // solo si era gol y le pasaba cerca: la saca de casualidad
 
