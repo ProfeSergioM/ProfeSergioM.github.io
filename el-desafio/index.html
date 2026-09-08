@@ -885,6 +885,7 @@ function renderTutorial(){const el=$('#tuto');if(!el)return;document.querySelect
   el.hidden=false;el.innerHTML=`<div class="paso">Guía · paso ${i+1} de ${TUTO.length}</div><b>${p.t}</b><p style="margin:4px 0">${p.d}</p><div class="btns">${p.boton?`<button class="b" data-tuto="ir">${p.boton}</button>`:''}${i===TUTO.length-1?'':'<button class="b sec" data-tuto="skip">Saltar la guía</button>'}</div>`;
   if(p.ir){const tb=document.querySelector('#tabs button[data-t="'+p.ir[0]+'"]');if(tb&&G.tab!==p.ir[0])tb.classList.add('tuto-target');const sb=document.querySelector('#sub button[data-s="'+p.ir[1]+'"]');if(sb&&G.sub[G.tab]!==p.ir[1])sb.classList.add('tuto-target')}else{const bs=$('#btnSemana');if(bs)bs.classList.add('tuto-target')}}
 $('#tuto').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const i=G.tutorial;const p=TUTO[i];if(b.dataset.tuto==='skip'){G.tutorial=99}else if(p&&p.ir){if(i===TUTO.length-1)G.tutorial=99;else irA(p.ir[0],p.ir[1])}save();renderUI()});
+function modalInicio(){const pos=clasificacion().findIndex(e=>e.yo)+1;modal(`<h2>${bandera(G.pais)} ${G.nombreClub}</h2><p>Hay una partida guardada: temporada <b>${G.temporada}</b>, jornada <b>${G.semana}</b>, ${pos}º en ${NOMBRE_DIV[G.division]}, caja ${fmt(G.dinero)}.</p><p><button class="b" id="btnContinuar">▶ Continuar</button> <button class="b sec" id="btnOtra">Nueva partida</button></p><p class="hint">Las tres ranuras de guardado están en la cabecera.</p>`);$("#btnContinuar").addEventListener("click",()=>{cerrarModal();renderUI()});$("#btnOtra").addEventListener("click",()=>modalNuevo(null))}
 function modalNuevo(herencia){if(herencia&&!herencia.prestigio)herencia=null;
   let sw='';PALETA.forEach((c,i)=>sw+=`<span class="sw ${i===0?'on':''}" style="background:${c}" data-c="${c}"></span>`);
   modal(`<h2>Nueva partida</h2>${G?'<p class="hint">Se borrará la partida actual.</p>':''}
@@ -1253,7 +1254,7 @@ function loopInterno(){const now=performance.now();const dt=Math.min(1000,now-la
   publico(!!(G&&G.partido&&G.partido.local&&corriendo));}
 // ============================================================ INICIO
 requestAnimationFrame(frame);loop();renderSlots();
-if(load()){renderLog();renderUI()}else modalNuevo();
+if(load()){renderLog();renderUI();modalInicio()}else modalNuevo();
 </script>
 <script defer src="../volver.js" data-pos="bottom-right"></script>
 </body>
