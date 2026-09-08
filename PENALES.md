@@ -44,6 +44,82 @@ Las mismas dos mañas de siempre al pegarla en la consola: elegir la base de
 datos **con nombre** (no la `(default)`), y revisar el final del archivo por
 las `}` de sobra que deja el editor.
 
+### El archivo completo, como tiene que quedar
+
+Lo que ya estaba (`users`, `global_game_defaults`, `ranking_presidente`,
+`salas_chao`) tal cual, más el bloque nuevo al final:
+
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /global_game_defaults/{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == "Ykn696N9wIZBfnHX1LwMJXcMG562";
+    }
+
+    match /ranking_presidente/{doc} {
+      allow read: if true;
+      allow create: if request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 20 && request.resource.data.time is number && request.resource.data.time >= 0 && request.resource.data.time <= 86400 && request.resource.data.score is int && request.resource.data.score >= 0 && request.resource.data.score <= 1000000;
+      allow update, delete: if false;
+    }
+
+    match /salas_chao/{codigo} {
+      allow read: if true;
+
+      allow create: if codigo.size() == 4
+                    && request.resource.data.codigo == codigo
+                    && request.resource.data.estado is string
+                    && request.resource.data.ronda is int
+                    && request.resource.data.jugadores is map
+                    && request.resource.data.jugadores.size() <= 20;
+
+      allow update: if request.resource.data.codigo == resource.data.codigo
+                    && request.resource.data.estado is string
+                    && request.resource.data.estado.size() <= 12
+                    && request.resource.data.ronda is int
+                    && request.resource.data.ronda >= 0
+                    && request.resource.data.ronda <= 200
+                    && request.resource.data.jugadores is map
+                    && request.resource.data.jugadores.size() <= 20;
+
+      allow delete: if false;
+    }
+
+    match /salas_penal/{codigo} {
+      allow read: if true;
+
+      allow create: if codigo.size() == 4
+                    && request.resource.data.codigo == codigo
+                    && request.resource.data.estado is string
+                    && request.resource.data.penal is int
+                    && request.resource.data.jugadores is map
+                    && request.resource.data.jugadores.size() <= 2;
+
+      allow update: if request.resource.data.codigo == resource.data.codigo
+                    && request.resource.data.estado is string
+                    && request.resource.data.estado.size() <= 12
+                    && request.resource.data.penal is int
+                    && request.resource.data.penal >= 0
+                    && request.resource.data.penal <= 200
+                    && request.resource.data.jugadores is map
+                    && request.resource.data.jugadores.size() <= 2;
+
+      allow delete: if false;
+    }
+
+  }
+}
+```
+
 ## Por qué está escrita así
 
 Cualquiera lee y escribe sin identificarse, como en los otros juegos: es la
