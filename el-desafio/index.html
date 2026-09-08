@@ -658,7 +658,7 @@ function finTemporada(){
   else if(pos<=3&&G.division===1){cambio=pos===1?'¡CAMPEÓN DE PRIMERA DIVISIÓN DE '+G.pais.toUpperCase()+'!':'Podio en la máxima categoría.'}
   let veredicto='';
   if(G.objetivo){const ok=pos<=G.objetivo.pos;const caja=G.dinero>=0;let d=G.temporada>=6?-4:0;
-    if(ok){d+=15;if(pos===1&&G.objetivo.pos>1)d+=10;G.fallosSeguidos=0;veredicto='Objetivo cumplido ('+G.objetivo.texto+'): la directiva está satisfecha.'}else{d-=(pos<=G.objetivo.pos+2?10:20);G.fallosSeguidos++;veredicto='Objetivo incumplido ('+G.objetivo.texto+')'+(pos<=G.objetivo.pos+2?' por poco.':'.')}
+    if(ok){d+=15;if(pos===1&&G.objetivo.pos>1)d+=10;G.fallosSeguidos=0;veredicto='Objetivo cumplido ('+G.objetivo.texto+'): la directiva está satisfecha.'}else{d-=(pos<=G.objetivo.pos+2?10:20)*(G.temporada<=8?0.6:1);G.fallosSeguidos++;veredicto='Objetivo incumplido ('+G.objetivo.texto+')'+(pos<=G.objetivo.pos+2?' por poco.':'.')}
     if(!caja){d-=10;veredicto+=' Terminas en números rojos.'}if(cambio.startsWith('Descenso'))d-=20;if(pos===1)d+=8;
     if(G.presidente){const P=G.presidente;if(P.tipo==='austero'){if(salariosSemana()>ingresoSemanal()*0.5){d-=8;veredicto+=' El presidente austero se queja de la masa salarial.'}else{d+=4}}
       if(P.tipo==='popular'){const cant=mejorXI().filter(j=>j.canterano).length;if(cant>=2){d+=6;G.fans=Math.round(G.fans+(fansMax()-G.fans)*0.03);veredicto+=' El presidente celebra a los '+cant+' canteranos titulares.'}else{d-=4;veredicto+=' El presidente quería más canteranos en el once.'}}}
