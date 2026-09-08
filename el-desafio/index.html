@@ -19,9 +19,20 @@ header .logo span{color:var(--ok)}
 .speed button{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:700}
 .speed button.on{background:var(--ok);color:#06210f;border-color:var(--ok)}
 #main{flex:1;display:flex;min-height:0}
-#sceneWrap{flex:1 1 0;min-height:0;min-width:0;position:relative;background:#0a0f1c;display:flex;align-items:center;justify-content:center;overflow:hidden}
+#sceneWrap{flex:1 1 0;min-height:0;min-width:0;position:relative;background:#0a0f1c;display:flex;flex-direction:column;overflow:hidden}
+#lienzo{flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
+#cal{display:flex;align-items:center;gap:12px;padding:6px 12px;background:#0a0f1c;border-bottom:1px solid var(--line);flex:0 0 auto;min-height:56px}
+#cal .club{flex:1 1 0;min-width:0}#cal .club b{font-size:15px;color:#fff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#cal .club small{font-size:11px;color:var(--muted);white-space:nowrap}
+#cal .dias{display:flex;gap:4px;flex:0 0 auto}
+#cal .dia{width:36px;height:44px;border-radius:7px;background:#1e2a44;border:1px solid #2a3a5c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;font-size:13px;font-weight:700;color:var(--muted)}
+#cal .dia span{font-size:12px;font-weight:400}
+#cal .dia.on{color:#0b1220;border-color:#fff}#cal .dia.on span{color:#fff}
+#cal .dia i{position:absolute;left:4px;right:4px;bottom:3px;height:2px;background:rgba(255,255,255,.8);transform-origin:left;display:block}
+#cal .info{flex:1 1 0;min-width:0;text-align:right}#cal .info b{font-size:13px;color:#fff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#cal .info small{font-size:11px;color:var(--muted);white-space:nowrap}
+#cal .info b.gol{color:var(--warn)}
+@media (max-width:700px){#cal{gap:6px;padding:5px 8px}#cal .club small,#cal .info small{display:none}#cal .dia{width:30px;height:38px;font-size:12px}#cal .dia span{font-size:11px}}
 canvas#scene{max-width:100%;max-height:100%;aspect-ratio:16/10;cursor:pointer;display:block}
-#toasts{position:absolute;left:12px;top:64px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+#toasts{position:absolute;left:12px;top:70px;display:flex;flex-direction:column;gap:6px;pointer-events:none}
 .toast{background:rgba(10,15,28,.9);border:1px solid var(--line);border-left:4px solid var(--blue);padding:6px 10px;border-radius:6px;font-size:13px;animation:fade 6s forwards;max-width:380px}
 .toast.ok{border-left-color:var(--ok)}.toast.bad{border-left-color:var(--bad)}.toast.warn{border-left-color:var(--warn)}
 @keyframes fade{0%{opacity:0;transform:translateY(-6px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
@@ -109,7 +120,8 @@ details.inf{margin:4px 0;font-size:12px}details.inf summary{cursor:pointer;color
 </header>
 <div id="main">
   <div id="sceneWrap">
-    <canvas id="scene" width="960" height="600"></canvas>
+    <div id="cal"></div>
+    <div id="lienzo"><canvas id="scene" width="960" height="600"></canvas></div>
     <div id="toasts"></div>
     <div id="tuto" hidden></div>
   </div>
@@ -633,7 +645,7 @@ function renderHeader(){
   const pos=clasificacion().findIndex(e=>e.yo)+1;$('#hPos').textContent=pos+'º';$('#hPosT').textContent=NOMBRE_DIV[G.division]+' · J'+G.semana+' · T'+G.temporada;
   document.querySelectorAll('.speed button').forEach(b=>b.classList.toggle('on',+b.dataset.v===G.vel));
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===G.tab));
-  renderHoy();
+  renderHoy();renderCal();
 }
 function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const n=nPendientes();const rival=cal?G.liga[cal.rival]:null;let linea='';
   if(G.gameOver)linea='<b>Fin de la partida.</b> Crea una nueva desde el botón de arriba.';
@@ -875,7 +887,7 @@ $('#inImportar').addEventListener('change',e=>{if(e.target.files[0])importar(e.t
 $('#modal').addEventListener('click',e=>{if(e.target.id==='modal'&&G)cerrarModal()});
 
 // ============================================================ ESCENA: CAMPUS ISOMÉTRICO
-const cv=$('#scene'),ctx=cv.getContext('2d');const W=960,H=600;const CX=480,CY=318;
+const cv=$('#scene'),ctx=cv.getContext('2d');const W=960,H=600;const CX=480,CY=300;
 const ISO=(x,y,z)=>[CX+(x-y),CY+(x+y)/2-(z||0)];
 const Z={estadio:{x:-95,y:55,hw:112,hh:92,tab:'competicion',sub:'partidos'},entreno:{x:100,y:-125,hw:70,hh:45,tab:'equipo',sub:'entreno'},
   academia:{x:-80,y:-150,hw:60,hh:40,tab:'equipo',sub:'cantera'},oficinas:{x:165,y:40,hw:35,hh:30,tab:'dinero',sub:'ventas'},tienda:{x:110,y:150,hw:36,hh:25,tab:'dinero',sub:'publi'}};
@@ -892,7 +904,6 @@ cv.addEventListener('touchmove',e=>{e.preventDefault();const r=cv.getBoundingCli
   else if(e.touches.length===1&&dragging){const t=e.touches[0];const dx=(t.clientX-dragging.x)*W/r.width,dy=(t.clientY-dragging.y)*H/r.height;if(Math.hypot(dx,dy)>6)dragging.moved=true;if(VIEW.s>1){VIEW.x=dragging.vx+dx;VIEW.y=dragging.vy+dy}}},{passive:false});
 cv.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null;if(e.touches.length===0)setTimeout(()=>dragging=null,0)});
 cv.addEventListener('click',e=>{if(!G)return;if(dragging&&dragging.moved)return;const [sx,sy,px,py]=toScene(e);
-  if(py<58){irA('club','sede');return}
   const dx=sx-CX,dy=sy-CY;const x=(dx+2*dy)/2,y=(2*dy-dx)/2;
   for(const k in Z){const z=Z[k];if(Math.abs(x-z.x)<=z.hw&&Math.abs(y-z.y)<=z.hh+12){irA(z.tab,z.sub);return}}
   if(y>195){irA('dinero','publi')}});
@@ -1137,9 +1148,18 @@ function grua(x,y,sem){const a=ISO(x,y,0),b=ISO(x,y,34);ctx.strokeStyle='#f59e0b
   const l=ISO(x,y,40);rr(l[0]-30,l[1]-10,60,12,3,'rgba(0,0,0,.6)');txt('🏗 OBRAS · '+sem+' sem',l[0],l[1]-1,'#fde68a',7,'center',true)}
 function valla(x0,x1,y0,y1){ctx.setLineDash([3,2]);ctx.lineWidth=1.5;poly([ISO(x0,y0,2),ISO(x1,y0,2),ISO(x1,y1,2),ISO(x0,y1,2)],null,'#f59e0b');ctx.setLineDash([])}
 // ---------- calendario superior
-function drawCalendario(){
-  rr(0,0,W,58,0,'rgba(10,15,28,.92)');ctx.fillStyle='#1f2b46';ctx.fillRect(0,57,W,1);
-  txt(bandera(G.pais)+' '+G.nombreClub+(G.prestigio?' '+'⭐'.repeat(Math.min(5,G.prestigio)):''),14,22,'#fff',14,'left',true);txt(NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+' · Jornada '+G.semana+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:''),14,40,'#8fa2c2',10);
+let calFirma='';
+function renderCal(){const el=$('#cal');if(!el||!G)return;const P=G.partido;const cal=G.calendario[G.semana-1];
+  const prog=(!P&&G.vel>0)?clamp(acum/(TICK/G.vel),0,1):0;
+  let info;if(P){const casa=P.local?G.nombreClub:P.rival.nombre,fuera=P.local?P.rival.nombre:G.nombreClub;const mc=P.local?P.marcador:[P.marcador[1],P.marcador[0]];const gol=P.ultimoGol&&P.el-P.golEl<700;
+    info='<b class="'+(gol?'gol':'')+'">'+(gol?(P.ultimoGol.mio?'¡GOOOL! ':'Gol rival · '):'')+casa+' '+mc[0]+' - '+mc[1]+' '+fuera+'</b><small>'+(P.minuto||0)+"'"+(P.copa?' · copa':'')+(P.local?' · '+fmtN(P.asist)+' espectadores':' · fuera de casa')+'</small>'}
+  else info='<b>'+DIAS[G.dia-1]+': '+DIA_DESC[G.dia-1]+'</b><small>'+(cal?'Domingo: '+(cal.local?'vs ':'en ')+G.liga[cal.rival].nombre+' · entrada '+G.precio+' €':'')+'</small>';
+  const firma=G.dia+'|'+G.semana+'|'+Math.round(prog*24)+'|'+info+'|'+G.vel+'|'+G.temporada;if(firma===calFirma)return;calFirma=firma;
+  let dias='';for(let i=0;i<7;i++){const cur=i===G.dia-1;const copaHoy=i===2&&G.copas.some(c=>c.vivo&&c.rondas[c.ronda]===G.semana);
+    dias+='<div class="dia'+(cur?' on':'')+'" style="'+(cur?'background:'+G.color:'')+'">'+DIAS_C[i]+'<span>'+(copaHoy?'🏆':DIA_ICONO[i])+'</span>'+(cur&&prog>0?'<i style="transform:scaleX('+prog.toFixed(2)+')"></i>':'')+'</div>'}
+  el.innerHTML='<div class="club"><b>'+bandera(G.pais)+' '+G.nombreClub+(G.prestigio?' '+'⭐'.repeat(Math.min(5,G.prestigio)):'')+'</b><small>'+NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+' · Jornada '+G.semana+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:'')+'</small></div><div class="dias">'+dias+'</div><div class="info">'+info+'</div>'}
+function drawCalendario(){renderCal();
+  if(false){txt(NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+' · Jornada '+G.semana+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:''),14,40,'#8fa2c2',10);
   const x0=W/2-7*34/2;
   for(let i=0;i<7;i++){const x=x0+i*34;const cur=i===G.dia-1;
     rr(x,8,30,42,6,cur?G.color:'#1e2a44',cur?'#fff':'#2a3a5c');
@@ -1148,13 +1168,14 @@ function drawCalendario(){
   const cal=G.calendario[G.semana-1];const P=G.partido;
   if(P){const casa=P.local?G.nombreClub:P.rival.nombre,fuera=P.local?P.rival.nombre:G.nombreClub;const mc=P.local?P.marcador:[P.marcador[1],P.marcador[0]];
     txt(`${casa} ${mc[0]} - ${mc[1]} ${fuera}`,W-14,22,'#fde047',13,'right',true);txt(`${P.minuto||0}'`+(P.local?' · '+fmtN(P.asist)+' espectadores':' · fuera de casa'),W-14,40,'#e2e8f0',10,'right')}
-  else{txt(DIAS[G.dia-1]+': '+DIA_DESC[G.dia-1],W-14,22,'#fff',12,'right',true);if(cal)txt('Domingo: '+(cal.local?'vs ':'en ')+G.liga[cal.rival].nombre+' · entrada '+G.precio+' €',W-14,40,'#8fa2c2',10,'right')}
-  if(G.partido&&!G.partido.local){const P=G.partido;const gol=P.ultimoGol&&P.el-P.golEl<700;rr(12,H-70,250,58,8,gol?(P.ultimoGol.mio?'rgba(120,90,0,.92)':'rgba(90,20,20,.92)'):'rgba(10,15,28,.9)','#475569');
-    txt('📻 EN DIRECTO desde '+P.rival.nombre,22,H-52,'#93c5fd',10,'left',true);txt(`${P.rival.nombre} ${P.marcador[1]} - ${P.marcador[0]} ${G.nombreClub}   ${P.minuto||0}'`,22,H-34,'#fff',13,'left',true);
-    txt(gol?(P.ultimoGol.mio?'¡GOOOL de '+(P.ultimoGol.autor||G.nombreClub)+'!':'Gol del rival...'):'Partido fuera de casa: sin taquilla',22,H-19,gol?'#fde047':'#8fa2c2',9,'left',gol)}
-  if(G.vel===0){rr(W/2-110,H-24,220,20,6,'rgba(0,0,0,.6)');txt('⏸ PAUSA · espacio reanuda · → un día',W/2,H-10,'#facc15',10,'center',true)}
-  else if(G.vel>1){rr(W/2-30,H-22,60,16,5,'rgba(0,0,0,.5)');txt('▶ '+G.vel+'×',W/2,H-10,'#fff',10,'center',true)}
-  if($('#modal').style.display==='flex'&&G.vel>0){rr(W/2-60,H-24,120,20,6,'rgba(0,0,0,.6)');txt('⏸ en pausa (diálogo)',W/2,H-10,'#facc15',10,'center',true)}
+  else{}}
+  if(G.partido&&!G.partido.local){const P=G.partido;const gol=P.ultimoGol&&P.el-P.golEl<700;rr(12,H-96,340,84,10,gol?(P.ultimoGol.mio?'rgba(120,90,0,.92)':'rgba(90,20,20,.92)'):'rgba(10,15,28,.9)','#475569');
+    txt('📻 EN DIRECTO desde '+P.rival.nombre,24,H-70,'#93c5fd',14,'left',true);txt(`${P.rival.nombre} ${P.marcador[1]} - ${P.marcador[0]} ${G.nombreClub}   ${P.minuto||0}'`,24,H-44,'#fff',20,'left',true);
+    txt(gol?(P.ultimoGol.mio?'¡GOOOL de '+(P.ultimoGol.autor||G.nombreClub)+'!':'Gol del rival...'):'Partido fuera de casa: sin taquilla',24,H-22,gol?'#fde047':'#8fa2c2',13,'left',gol)}
+  if(G.vel===0){rr(W/2-150,H-34,300,28,8,'rgba(0,0,0,.65)');txt('⏸ EN PAUSA · espacio reanuda · → un día',W/2,H-14,'#facc15',14,'center',true)}
+  else if(G.vel>1&&!G.autoPausa){rr(W/2-50,H-32,100,24,7,'rgba(0,0,0,.55)');txt('▶ '+G.vel+'×',W/2,H-14,'#fff',14,'center',true)}
+  else if(G.autoPausa){rr(W/2-90,H-32,180,24,7,'rgba(0,0,0,.55)');txt('▶ Jugando la semana…',W/2,H-14,'#bbf7d0',13,'center',true)}
+  if($('#modal').style.display==='flex'&&G.vel>0){rr(W/2-90,H-34,180,28,8,'rgba(0,0,0,.65)');txt('⏸ en pausa (diálogo)',W/2,H-14,'#facc15',14,'center',true)}
 }
 let last=performance.now(),erroresFrame=0;
 function frame(now){try{frameInterno(now)}catch(e){erroresFrame++;if(erroresFrame<=3)console.error('Error al dibujar',e);ctx.setTransform(1,0,0,1,0,0)}requestAnimationFrame(frame)}
