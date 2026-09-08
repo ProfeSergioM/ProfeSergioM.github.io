@@ -507,8 +507,12 @@ async function crearSala(){
     });
     escuchar(codigo);
   } catch (e) {
+    /* Aca cae tambien el getDoc de codigoLibre(): si la regla no esta publicada,
+       el primer error es de lectura, no de escritura, y hay que decirlo igual. */
     console.warn(e);
-    avisar("No se pudo crear la sala. Probá de nuevo.");
+    avisar(e.code === "permission-denied"
+      ? "Firestore no deja crear la sala. Falta publicar la regla de salas_penal (PENALES.md)."
+      : "No se pudo crear la sala. Probá de nuevo.");
   } finally {
     ocupado = false;
     if (vista === "portada") pintar();

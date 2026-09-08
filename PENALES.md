@@ -140,6 +140,28 @@ Abrí <https://profesergiom.github.io/penales/> y creá una sala:
 - Aparece el código de cuatro letras → la regla anda.
 - Aviso rojo *"Firestore no deja crear la sala"* → falta publicarla.
 
+También se puede mirar desde la terminal, sin abrir nada. A diferencia de lo
+que dice SALAS.md, `curl` **sí** sirve si se apunta a la base de datos con
+nombre (con la `(default)` da `PERMISSION_DENIED` siempre, porque no existe):
+
+```bash
+curl -s "https://firestore.googleapis.com/v1/projects/gen-lang-client-0964124310/databases/ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4/documents/salas_penal/ZZZZ?key=AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs"
+```
+
+- `NOT_FOUND` → la regla está publicada (deja leer, y ese documento no existe).
+- `PERMISSION_DENIED` → falta la regla.
+
+Lo mismo con `salas_chao` en vez de `salas_penal` da `NOT_FOUND`: sirve de
+control para ver que no es la red ni la clave.
+
+## Por qué Formula 600 no necesitó nada de esto
+
+Porque no usa Firestore. Su multijugador va por **WebRTC con PeerJS**: el
+servidor público de PeerJS solo presenta a los jugadores y después los datos
+viajan directo entre navegadores. No hay base de datos, así que no hay reglas.
+Chao Pescao sí las necesitó (está en SALAS.md), y Penales igual: cada colección
+nueva de Firestore es un `match` nuevo que hay que publicar.
+
 Para jugar hacen falta dos ventanas **en modo incógnito distinto** (o dos
 navegadores): la identidad está en `localStorage`, dos pestañas normales son
 el mismo jugador.
