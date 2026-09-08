@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Penales</title>
+<meta name="description" content="Tanda de penales uno contra uno. Uno patea, el otro ataja, cinco cada uno y después muerte súbita.">
+<meta property="og:title" content="Penales">
+<meta property="og:description" content="Uno patea, el otro ataja. Cinco cada uno y después de a uno hasta que alguien falle.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800&display=swap">
+<!--
+  ═══ SALAS EN FIRESTORE ═════════════════════════════════
+  Cada sala es UN documento de la coleccion salas_penal, en el mismo
+  proyecto de Firebase que usan los otros juegos del sitio.
+  La regla de seguridad esta en PENALES.md, en la raiz del sitio.
+  Sin esa regla publicada el juego no arranca: es multijugador y no
+  tiene modo local al que caer.
+
+  Nadie arbitra la tanda desde un servidor, igual que en Chao Pescao.
+  Cuando los dos revelaron su eleccion, el primer navegador que se da
+  cuenta escribe el resultado. El azar del penal sale de una semilla
+  armada con los datos de la jugada (codigo, numero de penal, celda
+  del tiro, celda del arquero), asi que los dos telefonos calculan
+  exactamente el mismo resultado sin hablar entre ellos.
+
+  Y como en un uno contra uno el que espia gana siempre, la eleccion
+  va en dos pasos: primero cada uno publica el hash de lo que eligio
+  y recien cuando estan los dos hashes se revela el contenido.
+  ════════════════════════════════════════════════════════
+-->
+<style>
+  /* Noche de estadio: pasto oscuro, lineas de cal, focos desde arriba. */
+  :root{
+    --pasto:#0E3B25; --pasto2:#0A2E1D; --cal:#F2F7F3; --tinta:#07160E;
+    --neon:#39FF88; --rojo:#FF3355; --ambar:#FFC02E; --hielo:#7FD4FF;
+    --humo:rgba(242,247,243,.62);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--pasto2)}
+  body{
+    color:var(--cal);font-size:16.5px;line-height:1.5;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+    padding:16px 14px 80px;max-width:520px;margin:0 auto;min-height:100vh;
+    background:
+      radial-gradient(120% 60% at 50% -12%,rgba(255,255,255,.16),transparent 62%),
+      repeating-linear-gradient(90deg,var(--pasto) 0 34px,var(--pasto2) 34px 68px);
+  }
+  .titular{font-family:Anton,Impact,"Arial Black",sans-serif;font-weight:400;
+    text-transform:uppercase;letter-spacing:.02em;line-height:.92}
+
+  header{text-align:center;margin-bottom:18px}
+  h1{margin:0;font-family:Anton,Impact,sans-serif;font-weight:400;
+    text-transform:uppercase;line-height:.9;
+    font-size:clamp(54px,16vw,84px);color:var(--cal);
+    text-shadow:0 0 24px rgba(57,255,136,.45),4px 5px 0 var(--tinta)}
+  h1 span{color:var(--neon)}
+  .bajada{font-size:14px;color:var(--humo);margin:12px auto 0;max-width:38ch}
+
+  .caja{background:rgba(7,22,14,.72);border:2px solid rgba(242,247,243,.22);
+    border-radius:14px;padding:14px 14px 16px;margin-bottom:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.45)}
+  .caja.viva{border-color:rgba(57,255,136,.55)}
+  .caja.roja{border-color:rgba(255,51,85,.55)}
+
+  .et{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--tinta);background:var(--neon);
+    padding:3px 9px;border-radius:999px;margin-bottom:9px}
+  .et.gris{background:rgba(242,247,243,.24);color:var(--cal)}
+  h2{margin:0 0 9px;font-family:Anton,Impact,sans-serif;font-weight:400;
+    text-transform:uppercase;font-size:clamp(26px,7vw,34px);line-height:.95}
+  p{margin:0 0 9px}
+  .chico{font-size:13.5px;color:var(--humo);line-height:1.5}
+
+  input{width:100%;font:600 18px Inter,system-ui,sans-serif;color:var(--cal);
+    background:rgba(0,0,0,.35);border:2px solid rgba(242,247,243,.28);
+    border-radius:11px;padding:11px 13px;outline:none;margin-bottom:10px}
+  input::placeholder{color:rgba(242,247,243,.35)}
+  input:focus{border-color:var(--neon)}
+  input.codigo{text-align:center;letter-spacing:.3em;text-transform:uppercase;
+    font-family:Anton,sans-serif;font-size:34px;padding:8px 13px}
+
+  button{font-family:Anton,Impact,sans-serif;font-size:23px;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--tinta);background:var(--neon);
+    border:none;border-radius:11px;padding:11px 16px 9px;width:100%;cursor:pointer;
+    box-shadow:0 4px 0 #1E9E52;transition:transform .07s,box-shadow .07s}
+  button:active{transform:translateY(3px);box-shadow:0 1px 0 #1E9E52}
+  button:disabled{background:rgba(242,247,243,.2);color:rgba(242,247,243,.45);
+    box-shadow:0 4px 0 rgba(0,0,0,.3);cursor:default;transform:none}
+  button.hielo{background:var(--hielo);box-shadow:0 4px 0 #2E8CBE}
+  button.ambar{background:var(--ambar);box-shadow:0 4px 0 #B8801A}
+  button.fantasma{background:transparent;color:var(--cal);font-size:17px;
+    border:2px solid rgba(242,247,243,.3);box-shadow:none}
+  .fila{display:flex;gap:9px}
+  .fila button{flex:1}
+
+  .codigazo{font-family:Anton,sans-serif;font-size:clamp(46px,15vw,68px);
+    letter-spacing:.16em;color:var(--neon);text-align:center;
+    text-shadow:0 0 22px rgba(57,255,136,.5);margin:2px 0 8px;line-height:1}
+
+  /* ── el arco ─────────────────────────────────────────── */
+  .arco{position:relative;width:100%;aspect-ratio:16/10;margin:4px 0 8px;
+    border:7px solid var(--cal);border-bottom-width:5px;border-radius:5px 5px 0 0;
+    background:
+      repeating-linear-gradient(90deg,rgba(242,247,243,.16) 0 1px,transparent 1px 15px),
+      repeating-linear-gradient(0deg,rgba(242,247,243,.16) 0 1px,transparent 1px 15px),
+      linear-gradient(180deg,rgba(0,0,0,.42),rgba(0,0,0,.68));
+    box-shadow:0 0 34px rgba(0,0,0,.6) inset,0 6px 20px rgba(0,0,0,.5)}
+  .rejilla{position:absolute;inset:0;display:grid;
+    grid-template-columns:1fr 1fr 1fr;grid-template-rows:1fr 1fr 1fr}
+  .celda{border:1px dashed rgba(242,247,243,.16);background:transparent;
+    box-shadow:none;border-radius:0;padding:0;width:auto;
+    display:flex;align-items:center;justify-content:center;
+    font-family:Inter,sans-serif;font-size:10.5px;font-weight:800;letter-spacing:.08em;
+    color:rgba(242,247,243,.26);text-transform:uppercase;cursor:pointer;
+    transition:background .12s,color .12s}
+  .celda:active{transform:none;box-shadow:none}
+  .celda:hover:not(:disabled){background:rgba(57,255,136,.13);color:rgba(242,247,243,.75)}
+  .celda.elegida{background:rgba(57,255,136,.32);color:var(--cal)}
+  .celda.arquero.elegida{background:rgba(127,212,255,.32)}
+  .celda:disabled{cursor:default;color:rgba(242,247,243,.16);background:transparent}
+
+  .pelota,.guante{position:absolute;font-size:clamp(26px,8vw,38px);line-height:1;
+    z-index:3;pointer-events:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,.7))}
+  .pelota{animation:volar .62s cubic-bezier(.18,.72,.3,1) forwards}
+  @keyframes volar{
+    from{left:50%;bottom:-16%;transform:translate(-50%,50%) scale(.42)}
+    to  {left:var(--fx);bottom:var(--fy);transform:translate(-50%,50%) scale(1)}}
+  .pelota.afuera{animation:errar .85s cubic-bezier(.2,.6,.4,1) forwards}
+  @keyframes errar{
+    from{left:50%;bottom:-16%;transform:translate(-50%,50%) scale(.42);opacity:1}
+    to  {left:var(--fx);bottom:120%;transform:translate(-50%,50%) scale(1.05);opacity:.2}}
+  .guante{animation:estirar .34s cubic-bezier(.2,.9,.3,1.3) forwards;opacity:0}
+  @keyframes estirar{
+    from{left:50%;bottom:2%;transform:translate(-50%,50%) scale(.6);opacity:.2}
+    to  {left:var(--gx);bottom:var(--gy);transform:translate(-50%,50%) scale(1);opacity:1}}
+
+  .veredicto{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    font-family:Anton,sans-serif;font-size:clamp(42px,14vw,70px);text-transform:uppercase;
+    letter-spacing:.03em;z-index:4;pointer-events:none;animation:cantar .3s .6s both}
+  @keyframes cantar{from{opacity:0;transform:scale(1.5)}to{opacity:1;transform:scale(1)}}
+  .veredicto.gol{color:var(--neon);text-shadow:0 0 30px rgba(57,255,136,.8),4px 5px 0 var(--tinta)}
+  .veredicto.atajada{color:var(--hielo);text-shadow:0 0 30px rgba(127,212,255,.7),4px 5px 0 var(--tinta)}
+  .veredicto.afuera{color:var(--rojo);text-shadow:0 0 30px rgba(255,51,85,.7),4px 5px 0 var(--tinta)}
+
+  /* ── marcador ────────────────────────────────────────── */
+  .marcador{display:flex;flex-direction:column;gap:10px}
+  .linea{display:flex;align-items:center;gap:9px}
+  .linea .nom{font-weight:800;font-size:14.5px;min-width:76px;max-width:76px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .linea.turno .nom{color:var(--neon)}
+  .tiros{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+  .tirito{width:19px;height:19px;border-radius:5px;border:2px solid rgba(242,247,243,.28);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;
+    flex:none}
+  .tirito.gol{background:var(--neon);border-color:var(--neon);color:var(--tinta)}
+  .tirito.fallo{background:var(--rojo);border-color:var(--rojo);color:#fff}
+  .tirito.ahora{border-color:var(--ambar);animation:latir 1s infinite}
+  @keyframes latir{50%{border-color:rgba(255,192,46,.25)}}
+  .total{font-family:Anton,sans-serif;font-size:29px;min-width:28px;text-align:right;line-height:1}
+
+  .reloj{font-family:Anton,sans-serif;font-size:38px;text-align:center;
+    color:var(--ambar);letter-spacing:.04em;line-height:1;margin-bottom:4px}
+  .reloj.poco{color:var(--rojo)}
+  .rol{text-align:center;font-family:Anton,sans-serif;font-size:clamp(26px,7.5vw,38px);
+    text-transform:uppercase;margin-bottom:2px;line-height:1}
+  .rol.pateas{color:var(--neon)} .rol.atajas{color:var(--hielo)}
+
+  footer{font-size:12.5px;color:rgba(242,247,243,.42);line-height:1.55;
+    border-top:1px solid rgba(242,247,243,.14);padding-top:12px;margin-top:6px}
+  #aviso{display:none;position:fixed;left:12px;right:12px;bottom:14px;z-index:99;
+    background:var(--rojo);color:#fff;font-size:14px;font-weight:600;
+    padding:11px 13px;border-radius:11px;box-shadow:0 8px 24px rgba(0,0,0,.5);
+    max-width:496px;margin:0 auto}
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important}}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="arriba"></div>
+  <div id="abajo"></div>
+</div>
+
+<div id="aviso" role="status"></div>
+
+<script defer src="../volver.js" data-pos="top-right"></script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+
+/* ══════════════════════════════════════════════════════════
+   PENALES · uno patea, el otro ataja. Cinco cada uno y despues
+   de a uno hasta que alguien falle y el otro no.
+   ══════════════════════════════════════════════════════════ */
+
+const COL = "salas_penal";
+/* Base de datos con nombre, la misma de los otros juegos. No es la "(default)". */
+const BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
+
+const SEGUNDOS_ELEGIR = 10;    // lo que dura la eleccion antes de mandar el default
+const GRACIA_RIVAL    = 12;    // despues de esto aparece el boton de abandono
+const MOSTRAR_PENAL   = 3400;  // cuanto queda en pantalla el resultado, en ms
+const TANDA_BASE      = 5;     // cinco cada uno antes de la muerte subita
+const MAX_JUGADORES   = 2;
+const ESPERA_RED      = 25000;
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin I, O, 0, 1: se dictan por WhatsApp
+
+/* ── la grilla ───────────────────────────────────────────
+   Nueve celdas, numeradas 0..8. La fila es Math.floor(i/3):
+   0 = abajo, 1 = media, 2 = arriba. La columna es i%3:
+   0 = izquierda, 1 = centro, 2 = derecha.
+
+   Izquierda y derecha son SIEMPRE las del que patea, que es como
+   los dos ven el arco en la pantalla. "La izquierda del arquero"
+   es un lio garantizado y no se usa en ningun lado. */
+const FILA = i => Math.floor(i / 3);
+const COLU = i => i % 3;
+
+const NOMBRE_CELDA = [
+  "abajo a la izquierda", "abajo al medio", "abajo a la derecha",
+  "a media altura, izquierda", "a media altura, al medio", "a media altura, derecha",
+  "al ángulo izquierdo", "arriba al medio", "al ángulo derecho"
+];
+const ROTULO = ["Abajo izq", "Abajo", "Abajo der",
+                "Media izq", "Medio",  "Media der",
+                "Ángulo izq", "Arriba", "Ángulo der"];
+
+/* Que tan seguido el tiro termina donde el pateador queria. El angulo es el
+   lugar mas dificil de atajar y por eso mismo el que mas se va afuera: es el
+   riesgo que hace que valga la pena elegir, en vez de tirar siempre al mismo
+   lado. Al ras del piso casi nunca se erra, pero el arquero llega comodo. */
+const PRECISION = [0.92, 0.97, 0.92,
+                   0.90, 0.96, 0.90,
+                   0.74, 0.86, 0.74];
+
+/* Que tan atajable es cada celda UNA VEZ QUE EL ARQUERO LLEGO. Adivinar no es
+   atajar: al angulo, aun yendo para el lado correcto, la saca menos de la
+   mitad de las veces. Abajo y al medio la agarra casi siempre. */
+const ATAJABLE  = [0.75, 0.80, 0.75,
+                   0.72, 0.77, 0.72,
+                   0.42, 0.47, 0.42];
+
+/* El arquero elige una celda pero cubre con el cuerpo un area alrededor. El
+   alcance decae segun cuanto se aleje el tiro de donde se tiro el. El salto
+   estira mas en vertical que en horizontal, y la diagonal es casi imposible. */
+function alcance(celdaArquero, celdaTiro){
+  const df = Math.abs(FILA(celdaArquero) - FILA(celdaTiro));
+  const dc = Math.abs(COLU(celdaArquero) - COLU(celdaTiro));
+  if (df === 0 && dc === 0) return 1.00;
+  if (df === 1 && dc === 0) return 0.45;
+  if (df === 0 && dc === 1) return 0.30;
+  if (df === 1 && dc === 1) return 0.12;
+  return 0;
+}
+
+/* ── el azar, pero igual en los dos telefonos ────────────
+   Un dado comun daria gol en una pantalla y atajada en la otra, y la sala se
+   partiria al medio. Es el mismo motivo por el que Chao Pescao no sortea los
+   empates. Aca la semilla sale de los datos de la jugada, que los dos
+   navegadores tienen identicos, asi que el resultado tambien lo es. */
+function semilla(txt){
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < txt.length; i++) {
+    h ^= txt.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+function dado(h){
+  h ^= h << 13; h >>>= 0;
+  h ^= h >>> 17;
+  h ^= h << 5;  h >>>= 0;
+  return h >>> 0;
+}
+
+/* El corazon del juego: dado un tiro y una eleccion de arquero, que paso. */
+function resolver(codigo, penal, tiro, palo){
+  let s = semilla(codigo + "|" + penal + "|" + tiro + "|" + palo);
+  s = dado(s); const r1 = s / 4294967296;
+  s = dado(s); const r2 = s / 4294967296;
+
+  if (r1 > PRECISION[tiro]) return "afuera";
+  return r2 < alcance(palo, tiro) * ATAJABLE[tiro] ? "atajada" : "gol";
+}
+
+/* ── compromiso y revelacion ─────────────────────────────
+   En un uno contra uno el que espia gana siempre: la regla de Firestore deja
+   leer la sala a cualquiera, asi que el arquero con la consola abierta podria
+   mirar la celda del tiro antes de elegir y atajar el cien por ciento.
+
+   Por eso la eleccion va en dos pasos. Primero cada uno publica solamente el
+   hash de "penal|celda|sal", con una sal aleatoria que se guarda en su propio
+   navegador: del hash no se saca nada. Recien cuando los DOS hashes estan
+   publicados, cada uno revela la celda y la sal, y el otro comprueba que el
+   hash cuadre. El que espia ya no puede cambiar su eleccion, y el que quiera
+   mentir en la revelacion no sabe con que sal producir el hash que ya publico. */
+async function hashear(txt){
+  const bytes = new TextEncoder().encode(txt);
+  const buf = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+function salNueva(){
+  const a = new Uint8Array(12);
+  crypto.getRandomValues(a);
+  return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ── memoria del navegador ───────────────────────────────── */
+function leer(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function anotar(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+
+let yo = leer("penal-yo");
+if (!yo) {
+  yo = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+  anotar("penal-yo", yo);
+}
+
+/* La eleccion y su sal viven en localStorage y no solo en memoria: si a alguien
+   se le recarga la pestaña entre el compromiso y la revelacion, sin la sal no
+   podria revelar nunca y el penal quedaria trabado para los dos.
+
+   La clave lleva la vuelta ademas del numero de penal. Sin eso, en la revancha
+   el penal 1 encontraria guardada la eleccion del penal 1 de la tanda anterior
+   y la mandaria sola, sin dejar elegir. */
+/* Cada revancha es una vuelta nueva y empieza otra vez por el penal 1. */
+function vuelta(){ return (sala && sala.vuelta) || 1; }
+function clave(penal){
+  return "penal-e-" + (sala ? sala.codigo : "") + "-" + vuelta() + "-" + penal;
+}
+function guardarEleccion(penal, celda, sal){
+  anotar(clave(penal), celda + "|" + sal);
+}
+function miEleccion(penal){
+  const v = leer(clave(penal));
+  if (!v) return null;
+  const p = v.split("|");
+  return { celda: Number(p[0]), sal: p[1] };
+}
+
+/* ── estado de la pantalla ───────────────────────────────── */
+let db = null, ref = null, cortar = null;
+let sala = null;                 // el documento tal cual viene de Firestore
+let vista = "portada";           // portada | sala
+let miNombre = leer("penal-nombre") || "";
+let codigoTecleado = "";
+let ocupado = false;
+let mostrando = null;            // {penal, hasta} mientras corre la animacion
+let trabajando = false;          // hay un compromiso/revelacion/resolucion en curso
+let firmaPintado = "";
+
+const desdeUrl = (new URLSearchParams(location.search).get("sala") || "")
+  .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+if (desdeUrl) codigoTecleado = desdeUrl;
+let salaGuardada = leer("penal-sala") || "";
+
+const arriba = document.getElementById("arriba");
+const abajo  = document.getElementById("abajo");
+const app    = document.getElementById("app");
+const aviso  = document.getElementById("aviso");
+
+let relojAviso = null;
+function avisar(txt){
+  aviso.textContent = txt;
+  aviso.style.display = "block";
+  clearTimeout(relojAviso);
+  relojAviso = setTimeout(function(){ aviso.style.display = "none"; }, 5500);
+}
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+/* Firestore no resuelve sus promesas sin conexion: se quedan colgadas para
+   siempre. Todo lo que bloquea un boton corre contra un reloj. */
+function conReloj(p, ms){
+  return Promise.race([
+    p, new Promise((_, no) => setTimeout(() => no(new Error("sin respuesta")), ms))
+  ]);
+}
+
+try {
+  const fb = initializeApp({
+    apiKey:    "AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs",
+    projectId: "gen-lang-client-0964124310",
+    appId:     "1:161151384926:web:48d30816de6e09aab863cf"
+  });
+  db = getFirestore(fb, BD);
+} catch (e) {
+  console.warn("Firestore no disponible:", e);
+}
+
+/* El compromiso necesita SHA-256 del navegador, que solo existe en https (o en
+   localhost). Abierto como archivo suelto no hay juego honesto posible. */
+const hayCripto = !!(window.crypto && crypto.subtle && crypto.getRandomValues);
+
+/* La primera consulta a Firestore tarda varios segundos: hay que levantar la
+   conexion, no solo pedir el dato. Se paga sola apenas carga la pagina. */
+if (db) getDoc(doc(db, COL, "0000")).catch(function(e){ console.warn("calentando:", e); });
+
+/* ── atajos sobre la partida ─────────────────────────────── */
+const jugadores = () => (sala && sala.jugadores) || {};
+/* Orden fijo para toda la tanda y el mismo en los dos telefonos: por turno de
+   llegada, y si empatan desempata el id, que no cambia nunca. De este orden
+   sale quien patea cada penal, asi que no puede darse vuelta a mitad de camino. */
+const listaJug = () => Object.keys(jugadores()).sort(function(a, b){
+  return ((jugadores()[a].orden || 0) - (jugadores()[b].orden || 0)) ||
+         (a < b ? -1 : a > b ? 1 : 0);
+});
+const nombreDe = id => (jugadores()[id] && jugadores()[id].nombre) || "el rival";
+const rival    = () => listaJug().filter(id => id !== yo)[0] || "";
+const soyMando = () => !!sala && sala.anfitrion === yo;
+
+/* Impar patea el primero de la lista, par el segundo. */
+const pateadorDe = n => listaJug()[(n - 1) % 2] || "";
+const arqueroDe  = n => listaJug()[n % 2] || "";
+const golesDe    = id => ((sala && sala.goles) || {})[id] || 0;
+
+/* Los compromisos y las revelaciones se guardan por penal, en mapas anidados.
+   La clave lleva una "p" adelante porque un campo que empieza con numero es
+   una ruta invalida para Firestore, y aca se escribe siempre por ruta. */
+const casillero    = n => "p" + n;
+const compromisosDe = n => (((sala && sala.compromiso) || {})[casillero(n)]) || {};
+const reveladosDe   = n => (((sala && sala.revelado)   || {})[casillero(n)]) || {};
+
+function escribir(cambios){
+  if (!ref) return;
+  updateDoc(ref, cambios).catch(function(err){
+    console.warn(err);
+    avisar(err.code === "permission-denied"
+      ? "Firestore rechazó el cambio. Falta publicar la regla de salas_penal (PENALES.md)."
+      : "No se pudo guardar. Revisá la conexión.");
+  });
+}
+
+/* ── entrar y salir de una sala ──────────────────────────── */
+async function codigoLibre(){
+  for (let intento = 0; intento < 6; intento++) {
+    let c = "";
+    for (let i = 0; i < 4; i++) c += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+    const s = await conReloj(getDoc(doc(db, COL, c)), ESPERA_RED);
+    if (!s.exists()) return c;
+  }
+  throw new Error("no hay codigos libres");
+}
+
+function escuchar(codigo){
+  if (cortar) cortar();
+  ref = doc(db, COL, codigo);
+  salaGuardada = codigo;
+  anotar("penal-sala", codigo);
+  cortar = onSnapshot(ref, function(s){
+    if (!s.exists()) { avisar("La sala se borró."); salirDeLaSala(); return; }
+    const antes = sala;
+    sala = s.data();
+    vista = "sala";
+    arrancarAnimacion(antes);
+    ajustarReloj();
+    pintar();
+    seguirLaJugada();
+  }, function(err){
+    console.warn(err);
+    avisar(err.code === "permission-denied"
+      ? "Firestore no deja leer la sala. Falta publicar la regla (PENALES.md)."
+      : "Se corto la conexion con la sala.");
+  });
+}
+
+function salirDeLaSala(){
+  if (cortar) cortar();
+  cortar = null; ref = null; sala = null; vista = "portada";
+  mostrando = null; penalDelReloj = null; firmaPintado = "";
+  salaGuardada = "";
+  anotar("penal-sala", "");
+  if (location.search) history.replaceState(null, "", location.pathname);
+  pintar();
+}
+
+async function crearSala(){
+  if (!db || !validarNombre()) return;
+  ocupado = true; pintar();
+  try {
+    const codigo = await codigoLibre();
+    setDoc(doc(db, COL, codigo), {
+      codigo: codigo,
+      estado: "sala",
+      penal: 0,
+      vuelta: 1,
+      anfitrion: yo,
+      jugadores: { [yo]: { nombre: miNombre, orden: 0 } },
+      goles: { [yo]: 0 },
+      compromiso: {},
+      revelado: {},
+      historial: [],
+      ganador: "",
+      creada: serverTimestamp()
+    }).catch(function(err){
+      console.warn(err);
+      salirDeLaSala();
+      avisar(err.code === "permission-denied"
+        ? "Firestore no deja crear la sala. Falta publicar la regla (PENALES.md)."
+        : "No se pudo crear la sala. Probá de nuevo.");
+    });
+    escuchar(codigo);
+  } catch (e) {
+    console.warn(e);
+    avisar("No se pudo crear la sala. Probá de nuevo.");
+  } finally {
+    ocupado = false;
+    if (vista === "portada") pintar();
+  }
+}
+
+async function entrarSala(){
+  if (!db || !validarNombre()) return;
+  const codigo = codigoTecleado.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+  if (codigo.length !== 4) { avisar("El código tiene cuatro letras."); return; }
+  ocupado = true; pintar();
+  try {
+    const s = await conReloj(getDoc(doc(db, COL, codigo)), ESPERA_RED);
+    if (!s.exists()) { avisar("No existe la sala " + codigo + "."); return; }
+    const d = s.data();
+    if (!d.jugadores || !d.jugadores[yo]) {
+      const cuantos = Object.keys(d.jugadores || {}).length;
+      /* Penales es de a dos y no tiene espectadores: el tercero se queda afuera. */
+      if (cuantos >= MAX_JUGADORES) { avisar("La sala ya tiene dos jugadores."); return; }
+      if (d.estado !== "sala") { avisar("Esa tanda ya empezó."); return; }
+      await conReloj(updateDoc(doc(db, COL, codigo), {
+        ["jugadores." + yo]: { nombre: miNombre, orden: cuantos },
+        ["goles." + yo]: 0
+      }), ESPERA_RED);
+    } else if (d.jugadores[yo].nombre !== miNombre) {
+      await conReloj(updateDoc(doc(db, COL, codigo), {
+        ["jugadores." + yo + ".nombre"]: miNombre
+      }), ESPERA_RED);
+    }
+    escuchar(codigo);
+  } catch (e) {
+    console.warn(e);
+    avisar(e.code === "permission-denied"
+      ? "Firestore no deja entrar. Falta publicar la regla (PENALES.md)."
+      : "No se pudo entrar. Revisá la conexión.");
+  } finally {
+    ocupado = false;
+    if (vista === "portada") pintar();
+  }
+}
+
+function validarNombre(){
+  miNombre = (miNombre || "").trim().slice(0, 12);
+  if (!miNombre) { avisar("Escribí tu nombre primero."); return false; }
+  anotar("penal-nombre", miNombre);
+  return true;
+}
+
+/* ── el reloj del penal ──────────────────────────────────
+   Cada navegador cuenta sus diez segundos desde que ve el penal en pantalla,
+   asi no importa que los relojes de los telefonos esten desfasados. Al llegar
+   a cero manda su eleccion; si no eligio nada, manda la de siempre: el
+   pateador la pone abajo al medio y el arquero se queda parado. Son defaults
+   fijos, sin azar, para que no dependan de quien los calcule. */
+let penalDelReloj = null;
+let finDelReloj   = 0;
+
+function ajustarReloj(){
+  if (!enJuego()) { penalDelReloj = null; return; }
+  if (penalDelReloj !== sala.penal) {
+    penalDelReloj = sala.penal;
+    finDelReloj = Date.now() + SEGUNDOS_ELEGIR * 1000;
+  }
+}
+function quedanSegundos(){
+  return Math.max(0, Math.ceil((finDelReloj - Date.now()) / 1000));
+}
+/* En juego = hay penal para elegir y no estamos mirando la repeticion del anterior. */
+function enJuego(){
+  return !!sala && sala.estado === "tanda" && !mostrando;
+}
+
+setInterval(function(){
+  if (mostrando && Date.now() >= mostrando.hasta) {
+    mostrando = null;
+    ajustarReloj();
+    pintar();
+    seguirLaJugada();
+    return;
+  }
+  if (!enJuego() || penalDelReloj !== sala.penal) return;
+
+  const s = quedanSegundos();
+  const e = document.getElementById("reloj");
+  if (e) { e.textContent = s; e.classList.toggle("poco", s <= 3); }
+
+  /* Se acabo el tiempo y no elegiste: va la de siempre, abajo al medio. Vale
+     para los dos roles, asi que no hace falta preguntar cual te toca. */
+  if (s === 0 && !miEleccion(sala.penal) && meTocaElegir()) elegir(1);
+
+  /* Si el rival no aparece nunca, pasada la gracia se puede cobrar el penal por
+     abandono. Es un boton, no algo automatico: que lo decida una persona. Se
+     repinta el pie solo cuando la situacion cambia, no cuatro veces por segundo:
+     si no, el boton se destruye justo cuando lo estan tocando. */
+  const ahoraTrabado = hayQueDesatascar();
+  if (ahoraTrabado !== trabadoPintado) { trabadoPintado = ahoraTrabado; pintarPie(); }
+}, 250);
+
+/* El rival no mando su revelacion y ya pasaron los diez segundos mas la gracia. */
+let trabadoPintado = false;
+function hayQueDesatascar(){
+  if (!sala || sala.estado !== "tanda" || mostrando) return false;
+  if (quedanSegundos() > 0) return false;
+  if (Date.now() <= finDelReloj + GRACIA_RIVAL * 1000) return false;
+  return !!miEleccion(sala.penal) && !reveladosDe(sala.penal)[rival()];
+}
+
+/* ── la jugada, paso a paso ──────────────────────────────
+   1. los dos publican el hash de su eleccion  (compromiso)
+   2. con los dos hashes puestos, los dos publican celda y sal  (revelacion)
+   3. con las dos revelaciones, se comprueba y se escribe el resultado
+   Cada navegador hace su parte y mira si le toca la siguiente. */
+async function seguirLaJugada(){
+  if (!sala || sala.estado !== "tanda" || mostrando || trabajando) return;
+  if (!hayCripto) return;
+  const n = sala.penal;
+  if (!meTocaElegir()) return;
+
+  const mia = miEleccion(n);
+  if (!mia) return;                                   // todavia no elegi
+
+  const comp = compromisosDe(n), rev = reveladosDe(n);
+  const otro = rival();
+
+  trabajando = true;
+  try {
+    if (!comp[yo]) {
+      escribir({ ["compromiso." + casillero(n) + "." + yo]:
+                 await hashear(n + "|" + mia.celda + "|" + mia.sal) });
+      return;
+    }
+    if (comp[otro] && !rev[yo]) {
+      escribir({ ["revelado." + casillero(n) + "." + yo]: { celda: mia.celda, sal: mia.sal } });
+      return;
+    }
+    if (rev[yo] && rev[otro]) await cerrarPenal(n);
+  } finally {
+    trabajando = false;
+  }
+}
+
+/* Los dos jugadores tienen que elegir siempre: uno donde patea y el otro donde
+   se tira. No hay penal en el que alguien mire sin hacer nada. */
+function meTocaElegir(){ return !!sala && (pateadorDe(sala.penal) === yo || arqueroDe(sala.penal) === yo); }
+function meToca(){ return pateadorDe(sala.penal) === yo ? "patear" : "atajar"; }
+
+async function elegir(celda){
+  if (!enJuego() || !meTocaElegir()) return;
+  if (miEleccion(sala.penal)) return;     // ya elegi este penal
+  if (!hayCripto) { avisar("Este navegador no puede jugar sin https."); return; }
+  guardarEleccion(sala.penal, celda, salNueva());
+  pintar();
+  seguirLaJugada();
+}
+
+/* El resultado lo escribe el primero de los dos que llega, sin arbitro. Como el
+   calculo es determinista, si escriben los dos a la vez escriben lo mismo. Los
+   goles se guardan como total absoluto y no como suma, para que escribirlo dos
+   veces de resultado igual. */
+async function cerrarPenal(n){
+  if ((sala.historial || []).some(h => h.penal === n)) return;  // ya esta escrito
+  const pat = pateadorDe(n), arq = arqueroDe(n);
+  const rev = reveladosDe(n), comp = compromisosDe(n);
+  if (!rev[pat] || !rev[arq]) return;
+
+  /* Comprobar que cada uno revelo lo mismo que se habia comprometido a revelar.
+     Si no cuadra, el penal se cobra en contra del que hizo trampa. */
+  const okPat = comp[pat] === await hashear(n + "|" + rev[pat].celda + "|" + rev[pat].sal);
+  const okArq = comp[arq] === await hashear(n + "|" + rev[arq].celda + "|" + rev[arq].sal);
+
+  let fin;
+  if (!okPat)      fin = "atajada";
+  else if (!okArq) fin = "gol";
+  else             fin = resolver(sala.codigo, n, rev[pat].celda, rev[arq].celda);
+
+  const entrada = {
+    penal: n, pateador: pat, arquero: arq,
+    tiro: rev[pat].celda, palo: rev[arq].celda,
+    fin: fin, trampa: (!okPat || !okArq)
+  };
+
+  const goles = Object.assign({}, sala.goles || {});
+  goles[pat] = (goles[pat] || 0) + (fin === "gol" ? 1 : 0);
+
+  const veredicto = evaluar(goles, n);
+  escribir({
+    penal: n + 1,
+    ["goles." + pat]: goles[pat],
+    historial: (sala.historial || []).concat([entrada]),
+    estado: veredicto.termino ? "fin" : "tanda",
+    ganador: veredicto.termino ? veredicto.ganador : ""
+  });
+}
+
+/* Cuando ya no hace falta seguir pateando. Durante los primeros cinco de cada
+   uno se corta apenas la diferencia es mas grande que los tiros que le quedan
+   al que va perdiendo: son los penales que en la cancha no se patean. Despues,
+   muerte subita: se comparan de a pares completos. */
+function evaluar(goles, n){
+  const l = listaJug(); if (l.length < 2) return { termino: false };
+  const a = l[0], b = l[1];
+  const ga = goles[a] || 0, gb = goles[b] || 0;
+
+  if (n < TANDA_BASE * 2) {
+    const restanA = TANDA_BASE - Math.ceil(n / 2);
+    const restanB = TANDA_BASE - Math.floor(n / 2);
+    if (ga > gb + restanB) return { termino: true, ganador: a };
+    if (gb > ga + restanA) return { termino: true, ganador: b };
+    return { termino: false };
+  }
+  /* Con la tanda pareja (par de penales cerrado), el que va arriba gano. */
+  if (n % 2 === 0 && ga !== gb) return { termino: true, ganador: ga > gb ? a : b };
+  return { termino: false };
+}
+
+/* El rival no aparece: se le da el penal al que si esta. */
+function cobrarAbandono(){
+  if (!sala || sala.estado !== "tanda") return;
+  const n = sala.penal, pat = pateadorDe(n), arq = arqueroDe(n);
+  if (reveladosDe(n)[rival()]) return;                 // apareció justo
+  const fin = (pat === yo) ? "gol" : "atajada";        // gana el que esta presente
+  const goles = Object.assign({}, sala.goles || {});
+  goles[pat] = (goles[pat] || 0) + (fin === "gol" ? 1 : 0);
+  const veredicto = evaluar(goles, n);
+  escribir({
+    penal: n + 1,
+    ["goles." + pat]: goles[pat],
+    historial: (sala.historial || []).concat([{
+      penal: n, pateador: pat, arquero: arq, tiro: -1, palo: -1,
+      fin: fin, abandono: true
+    }]),
+    estado: veredicto.termino ? "fin" : "tanda",
+    ganador: veredicto.termino ? veredicto.ganador : ""
+  });
+}
+
+/* ── la animacion ────────────────────────────────────────
+   Es puramente local: cuando aparece una entrada nueva en el historial, cada
+   navegador se toma sus tres segundos y medio para mostrarla. Que uno arranque
+   medio segundo antes que el otro no importa, porque el reloj del penal
+   siguiente empieza cuando termina la animacion de cada uno. */
+function arrancarAnimacion(antes){
+  /* Sin "antes" es la primera lectura de la sala: alguien entro o recargo con la
+     tanda ya empezada. No hay nada que repetir, lo de antes ya lo vio o no le toca. */
+  if (!antes) return;
+  const largoAntes = (antes.historial || []).length;
+  const h = sala.historial || [];
+  if (h.length > largoAntes && h.length > 0) {
+    mostrando = { penal: h[h.length - 1].penal, hasta: Date.now() + MOSTRAR_PENAL };
+    penalDelReloj = null;
+  }
+}
+
+/* ── botones ─────────────────────────────────────────────── */
+function sincronizar(){
+  const n = document.getElementById("nombre");
+  const c = document.getElementById("codigo");
+  if (n) miNombre = n.value;
+  if (c) codigoTecleado = c.value;
+}
+
+const acciones = {
+  crear:   crearSala,
+  entrar:  entrarSala,
+  volver:  function(cod){ if (!validarNombre()) return; codigoTecleado = cod; entrarSala(); },
+  salir:   salirDeLaSala,
+  empezar: function(){
+    if (listaJug().length < 2) { avisar("Faltan jugadores: son dos."); return; }
+    escribir({ estado: "tanda", penal: 1 });
+  },
+  celda:    function(v){ elegir(Number(v)); },
+  abandono: cobrarAbandono,
+  mando:    function(){ escribir({ anfitrion: yo }); },
+  revancha: function(){
+    const ceros = {};
+    listaJug().forEach(id => { ceros["goles." + id] = 0; });
+    escribir(Object.assign({
+      estado: "tanda", penal: 1, vuelta: vuelta() + 1,
+      historial: [], ganador: "", compromiso: {}, revelado: {}
+    }, ceros));
+  },
+  copiar: function(){
+    navigator.clipboard.writeText(enlace())
+      .then(() => avisar("Link copiado."))
+      .catch(() => avisar("No se pudo copiar. Copialo de la barra."));
+  }
+};
+
+app.addEventListener("click", function(e){
+  const b = e.target.closest("[data-accion]");
+  if (!b || b.disabled) return;
+  sincronizar();
+  const f = acciones[b.dataset.accion];
+  if (f) f(b.dataset.valor, b);
+});
+app.addEventListener("input", sincronizar);
+app.addEventListener("keydown", function(e){
+  if (e.key !== "Enter") return;
+  const campo = e.target.closest("input");
+  if (!campo) return;
+  sincronizar();
+  if (campo.id === "codigo") entrarSala();
+});
+
+function enlace(){
+  return location.origin + location.pathname + "?sala=" + (sala ? sala.codigo : codigoTecleado);
+}
+function enlaceWhatsapp(){
+  return "https://wa.me/?text=" +
+    encodeURIComponent("Tanda de penales. Sala " + sala.codigo + ": " + enlace());
+}
+
+/* ── pantallas ───────────────────────────────────────────
+   El area de arriba se repinta solo cuando cambia de verdad: si se repintara
+   con cada snapshot, la pelota volveria a salir disparada desde el principio
+   en medio de la animacion. */
+function firma(){
+  if (vista !== "sala" || !sala) return "portada|" + ocupado + "|" + (desdeUrl || "") + "|" + salaGuardada;
+  if (mostrando) return "anim|" + mostrando.penal;
+  const n = sala.penal, mia = miEleccion(n);
+  /* Mientras no elegiste, lo que haga el rival NO entra en la firma. Si entrara,
+     su compromiso repintaria el arco justo cuando estas por tocarlo y el toque se
+     perderia; ademas de que su estado no cambia nada de lo que estas viendo. Una
+     vez que elegiste el arco ya esta bloqueado y repintar no molesta. */
+  const suyo = mia ? (compromisosDe(n)[rival()] ? "c" : "-") + (reveladosDe(n)[rival()] ? "r" : "-") : "";
+  return [sala.estado, n, sala.codigo, listaJug().join(","), listaJug().map(nombreDe).join(","),
+          mia ? mia.celda : "-", suyo, sala.ganador || "", soyMando()].join("|");
+}
+
+function pintar(){
+  const f = firma();
+  if (f !== firmaPintado) {
+    firmaPintado = f;
+    arriba.innerHTML = (vista === "sala" && sala) ? pantallaDeSala() : vistaPortada();
+  }
+  pintarPie();
+}
+function pintarPie(){
+  abajo.innerHTML = (vista === "sala" && sala) ? pie() : "";
+}
+
+function vistaPortada(){
+  if (!db) return `
+    <header><h1>Pena<span>les</span></h1></header>
+    <div class="caja roja"><h2>Sin conexión</h2>
+      <p class="chico">Este juego es multijugador y necesita internet.
+        No tiene modo local. Probá recargar la página.</p></div>`;
+
+  const invitado = !!desdeUrl;
+  const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
+  return `
+    <header>
+      <h1>Pena<span>les</span></h1>
+      <p class="bajada">Uno patea, el otro ataja. Cinco cada uno y después de a uno,
+        hasta que alguien falle y el otro no.</p>
+    </header>
+
+    ${!hayCripto ? `<div class="caja roja">
+      <span class="et gris">Ojo</span>
+      <p class="chico" style="margin:0">Este navegador no tiene SHA-256 disponible, que es
+        lo que impide espiar la elección del otro. Pasa al abrir el archivo suelto:
+        entrá por https y anda.</p></div>` : ""}
+
+    ${retomar ? `<div class="caja">
+      <span class="et gris">Quedaste a medias</span>
+      <button class="ambar" data-accion="volver" data-valor="${esc(salaGuardada)}"
+              ${ocupado ? "disabled" : ""}>Volver a ${esc(salaGuardada)}</button>
+    </div>` : ""}
+
+    <div class="caja">
+      <span class="et gris">Paso 1</span>
+      <input id="nombre" maxlength="12" placeholder="Tu nombre" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}">
+      <p class="chico" style="margin:0">Va en el marcador. Poné el que usan en el grupo.</p>
+    </div>
+
+    <div class="caja${invitado ? " viva" : ""}">
+      <span class="et${invitado ? "" : " gris"}">${invitado ? "Te desafiaron" : "Si te pasaron un código"}</span>
+      <h2>Entrar a una sala</h2>
+      <input id="codigo" class="codigo" maxlength="4" placeholder="ABCD" autocomplete="off"
+             spellcheck="false" value="${esc(codigoTecleado)}">
+      <button class="hielo" data-accion="entrar" ${ocupado ? "disabled" : ""}>
+        ${ocupado ? "Entrando..." : "Entrar"}</button>
+    </div>
+
+    <div class="caja">
+      <span class="et gris">Si armás vos la tanda</span>
+      <h2>Crear una sala</h2>
+      <p class="chico" style="margin-bottom:11px">Se juega de a dos. Creá la sala,
+        pasá el link y arrancá.</p>
+      <button data-accion="crear" ${ocupado ? "disabled" : ""}>
+        ${ocupado ? "Creando..." : "Crear sala"}</button>
+      ${ocupado ? `<p class="chico" style="margin:10px 0 0">Conectando con el servidor.
+        La primera vez del día puede tardar unos segundos.</p>` : ""}
+    </div>
+
+    <footer>
+      <strong>Como se juega.</strong> Los dos eligen a la vez, en la misma grilla de
+      nueve: el pateador dónde la pone, el arquero para dónde se tira. Ninguno ve
+      lo del otro hasta que los dos mandaron. El arquero no cubre solo la celda que
+      eligió: también estira a las de al lado, aunque llegue peor. Y al ángulo es
+      donde menos ataja... pero es también donde más seguido la pelota se va afuera.
+    </footer>`;
+}
+
+function pantallaDeSala(){
+  if (sala.estado === "sala") return cabecera() + pantallaLobby();
+  if (sala.estado === "fin")  return pantallaFin();
+  if (mostrando)              return pantallaRepeticion();
+  return pantallaPenal();
+}
+
+function cabecera(){
+  return `
+    <div class="caja viva" style="text-align:center">
+      <span class="et">Sala</span>
+      <div class="codigazo">${esc(sala.codigo)}</div>
+      <p class="chico" style="margin:0">${listaJug().length} de 2 jugadores</p>
+    </div>`;
+}
+
+function pantallaLobby(){
+  const l = listaJug(), listos = l.length === 2;
+  return `
+    <div class="caja">
+      <span class="et gris">En la cancha</span>
+      ${l.map((id, i) => `<div class="linea" style="padding:6px 0">
+          <div class="nom" style="min-width:0;max-width:none;flex:1">
+            ${esc(nombreDe(id))}${id === yo ? " (vos)" : ""}</div>
+          <span class="chico">${i === 0 ? "patea el primero" : "ataja el primero"}</span>
+        </div>`).join("")}
+      ${!listos ? `<p class="chico" style="margin:10px 0 0">Falta uno.
+        Pasale el link y esperalo acá.</p>` : ""}
+    </div>
+
+    ${!listos ? `<div class="caja">
+      <span class="et gris">Invitar</span>
+      <div class="fila" style="margin-bottom:9px">
+        <button class="hielo" data-accion="copiar">Copiar link</button>
+        <a href="${esc(enlaceWhatsapp())}" target="_blank" rel="noopener"
+           style="flex:1;text-decoration:none"><button class="ambar">WhatsApp</button></a>
+      </div>
+      <p class="chico" style="margin:0">O dictale el código <strong>${esc(sala.codigo)}</strong>.</p>
+    </div>` : ""}
+
+    ${soyMando()
+      ? `<button data-accion="empezar" ${listos ? "" : "disabled"}>
+           ${listos ? "Empezar la tanda" : "Esperando al otro"}</button>`
+      : `<div class="caja"><p class="chico" style="margin:0">Arranca
+           ${esc(nombreDe(sala.anfitrion))}. ${listos ? "Ya pueden empezar." : ""}</p></div>`}`;
+}
+
+/* Posiciones dentro del arco, para la pelota y el guante. */
+const XS = ["18%", "50%", "82%"];
+const YS = ["16%", "48%", "78%"];
+
+function arco(opciones){
+  const o = opciones || {};
+  const mia   = o.elegida;
+  const clase = o.rol === "atajar" ? "celda arquero" : "celda";
+  const celdas = [];
+  /* Se dibuja de arriba hacia abajo, que es como se ve un arco. */
+  for (let f = 2; f >= 0; f--) {
+    for (let c = 0; c <= 2; c++) {
+      const i = f * 3 + c;
+      celdas.push(`<button class="${clase}${mia === i ? " elegida" : ""}"
+        data-accion="celda" data-valor="${i}" ${o.bloqueado ? "disabled" : ""}
+        aria-label="${esc(NOMBRE_CELDA[i])}">${mia === i ? "&#9679;" : esc(ROTULO[i])}</button>`);
+    }
+  }
+  return `<div class="arco">
+    <div class="rejilla">${celdas.join("")}</div>
+    ${o.extra || ""}
+  </div>`;
+}
+
+function pantallaPenal(){
+  const n = sala.penal, rol = meToca(), mia = miEleccion(n);
+  const otro = rival(), yaMando = !!compromisosDe(n)[otro];
+  const suave = n > TANDA_BASE * 2;
+
+  const encabezado = `
+    <div class="caja viva">
+      <span class="et">${suave ? "Muerte súbita &middot; penal " + n : "Penal " + n + " de 10"}</span>
+      <div class="rol ${rol === "patear" ? "pateas" : "atajas"}">
+        ${rol === "patear" ? "Pateás vos" : "Atajás vos"}</div>
+      <p class="chico" style="text-align:center;margin:2px 0 10px">
+        ${rol === "patear"
+          ? "Elegí dónde la ponés. " + esc(nombreDe(otro)) + " está eligiendo para dónde tirarse."
+          : "Elegí para dónde te tirás. " + esc(nombreDe(otro)) + " está eligiendo dónde ponerla."}</p>
+      <div class="reloj" id="reloj">${quedanSegundos()}</div>
+      <p class="chico" style="text-align:center;margin:0">
+        ${mia
+          ? (yaMando ? "Los dos mandaron. Va..." : "Listo. Esperando a " + esc(nombreDe(otro)) + ".")
+          : "Si se acaba el tiempo va abajo al medio."}</p>
+    </div>`;
+
+  return encabezado + arco({ rol: rol, elegida: mia ? mia.celda : -1, bloqueado: !!mia });
+}
+
+function pantallaRepeticion(){
+  const h = (sala.historial || []).filter(e => e.penal === mostrando.penal)[0];
+  if (!h) return "";
+  const yoPateaba = h.pateador === yo;
+  const palabra = h.fin === "gol" ? "Gol" : h.fin === "atajada" ? "Atajó" : "Afuera";
+  /* Verde si el resultado te conviene: el gol al que pateaba, el resto al otro. */
+  const aFavor = yoPateaba === (h.fin === "gol");
+
+  let cuento;
+  if (h.abandono)          cuento = "El rival no apareció. Penal cobrado.";
+  else if (h.trampa)       cuento = "Alguien cambió su elección después de mandarla. Penal en contra.";
+  else if (h.fin === "afuera") cuento = "Le pegó demasiado fuerte y se fue afuera.";
+  else if (h.fin === "gol")    cuento = "La puso " + NOMBRE_CELDA[h.tiro] + ". Adentro.";
+  else                     cuento = "Se tiró bien y la sacó: " + NOMBRE_CELDA[h.tiro] + ".";
+
+  const extra = (h.tiro < 0) ? "" : `
+    <div class="guante" style="--gx:${XS[COLU(h.palo)]};--gy:${YS[FILA(h.palo)]}">&#129508;</div>
+    <div class="pelota${h.fin === "afuera" ? " afuera" : ""}"
+         style="--fx:${XS[COLU(h.tiro)]};--fy:${YS[FILA(h.tiro)]}">&#9917;</div>
+    <div class="veredicto ${h.fin}">${palabra}</div>`;
+
+  return `
+    <div class="caja">
+      <span class="et gris">Penal ${h.penal} &middot; pateo ${esc(nombreDe(h.pateador))}</span>
+      <div class="rol ${aFavor ? "pateas" : "atajas"}"
+           style="margin-bottom:6px">${palabra}</div>
+      ${arco({ bloqueado: true, extra: extra })}
+      <p class="chico" style="text-align:center;margin:0">${esc(cuento)}</p>
+    </div>`;
+}
+
+function pantallaFin(){
+  const gano = sala.ganador === yo;
+  const l = listaJug();
+  return `
+    <div class="caja ${gano ? "viva" : "roja"}" style="text-align:center">
+      <span class="et${gano ? "" : " gris"}">Final</span>
+      <h2 style="font-size:clamp(38px,12vw,58px);margin-bottom:6px">
+        ${gano ? "Ganaste" : (sala.ganador ? esc(nombreDe(sala.ganador)) + " ganó" : "Terminó")}</h2>
+      <div class="codigazo" style="font-size:clamp(40px,13vw,60px);letter-spacing:.04em">
+        ${l.map(id => golesDe(id)).join(" - ")}</div>
+      <p class="chico" style="margin:0 0 12px">
+        ${l.map(id => esc(nombreDe(id))).join(" contra ")}</p>
+      ${soyMando()
+        ? `<button data-accion="revancha">Revancha</button>`
+        : `<p class="chico" style="margin:0">Si ${esc(nombreDe(sala.anfitrion))} pide
+             revancha, arrancan de nuevo.</p>`}
+    </div>
+    ${historialLargo()}`;
+}
+
+function historialLargo(){
+  const h = sala.historial || [];
+  if (!h.length) return "";
+  return `<div class="caja">
+    <span class="et gris">Uno por uno</span>
+    ${h.map(e => `<div class="linea" style="padding:5px 0;border-bottom:1px solid rgba(242,247,243,.1)">
+        <div class="nom">${esc(nombreDe(e.pateador))}</div>
+        <span class="chico" style="flex:1">${e.tiro < 0 ? "no se presentó" : esc(NOMBRE_CELDA[e.tiro])}</span>
+        <span class="tirito ${e.fin === "gol" ? "gol" : "fallo"}">${e.fin === "gol" ? "&#9679;" : "&times;"}</span>
+      </div>`).join("")}
+  </div>`;
+}
+
+/* ── el pie: marcador y salidas ──────────────────────────── */
+function pie(){
+  if (sala.estado === "sala") {
+    return `<button class="fantasma" data-accion="salir">Salir de la sala</button>`;
+  }
+  const l = listaJug();
+  const n = sala.penal;
+  const enTanda = sala.estado === "tanda";
+  const trabado = hayQueDesatascar();
+
+  return `
+    <div class="caja">
+      <span class="et gris">Marcador</span>
+      <div class="marcador">
+        ${l.map((id, i) => lineaMarcador(id, i)).join("")}
+      </div>
+      ${n > TANDA_BASE * 2 && enTanda
+        ? `<p class="chico" style="margin:10px 0 0;text-align:center">Muerte súbita:
+             si uno hace y el otro no, se acabó.</p>` : ""}
+    </div>
+    ${trabado ? `<button class="ambar" data-accion="abandono">${esc(nombreDe(rival()))} no responde &middot; cobrar el penal</button>` : ""}
+    <button class="fantasma" data-accion="salir" style="margin-top:9px">Salir de la sala</button>
+    ${!soyMando() && sala.estado === "fin"
+      ? `<button class="fantasma" data-accion="mando" style="margin-top:9px">Tomar el mando</button>` : ""}`;
+}
+
+function lineaMarcador(id, i){
+  const h = sala.historial || [];
+  const mios = h.filter(e => e.pateador === id);
+  const enCurso = sala.estado === "tanda" && pateadorDe(sala.penal) === id && !mostrando;
+  const cuantos = Math.max(TANDA_BASE, mios.length + (enCurso ? 1 : 0));
+
+  const tiros = [];
+  for (let k = 0; k < cuantos; k++) {
+    if (k < mios.length) {
+      const g = mios[k].fin === "gol";
+      tiros.push(`<span class="tirito ${g ? "gol" : "fallo"}">${g ? "&#9679;" : "&times;"}</span>`);
+    } else if (k === mios.length && enCurso) {
+      tiros.push(`<span class="tirito ahora"></span>`);
+    } else {
+      tiros.push(`<span class="tirito"></span>`);
+    }
+  }
+  return `<div class="linea ${enCurso ? "turno" : ""}">
+    <div class="nom">${esc(nombreDe(id))}${id === yo ? " &middot; vos" : ""}</div>
+    <div class="tiros">${tiros.join("")}</div>
+    <div class="total">${golesDe(id)}</div>
+  </div>`;
+}
+
+/* ── arranque ────────────────────────────────────────────── */
+pintar();
+if (desdeUrl && miNombre) entrarSala();
+</script>
+</body>
+</html>
