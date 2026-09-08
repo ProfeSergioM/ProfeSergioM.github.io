@@ -239,8 +239,7 @@ function genLiga(){
   for(let r=0;r<2;r++)for(const i of otros.sort(()=>Math.random()-.5))cal.push({rival:i,local:(cal.length+r)%2===0});
   G.calendario=cal;
 }
-function newGame(nombre,pais,color,dificultad,herencia){
-  G={nombreClub:nombre||'Mi Club FC',pais:PAISES.includes(pais)?pais:'Chile',color:color||PALETA[0],
+function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[0],
     dia:1,semana:1,temporada:1,dinero:350000,fans:2500,rep:10,division:4,moral:65,
     vel:1,tab:'sede',jugadores:[],prospectos:[],canteranos:[],
     inst:{estadio:1,entreno:1,academia:1,oficinas:1,tienda:1},
@@ -248,7 +247,9 @@ function newGame(nombre,pais,color,dificultad,herencia){
     auto:{ojeador:true,entrenador:true,deportivo:true,comercial:true,marketing:true,gerente:true},
     precio:10,foco:'general',tactica:'equilibrada',patro:null,oferta:null,ofertaJ:null,campana:null,
     resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,
-    stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}};
+    stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}}}
+function newGame(nombre,pais,color,dificultad,herencia){
+  G=estadoBase();G.nombreClub=nombre||'Mi Club FC';G.pais=PAISES.includes(pais)?pais:'Chile';G.color=color||PALETA[0];
   G.dificultad=['facil','normal','dificil'].includes(dificultad)?dificultad:'normal';
   if(herencia){G.prestigio=herencia.prestigio;G.dinero+=herencia.dinero;G.rep=herencia.rep;for(const k in PERSONAL)G.personal[k]=1;G.logros=herencia.logros||[]}
   G.jugadores=genPlantilla();G.fin=nuevoFin();genLiga();crearCopas(0,0);fijarObjetivo();
@@ -257,11 +258,20 @@ function newGame(nombre,pais,color,dificultad,herencia){
   save();
 }
 function save(){if(!G)return;const p=G.partido;try{G.partido=null;G.slot=SLOT;localStorage.setItem(SAVE_KEY(),JSON.stringify(G));localStorage.setItem('clubtycoon_slot',SLOT)}catch(e){}finally{G.partido=p}}
-function load(){try{const s=localStorage.getItem(SAVE_KEY());if(!s)return false;G=JSON.parse(s);G.partido=null;G.vel=Math.min(G.vel||1,1);return !!G.pais}catch(e){return false}}
+function migrar(g){const b=estadoBase();let n=0;
+  for(const k in b)if(g[k]===undefined||g[k]===null&&b[k]!==null&&typeof b[k]==='object'){g[k]=b[k];n++}
+  for(const k of ['stats','inst','personal','auto'])for(const j in b[k])if(g[k][j]===undefined)g[k][j]=b[k][j];
+  if(!g.records||typeof g.records!=='object')g.records=b.records;for(const j in b.records)if(g.records[j]===undefined)g.records[j]=b.records[j];
+  if(!Array.isArray(g.jugadores))g.jugadores=[];for(const j of g.jugadores){if(j.energia===undefined)j.energia=100;if(j.goles===undefined)j.goles=0;if(j.pj===undefined)j.pj=0;if(!j.nac)j.nac=g.pais;recalc(j)}
+  if(!g.liga||!g.calendario||!g.liga.length){G=g;genLiga()}
+  if(!g.objetivo){G=g;try{fijarObjetivo()}catch(e){}}
+  if(!g.fin)g.fin=nuevoFin();
+  if(n)console.info('Partida migrada: '+n+' campos añadidos');return g}
+function load(){try{const s=localStorage.getItem(SAVE_KEY());if(!s)return false;const g=JSON.parse(s);if(!g||!g.pais)return false;g.partido=null;g.vel=Math.min(g.vel||1,1);G=migrar(g);return true}catch(e){console.error('No se pudo cargar la partida',e);return false}}
 function cambiarSlot(n){save();SLOT=n;try{localStorage.setItem('clubtycoon_slot',SLOT)}catch(e){}if(load()){renderLog();renderUI()}else{G=null;modalNuevo()}renderSlots()}
 function renderSlots(){const sel=$('#slot');if(!sel)return;let h='';for(let i=1;i<=3;i++){let info='vacía';try{const s=localStorage.getItem('clubtycoon_v2_'+i);if(s){const g=JSON.parse(s);info=g.nombreClub+' · T'+g.temporada}}catch(e){}h+=`<option value="${i}" ${i===SLOT?'selected':''}>Ranura ${i}: ${info}</option>`}sel.innerHTML=h}
 function exportar(){if(!G)return;save();const blob=new Blob([JSON.stringify(G)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='el-desafio-'+G.nombreClub.replace(/\s+/g,'_')+'-T'+G.temporada+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function importar(file){const r=new FileReader();r.onload=()=>{try{const g=JSON.parse(r.result);if(!g||!g.pais||!g.jugadores)throw new Error('formato');G=g;G.partido=null;save();renderLog();renderUI();renderSlots();toast('Partida importada en la ranura '+SLOT,'ok')}catch(e){toast('El archivo no es una partida válida','bad')}};r.readAsText(file)}
+function importar(file){const r=new FileReader();r.onload=()=>{try{const g=JSON.parse(r.result);if(!g||!g.pais||!g.jugadores)throw new Error('formato');g.partido=null;g.vel=1;G=migrar(g);save();renderLog();renderUI();renderSlots();toast('Partida importada en la ranura '+SLOT,'ok')}catch(e){toast('El archivo no es una partida válida','bad')}};r.readAsText(file)}
 
 // ============================================================ LOG / TOAST
 function noticia(tipo,titular){if(!G.noticias)G.noticias=[];G.noticias.unshift({t:G.temporada,s:G.semana,tipo,titular});if(G.noticias.length>60)G.noticias.length=60}
@@ -618,7 +628,8 @@ function vPendientes(){let h='';
   for(const r of G.renovaciones){const j=G.jugadores.find(x=>x.id===r.id);if(!j)continue;h+=`<div class="card" style="border-color:#facc15"><div class="row"><span>📝 <b>${j.nombre}</b> (${j.pos} ${Math.round(j.ovr)}, ${j.edad} años) pide <b>${fmt(r.salario)}/sem</b> (ahora ${fmt(j.salario)}) · prima ${fmt(r.salario*3)} · ${r.restan} sem</span><span><button class="b" data-a="renovar" data-id="${j.id}" ${G.dinero<r.salario*3?'disabled':''}>Renovar</button> <button class="b sec" data-a="noRenovar" data-id="${j.id}">Dejar ir</button></span></div></div>`}
   for(const d of G.decisiones){h+=`<div class="card" style="border-color:#facc15"><b>📌 ${d.texto}</b><p>${d.restan+1} semana(s) para decidir; luego se aplica la última opción.</p><div class="row">${d.op.map((o,i)=>`<button class="b ${i?'sec':''}" data-a="decidir" data-id="${d.id}" data-i="${i}">${o}</button>`).join('')}</div></div>`}
   return h}
-function renderUI(){renderHeader();const v={sede:vSede,plantilla:vPlantilla,cantera:vCantera,entreno:vEntreno,partidos:vPartidos,ventas:vVentas,publi:vPubli,personal:vPersonal}[G.tab]||vSede;$('#tabContent').innerHTML=vPendientes()+v();if(G.tab==='sede')dibujarGrafica()}
+function renderUI(){try{renderUIInterno()}catch(e){console.error('Error de interfaz',e);$('#tabContent').innerHTML='<p class="hint">Error al mostrar esta pestaña. Prueba otra o crea una nueva partida.</p>'}}
+function renderUIInterno(){renderHeader();const v={sede:vSede,plantilla:vPlantilla,cantera:vCantera,entreno:vEntreno,partidos:vPartidos,ventas:vVentas,publi:vPubli,personal:vPersonal}[G.tab]||vSede;$('#tabContent').innerHTML=vPendientes()+v();if(G.tab==='sede')dibujarGrafica()}
 function dibujarGrafica(){const c=document.getElementById('grafica');if(!c||!c.getContext)return;const g=c.getContext('2d');const Wc=c.width,Hc=c.height;g.clearRect(0,0,Wc,Hc);
   const pts=G.historia.slice().reverse().map(h=>({dinero:h.dinero||0,fans:h.fans||0,rep:h.rep||0,ovr:h.ovr||0,t:h.t}));pts.push({dinero:G.dinero,fans:G.fans,rep:G.rep,ovr:avgOvr(),t:G.temporada,actual:true});
   const series=[['dinero','#22c55e'],['fans','#38bdf8'],['rep','#facc15'],['ovr','#f472b6']];const pad=22;
@@ -1092,13 +1103,14 @@ function drawCalendario(){
   else if(G.vel>1){rr(W/2-30,H-22,60,16,5,'rgba(0,0,0,.5)');txt('▶ '+G.vel+'×',W/2,H-10,'#fff',10,'center',true)}
   if($('#modal').style.display==='flex'&&G.vel>0){rr(W/2-60,H-24,120,20,6,'rgba(0,0,0,.6)');txt('⏸ en pausa (diálogo)',W/2,H-10,'#facc15',10,'center',true)}
 }
-let last=performance.now();
-function frame(now){
+let last=performance.now(),erroresFrame=0;
+function frame(now){try{frameInterno(now)}catch(e){erroresFrame++;if(erroresFrame<=3)console.error('Error al dibujar',e);ctx.setTransform(1,0,0,1,0,0)}requestAnimationFrame(frame)}
+function frameInterno(now){
   const dtReal=Math.min(0.05,(now-last)/1000);last=now;const dt=corriendo?dtReal:0;const t=now/1000;
   ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#0a0f1c';ctx.fillRect(0,0,W,H);
   ctx.setTransform(VIEW.s,0,0,VIEW.s,VIEW.x,VIEW.y);luces=[];
   drawTerreno();
-  if(!G){ctx.setTransform(1,0,0,1,0,0);requestAnimationFrame(frame);return}
+  if(!G){ctx.setTransform(1,0,0,1,0,0);return}
   camino(40,30,-20,50,7);camino(40,30,100,-80,7);camino(40,30,-60,-110,7);camino(40,30,150,60,7);camino(40,30,110,130,7);camino(40,30,60,200,7);camino(-120,155,-120,200,6);
   poly([ISO(150,-70),ISO(215,-70),ISO(215,-20),ISO(150,-20)],'#8d8d8d');for(let i=0;i<5;i++){poly([ISO(156+i*12,-66),ISO(157+i*12,-66),ISO(157+i*12,-24),ISO(156+i*12,-24)],'#e5e7eb');if((i+G.semTotal)%3!==0){const cx=162+i*12;box(ISO,cx-3,cx+3,-60,-48,1,5,{top:PALETA[(i+G.semTotal)%PALETA.length],right:'#333',front:'#444'})}}
   const objs=[{d:-380,f:()=>{if(G.legado.includes('ciudad')||G.proyectos.ciudad){if(G.proyectos.ciudad){valla(160,220,-220,-160);grua(190,-190,G.proyectos.ciudad.restan)}else{cesped(162,206,-218,-190);edificio(165,205,-186,-166,12,{wall:'#dfe7ea',roof:'flat',roofColor:'#8fa3ad',glass:'#5b8fb0'});etiqueta(185,-186,30,'CIUDAD DEPORTIVA')}}}},
@@ -1117,17 +1129,16 @@ function frame(now){
   ctx.setTransform(1,0,0,1,0,0);
   const vg=ctx.createRadialGradient(W/2,H/2,H*0.35,W/2,H/2,H*0.85);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.28)');ctx.fillStyle=vg;ctx.fillRect(0,0,W,H);
   drawCalendario();
-  requestAnimationFrame(frame);
 }
 // ============================================================ BUCLE DE JUEGO
 const TICK=1300;let acum=0,lastT=performance.now();
 let corriendo=false;
-function loop(){const now=performance.now();const dt=Math.min(1000,now-lastT);lastT=now;
+function loop(){try{loopInterno()}catch(e){console.error('Error en el bucle',e);if(G&&G.partido){G.partido=null}}setTimeout(loop,50)}
+function loopInterno(){const now=performance.now();const dt=Math.min(1000,now-lastT);lastT=now;
   corriendo=!!G&&G.vel>0&&!G.gameOver&&$('#modal').style.display!=='flex';
   if(corriendo&&!G.partido){acum+=dt;if(acum>=TICK/G.vel){acum=0;tick();save()}}
   if(G&&G.partido){acum=0;if(corriendo)G.partido.el+=dt*Math.sqrt(G.vel);actualizarPartido()}
-  publico(!!(G&&G.partido&&G.partido.local&&corriendo));
-  setTimeout(loop,50)}
+  publico(!!(G&&G.partido&&G.partido.local&&corriendo));}
 // ============================================================ INICIO
 requestAnimationFrame(frame);loop();renderSlots();
 if(load()){renderLog();renderUI()}else modalNuevo();
