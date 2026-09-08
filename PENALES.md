@@ -209,6 +209,16 @@ la de siempre: abajo al medio, para los dos roles. Son defaults fijos, sin
 azar. Si el rival no revela nunca, doce segundos después aparece el botón
 **cobrar el penal**: es una persona la que decide, no un automatismo.
 
+### Contra la máquina
+
+Desde la portada se puede jugar una tanda contra el navegador, sin sala ni
+Firestore. Es la misma partida con el mismo protocolo: la sala es un objeto
+en memoria, `escribir()` aplica los cambios por ruta igual que lo haría
+Firestore, y el rival (id `maquina`) publica sus compromisos y revelaciones
+desde el mismo navegador, con medio segundo de "pensar". Patea más a los palos
+que al medio y, al atajar, una de cada tres veces se tira a donde más pateaste.
+Sirve para probar sin publicar la regla y para practicar.
+
 ## Cómo comprobar que funciona
 
 Abrí <https://profesergiom.github.io/penales/> y creá una sala:

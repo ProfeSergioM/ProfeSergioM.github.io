@@ -334,6 +334,8 @@ function miEleccion(penal){
 
 /* ── estado de la pantalla ───────────────────────────────── */
 let db = null, ref = null, cortar = null;
+let local = false;               // partida contra la maquina: la sala vive en memoria
+const MAQUINA = "maquina";       // el id de la maquina en jugadores
 let sala = null;                 // el documento tal cual viene de Firestore
 let vista = "portada";           // portada | sala
 let miNombre = leer("penal-nombre") || "";
@@ -417,6 +419,7 @@ const compromisosDe = n => (((sala && sala.compromiso) || {})[casillero(n)]) || 
 const reveladosDe   = n => (((sala && sala.revelado)   || {})[casillero(n)]) || {};
 
 function escribir(cambios){
+  if (local) { escribirLocal(cambios); return; }
   if (!ref) return;
   updateDoc(ref, cambios).catch(function(err){
     console.warn(err);
@@ -444,13 +447,7 @@ function escuchar(codigo){
   anotar("penal-sala", codigo);
   cortar = onSnapshot(ref, function(s){
     if (!s.exists()) { avisar("La sala se borró."); salirDeLaSala(); return; }
-    const antes = sala;
-    sala = s.data();
-    vista = "sala";
-    arrancarAnimacion(antes);
-    ajustarReloj();
-    pintar();
-    seguirLaJugada();
+    recibirSala(s.data());
   }, function(err){
     console.warn(err);
     avisar(err.code === "permission-denied"
@@ -459,8 +456,97 @@ function escuchar(codigo){
   });
 }
 
+/* Llega una version nueva de la sala, de Firestore o de la memoria local. */
+function recibirSala(datos){
+  const antes = sala;
+  sala = datos;
+  vista = "sala";
+  arrancarAnimacion(antes);
+  ajustarReloj();
+  pintar();
+  seguirLaJugada();
+  if (local) jugarMaquina();
+}
+
+/* ── contra la maquina ───────────────────────────────────
+   La misma partida, pero la sala es un objeto en memoria y el rival lo juega
+   este mismo navegador. Se usa el mismo protocolo de compromiso y revelacion,
+   asi que el resto del codigo no sabe que es local: escribir() aplica los
+   cambios por ruta, igual que lo haria Firestore, y avisa por recibirSala(). */
+function escribirLocal(cambios){
+  const nuevo = JSON.parse(JSON.stringify(sala));
+  Object.keys(cambios).forEach(function(ruta){
+    const partes = ruta.split(".");
+    let n = nuevo;
+    for (let i = 0; i < partes.length - 1; i++) {
+      if (typeof n[partes[i]] !== "object" || n[partes[i]] === null) n[partes[i]] = {};
+      n = n[partes[i]];
+    }
+    n[partes[partes.length - 1]] = JSON.parse(JSON.stringify(cambios[ruta]));
+  });
+  setTimeout(function(){ if (local) recibirSala(nuevo); }, 0);
+}
+
+function jugarContraLaMaquina(){
+  if (!validarNombre()) return;
+  if (!hayCripto) { avisar("Este navegador no puede jugar sin https."); return; }
+  if (cortar) cortar();
+  cortar = null; ref = null; local = true;
+  /* Codigo al azar aunque no vaya a Firestore: la eleccion guardada en el
+     navegador se indexa por codigo, y dos partidas locales seguidas no tienen
+     que pisarse. */
+  let codigo = "";
+  for (let i = 0; i < 4; i++) codigo += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+  recibirSala({
+    codigo: codigo, estado: "tanda", penal: 1, vuelta: 1, anfitrion: yo,
+    jugadores: { [yo]: { nombre: miNombre, orden: 0 }, [MAQUINA]: { nombre: "La máquina", orden: 1 } },
+    goles: { [yo]: 0, [MAQUINA]: 0 },
+    compromiso: {}, revelado: {}, historial: [], ganador: ""
+  });
+}
+
+/* La maquina elige con cierta idea: patea mas a los palos que al medio, y al
+   atajar, una de cada tres veces se tira a donde vos mas pateaste. */
+const memoriaMaquina = {};
+function eleccionDeLaMaquina(rol){
+  const peso = [3, 1, 3, 1.5, 0.6, 1.5, 2, 1, 2];
+  if (rol === "atajar" && Math.random() < 0.34) {
+    const cuenta = {};
+    (sala.historial || []).forEach(function(e){ if (e.pateador === yo && e.tiro >= 0) cuenta[e.tiro] = (cuenta[e.tiro] || 0) + 1; });
+    const favorita = Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a])[0];
+    if (favorita !== undefined) return Number(favorita);
+  }
+  let r = Math.random() * peso.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < 9; i++) { r -= peso[i]; if (r <= 0) return i; }
+  return 4;
+}
+
+let maquinaOcupada = false;
+async function jugarMaquina(){
+  if (!local || !sala || sala.estado !== "tanda" || maquinaOcupada) return;
+  const n = sala.penal, k = casillero(n);
+  const comp = compromisosDe(n), rev = reveladosDe(n);
+  maquinaOcupada = true;
+  try {
+    if (!comp[MAQUINA]) {
+      /* Se toma un momento, como si pensara. */
+      await new Promise(r => setTimeout(r, 500 + Math.random() * 900));
+      if (!local || !sala || sala.penal !== n) return;
+      const celda = eleccionDeLaMaquina(pateadorDe(n) === MAQUINA ? "patear" : "atajar");
+      const sal = salNueva();
+      memoriaMaquina[n] = { celda: celda, sal: sal };
+      escribir({ ["compromiso." + k + "." + MAQUINA]: await hashear(n + "|" + celda + "|" + sal) });
+    } else if (comp[yo] && !rev[MAQUINA] && memoriaMaquina[n]) {
+      escribir({ ["revelado." + k + "." + MAQUINA]: memoriaMaquina[n] });
+    }
+  } finally {
+    maquinaOcupada = false;
+  }
+}
+
 function salirDeLaSala(){
   if (cortar) cortar();
+  local = false;
   cortar = null; ref = null; sala = null; vista = "portada";
   mostrando = null; penalDelReloj = null; firmaPintado = "";
   salaGuardada = "";
@@ -765,6 +851,7 @@ function sincronizar(){
 
 const acciones = {
   crear:   crearSala,
+  maquina: jugarContraLaMaquina,
   entrar:  entrarSala,
   volver:  function(cod){ if (!validarNombre()) return; codigoTecleado = cod; entrarSala(); },
   salir:   salirDeLaSala,
@@ -845,11 +932,26 @@ function pintarPie(){
 }
 
 function vistaPortada(){
+  const cajaMaquina = `
+    <div class="caja">
+      <span class="et gris">Para practicar</span>
+      <h2>Contra la máquina</h2>
+      <p class="chico" style="margin-bottom:11px">Una tanda contra el navegador, sin sala
+        ni rival. Patea a los palos y a veces adivina para dónde vas.</p>
+      <button class="fantasma" data-accion="maquina">Jugar contra la máquina</button>
+    </div>`;
+
   if (!db) return `
     <header><h1>Pena<span>les</span></h1></header>
     <div class="caja roja"><h2>Sin conexión</h2>
-      <p class="chico">Este juego es multijugador y necesita internet.
-        No tiene modo local. Probá recargar la página.</p></div>`;
+      <p class="chico">El multijugador necesita internet. Probá recargar la página,
+        o jugá contra la máquina mientras tanto.</p></div>
+    <div class="caja">
+      <span class="et gris">Paso 1</span>
+      <input id="nombre" maxlength="12" placeholder="Tu nombre" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}">
+    </div>
+    ${cajaMaquina}`;
 
   const invitado = !!desdeUrl;
   const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
@@ -898,6 +1000,8 @@ function vistaPortada(){
       ${ocupado ? `<p class="chico" style="margin:10px 0 0">Conectando con el servidor.
         La primera vez del día puede tardar unos segundos.</p>` : ""}
     </div>
+
+    ${cajaMaquina}
 
     <footer>
       <strong>Como se juega.</strong> Los dos eligen a la vez, en la misma grilla de
