@@ -1329,10 +1329,11 @@ const CELDA_X = [0.275, 0.5, 0.725];
 const CELDA_Y = [0.535, 0.475, 0.428];
 const T_CARRERA = 0.95, T_VUELO = 0.55, T_IMPACTO = T_CARRERA + T_VUELO;
 
+const PIEL = "#F3C6A3";   // durazno, para los dos
 const KIT_PATEADOR = { camiseta: "#E8232A", short: "#F4F4F4", medias: "#E8232A", botin: "#111111",
-                       piel: "#D19A6B", pelo: "#2A1A12", guante: null, numero: "#FFFFFF", dorsal: "9" };
+                       piel: PIEL, pelo: "#3B2415", guante: null, numero: "#FFFFFF", dorsal: "9" };
 const KIT_ARQUERO  = { camiseta: "#FFC02E", short: "#1B1B1B", medias: "#FFC02E", botin: "#111111",
-                       piel: "#8C5A3A", pelo: "#111111", guante: "#39FF88", numero: "#111111", dorsal: "1" };
+                       piel: PIEL, pelo: "#111111", guante: "#39FF88", numero: "#111111", dorsal: "1" };
 
 const lerp  = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1517,38 +1518,55 @@ function bolita(ctx, p, r, color){
 function muneco(ctx, j, kit, escala){
   const g = 0.013 * escala;
   /* El eje del cuerpo, de la cadera al cuello, y su perpendicular: con eso el
-     torso y el pelo giran con el muñeco cuando se tira. */
+     torso, los shorts y el pelo giran con el muñeco cuando se tira.
+     "n" apunta hacia la DERECHA de la pantalla cuando el muñeco esta parado;
+     el lado izquierdo del cuerpo es -n. */
   const ejeX = j.cuello.x - j.cadera.x, ejeY = j.cuello.y - j.cadera.y;
   const L = Math.hypot(ejeX, ejeY) || 0.001;
   const u = { x: ejeX / L, y: ejeY / L }, n = { x: -u.y, y: u.x };
-  /* Codos y rodillas: el punto medio, corrido un poco hacia afuera. */
-  function doblar(a, b, lado, cuanto){
-    const m = pt(a, b, 0.5), dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 0.001;
-    return { x: m.x - dy * cuanto * lado, y: m.y + dx * cuanto * lado };
+  const lado = (p, k) => ({ x: p.x + n.x * k, y: p.y + n.y * k });
+  /* Codos y rodillas: el punto medio, corrido hacia afuera del cuerpo (el
+     lado se decide mirando de que lado del eje esta la mano o el pie). */
+  function doblar(a, b, cuanto){
+    const m = pt(a, b, 0.5), dx = b.x - a.x, dy = b.y - a.y;
+    const afuera = ((b.x - j.cadera.x) * n.x + (b.y - j.cadera.y) * n.y) < 0 ? -1 : 1;
+    return { x: m.x + n.x * afuera * cuanto * Math.hypot(dx, dy), y: m.y + n.y * afuera * cuanto * Math.hypot(dx, dy) };
   }
-  /* piernas: muslo con el short, canilla con la media, botin */
-  const rodI = doblar(j.cadera, j.pieI, 1, 0.16), rodD = doblar(j.cadera, j.pieD, -1, 0.16);
-  trazo(ctx, j.cadera, rodI, kit.short, g * 1.1); trazo(ctx, rodI, j.pieI, kit.medias, g * 0.8);
-  trazo(ctx, j.cadera, rodD, kit.short, g * 1.1); trazo(ctx, rodD, j.pieD, kit.medias, g * 0.8);
+  /* piernas: muslo con la piel, canilla con la media, botin */
+  const rodI = doblar(j.cadera, j.pieI, 0.12), rodD = doblar(j.cadera, j.pieD, 0.12);
+  const cadI = lado(j.cadera, -g * 0.45), cadD = lado(j.cadera, g * 0.45);
+  trazo(ctx, cadI, rodI, kit.piel, g * 0.95); trazo(ctx, rodI, j.pieI, kit.medias, g * 0.8);
+  trazo(ctx, cadD, rodD, kit.piel, g * 0.95); trazo(ctx, rodD, j.pieD, kit.medias, g * 0.8);
   bolita(ctx, j.pieI, g * 0.52, kit.botin); bolita(ctx, j.pieD, g * 0.52, kit.botin);
-  /* torso: mas ancho en los hombros que en la cadera */
-  const wh = g * 0.95, ws = g * 1.5;
-  const hombroI = { x: j.cuello.x + n.x * ws, y: j.cuello.y + n.y * ws };
-  const hombroD = { x: j.cuello.x - n.x * ws, y: j.cuello.y - n.y * ws };
-  ctx.lineJoin = "round"; ctx.lineWidth = 0.0045; ctx.strokeStyle = "#0B0F0C"; ctx.fillStyle = kit.camiseta;
+  /* shorts: un bloque debajo de la cadera, que sigue el eje del cuerpo */
+  const wh = g * 1.0, ws = g * 1.5, largoShort = g * 1.5;
+  ctx.lineJoin = "round"; ctx.lineWidth = 0.0045; ctx.strokeStyle = "#0B0F0C";
+  ctx.fillStyle = kit.short;
   ctx.beginPath();
-  ctx.moveTo(j.cadera.x + n.x * wh, j.cadera.y + n.y * wh);
-  ctx.lineTo(hombroI.x, hombroI.y); ctx.lineTo(hombroD.x, hombroD.y);
-  ctx.lineTo(j.cadera.x - n.x * wh, j.cadera.y - n.y * wh);
+  const s0 = lado({ x: j.cadera.x + u.x * g * 0.4, y: j.cadera.y + u.y * g * 0.4 }, -wh);
+  const s1 = lado({ x: j.cadera.x + u.x * g * 0.4, y: j.cadera.y + u.y * g * 0.4 }, wh);
+  const s2 = lado({ x: j.cadera.x - u.x * largoShort, y: j.cadera.y - u.y * largoShort }, wh * 1.15);
+  const s3 = lado({ x: j.cadera.x - u.x * largoShort, y: j.cadera.y - u.y * largoShort }, -wh * 1.15);
+  ctx.moveTo(s0.x, s0.y); ctx.lineTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.lineTo(s3.x, s3.y);
   ctx.closePath(); ctx.fill(); ctx.stroke();
-  /* sombra de la camiseta, para que no sea un bloque plano */
-  ctx.fillStyle = "rgba(0,0,0,.16)";
+  /* torso: mas ancho en los hombros que en la cadera */
+  const hombroI = lado(j.cuello, -ws), hombroD = lado(j.cuello, ws);
+  const cinturaI = lado(j.cadera, -wh), cinturaD = lado(j.cadera, wh);
+  ctx.fillStyle = kit.camiseta;
   ctx.beginPath();
-  ctx.moveTo(j.cadera.x - n.x * wh * 0.2, j.cadera.y - n.y * wh * 0.2);
-  ctx.lineTo(j.cuello.x - n.x * ws * 0.3, j.cuello.y - n.y * ws * 0.3);
-  ctx.lineTo(hombroD.x, hombroD.y);
-  ctx.lineTo(j.cadera.x - n.x * wh, j.cadera.y - n.y * wh);
+  ctx.moveTo(cinturaI.x, cinturaI.y); ctx.lineTo(hombroI.x, hombroI.y);
+  ctx.lineTo(hombroD.x, hombroD.y); ctx.lineTo(cinturaD.x, cinturaD.y);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  /* sombra de la camiseta del lado derecho, para que no sea un bloque plano */
+  ctx.fillStyle = "rgba(0,0,0,.16)";
+  const c1 = lado(j.cuello, ws * 0.35), c2 = lado(j.cadera, wh * 0.25);
+  ctx.beginPath();
+  ctx.moveTo(c2.x, c2.y); ctx.lineTo(c1.x, c1.y); ctx.lineTo(hombroD.x, hombroD.y); ctx.lineTo(cinturaD.x, cinturaD.y);
   ctx.closePath(); ctx.fill();
+  /* cuello de la camiseta */
+  ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.lineWidth = 0.0035;
+  const k1 = lado(j.cuello, -g * 0.55), k2 = lado(j.cuello, g * 0.55);
+  ctx.beginPath(); ctx.moveTo(k1.x, k1.y); ctx.lineTo(k2.x, k2.y); ctx.stroke();
   /* el numero en la espalda, girado con el cuerpo. La fuente se pide en
      pixeles de verdad, deshaciendo la escala, porque algunos navegadores
      redondean los tamaños chicos a cero. */
@@ -1560,8 +1578,9 @@ function muneco(ctx, j, kit, escala){
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(kit.dorsal, 0, 0); ctx.restore();
   }
-  /* brazos: manga con la camiseta, antebrazo con la piel, mano o guante */
-  const codI = doblar(hombroI, j.manoI, -1, 0.14), codD = doblar(hombroD, j.manoD, 1, 0.14);
+  /* brazos: cada uno sale de SU hombro. Manga con la camiseta, antebrazo
+     con la piel, mano o guante. */
+  const codI = doblar(hombroI, j.manoI, 0.13), codD = doblar(hombroD, j.manoD, 0.13);
   trazo(ctx, hombroI, codI, kit.camiseta, g * 0.95); trazo(ctx, codI, j.manoI, kit.piel, g * 0.72);
   trazo(ctx, hombroD, codD, kit.camiseta, g * 0.95); trazo(ctx, codD, j.manoD, kit.piel, g * 0.72);
   if (kit.guante) {
@@ -1579,6 +1598,9 @@ function muneco(ctx, j, kit, escala){
   ctx.fillStyle = kit.pelo; ctx.beginPath();
   ctx.arc(j.cabeza.x + u.x * g * 0.1, j.cabeza.y + u.y * g * 0.1, g * 1.02, arriba - 1.45, arriba + 1.45);
   ctx.fill();
+  /* orejas, chiquitas, a los costados */
+  bolita(ctx, lado(j.cabeza, -g * 0.95), g * 0.22, kit.piel);
+  bolita(ctx, lado(j.cabeza, g * 0.95), g * 0.22, kit.piel);
 }
 function sombra(ctx, x, y, rx, ry, alfa){
   ctx.fillStyle = "rgba(0,0,0," + alfa + ")";
