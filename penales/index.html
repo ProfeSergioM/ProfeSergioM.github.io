@@ -239,13 +239,22 @@ const ATAJABLE  = [0.75, 0.80, 0.75,
    alcance decae segun cuanto se aleje el tiro de donde se tiro el. El salto
    estira mas en vertical que en horizontal, y la diagonal es casi imposible. */
 function alcance(celdaArquero, celdaTiro){
-  const df = Math.abs(FILA(celdaArquero) - FILA(celdaTiro));
+  const fa = FILA(celdaArquero);
+  const df = Math.abs(fa - FILA(celdaTiro));
   const dc = Math.abs(COLU(celdaArquero) - COLU(celdaTiro));
   if (df === 0 && dc === 0) return 1.00;
   if (df === 1 && dc === 0) return 0.45;
-  if (df === 0 && dc === 1) return 0.30;
+  /* Al lado, en la misma fila: abajo llega con los pies (se tira a un palo y
+     la que va al medio se la lleva puesta la pierna que arrastra); a media
+     altura estira la mano; arriba casi no hay forma. */
+  if (df === 0 && dc === 1) return [0.50, 0.30, 0.20][fa];
   if (df === 1 && dc === 1) return 0.12;
   return 0;
+}
+/* Atajada con la pierna: se tiro a una celda de abajo y la pelota fue a la de
+   al lado, tambien abajo. Se usa para la animacion y para el relato. */
+function atajadaConElPie(h){
+  return h.fin === "atajada" && h.tiro !== h.palo && FILA(h.palo) === 0 && FILA(h.tiro) === 0;
 }
 
 /* ── el azar, pero igual en los dos telefonos ────────────
@@ -298,6 +307,83 @@ function salNueva(){
   const a = new Uint8Array(12);
   crypto.getRandomValues(a);
   return Array.from(a).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* ── sonidos ─────────────────────────────────────────────
+   Todo sintetizado con WebAudio: ruido filtrado para la tribuna y un par de
+   osciladores para la voz. No hay archivos que descargar. El contexto se crea
+   en un toque del usuario (los navegadores no dejan sonar antes), y despues
+   la repeticion puede sonar sola. */
+let audio = null;
+let sonidoOn = leer("penal-sonido") !== "no";
+function prepararAudio(){
+  if (!sonidoOn) return;
+  try {
+    if (!audio) audio = new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === "suspended") audio.resume();
+  } catch (e) { audio = null; }
+}
+function ruido(dur){
+  const n = Math.floor(audio.sampleRate * dur);
+  const b = audio.createBuffer(1, n, audio.sampleRate), d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+  const f = audio.createBufferSource(); f.buffer = b; return f;
+}
+/* Un pedazo de tribuna: ruido por un pasabanda, con su envolvente. */
+function tribuna(t0, dur, frec, pico, subida){
+  const f = ruido(dur), filtro = audio.createBiquadFilter(), g = audio.createGain();
+  filtro.type = "bandpass"; filtro.frequency.value = frec; filtro.Q.value = 0.8;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(pico, t0 + subida);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  f.connect(filtro); filtro.connect(g); g.connect(audio.destination);
+  f.start(t0); f.stop(t0 + dur);
+}
+/* Una voz: oscilador con formante, para el "oooo" y el "uuuu". */
+function voz(t0, dur, f0, f1, formante, pico, tipo){
+  const o = audio.createOscillator(), filtro = audio.createBiquadFilter(), g = audio.createGain();
+  o.type = tipo || "sawtooth";
+  o.frequency.setValueAtTime(f0, t0); o.frequency.linearRampToValueAtTime(f1, t0 + dur * 0.8);
+  filtro.type = "bandpass"; filtro.frequency.value = formante; filtro.Q.value = 2.5;
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(pico, t0 + 0.12);
+  g.gain.setValueAtTime(pico, t0 + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(filtro); filtro.connect(g); g.connect(audio.destination);
+  o.start(t0); o.stop(t0 + dur);
+}
+function sonar(tipo){
+  if (!audio || !sonidoOn) return;
+  try {
+    const t0 = audio.currentTime + 0.01;
+    if (tipo === "patada") {
+      const f = ruido(0.09), filtro = audio.createBiquadFilter(), g = audio.createGain();
+      filtro.type = "lowpass"; filtro.frequency.value = 420;
+      g.gain.setValueAtTime(0.7, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.09);
+      f.connect(filtro); filtro.connect(g); g.connect(audio.destination); f.start(t0);
+      const o = audio.createOscillator(), g2 = audio.createGain();
+      o.frequency.setValueAtTime(120, t0); o.frequency.exponentialRampToValueAtTime(45, t0 + 0.13);
+      g2.gain.setValueAtTime(0.5, t0); g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.14);
+      o.connect(g2); g2.connect(audio.destination); o.start(t0); o.stop(t0 + 0.15);
+    } else if (tipo === "gol") {
+      tribuna(t0, 3.2, 900, 0.55, 0.28);
+      tribuna(t0 + 0.05, 2.6, 2400, 0.18, 0.2);
+      [[196, 212], [247, 262], [294, 318], [147, 156]].forEach(function(par, i){
+        voz(t0 + 0.04 * i, 1.9, par[0], par[1], 620, 0.09);
+      });
+    } else if (tipo === "uuu" || tipo === "atajada") {
+      if (tipo === "atajada") {
+        const f = ruido(0.06), filtro = audio.createBiquadFilter(), g = audio.createGain();
+        filtro.type = "highpass"; filtro.frequency.value = 1400;
+        g.gain.setValueAtTime(0.45, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.06);
+        f.connect(filtro); filtro.connect(g); g.connect(audio.destination); f.start(t0);
+      }
+      tribuna(t0 + 0.05, 1.4, 520, 0.32, 0.12);
+      [[262, 205], [330, 262], [196, 155]].forEach(function(par, i){
+        voz(t0 + 0.05 + 0.03 * i, 1.1, par[0], par[1], 380, 0.07, "triangle");
+      });
+    }
+  } catch (e) { console.warn("sonido:", e); }
 }
 
 /* ── memoria del navegador ───────────────────────────────── */
@@ -850,6 +936,11 @@ function sincronizar(){
 }
 
 const acciones = {
+  sonido:  function(){
+    sonidoOn = !sonidoOn; anotar("penal-sonido", sonidoOn ? "si" : "no");
+    if (sonidoOn) prepararAudio();
+    pintarPie();
+  },
   crear:   crearSala,
   maquina: jugarContraLaMaquina,
   entrar:  entrarSala,
@@ -880,6 +971,7 @@ const acciones = {
 app.addEventListener("click", function(e){
   const b = e.target.closest("[data-accion]");
   if (!b || b.disabled) return;
+  prepararAudio();
   sincronizar();
   const f = acciones[b.dataset.accion];
   if (f) f(b.dataset.valor, b);
@@ -1007,15 +1099,19 @@ function vistaPortada(){
       <strong>Como se juega.</strong> Los dos eligen a la vez, en la misma grilla de
       nueve: el pateador dónde la pone, el arquero para dónde se tira. Ninguno ve
       lo del otro hasta que los dos mandaron. El arquero no cubre solo la celda que
-      eligió: también estira a las de al lado, aunque llegue peor. Y al ángulo es
+      eligió: estira a las de al lado, aunque llegue peor, y abajo llega con los
+      pies. Y al ángulo es
       donde menos ataja... pero es también donde más seguido la pelota se va afuera.
     </footer>`;
 }
 
 function pantallaDeSala(){
   if (sala.estado === "sala") return cabecera() + pantallaLobby();
-  if (sala.estado === "fin")  return pantallaFin();
+  /* La repeticion va antes que el final: el ultimo penal llega junto con
+     estado "fin", y si se mirara primero el estado, el penal que define la
+     tanda no se veria nunca. */
   if (mostrando)              return pantallaRepeticion();
+  if (sala.estado === "fin")  return pantallaFin();
   return pantallaPenal();
 }
 
@@ -1118,6 +1214,7 @@ function pantallaRepeticion(){
   else if (h.trampa)       cuento = "Alguien cambió su elección después de mandarla. Penal en contra.";
   else if (h.fin === "afuera") cuento = "Le pegó demasiado fuerte y se fue afuera.";
   else if (h.fin === "gol")    cuento = "La puso " + NOMBRE_CELDA[h.tiro] + ". Adentro.";
+  else if (atajadaConElPie(h)) cuento = "Se tiró al otro lado, pero la sacó con la pierna que dejó atrás.";
   else                     cuento = "Se tiró bien y la sacó: " + NOMBRE_CELDA[h.tiro] + ".";
 
   const extra = (h.tiro < 0) ? "" : `<div class="veredicto ${h.fin}">${palabra}</div>`;
@@ -1186,7 +1283,10 @@ function pie(){
              si uno hace y el otro no, se acabó.</p>` : ""}
     </div>
     ${trabado ? `<button class="ambar" data-accion="abandono">${esc(nombreDe(rival()))} no responde &middot; cobrar el penal</button>` : ""}
-    <button class="fantasma" data-accion="salir" style="margin-top:9px">Salir de la sala</button>
+    <div class="fila" style="margin-top:9px">
+      <button class="fantasma" data-accion="salir">Salir de la sala</button>
+      <button class="fantasma" data-accion="sonido" style="flex:0 0 auto">${sonidoOn ? "&#128266; Sonido" : "&#128263; Mudo"}</button>
+    </div>
     ${!soyMando() && sala.estado === "fin"
       ? `<button class="fantasma" data-accion="mando" style="margin-top:9px">Tomar el mando</button>` : ""}`;
 }
@@ -1229,10 +1329,10 @@ const CELDA_X = [0.275, 0.5, 0.725];
 const CELDA_Y = [0.535, 0.475, 0.428];
 const T_CARRERA = 0.95, T_VUELO = 0.55, T_IMPACTO = T_CARRERA + T_VUELO;
 
-const KIT_PATEADOR = { camiseta: "#E8232A", short: "#F4F4F4", medias: "#E8232A",
-                       piel: "#D19A6B", pelo: "#2A1A12", guante: null };
-const KIT_ARQUERO  = { camiseta: "#FFC02E", short: "#1B1B1B", medias: "#FFC02E",
-                       piel: "#8C5A3A", pelo: "#111111", guante: "#39FF88" };
+const KIT_PATEADOR = { camiseta: "#E8232A", short: "#F4F4F4", medias: "#E8232A", botin: "#111111",
+                       piel: "#D19A6B", pelo: "#2A1A12", guante: null, numero: "#FFFFFF", dorsal: "9" };
+const KIT_ARQUERO  = { camiseta: "#FFC02E", short: "#1B1B1B", medias: "#FFC02E", botin: "#111111",
+                       piel: "#8C5A3A", pelo: "#111111", guante: "#39FF88", numero: "#111111", dorsal: "1" };
 
 const lerp  = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -1304,7 +1404,8 @@ function poseArquero(t, repe, reloj){
   const p = suave((t - (T_CARRERA + 0.06)) / 0.44);
   if (p <= 0) return quieto;
 
-  const celda = repe.fin === "atajada" ? repe.tiro : repe.palo;
+  const conElPie = atajadaConElPie(repe);
+  const celda = (repe.fin === "atajada" && !conElPie) ? repe.tiro : repe.palo;
   const obj = celdaXY(celda);
   const f = FILA(celda), dx = obj.x - base.x, lado = dx < 0 ? -1 : 1;
   let fin;
@@ -1345,6 +1446,14 @@ function poseArquero(t, repe, reloj){
       manoI: { x: obj.x - 0.016, y: obj.y }, manoD: { x: obj.x + 0.016, y: obj.y },
       pieI: { x: base.x - 0.018, y: base.y - 0.05 }, pieD: { x: base.x + 0.018, y: base.y - 0.04 }
     };
+  }
+  if (conElPie) {
+    /* La pierna que queda del lado de la pelota se estira hasta ella, y el
+       cuerpo se corre un poco para ese lado. */
+    const b = celdaXY(repe.tiro), pie = { x: b.x, y: b.y + 0.004 };
+    const corr = (b.x - fin.cadera.x) * 0.3;
+    ["cadera", "cuello", "cabeza"].forEach(k => { fin[k] = { x: fin[k].x + corr, y: fin[k].y }; });
+    if (b.x < fin.cadera.x) fin.pieI = pie; else fin.pieD = pie;
   }
   const j = {};
   for (const k of Object.keys(quieto)) j[k] = pt(quieto[k], fin[k], p);
@@ -1407,21 +1516,69 @@ function bolita(ctx, p, r, color){
 }
 function muneco(ctx, j, kit, escala){
   const g = 0.013 * escala;
-  const rodI = pt(j.cadera, j.pieI, 0.5), rodD = pt(j.cadera, j.pieD, 0.5);
-  const hombro = j.cuello;
-  const codI = pt(hombro, j.manoI, 0.5), codD = pt(hombro, j.manoD, 0.5);
-  /* piernas */
-  trazo(ctx, j.cadera, rodI, kit.short, g); trazo(ctx, rodI, j.pieI, kit.medias, g * 0.85);
-  trazo(ctx, j.cadera, rodD, kit.short, g); trazo(ctx, rodD, j.pieD, kit.medias, g * 0.85);
-  /* tronco y brazos */
-  trazo(ctx, j.cadera, j.cuello, kit.camiseta, g * 1.6);
-  trazo(ctx, hombro, codI, kit.camiseta, g * 0.9); trazo(ctx, codI, j.manoI, kit.piel, g * 0.75);
-  trazo(ctx, hombro, codD, kit.camiseta, g * 0.9); trazo(ctx, codD, j.manoD, kit.piel, g * 0.75);
-  if (kit.guante) { bolita(ctx, j.manoI, g * 0.75, kit.guante); bolita(ctx, j.manoD, g * 0.75, kit.guante); }
-  /* cabeza */
-  bolita(ctx, j.cabeza, g * 0.95, kit.piel);
+  /* El eje del cuerpo, de la cadera al cuello, y su perpendicular: con eso el
+     torso y el pelo giran con el muñeco cuando se tira. */
+  const ejeX = j.cuello.x - j.cadera.x, ejeY = j.cuello.y - j.cadera.y;
+  const L = Math.hypot(ejeX, ejeY) || 0.001;
+  const u = { x: ejeX / L, y: ejeY / L }, n = { x: -u.y, y: u.x };
+  /* Codos y rodillas: el punto medio, corrido un poco hacia afuera. */
+  function doblar(a, b, lado, cuanto){
+    const m = pt(a, b, 0.5), dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 0.001;
+    return { x: m.x - dy * cuanto * lado, y: m.y + dx * cuanto * lado };
+  }
+  /* piernas: muslo con el short, canilla con la media, botin */
+  const rodI = doblar(j.cadera, j.pieI, 1, 0.16), rodD = doblar(j.cadera, j.pieD, -1, 0.16);
+  trazo(ctx, j.cadera, rodI, kit.short, g * 1.1); trazo(ctx, rodI, j.pieI, kit.medias, g * 0.8);
+  trazo(ctx, j.cadera, rodD, kit.short, g * 1.1); trazo(ctx, rodD, j.pieD, kit.medias, g * 0.8);
+  bolita(ctx, j.pieI, g * 0.52, kit.botin); bolita(ctx, j.pieD, g * 0.52, kit.botin);
+  /* torso: mas ancho en los hombros que en la cadera */
+  const wh = g * 0.95, ws = g * 1.5;
+  const hombroI = { x: j.cuello.x + n.x * ws, y: j.cuello.y + n.y * ws };
+  const hombroD = { x: j.cuello.x - n.x * ws, y: j.cuello.y - n.y * ws };
+  ctx.lineJoin = "round"; ctx.lineWidth = 0.0045; ctx.strokeStyle = "#0B0F0C"; ctx.fillStyle = kit.camiseta;
+  ctx.beginPath();
+  ctx.moveTo(j.cadera.x + n.x * wh, j.cadera.y + n.y * wh);
+  ctx.lineTo(hombroI.x, hombroI.y); ctx.lineTo(hombroD.x, hombroD.y);
+  ctx.lineTo(j.cadera.x - n.x * wh, j.cadera.y - n.y * wh);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  /* sombra de la camiseta, para que no sea un bloque plano */
+  ctx.fillStyle = "rgba(0,0,0,.16)";
+  ctx.beginPath();
+  ctx.moveTo(j.cadera.x - n.x * wh * 0.2, j.cadera.y - n.y * wh * 0.2);
+  ctx.lineTo(j.cuello.x - n.x * ws * 0.3, j.cuello.y - n.y * ws * 0.3);
+  ctx.lineTo(hombroD.x, hombroD.y);
+  ctx.lineTo(j.cadera.x - n.x * wh, j.cadera.y - n.y * wh);
+  ctx.closePath(); ctx.fill();
+  /* el numero en la espalda, girado con el cuerpo. La fuente se pide en
+     pixeles de verdad, deshaciendo la escala, porque algunos navegadores
+     redondean los tamaños chicos a cero. */
+  if (kit.dorsal) {
+    const k = ctx.getTransform().a, c = pt(j.cadera, j.cuello, 0.5);
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(Math.atan2(u.y, u.x) + Math.PI / 2);
+    ctx.scale(1 / k, 1 / k);
+    ctx.fillStyle = kit.numero; ctx.font = "800 " + Math.round(g * 2.2 * k) + "px Inter, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(kit.dorsal, 0, 0); ctx.restore();
+  }
+  /* brazos: manga con la camiseta, antebrazo con la piel, mano o guante */
+  const codI = doblar(hombroI, j.manoI, -1, 0.14), codD = doblar(hombroD, j.manoD, 1, 0.14);
+  trazo(ctx, hombroI, codI, kit.camiseta, g * 0.95); trazo(ctx, codI, j.manoI, kit.piel, g * 0.72);
+  trazo(ctx, hombroD, codD, kit.camiseta, g * 0.95); trazo(ctx, codD, j.manoD, kit.piel, g * 0.72);
+  if (kit.guante) {
+    bolita(ctx, j.manoI, g * 0.88, kit.guante); bolita(ctx, j.manoD, g * 0.88, kit.guante);
+    ctx.fillStyle = "rgba(255,255,255,.35)";
+    ctx.beginPath(); ctx.arc(j.manoI.x, j.manoI.y - g * 0.2, g * 0.4, 0, 7); ctx.fill();
+    ctx.beginPath(); ctx.arc(j.manoD.x, j.manoD.y - g * 0.2, g * 0.4, 0, 7); ctx.fill();
+  } else {
+    bolita(ctx, j.manoI, g * 0.42, kit.piel); bolita(ctx, j.manoD, g * 0.42, kit.piel);
+  }
+  /* cuello y cabeza, con el pelo como casquete girado con el cuerpo */
+  trazo(ctx, j.cuello, pt(j.cuello, j.cabeza, 0.6), kit.piel, g * 0.62);
+  bolita(ctx, j.cabeza, g * 1.02, kit.piel);
+  const arriba = Math.atan2(u.y, u.x);
   ctx.fillStyle = kit.pelo; ctx.beginPath();
-  ctx.arc(j.cabeza.x, j.cabeza.y - g * 0.15, g * 0.95, Math.PI * 1.05, Math.PI * 1.95); ctx.fill();
+  ctx.arc(j.cabeza.x + u.x * g * 0.1, j.cabeza.y + u.y * g * 0.1, g * 1.02, arriba - 1.45, arriba + 1.45);
+  ctx.fill();
 }
 function sombra(ctx, x, y, rx, ry, alfa){
   ctx.fillStyle = "rgba(0,0,0," + alfa + ")";
@@ -1591,6 +1748,8 @@ function marcarCelda(ctx, i, color){
   ctx.fillRect(ARCO.x0 + c * w, ARCO.y0 + (2 - f) * h, w, h);
 }
 
+let sonado = { id: "" };
+
 /* ── un cuadro ─────────────────────────────────────────── */
 function dibujarEscena(canvas){
   const W = canvas.clientWidth; if (!W) return;
@@ -1609,6 +1768,17 @@ function dibujarEscena(canvas){
   }
 
   dibujarCancha(ctx);
+
+  /* Los sonidos van atados al tiempo de la repeticion, no al DOM. */
+  if (repe && mostrando && t < 8) {
+    const id = mostrando.penal + "/" + vuelta();
+    if (sonado.id !== id) sonado = { id: id, patada: false, fin: false };
+    if (!sonado.patada && t >= T_CARRERA) { sonado.patada = true; sonar("patada"); }
+    if (!sonado.fin && t >= T_IMPACTO) {
+      sonado.fin = true;
+      sonar(repe.fin === "gol" ? "gol" : repe.fin === "atajada" ? "atajada" : "uuu");
+    }
+  }
 
   const pelota = pelotaEn(t, repe);
   const esGol = !!repe && repe.fin === "gol" && t > T_IMPACTO;

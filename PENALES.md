@@ -157,7 +157,16 @@ las del que patea**, siempre; es como los dos ven el arco en pantalla.
 
 Los dos eligen en la misma grilla: el pateador dónde la pone, el arquero para
 dónde se tira. El arquero no cubre solo su celda: llega a las vecinas con menos
-eficacia (vertical 0.45, horizontal 0.30, diagonal 0.12, más lejos nada).
+eficacia. Vertical 0.45; horizontal según la fila: abajo 0.50 (se tira a un
+palo y la que va al medio se la lleva puesta la pierna que arrastra), a media
+altura 0.30, arriba 0.20; diagonal 0.12; más lejos nada. La atajada con la
+pierna se ve en la animación y tiene su propio relato.
+
+Los sonidos (el golpe a la pelota, el "gooool" de la tribuna y el "uuuh" cuando
+se pierde o la atajan) están sintetizados con WebAudio, sin archivos. El
+navegador no deja sonar nada antes del primer toque, así que el contexto de
+audio se crea en el primer botón que se aprieta y de ahí en más la repetición
+suena sola. Hay botón para silenciar y queda guardado en `localStorage`.
 
 Cada celda tiene una **precisión** (qué tan seguido el tiro va donde se apuntó;
 al ángulo 0.74, abajo a los palos 0.92) y una **atajabilidad** (qué tan seguido
