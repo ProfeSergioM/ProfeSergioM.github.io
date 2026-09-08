@@ -258,7 +258,7 @@ function newGame(nombre,pais,color,dificultad,herencia){
   save();
 }
 function save(){if(!G)return;const p=G.partido;try{G.partido=null;G.slot=SLOT;localStorage.setItem(SAVE_KEY(),JSON.stringify(G));localStorage.setItem('clubtycoon_slot',SLOT)}catch(e){}finally{G.partido=p}}
-function migrar(g){const b=estadoBase();let n=0;
+function migrar(g){G=g;const b=estadoBase();let n=0;
   for(const k in b)if(g[k]===undefined||g[k]===null&&b[k]!==null&&typeof b[k]==='object'){g[k]=b[k];n++}
   for(const k of ['stats','inst','personal','auto'])for(const j in b[k])if(g[k][j]===undefined)g[k][j]=b[k][j];
   if(!g.records||typeof g.records!=='object')g.records=b.records;for(const j in b.records)if(g.records[j]===undefined)g.records[j]=b.records[j];
