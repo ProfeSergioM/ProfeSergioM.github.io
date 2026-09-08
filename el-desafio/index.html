@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Club Tycoon</title>
+<title>El Desafío</title>
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
@@ -78,7 +78,7 @@ canvas#scene{touch-action:none}
 </head>
 <body>
 <header>
-  <div class="logo">⚽ CLUB <span>TYCOON</span></div>
+  <div class="logo">⚽ EL <span>DESAFÍO</span></div>
   <div class="stat"><b id="hDinero">0 €</b><small>Caja</small></div>
   <div class="stat"><b id="hFans">0</b><small>Aficionados</small></div>
   <div class="stat"><b id="hRep">0</b><small>Reputación</small></div>
@@ -260,7 +260,7 @@ function save(){if(!G)return;const p=G.partido;try{G.partido=null;G.slot=SLOT;lo
 function load(){try{const s=localStorage.getItem(SAVE_KEY());if(!s)return false;G=JSON.parse(s);G.partido=null;G.vel=Math.min(G.vel||1,1);return !!G.pais}catch(e){return false}}
 function cambiarSlot(n){save();SLOT=n;try{localStorage.setItem('clubtycoon_slot',SLOT)}catch(e){}if(load()){renderLog();renderUI()}else{G=null;modalNuevo()}renderSlots()}
 function renderSlots(){const sel=$('#slot');if(!sel)return;let h='';for(let i=1;i<=3;i++){let info='vacía';try{const s=localStorage.getItem('clubtycoon_v2_'+i);if(s){const g=JSON.parse(s);info=g.nombreClub+' · T'+g.temporada}}catch(e){}h+=`<option value="${i}" ${i===SLOT?'selected':''}>Ranura ${i}: ${info}</option>`}sel.innerHTML=h}
-function exportar(){if(!G)return;save();const blob=new Blob([JSON.stringify(G)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='club-tycoon-'+G.nombreClub.replace(/\s+/g,'_')+'-T'+G.temporada+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportar(){if(!G)return;save();const blob=new Blob([JSON.stringify(G)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='el-desafio-'+G.nombreClub.replace(/\s+/g,'_')+'-T'+G.temporada+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function importar(file){const r=new FileReader();r.onload=()=>{try{const g=JSON.parse(r.result);if(!g||!g.pais||!g.jugadores)throw new Error('formato');G=g;G.partido=null;save();renderLog();renderUI();renderSlots();toast('Partida importada en la ranura '+SLOT,'ok')}catch(e){toast('El archivo no es una partida válida','bad')}};r.readAsText(file)}
 
 // ============================================================ LOG / TOAST
