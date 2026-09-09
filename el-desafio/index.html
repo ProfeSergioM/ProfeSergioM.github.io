@@ -336,7 +336,7 @@ function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[
     personal:{ojeador:0,entrenador:0,deportivo:0,comercial:0,marketing:0,gerente:0},
     auto:{ojeador:true,entrenador:true,deportivo:true,comercial:true,marketing:true,gerente:true},
     precio:10,foco:'general',tactica:'equilibrada',patro:null,oferta:null,ofertaJ:null,campana:null,
-    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],autoPausa:false,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,nombreEstadio:null,
+    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],autoPausa:false,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,msJugados:0,nombreEstadio:null,
     ui:{tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},plantillaDetalle:false,precioTocado:false,focoTocado:false,desbloqueos:{},tutorial:0},seq:0,pausadoPorMi:false,isla:false,islaOfrecida:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
     stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}}}
 function newGame(nombre,pais,color,dificultad,herencia){
@@ -466,7 +466,7 @@ function tick(){
     if(G.dinero<-2000000){const j=plantillaOrdenada().filter(x=>!x.cedido)[0];if(j){const v=Math.round(j.valor*.6);sacarJugador(j);cobrar('traspasos',v);log('El banco fuerza la venta de '+j.nombre+' por '+fmt(v)+' para cubrir deudas.','bad')}}
     else if(G.dinero<0){log('Caja en negativo: los jugadores pierden moral y la directiva se impacienta.','warn');G.moral=clamp(G.moral-4,0,100);G.confianza=clamp(G.confianza-2,0,100)}
   }
-  if(!G.islaOfrecida&&G.dinero>=META_ISLA){G.islaOfrecida=true;G.isla=true;G.vel=0;setTimeout(modalIsla,60)}
+  if(!G.islaOfrecida&&G.dinero>=META_ISLA){G.islaOfrecida=true;G.isla=true;G.vel=0;G.islaDia=(G.semTotal||1)*7;G.islaMs=G.msJugados||0;setTimeout(modalFinalIsla,60)}
   cobrar('merch',merchSemana()/7);
   if(d<=6)entrenar(G.receso===2?0:d===5?1.5:1);
   if(d===2){ojear();if(G.semana===6||G.semana===(numEq()===12?17:12))fechaFIFA()}
@@ -905,6 +905,7 @@ $('#modalBox').addEventListener('click',e=>{const b=e.target.closest('[data-a]')
   if(a==='fichaRenovar'){renovar(b.dataset.id);cerrarModal()}else if(a==='fichaVender'){const j=G.jugadores.find(x=>x.id===b.dataset.id);cerrarModal();
     if(j)confirmar('Vender a '+j.nombre,'Sale del club por <b>'+fmt(Math.round(j.valor*factorVenta(j)))+'</b>, menos de lo que vale ('+fmt(j.valor)+'). No hay vuelta atrás.','Vender',()=>venderJugador(j.id))}
   else if(a==='ranura'){cerrarModal();cambiarSlot(+b.dataset.n)}else if(a==='expo'){exportar()}else if(a==='impo'){cerrarModal();$('#inImportar').click()}
+  else if(a==='copiarFinal'){copiarResumen()}else if(a==='imagenFinal'){descargarTarjeta()}
   else if(a==='confOk'){const f=CONFIRMA;CONFIRMA=null;cerrarModal();if(f)f()}else if(a==='confNo'){CONFIRMA=null;cerrarModal()}
   else if(a==='islaRetiro'){cerrarModal();retiroIsla()}else if(a==='islaSeguir'){cerrarModal();log('Rechazas la isla: sigues al mando de '+G.nombreClub+'.','warn')}save()});
 $('#tabContent').addEventListener('click',e=>{const b=e.target.closest('#sub button');if(!b)return;G.ui.sub[G.ui.tab]=b.dataset.s;renderUI();sonidoClick()});
@@ -949,6 +950,7 @@ function vPalmares(){let h='<h2>Palmarés</h2>';
   if(Object.values(PROYECTOS).some(p=>p.req(G))||G.legado.length){h+=`<h3>Proyectos de legado</h3>`;
   for(const id in PROYECTOS){const p=PROYECTOS[id];const hecho=G.legado.includes(id)||(id==='reforma'&&G.reformas>0&&!p.req(G)&&!G.proyectos[id]);const enCurso=G.proyectos[id];const ok=p.req(G);
     h+=`<div class="card"><div class="row"><b>${hecho?'🏛 ':''}${p.nombre}${id==='reforma'&&G.reformas?' ('+G.reformas+' de 3)':''}</b>${hecho?'<span class="pill good">Inaugurado</span>':enCurso?`<span class="pill">En obras · ${enCurso.restan} sem</span>`:`<button class="b" data-a="proyecto" data-id="${id}" ${!ok||G.dinero<p.coste?'disabled':''}>${fmt(p.coste)} · ${p.sem} sem</button>`}</div><p>${p.desc}${!ok&&!hecho?' <span class="warnc">Requisito no cumplido.</span>':''}</p></div>`}}
+  if(G.isla)h+=`<div class="card"><div class="row"><b>🏝 Mil millones alcanzados</b><button class="b sec" data-a="verFinal">Ver el final</button></div><p class="hint">En la temporada ${G.historia.length?G.historia[0].t:G.temporada}, tras ${fmtN(G.islaDia||((G.semTotal||1)*7))} días.</p></div>`;
   {const PR=Object.entries(G.palmaresRivales||{}).filter(([n,p])=>p.ligas||p.libertadores).sort((a,b)=>(b[1].ligas+b[1].libertadores*2)-(a[1].ligas+a[1].libertadores*2)).slice(0,8);
     if(PR.length)h+=`<h3>Palmarés de los rivales</h3><div class="card">${PR.map(([n,p])=>`<div class="kv"><span>${p.tuyo?'👑 ':''}${esc(n)}</span><b>${p.ligas} liga${p.ligas===1?'':'s'} · ${p.libertadores} Libertadores</b></div>`).join('')}<p class="hint">Palmarés histórico de los grandes del país, con lo ganado desde que llegaste. Las 👑 son clubes que dirigiste en partidas anteriores. Último campeón de la Libertadores: ${esc(G.libertadoresUltimo||'—')}.</p></div>`}
   h+=`<h3>Evolución por temporada</h3><canvas id="grafica" width="400" height="150" style="width:100%;height:auto;background:#0b1220;border-radius:8px"></canvas><p class="hint">Caja (verde) · aficionados (azul) · reputación (amarillo) · OVR medio (rosa). Escala relativa al máximo de cada serie.</p>`;
@@ -1071,7 +1073,7 @@ $('#side').addEventListener('click',e=>{
   if(a==='inst')mejorarInst(b.dataset.k);else if(a==='contratar')contratar(b.dataset.k);else if(a==='despedir')despedir(b.dataset.k);
   else if(a==='fichar')ficharProspecto(b.dataset.id);else if(a==='promover')promoverCanterano(b.dataset.id);else if(a==='vender')venderJugador(b.dataset.id);
   else if(a==='ofertaJ')aceptarOfertaJ();else if(a==='rechOfertaJ'){if(G.ofertaJ&&G.ofertaJ.europa)rechazarEuropa();G.ofertaJ=null;renderUI()}else if(a==='acepPatro')aceptarOferta();else if(a==='rechPatro'){G.oferta=null;renderUI()}
-  else if(a==='onceCiclo')onceCiclo(b.dataset.id);else if(a==='onceAuto'){e.preventDefault();G.once=null;renderUI()}else if(a==='campana')lanzarCampana(b.dataset.id);else if(a==='renovar')renovar(b.dataset.id);else if(a==='comprar')comprarJugador(b.dataset.id);else if(a==='decidir')resolverDecision(b.dataset.id,+b.dataset.i);else if(a==='proyecto')iniciarProyecto(b.dataset.id);else if(a==='noRenovar')noRenovar(b.dataset.id);
+  else if(a==='onceCiclo')onceCiclo(b.dataset.id);else if(a==='verFinal'){e.preventDefault();modalFinalIsla()}else if(a==='onceAuto'){e.preventDefault();G.once=null;renderUI()}else if(a==='campana')lanzarCampana(b.dataset.id);else if(a==='renovar')renovar(b.dataset.id);else if(a==='comprar')comprarJugador(b.dataset.id);else if(a==='decidir')resolverDecision(b.dataset.id,+b.dataset.i);else if(a==='proyecto')iniciarProyecto(b.dataset.id);else if(a==='noRenovar')noRenovar(b.dataset.id);
   save();
 });
 let GUARDA=null;
@@ -1095,6 +1097,76 @@ function modalAyuda(){modal(`<h2>Ayuda</h2>
   <p>${[1,2,3].map(n=>'<button class="b '+(n===SLOT?'':'sec')+'" data-a="ranura" data-n="'+n+'">Ranura '+n+(n===SLOT?' (actual)':'')+'</button>').join(' ')}</p>
   <p><button class="b sec" data-a="expo">⬇ Descargar partida</button> <button class="b sec" data-a="impo">⬆ Cargar partida</button></p></div>
   <p><button class="b" onclick="cerrarModal()">Cerrar</button></p>`)}
+function duracion(ms){ms=Math.max(0,Math.round(ms||0));const h=Math.floor(ms/3600000),m=Math.round(ms%3600000/60000);
+  return h?h+' h '+m+' min':m+' min'}
+function destacados(){
+  const R=G.records||{};const d=[];
+  const gol=Object.entries(G.goleadoresHist||{}).map(([k,v])=>typeof v==='object'?[v.n,v.g]:[k,v]).sort((a,b)=>b[1]-a[1])[0];
+  const subida=(G.historia||[]).slice().reverse().find(h=>h.div===1);
+  const mejor=(G.historia||[]).filter(h=>h.div===1).sort((a,b)=>a.pos-b.pos)[0];
+  d.push(['Temporadas al mando',G.temporada]);
+  d.push(['Días de calendario',fmtN((G.semTotal||1)*7)]);
+  d.push(['Tiempo jugado',duracion(G.msJugados)]);
+  if(subida)d.push(['Llegaste a Primera','temporada '+subida.t]);
+  d.push(['Ligas',G.stats.titulos]);
+  d.push(['Copas nacionales',G.stats.copaNacional||0]);
+  if(G.stats.libertadores)d.push(['Libertadores',G.stats.libertadores]);
+  if(G.stats.sudamericana)d.push(['Sudamericanas',G.stats.sudamericana]);
+  d.push(['Ascensos',G.stats.ascensos]);
+  d.push(['Goles marcados',fmtN(G.stats.goles)]);
+  if(gol)d.push(['Máximo goleador',gol[0]+' ('+gol[1]+')']);
+  if(R.goleada)d.push(['Mayor goleada',R.goleada.texto]);
+  if(R.racha)d.push(['Mejor racha',R.racha+' victorias']);
+  if(R.invicto)d.push(['Más partidos invicto',R.invicto]);
+  if(R.asistencia)d.push(['Récord de asistencia',fmtN(R.asistencia)]);
+  d.push(['Aficionados al final',fmtN(G.fans)]);
+  d.push(['Logros',(G.ui.desbloqueos,(G.logros||[]).length)+' de '+LOGROS.length]);
+  if(mejor&&mejor.pos>1)d.push(['Mejor puesto en Primera',mejor.pos+'º']);
+  return d}
+function textoParaCompartir(){
+  const d=destacados();
+  return ['🏝 EL DESAFÍO — '+G.nombreClub+' ('+G.pais+')',
+    'Mil millones en caja en '+G.temporada+' temporadas · '+fmtN((G.semTotal||1)*7)+' días · '+duracion(G.msJugados)+' jugando',
+    ''].concat(d.slice(3).map(([k,v])=>'· '+k+': '+v))
+   .concat(['','Semilla '+((G.semillaInicial||G.rngEstado)>>>0)+' · profesergiom.github.io/el-desafio']).join('\n')}
+function tarjetaFinal(){
+  const W2=1080,H2=1350;const c=document.createElement('canvas');c.width=W2;c.height=H2;const g=c.getContext('2d');
+  const grad=g.createLinearGradient(0,0,0,H2);grad.addColorStop(0,'#0b1220');grad.addColorStop(1,'#132033');g.fillStyle=grad;g.fillRect(0,0,W2,H2);
+  g.fillStyle=G.color;g.fillRect(0,0,W2,18);
+  g.textAlign='center';
+  g.fillStyle='#94a3b8';g.font='600 30px system-ui,sans-serif';g.fillText('EL DESAFÍO',W2/2,110);
+  g.fillStyle='#fff';g.font='800 74px system-ui,sans-serif';
+  let nombre=G.nombreClub;while(g.measureText(nombre).width>W2-120&&nombre.length>4)nombre=nombre.slice(0,-1);
+  g.fillText(nombre,W2/2,200);
+  g.fillStyle=G.color;g.font='700 34px system-ui,sans-serif';g.fillText(G.pais.toUpperCase(),W2/2,250);
+  g.fillStyle='#22c55e';g.font='800 120px system-ui,sans-serif';g.fillText('🏝',W2/2,400);
+  g.fillStyle='#fff';g.font='800 56px system-ui,sans-serif';g.fillText('MIL MILLONES',W2/2,490);
+  g.fillStyle='#cbd5e1';g.font='400 34px system-ui,sans-serif';
+  g.fillText(G.temporada+' temporadas · '+fmtN((G.semTotal||1)*7)+' días · '+duracion(G.msJugados),W2/2,545);
+  const d=destacados().slice(3);const y0=630,paso=Math.min(52,(H2-y0-140)/Math.max(1,d.length));
+  g.textAlign='left';
+  d.forEach(([k,v],i)=>{const y=y0+i*paso;
+    g.fillStyle='#94a3b8';g.font='400 30px system-ui,sans-serif';g.fillText(k,90,y);
+    g.fillStyle='#fff';g.font='700 30px system-ui,sans-serif';g.textAlign='right';g.fillText(String(v),W2-90,y);g.textAlign='left'});
+  g.textAlign='center';g.fillStyle='#64748b';g.font='400 26px system-ui,sans-serif';
+  g.fillText('Semilla '+((G.semillaInicial||G.rngEstado)>>>0)+' · profesergiom.github.io/el-desafio',W2/2,H2-50);
+  return c}
+async function copiarResumen(){const t=textoParaCompartir();
+  try{await navigator.clipboard.writeText(t);aviso('Resumen copiado: ya puedes pegarlo donde quieras','ok')}
+  catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');aviso('Resumen copiado','ok')}catch(e2){aviso('No se pudo copiar; el resumen está en el registro','bad');log(t,'ok')}
+    document.body.removeChild(ta)}}
+function descargarTarjeta(){try{const c=tarjetaFinal();c.toBlob(b=>{if(!b)return aviso('No se pudo generar la imagen','bad');
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='el-desafio-'+G.nombreClub.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'.png';
+  document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);aviso('Imagen descargada','ok')})}catch(e){aviso('No se pudo generar la imagen','bad')}}
+function modalFinalIsla(){
+  const d=destacados();
+  modal(`<h2>🏝 Mil millones</h2>
+  <p><b>${esc(G.nombreClub)}</b> alcanza los mil millones en la temporada <b>${G.temporada}</b>. Te costó <b>${fmtN((G.semTotal||1)*7)} días</b> de calendario y <b>${duracion(G.msJugados)}</b> de juego.</p>
+  <div class="card">${d.map(([k,v])=>'<div class="kv"><span>'+esc(k)+'</span><b>'+esc(v)+'</b></div>').join('')}</div>
+  <p><button class="b" data-a="copiarFinal">📋 Copiar resumen</button> <button class="b sec" data-a="imagenFinal">🖼 Descargar imagen</button></p>
+  <p><button class="b" data-a="islaRetiro">🏝 Retirarme a la isla</button> <button class="b sec" data-a="islaSeguir">Seguir al mando</button></p>
+  <p class="hint">Retirarte cierra esta historia y guarda tu club entre las leyendas. Seguir al mando no quita nada: el final ya es tuyo.</p>`)}
 function modalIsla(){const t=G.temporada;
   modal(`<h2>🏝 Mil millones</h2><p>La caja de ${esc(G.nombreClub)} alcanza <b>${fmt(G.dinero)}</b> en la temporada ${t}. Has llevado a un club de Tercera hasta aquí: puedes dejarlo y retirarte a esa isla que llevas años mirando en el mapa, o quedarte al mando y ver hasta dónde llega.</p>
   <div class="card"><div class="kv"><span>Temporadas al mando</span><b>${t}</b></div><div class="kv"><span>Ligas</span><b>${G.stats.titulos}</b></div><div class="kv"><span>Copas</span><b>${G.stats.copaNacional||0}</b></div><div class="kv"><span>Libertadores</span><b>${G.stats.libertadores}</b></div><div class="kv"><span>Aficionados</span><b>${fmtN(G.fans)}</b></div></div>
@@ -1540,6 +1612,7 @@ function loop(){try{loopInterno();erroresLoop=0}catch(e){erroresLoop++;console.e
   setTimeout(loop,50)}
 function loopInterno(){const now=performance.now();const dt=Math.min(1000,now-lastT);lastT=now;
   corriendo=!!G&&G.vel>0&&!G.gameOver&&$('#modal').style.display!=='flex';
+  if(corriendo)G.msJugados=(G.msJugados||0)+dt;
   if(corriendo&&!G.partido){acum+=dt;if(acum>=TICK/G.vel){acum=0;tick();save()}}
   if(G&&G.partido){acum=0;if(corriendo)G.partido.el+=dt*Math.sqrt(G.vel);actualizarPartido()}
   publico(!!(G&&G.partido&&G.partido.local&&corriendo));}
