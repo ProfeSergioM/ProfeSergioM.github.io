@@ -1027,6 +1027,7 @@ const ARBOLES=[[-215,-200],[-170,-215],[-120,-205],[-40,-215],[20,-210],[-20,-16
 // helpers de dibujo
 function rr(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
 function person(x,y,c,step){ctx.fillStyle=c;ctx.fillRect(x-2,y-6,4,7);ctx.fillStyle='#f1c9a5';ctx.beginPath();ctx.arc(x,y-8,2.4,0,7);ctx.fill();ctx.fillStyle='#222';const s=Math.sin(step)*1.5;ctx.fillRect(x-2,y+1,1.6,3+s);ctx.fillRect(x+.5,y+1,1.6,3-s)}
+function txtAjustado(s,x,y,c,size,al,bold,maxW){ctx.font=(bold?'700 ':'')+size+'px system-ui,sans-serif';const w=ctx.measureText(s).width;if(w>maxW)size=Math.max(4,size*maxW/w);txt(s,x,y,c,size,al,bold)}
 function txt(s,x,y,c,size,al,bold){ctx.fillStyle=c||'#fff';ctx.font=(bold?'700 ':'')+(size||12)+'px system-ui,sans-serif';ctx.textAlign=al||'left';ctx.fillText(s,x,y)}
 function poly(pts,fill,stroke){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
 function box(I,x0,x1,y0,y1,z0,z1,c){
@@ -1216,13 +1217,13 @@ function drawCalle(t,dt){
   for(const c of coches){c.x+=c.v*dt;if(c.x>560)c.x=-560;if(c.x<-560)c.x=560;const y=c.v>0?229:214;box(ISO,c.x-6,c.x+6,y-3,y+3,1,5,{top:c.c,right:shade(c.c,0.7),front:shade(c.c,0.85),edge:'rgba(0,0,0,.3)'});box(ISO,c.x-3,c.x+2,y-2.2,y+2.2,5,7,{top:'#dbeafe',right:'#93c5fd',front:'#bfdbfe'})}
   for(const p of peatones){p.x+=p.v*dt;if(p.x>235)p.x=-235;if(p.x<-235)p.x=235;const q=ISO(p.x,p.lado?203:241,0);person(q[0],q[1],p.c,t*8+p.f)}
   const vals=[-200,-120,-40,40];
-  vals.forEach((vx,i)=>{const y=252;for(const px of [vx+6,vx+44]){const a=ISO(px,y,0),b=ISO(px,y,6);ctx.strokeStyle='#475569';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
+  vals.forEach((vx,i)=>{const y=252;for(const px of [vx+8,vx+58]){const a=ISO(px,y,0),b=ISO(px,y,6);ctx.strokeStyle='#475569';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke()}
     let fill='#0f172a',l1='ESPACIO PUBLICITARIO',l2='lanza una campaña',c1='#64748b',c2='#475569';
     if(G.campana&&i<2){fill=['#be123c','#1d4ed8'][i];l1=G.campana.nombre.toUpperCase();l2='¡Únete a '+G.nombreClub+'!';c1='#fff';c2='#fde68a'}
     else if(G.patro&&i===2){fill=G.patro.color;l1=G.patro.nombre;l2='patrocinador oficial';c1='#fff';c2='#fff'}
     else if(i===3){fill='#14532d';l1='DOMINGO · JORNADA '+G.semana;l2=cal?(cal.local?'vs ':'en ')+G.liga[cal.rival].nombre:'';c1='#bbf7d0';c2='#fff'}
-    poly([ISO(vx,y,6),ISO(vx+50,y,6),ISO(vx+50,y,26),ISO(vx,y,26)],fill,'#94a3b8');
-    const c=ISO(vx+25,y,16);txt(l1,c[0],c[1]-1,c1,9,'center',true);txt(l2,c[0],c[1]+9,c2,8,'center')});
+    poly([ISO(vx,y,6),ISO(vx+66,y,6),ISO(vx+66,y,26),ISO(vx,y,26)],fill,'#94a3b8');ctx.fillStyle='rgba(255,255,255,.08)';const q=ISO(vx,y,26);ctx.fillRect(q[0],q[1],66,8);
+    const c=ISO(vx+33,y,16);txtAjustado(l1,c[0],c[1]-1,c1,9,'center',true,60);txtAjustado(l2,c[0],c[1]+9,c2,8,'center',false,60)});
 }
 // ---------- terreno continuo: campos alrededor del campus
 const CAMPO=['#7fb35f','#86b96a','#8fbf70','#a4bf68','#b7c46e','#79ad5c'];
