@@ -328,10 +328,11 @@ function mejorXI(){
   const O=G.once&&G.once.manual?G.once:null;
   if(O){const man=new Set(O.xi);for(const j of disp)if(man.has(j.id)&&xi.length<11)xi.push(j);const fuera=new Set(O.fuera||[]),banco=new Set(O.banco);const l1=disp.filter(j=>!fuera.has(j.id)&&!banco.has(j.id));const lb=O.banco.slice().reverse().map(id=>disp.find(j=>j.id===id)).filter(Boolean);const lf=disp.filter(j=>fuera.has(j.id));disp=[...l1,...lb,...lf]}
   const ids=new Set(xi.map(j=>j.id));const cnt={POR:0,DEF:0,MED:0,DEL:0};for(const j of xi)cnt[j.pos]++;
-  for(const p of POS){const c=disp.filter(j=>j.pos===p&&!ids.has(j.id));const falta=Math.max(0,form[p]-cnt[p]);xi.push(...c.slice(0,falta));rest.push(...c.slice(falta))}
+  for(const p of POS){const c=disp.filter(j=>j.pos===p&&!ids.has(j.id));const falta=Math.max(0,Math.min(form[p]-cnt[p],11-xi.length));xi.push(...c.slice(0,falta));rest.push(...c.slice(falta))}
   rest.sort((a,b)=>b.ovr-a.ovr);
   while(xi.length<11&&rest.length)xi.push(rest.shift());
   if(xi.length<11){const faltan=once().filter(j=>!xi.includes(j)&&!(j.lesion>0));while(xi.length<11&&faltan.length)xi.push(faltan.shift())}
+  if(xi.length>11)xi.length=11;
   return xi;
 }
 function banquillo(xi){xi=xi||mejorXI();const ids=new Set(xi.map(j=>j.id));const disp=once().filter(j=>!ids.has(j.id)&&!(j.lesion>0)&&j.energia>15);const b=[];
