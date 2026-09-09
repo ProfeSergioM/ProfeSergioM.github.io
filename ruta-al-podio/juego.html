@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+	<title>Ruta al Podio</title>
+	<style>
+		/* Este archivo es SOLO el juego: va dentro del marco de portada.html,
+		   que es quien pone el banner y el boton de volver. Godot con la
+		   politica "Adjust" hace que el lienzo ocupe toda la ventana (o sea,
+		   todo el marco) y le fija la resolucion real: por eso se ve nitido, y
+		   por eso el banner tiene que estar afuera del marco. */
+		html, body { margin: 0; padding: 0; height: 100%; background: #0b1220; color: #e6edf7; font-family: system-ui, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+		canvas { display: block; outline: none; }
+		#status { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: #0b1220; }
+		#status.oculto { display: none; }
+		#status .logo { font-size: 26px; font-weight: 800; letter-spacing: .5px; }
+		#status .logo span { color: #22c55e; }
+		#status-progress { width: 260px; height: 8px; background: #1e2a44; border-radius: 4px; overflow: hidden; }
+		#status-progress i { display: block; height: 100%; width: 0; background: #22c55e; }
+		#status-notice { color: #8fa2c2; font-size: 13px; max-width: 420px; text-align: center; }
+	</style>
+	<link id="-gd-engine-icon" rel="icon" type="image/png" href="juego.icon.png" />
+<link rel="apple-touch-icon" href="juego.apple-touch-icon.png"/>
+
+</head>
+<body>
+	<canvas id="canvas" tabindex="0">El navegador no soporta canvas.</canvas>
+	<noscript>El juego necesita JavaScript.</noscript>
+	<div id="status">
+		<div class="logo">Ruta al <span>Podio</span></div>
+		<div id="status-progress"><i id="status-progress-inner"></i></div>
+		<div id="status-notice">Cargando...</div>
+	</div>
+	<script src="juego.js"></script>
+	<script>
+		const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":false,"executable":"juego","experimentalVK":false,"fileSizes":{"juego.pck":184968,"juego.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+		const GODOT_THREADS_ENABLED = false;
+		const engine = new Engine(GODOT_CONFIG);
+		(function () {
+			const status = document.getElementById('status');
+			const barra = document.getElementById('status-progress-inner');
+			const aviso = document.getElementById('status-notice');
+			function mostrarAviso(t) { aviso.textContent = t; }
+			function progreso(actual, total) { barra.style.width = (total > 0 ? Math.round(100 * actual / total) : 0) + '%'; }
+			const faltan = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+			if (faltan.length !== 0) {
+				mostrarAviso('Este navegador no puede correr el juego: ' + faltan.join(', '));
+				return;
+			}
+			engine.startGame({ 'onProgress': progreso }).then(() => {
+				status.classList.add('oculto');
+			}, (err) => {
+				mostrarAviso(String(err));
+			});
+		}());
+	</script>
+</body>
+</html>
+

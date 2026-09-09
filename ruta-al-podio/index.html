@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+	<title>Ruta al Podio</title>
+	<link rel="icon" href="juego.icon.png" />
+	<meta name="description" content="De una vulcanizadora de chapa a ganar los cuatro campeonatos mundiales. Juego de gestion." />
+	<style>
+		:root { --bg: #0b1220; --panel: #151f33; --line: #2a3a5c; --text: #e6edf7; --muted: #8fa2c2; }
+		html, body { margin: 0; padding: 0; height: 100%; background: var(--bg); color: var(--text);
+			font-family: system-ui, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+		body { display: flex; flex-direction: column; }
+		/* EL JUEGO VA EN UN MARCO. Godot hace que su lienzo ocupe toda la
+		   ventana en la que vive; metiendolo en un marco, "toda la ventana"
+		   es este hueco y el banner queda afuera, sin que el juego lo tape ni
+		   pierda nitidez (el lienzo se dibuja a los pixeles reales del hueco). */
+		#marco { flex: 1 1 0; min-height: 0; border: 0; display: block; width: 100%; background: #000; }
+		#banner { flex: 0 0 60px; background: var(--panel); border-top: 1px solid var(--line);
+			display: flex; align-items: center; justify-content: center; }
+		/* PUBLICIDAD: reemplazar el div .aviso por la etiqueta del anuncio (320x50). */
+		#banner .aviso { width: 320px; height: 50px; border: 1px dashed var(--line); border-radius: 6px;
+			display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; }
+		#girar { display: none; position: fixed; inset: 0 0 60px 0; align-items: center; justify-content: center;
+			background: rgba(11, 18, 32, .95); font-size: 18px; text-align: center; padding: 24px; z-index: 5; }
+		@media (orientation: portrait) and (max-width: 900px) { #girar { display: flex; } }
+	</style>
+</head>
+<body>
+	<iframe id="marco" src="juego.html" title="Ruta al Podio" allow="autoplay; fullscreen"></iframe>
+	<div id="banner">
+		<div class="aviso">espacio publicitario 320 x 50</div>
+	</div>
+	<div id="girar">Gira el telefono: el juego es apaisado.</div>
+	<script defer src="../volver.js" data-pos="bottom-right"></script>
+</body>
+</html>
