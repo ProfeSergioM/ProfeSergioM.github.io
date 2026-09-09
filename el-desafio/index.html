@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>El Desafío</title>
-<meta name="google-adsense-account" content="ca-pub-6113562135089306">
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
@@ -347,7 +346,7 @@ function newGame(nombre,pais,color,dificultad,herencia){
   G=estadoBase();G.nombreClub=limpiaTexto(nombre,40)||'Mi Club FC';G.pais=PAISES.includes(pais)?pais:'Chile';G.color=/^#[0-9a-f]{6}$/i.test(color||'')?color:PALETA[0];
   G.dificultad=['facil','normal','dificil'].includes(dificultad)?dificultad:'normal';
   if(herencia){G.prestigio=herencia.prestigio;G.dinero+=herencia.dinero;G.rep=herencia.rep;for(const k in PERSONAL)G.personal[k]=1;G.logros=herencia.logros||[]}
-  {const raw=($('#inSemilla')||{}).value;const sem=raw&&/^\d+$/.test(raw.trim())?(parseInt(raw.trim(),10)|0):(Math.random()*4294967296)|0;
+  {const sem=(Math.random()*4294967296)|0;
     G.semillaInicial=sem>>>0;G.rngEstado=sem|0}
   G.jugadores=genPlantilla();G.fin=nuevoFin();sembrarHistoria();nuevoPresidente();genLiga();crearCopas(0,0);fijarObjetivo();
   log('¡Bienvenido a '+G.nombreClub+' ('+G.pais+')! Empiezas en '+NOMBRE_DIV[G.division]+' con '+fmt(G.dinero)+' en caja.','ok');
@@ -1096,7 +1095,7 @@ function modalAyuda(){modal(`<h2>Ayuda</h2>
   <h3>En la cabecera</h3><div class="card"><div class="kv"><span>🏅</span><b>niveles de prestigio de partidas anteriores</b></div><div class="kv"><span>💱</span><b>ventana de fichajes abierta</b></div></div>
   <h3>En la clasificación y el calendario</h3><div class="card"><div class="kv"><span>👑</span><b>grande histórico: siempre a tu nivel o por encima</b></div><div class="kv"><span>🏆 en el calendario</span><b>partido de copa ese miércoles</b></div><div class="kv"><span>💱</span><b>ventana de fichajes abierta</b></div></div>
   <h3>Cifras</h3><div class="card"><p>El dinero va en euros para que las categorías sean comparables entre países: k€ son miles y M€ millones.</p><p>Una <b>jornada</b> es un partido de liga y dura una semana de calendario, de lunes a domingo. La <b>temporada</b> tiene ${jornadas()} jornadas en ${NOMBRE_DIV[G.division]} más dos semanas de pretemporada.</p></div>
-  <h3>Semilla de la partida</h3><div class="card"><p>Todo el azar de esta partida sale de una semilla. Con la misma semilla y las mismas decisiones, la partida se repite igual.</p><p><b class="semilla">${(G.semillaInicial||G.rngEstado)>>>0}</b></p><p class="hint">Puedes fijarla al crear una partida nueva para repetir un arranque concreto.</p></div>
+  <h3>Semilla de la partida</h3><div class="card"><p>Todo el azar de esta partida sale de una semilla, así que dos partidas nunca salen iguales.</p><p><b class="semilla">${(G.semillaInicial||G.rngEstado)>>>0}</b></p><p class="hint">Es la huella de esta partida: aparece también en el resumen del final.</p></div>
   <h3>Partidas guardadas</h3><div class="card"><p>Hay tres ranuras. En pantallas pequeñas el selector se oculta para dejar sitio, pero puedes cambiarlas y descargar la partida desde aquí.</p>
   <p>${[1,2,3].map(n=>'<button class="b '+(n===SLOT?'':'sec')+'" data-a="ranura" data-n="'+n+'">Ranura '+n+(n===SLOT?' (actual)':'')+'</button>').join(' ')}</p>
   <p><button class="b sec" data-a="expo">⬇ Descargar partida</button> <button class="b sec" data-a="impo">⬆ Cargar partida</button></p></div>
@@ -1225,12 +1224,10 @@ function modalNuevo(herencia){if(herencia&&!herencia.prestigio)herencia=null;
   <label>Nombre del club</label><input id="inNombre" type="text" value="${esc(G?G.nombreClub:'Mi Club FC')}" style="width:100%">
   <label>País (liga con clubes reales)</label><select id="inPais" style="width:100%">${PAISES.map(p=>`<option value="${p}" ${(G?G.pais:'Chile')===p?'selected':''}>${bandera(p)} ${p}</option>`).join('')}</select>
   <label>Color del club</label><div id="inColor">${sw}</div>
-  <label>Semilla <span class="hint">(opcional: repite un arranque concreto)</span></label><input id="inSemilla" type="text" inputmode="numeric" placeholder="al azar" style="width:100%">
-  <label>Dificultad</label><select id="inDif" style="width:100%"><option value="normal" selected>Normal</option><option value="facil">Fácil: más ingresos y directiva paciente</option><option value="dificil">Difícil: menos ingresos, directiva exigente y rivales más fuertes</option></select>
   ${herencia&&herencia.prestigio?'<p class="hint">⭐ Nueva partida + con prestigio '+herencia.prestigio+'</p>':''}
   <p><button class="b" id="btnEmpezar">Empezar en Tercera división</button> ${G?'<button class="b sec" onclick="cerrarModal()">Cancelar</button>':''}</p>`);
   $('#inColor').addEventListener('click',e=>{const s=e.target.closest('.sw');if(!s)return;document.querySelectorAll('.sw').forEach(x=>x.classList.remove('on'));s.classList.add('on')});
-  $('#btnEmpezar').addEventListener('click',()=>{const c=document.querySelector('.sw.on').dataset.c;newGame($('#inNombre').value||'Mi Club FC',$('#inPais').value,c,($('#inDif')||{}).value||'normal',herencia&&herencia.prestigio?herencia:null);if(herencia&&herencia.prestigio)G.ui.tutorial=99;cerrarModal();renderLog();renderUI();renderSlots()});
+  $('#btnEmpezar').addEventListener('click',()=>{const c=document.querySelector('.sw.on').dataset.c;newGame($('#inNombre').value||'Mi Club FC',$('#inPais').value,c,'normal',herencia&&herencia.prestigio?herencia:null);if(herencia&&herencia.prestigio)G.ui.tutorial=99;cerrarModal();renderLog();renderUI();renderSlots()});
 }
 const SND={on:true,ctx:null,crowd:null};try{SND.on=localStorage.getItem('clubtycoon_sonido')!=='0'}catch(e){}
 function audioInit(){if(SND.ctx)return;try{SND.ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
@@ -1625,6 +1622,5 @@ requestAnimationFrame(frame);loop();renderSlots();
 if(load()){renderLog();renderUI();modalInicio()}else modalNuevo();
 </script>
 <script defer src="../volver.js" data-pos="bottom-right"></script>
-<script defer src="../publicidad.js"></script>
 </body>
 </html>
