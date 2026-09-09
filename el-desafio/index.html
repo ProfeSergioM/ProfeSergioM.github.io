@@ -200,8 +200,8 @@ function zonaDescenso(){return numEq()===12?11:8}
 function plazasPlayoff(){return numEq()===12?4:2}
 const NOMBRE_DIV=['','Primera','Primera B','Segunda','Tercera'];
 const RANGO_DIV=[null,[68,84],[58,70],[50,60],[42,52]];
-const TV=[0,150000,70000,32000,8000];
-const PREMIO=[0,3000000,1200000,500000,200000];
+const TV=[0,300000,105000,33000,8000];
+const PREMIO=[0,12000000,2400000,600000,220000];
 const TACTICAS={equilibrada:{n:'Equilibrada',d:'sin modificadores'},ofensiva:{n:'Ofensiva',d:'marcas más (+25 %) pero recibes más (+20 %)'},defensiva:{n:'Defensiva',d:'recibes menos (-28 %) pero marcas menos (-20 %)'},contragolpe:{n:'Contragolpe',d:'ideal contra rivales más fuertes (+12 %/-12 %); castiga contra rivales débiles'}};
 const GLOS={OVR:'Nivel actual del jugador, de 20 a 99. Decide la fuerza del equipo.',Potencial:'Nivel máximo que puede alcanzar entrenando. Los jóvenes tienen más margen.',Energía:'Cansancio. Baja con partidos y entrenos, sube con descanso. Por debajo de 15 no juega.',Moral:'Ánimo del vestuario. Sube con victorias; baja con derrotas (el doble en casa) y con suplentes buenos que no juegan.',Confianza:'Paciencia de la directiva contigo. Si llega a cero te destituyen.',Reputación:'Prestigio del club, de 0 a 100. Atrae aficionados, patrocinios y mejores precios.',Foco:'En qué se concentra el entrenamiento esta semana.',Prima:'Pago único al firmar o renovar un contrato.'};
 function q(t){return '<abbr class="q" title="'+(GLOS[t]||'')+'">'+t+'</abbr>'}
@@ -220,7 +220,7 @@ const INST={
   estadio:{nombre:'Estadio',base:180000,max:12,cap:[0,3000,6000,11000,18000,28000,42000,60000,85000,85000,85000,85000,85000,100000],
     efecto:l=>fmtN(INST.estadio.cap[l])+' plazas · '+MEJORA_ESTADIO[l]},
   entreno:{nombre:'Centro de entrenamiento',base:105000,max:12,
-    efecto:l=>'Progreso de jugadores: +'+Math.round(l*35)+'% · lesiones -'+l*4+'% de duración'+(l>=2?' · vestuarios':'')+(l>=4?' · gimnasio':'')+(l>=6?' · segunda cancha':'')},
+    efecto:l=>'Progreso de jugadores: +'+Math.round(((0.2+0.035*Math.min(l,12))/0.235-1)*100)+' % · lesiones -'+l*4+' % de duración'+(l>=2?' · vestuarios':'')+(l>=4?' · gimnasio':'')+(l>=6?' · segunda cancha':'')},
   academia:{nombre:'Academia juvenil',base:135000,max:12,
     efecto:l=>'Canterano gratis cada '+Math.max(2,12-l)+' semanas · calidad '+Math.min(30+l*5,70)+'-'+Math.min(42+l*6,84)},
   oficinas:{nombre:'Oficinas',base:90000,max:12,
@@ -242,18 +242,18 @@ function costeInst(k){const l=G.inst[k];return Math.round(INST[k].base*Math.pow(
 
 const PERSONAL={
   ojeador:{nombre:'Ojeador',salario:l=>800*l,max:5,icon:'🔭',desc:'Trae prospectos cada semana (más y mejores por nivel).',auto:'Ficha automáticamente al mejor prospecto que encaje en la plantilla cuando hay caja.'},
-  entrenador:{nombre:'Entrenador',salario:l=>1500*l,max:5,icon:'🏃',desc:'Cada nivel mejora el progreso un 25%.',auto:'Elige el foco del entrenamiento según las carencias de la plantilla.'},
+  entrenador:{nombre:'Entrenador',salario:l=>1500*l,max:5,icon:'🏃',desc:'Cada nivel mejora el progreso un 18 %.',auto:'Elige el foco del entrenamiento según las carencias de la plantilla.'},
   deportivo:{nombre:'Director deportivo',salario:l=>2500*l,max:5,icon:'📋',desc:'Consigue un 5% más por nivel en las ventas de jugadores.',auto:'Vende veteranos y jugadores sobrantes, y cubre posiciones descubiertas.'},
-  comercial:{nombre:'Director comercial',salario:l=>1800*l,max:5,icon:'💼',desc:'Patrocinios +10% por nivel.',auto:'Ajusta el precio de las entradas al óptimo y negocia patrocinadores.'},
-  marketing:{nombre:'Jefe de marketing',salario:l=>1600*l,max:5,icon:'📣',desc:'Las campañas rinden +10% por nivel.',auto:'Lanza campañas publicitarias cuando la caja lo permite.'},
+  comercial:{nombre:'Director comercial',salario:l=>1800*l,max:5,icon:'💼',desc:'Patrocinios +8 % por nivel.',auto:'Ajusta el precio de las entradas al óptimo y negocia patrocinadores.'},
+  marketing:{nombre:'Jefe de marketing',salario:l=>1600*l,max:5,icon:'📣',desc:'Las campañas cuestan un 8 % menos por nivel.',auto:'Lanza campañas publicitarias cuando la caja lo permite.'},
   gerente:{nombre:'Gerente de sede',salario:l=>2200*l,max:5,icon:'🏗',desc:'Obras un 5% más baratas por nivel.',auto:'Amplía las instalaciones cuando hay caja suficiente, priorizando el estadio si se llena.'},
 };
 const CAMPANAS=[
-  {id:'redes',nombre:'Redes sociales',coste:4000,pct:0.04,base:150,dur:2},
-  {id:'vallas',nombre:'Vallas por la ciudad',coste:15000,pct:0.08,base:400,dur:3},
-  {id:'evento',nombre:'Puertas abiertas',coste:25000,pct:0.06,base:500,dur:2,moral:6},
-  {id:'tv',nombre:'Anuncio en televisión',coste:120000,pct:0.18,base:2000,dur:4},
-  {id:'gira',nombre:'Gira internacional',coste:450000,pct:0.32,base:6000,dur:6},
+  {id:'redes',nombre:'Redes sociales',coste:4000,pct:0.04,base:150,dur:2,merch:0.05},
+  {id:'vallas',nombre:'Vallas por la ciudad',coste:15000,pct:0.08,base:400,dur:3,merch:0.10},
+  {id:'evento',nombre:'Puertas abiertas',coste:25000,pct:0.06,base:500,dur:2,moral:6,merch:0.12},
+  {id:'tv',nombre:'Anuncio en televisión',coste:120000,pct:0.18,base:2000,dur:4,merch:0.22},
+  {id:'gira',nombre:'Gira internacional',coste:450000,pct:0.32,base:6000,dur:6,merch:0.35},
 ];
 
 // ============================================================ ESTADO
@@ -272,8 +272,9 @@ function ingresoSemanal(){return merchSemana()+patroSemana()+TV[G.division]+asis
 function recalc(j){
   j.salarioRef=salarioDe(j.ovr);if(j.salario===undefined)j.salario=j.salarioRef;if(j.contrato===undefined)j.contrato=ri(30,120);
   let v=3000*Math.pow(1.09,j.ovr);
+  if(j.ovr>85)v*=1+Math.pow((j.ovr-85)/5,2);
   if(j.edad<24)v*=1+(j.pot-j.ovr)/40;if(j.edad>30)v*=Math.max(.3,1-(j.edad-30)*.12);
-  j.valor=Math.round(v/1000)*1000;
+  j.valor=Math.round(v*(j.cartel||1)/1000)*1000;
 }
 function genPlantilla(){const arr=[];const wants={POR:2,DEF:6,MED:6,DEL:4};
   for(const p of POS)for(let i=0;i<wants[p];i++){const j=genJugador(38,54,18,32);j.pos=p;arr.push(j)}return arr}
@@ -287,12 +288,12 @@ function genLiga(){
     const extra=[...c.p,...c.s,...REGIONALES].filter(n=>!usados.has(n));
     while(nombres.length<numEq()-1&&extra.length)nombres.push(extra.shift())}
   const eq=[{nombre:G.nombreClub,yo:true,pts:0,pj:0,gf:0,gc:0,fuerza:0,color:G.color}];
-  const mia=G.jugadores.length?fuerzaEquipo():0;
+  const mia=G.jugadores.length?fuerzaPlantilla():0;
   nombres.forEach((n,i)=>{let f=clamp(hi-(hi-lo)*i/(numEq()-2)+rnd(-1.5,1.5),lo-2,hi+2);
     // los grandes también fichan: en Primera los 4 primeros se acercan a tu nivel; en Primera B los 2 primeros
     const capDiv=[0,97,84,72,62][G.division];
-    if(G.division===1&&i<2)f=Math.max(f,Math.min(97,(mia+3+rnd(-1,2)+Math.min(4,G.rachaTitulos*0.8))*dif().riv));
-    else if(G.division===1&&i<4)f=Math.max(f,Math.min(97,(mia*rnd(0.93,1.03)+Math.min(6,G.rachaTitulos*1.2))*dif().riv));
+    if(G.division===1&&i<2)f=Math.max(f,Math.min(97,(mia+1.2+rnd(-1,2)+Math.min(4,G.rachaTitulos*0.8))*dif().riv));
+    else if(G.division===1&&i<4)f=Math.max(f,Math.min(97,(mia*rnd(0.90,1.00)+Math.min(6,G.rachaTitulos*1.2))*dif().riv));
     else if(G.division>1&&i<3)f=Math.max(f,Math.min(capDiv,mia*(G.division===2?rnd(1.0,1.1):G.division===3?rnd(0.97,1.07):rnd(0.95,1.05))));
     else if(G.division>1&&i<6)f=Math.max(f,Math.min(capDiv-3,mia*rnd(0.87,0.95)));
     eq.push({nombre:n,yo:false,pts:0,pj:0,gf:0,gc:0,fuerza:f,color:PALETA[1+(i%8)],grande:G.division===1&&i<2})});
@@ -308,7 +309,7 @@ function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[
     personal:{ojeador:0,entrenador:0,deportivo:0,comercial:0,marketing:0,gerente:0},
     auto:{ojeador:true,entrenador:true,deportivo:true,comercial:true,marketing:true,gerente:true},
     precio:10,foco:'general',tactica:'equilibrada',patro:null,oferta:null,ofertaJ:null,campana:null,
-    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},autoPausa:false,tutorial:0,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,desbloqueos:{},plantillaDetalle:false,precioTocado:false,focoTocado:false,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
+    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},autoPausa:false,tutorial:0,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,desbloqueos:{},plantillaDetalle:false,precioTocado:false,focoTocado:false,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
     stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}}}
 function newGame(nombre,pais,color,dificultad,herencia){
   G=estadoBase();G.nombreClub=limpiaTexto(nombre,40)||'Mi Club FC';G.pais=PAISES.includes(pais)?pais:'Chile';G.color=/^#[0-9a-f]{6}$/i.test(color||'')?color:PALETA[0];
@@ -377,6 +378,12 @@ function onceCiclo(id){const j=G.jugadores.find(x=>x.id===id);if(!j||j.lesion>0)
 function elegirCapitan(){for(const j of G.jugadores)delete j.capitan;const c=G.jugadores.filter(j=>j.edad>=29).sort((a,b)=>((b.pjTotal||0)+b.pj)-((a.pjTotal||0)+a.pj)||b.edad-a.edad)[0];if(c){c.capitan=true;return c}return null}
 function fuerzaEquipo(){const xi=mejorXI();if(!xi.length)return 20;let s=0;for(const j of xi)s+=j.ovr*(0.85+0.15*j.energia/100);
   if(!xi.some(j=>j.pos==='POR'))s*=0.85;const vet=Math.min(3,xi.filter(j=>j.edad>=30).length);return Math.max(15,s/11*(0.93+G.moral/1000)+vet*1.0+(xi.some(j=>j.capitan)?0.5:0)-Math.max(0,11-xi.length)*8)}
+function fuerzaPlantilla(){const form={POR:1,DEF:4,MED:4,DEL:2};const xi=[];const rest=[];const disp=once();
+  for(const p of POS){const c=disp.filter(j=>j.pos===p);xi.push(...c.slice(0,form[p]));rest.push(...c.slice(form[p]))}
+  rest.sort((a,b)=>b.ovr-a.ovr);while(xi.length<11&&rest.length)xi.push(rest.shift());
+  if(!xi.length)return 20;let s=0;for(const j of xi)s+=j.ovr;
+  const vet=Math.min(3,xi.filter(j=>j.edad>=30).length);
+  return Math.max(15,s/11*0.995+vet*1.0-Math.max(0,11-xi.length)*8)}
 const DIF={facil:{ing:1.2,dir:0.6,riv:0.97,n:'Fácil'},normal:{ing:1,dir:1,riv:1,n:'Normal'},dificil:{ing:0.85,dir:1.4,riv:1.03,n:'Difícil'}};
 function dif(){return DIF[G.dificultad]||DIF.normal}
 function fansMax(){const gloria=1+Math.min(1,0.08*G.stats.libertadores+0.02*G.stats.titulos+0.01*G.stats.copaNacional)+0.06*Math.sqrt(G.stats.libertadores*3+G.stats.titulos*0.5+(G.stats.copaNacional||0)*0.3)+(G.legado.includes('fundacion')?0.15:0)+0.12*(G.prestigio||0);return Math.round([0,400000,120000,40000,15000][G.division]*(0.4+G.rep/100*0.8)*(1+0.04*Math.min(G.inst.estadio,12))*(1+0.05*(G.reformas||0))*gloria)}
@@ -388,7 +395,7 @@ function salariosSemana(){let s=0;for(const j of G.jugadores)s+=j.salario;return
 function personalSemana(){let s=0;for(const k in PERSONAL)if(G.personal[k])s+=PERSONAL[k].salario(G.personal[k]);return s}
 function mantSemana(){let s=INST.estadio.cap[G.inst.estadio]*1.5;for(const k in G.inst)if(k!=='estadio')s+=G.inst[k]*1500;return s}
 function fansEfectivos(){return G.fans/(1+G.fans/150000)}
-function merchSemana(){return fansEfectivos()*(0.3+0.35*G.inst.tienda)*(G.campana?1.35:1)*premiumMerch()*dif().ing*(1+0.02*Math.min(5,G.jugadores.filter(j=>j.canterano).length))*(G.crisis&&G.crisis.tipo==='recesion'?0.8:1)}
+function merchSemana(){return fansEfectivos()*(0.3+0.35*G.inst.tienda)*(1+(G.campana?G.campana.merch||0.05:0))*premiumMerch()*dif().ing*(1+0.02*Math.min(5,G.jugadores.filter(j=>j.canterano).length))*(G.crisis&&G.crisis.tipo==='recesion'?0.8:1)}
 function patroSemana(){return G.patro?G.patro.semanal*(G.crisis&&G.crisis.tipo==='recesion'?0.6:1):0}
 function nuevoFin(){return {ing:{entradas:0,merch:0,patro:0,tv:0,traspasos:0,premios:0},gas:{salarios:0,personal:0,mant:0,campanas:0,fichajes:0,obras:0,tasa:0,dividendos:0}}}
 function tasaLujo(){if(G.division>2)return 0;const ex=salariosSemana()-ingresoSemanal()*0.55;return ex>0?Math.round(ex*0.5):0}
@@ -400,22 +407,22 @@ function tick(){
   if(G.partido||G.gameOver)return;
   const d=G.dia;const pendAntes=nPendientes();
   if(d===1){G.finPrev=G.fin;G.fin=nuevoFin();if(G.cajaLunes!==null){G.tendencia={dinero:G.dinero-G.cajaLunes,fans:G.fans-G.fansLunes}}G.cajaLunes=G.dinero;G.fansLunes=G.fans;G.moral=clamp(G.moral+(62-G.moral)*0.04,0,100);
-    pagar('salarios',salariosSemana());pagar('personal',personalSemana());pagar('mant',mantSemana());{const tl=tasaLujo();if(tl>0){if(!G.fin.gas.tasa)G.fin.gas.tasa=0;pagar('tasa',tl);if(G.semana%4===1)log('Tasa de lujo: pagas '+fmt(tl)+' esta semana porque los salarios superan el 55 % de los ingresos.','warn')}}{const pos=clasificacion().findIndex(e=>e.yo)+1;cobrar('tv',TV[G.division]*(0.7+(numEq()-pos)/(numEq()-1)*0.6))}
+    pagar('salarios',salariosSemana());pagar('personal',personalSemana());pagar('mant',mantSemana());{const tl=tasaLujo();if(tl>0){if(!G.fin.gas.tasa)G.fin.gas.tasa=0;pagar('tasa',tl);if(G.semana%4===1)log('Tasa de lujo: pagas '+fmt(tl)+' esta semana porque los salarios superan el 55 % de los ingresos.','warn')}}{const pos=clasificacion().findIndex(e=>e.yo)+1;cobrar('tv',TV[G.division]*(0.4+(numEq()-pos)/(numEq()-1)*1.2))}
     if(G.patro){cobrar('patro',G.patro.semanal);G.patro.restan--;if(G.patro.restan<=0){log('Termina el contrato con '+G.patro.nombre+'.','warn');G.patro=null}}
-    if(G.campana){G.campana.restan--;if(G.campana.restan<=0)G.campana=null}
+    if(G.campanaEspera>0)G.campanaEspera--;if(G.campana){G.campana.restan--;if(G.campana.restan<=0)G.campana=null}
     if((G.semana===1||G.semana===mitad())&&G.mercadoClave!==G.temporada+'-'+G.semana){G.mercadoClave=G.temporada+'-'+G.semana;generarMercado();ofertaEuropa();log('Se abre la ventana de fichajes ('+(G.semana===1?'verano':'invierno')+'): '+G.mercado.length+' jugadores disponibles hasta la jornada '+finVentana()+'.','warn')}
     if(G.semana===(numEq()===12?5:4)||G.semana===mitad()+(numEq()===12?3:2)){G.mercado=[];G.recienAscendido=false;if(G.ofertaJ&&G.ofertaJ.europa)rechazarEuropa();G.ofertaJ=null;log('Se cierra la ventana de fichajes.')}
     for(const j of G.jugadores)if(j.lesion>0){j.lesion--;if(j.lesion===0)log(j.nombre+' recibe el alta médica.')}
     obrasSemana();proyectosSemana();crisisSemana();decisionesSemana();contratosSemana();
     if(G.dinero<0&&G.personal.deportivo&&G.auto.deportivo&&G.jugadores.length>15){const top=new Set(once().slice(0,2).map(j=>j.id));const caro=G.jugadores.filter(j=>!top.has(j.id)&&!j.cedido&&!j.intransferible&&!bloqueadoVenta(j)).sort((a,b)=>b.salario-a.salario)[0];if(caro){informar('deportivo','Vendí a '+caro.nombre+' para cuadrar cuentas','La caja estaba en negativo y era el salario más alto fuera de los dos mejores.');if(venderJugador(caro.id,true))log('Caja en negativo: el director deportivo vende a '+caro.nombre+' para cuadrar cuentas.','warn')}}
     {const fm=fansMax();if(G.fans<fm*0.5)G.fans=Math.round(G.fans+(fm*0.5-G.fans)*0.02);else if(G.fans>fm)G.fans=Math.round(G.fans-(G.fans-fm)*0.06)}
-    if(G.dinero<-2000000){const j=once()[0];if(j){const v=Math.round(j.valor*.6);G.jugadores=G.jugadores.filter(x=>x!==j);cobrar('traspasos',v);log('El banco fuerza la venta de '+j.nombre+' por '+fmt(v)+' para cubrir deudas.','bad')}}
+    if(G.dinero<-2000000){const j=once().filter(x=>!x.cedido)[0];if(j){const v=Math.round(j.valor*.6);sacarJugador(j);cobrar('traspasos',v);log('El banco fuerza la venta de '+j.nombre+' por '+fmt(v)+' para cubrir deudas.','bad')}}
     else if(G.dinero<0){log('Caja en negativo: los jugadores pierden moral y la directiva se impacienta.','warn');G.moral=clamp(G.moral-4,0,100);G.confianza=clamp(G.confianza-2,0,100)}
   }
   cobrar('merch',merchSemana()/7);
   if(d<=6)entrenar(G.receso===2?0:d===5?1.5:1);
   if(d===2){ojear();if(G.semana===6||G.semana===(numEq()===12?17:12))fechaFIFA()}
-  if(d===3){automatizar();const c=G.copas.find(c=>c.vivo&&(c.fase==='grupos'?c.grupo.calendario.some(p=>p.sem===G.semana):c.rondas[c.ronda]===G.semana));if(c){iniciarPartido(c);return renderUI()}}
+  if(d===3){automatizar();const c=G.copas.find(c=>c.vivo&&!c.playoff&&(c.fase==='grupos'?c.grupo.calendario.some(p=>p.sem===G.semana):c.rondas[c.ronda]===G.semana));if(c){iniciarPartido(c);return renderUI()}}
   if(d===4){eventos();if(Math.random()<0.14)crearDilema();if(Math.random()<0.02*(G.dificultad==='dificil'?1.6:G.dificultad==='facil'?0.5:1))crearCrisis()}
   if(d===6&&G.personal.entrenador&&G.auto.entrenador&&G.calendario[G.semana-1]){const cal=G.calendario[G.semana-1];const r=G.liga[cal.rival];const ratio=fuerzaEquipo()/(r.fuerza*(cal.local?0.95:1.05));const t=ratio>1.12?'ofensiva':ratio<0.88?'defensiva':ratio<0.98?'contragolpe':'equilibrada';if(t!==G.tactica){G.tactica=t;log('El entrenador plantea el partido con táctica '+TACTICAS[t].n.toLowerCase()+' ante '+r.nombre+'.')}}
   if(d===7){if(G.receso>0)domingoReceso();else if(!G.enPlayoff&&!G.calendario[G.semana-1]){log('El calendario de liga se ha quedado corto: se cierra la temporada.','warn');finTemporada()}else if(G.enPlayoff){const c=G.copas.find(x=>x.id==='playoff'&&x.vivo);if(c)iniciarPartido(c);else{G.enPlayoff=false;finTemporada()}}else iniciarPartido()}else{G.dia++}
@@ -500,20 +507,20 @@ function automatizar(){
   }
 }
 function contratosSemana(){
-  for(const j of G.jugadores.slice()){j.contrato--;
+  for(const j of G.jugadores.slice()){if(j.cedido)continue;j.contrato--;
     if(j.contrato<=8&&!j.pidio&&!G.renovaciones.some(r=>r.id===j.id)){j.pidio=true;const pide=Math.round(j.salarioRef*clamp(1+(j.ovr-avgOvr())/60+(70-G.moral)/300,0.9,1.6)/10)*10;G.renovaciones.push({id:j.id,salario:pide,restan:j.contrato});
       log(j.nombre+' pide renovar: '+fmt(pide)+'/sem (ahora '+fmt(j.salario)+'). Quedan '+j.contrato+' semanas de contrato.','warn')}
-    if(j.contrato<=0){G.jugadores=G.jugadores.filter(x=>x!==j);G.renovaciones=G.renovaciones.filter(r=>r.id!==j.id);log(j.nombre+' termina contrato y se marcha libre.','bad')}}
+    if(j.contrato<=0){sacarJugador(j);log(j.nombre+' termina contrato y se marcha libre.','bad')}}
   for(const r of G.renovaciones)r.restan--;
 }
 function renovar(id,auto){const r=G.renovaciones.find(x=>x.id===id);const j=G.jugadores.find(x=>x.id===id);if(!r||!j)return;const prima=r.salario*3;if(G.dinero<prima)return;
   pagar('fichajes',prima);j.salario=r.salario;j.contrato=ri(78,130);j.pidio=false;G.renovaciones=G.renovaciones.filter(x=>x!==r);G.moral=clamp(G.moral+1,0,100);log((auto?'El director deportivo renueva':'Renuevas')+' a '+j.nombre+' por '+fmt(r.salario)+'/sem (prima '+fmt(prima)+').','ok');renderUI()}
 function noRenovar(id){G.renovaciones=G.renovaciones.filter(x=>x.id!==id);renderUI()}
 const DILEMAS={
-  capitan:{area:'deportivo',crear:()=>{const j=once()[0];return j?{jid:j.id,texto:`${j.nombre}, tu capitán, pide un aumento del 30 % (de ${fmt(j.salario)} a ${fmt(j.salario*1.3)}/sem).`,op:['Concederlo (+moral)','Negarlo (-moral, podría querer irse)']}:null},
+  capitan:{area:'deportivo',crear:()=>{const j=once().filter(x=>!x.cedido&&!x.intransferible)[0];return j?{jid:j.id,texto:`${j.nombre}, tu capitán, pide un aumento del 30 % (de ${fmt(j.salario)} a ${fmt(j.salario*1.3)}/sem).`,op:['Concederlo (+moral)','Negarlo (-moral, podría querer irse)']}:null},
     aplicar:(d,i)=>{const j=G.jugadores.find(x=>x.id===d.jid);if(!j)return;if(i===0){j.salario=Math.round(j.salario*1.3/10)*10;G.moral=clamp(G.moral+8,0,100)}else{G.moral=clamp(G.moral-6,0,100);if(Math.random()<0.4)G.ofertaJ={id:j.id,v:Math.round(j.valor*1.1/1000)*1000,restan:3}}},
     auto:d=>{const j=G.jugadores.find(x=>x.id===d.jid);return j&&salariosSemana()+j.salario*0.3<ingresoSemanal()*0.7?0:1}},
-  estrella:{area:'deportivo',crear:()=>{const j=once()[0];if(!j||j.ovr<avgOvr()+6)return null;return {jid:j.id,texto:`${j.nombre} quiere irse a un club más grande. Hay una oferta de ${fmt(j.valor*1.3)}.`,op:['Venderlo','Retenerlo (-moral, -energía)']}},
+  estrella:{area:'deportivo',crear:()=>{const j=once().filter(x=>!x.cedido&&!x.intransferible)[0];if(!j||j.ovr<avgOvr()+6)return null;return {jid:j.id,texto:`${j.nombre} quiere irse a un club más grande. Hay una oferta de ${fmt(j.valor*1.3)}.`,op:['Venderlo','Retenerlo (-moral, -energía)']}},
     aplicar:(d,i)=>{const j=G.jugadores.find(x=>x.id===d.jid);if(!j)return;if(i===0){G.jugadores=G.jugadores.filter(x=>x!==j);G.renovaciones=G.renovaciones.filter(r=>r.id!==j.id);cobrar('traspasos',Math.round(j.valor*1.3))}else{G.moral=clamp(G.moral-5,0,100);j.energia=clamp(j.energia-15,0,100)}},
     auto:d=>G.dinero<0?0:1},
   nombre:{area:'comercial',crear:()=>{const x=Math.round((G.rep*15000+fansMax()*0.5)/1000)*1000;return {x,marca:pick(PATROS),texto:`Una marca ofrece ${fmt(x)} por poner su nombre al estadio dos temporadas.`,op:['Aceptar (-3 reputación, -2 % aficionados)','Rechazar (+1 reputación)']}},
@@ -524,7 +531,7 @@ const DILEMAS={
     aplicar:(d,i)=>{if(i===0){cobrar('tv',d.x);for(const j of mejorXI())j.energia=clamp(j.energia-12,0,100)}},auto:d=>G.jugadores.filter(j=>j.energia<50).length<4?0:1},
   subvencion:{area:'gerente',crear:()=>{const x=Math.round(60000*(NDIV+1-G.division));return {x,texto:`El ayuntamiento ofrece ${fmt(x)} si abres la sede a los colegios de la ciudad.`,op:['Aceptar (+aficionados)','Rechazar']}},
     aplicar:(d,i)=>{if(i===0){cobrar('premios',d.x);G.fans=Math.round(G.fans+(fansMax()-G.fans)*0.03)}},auto:d=>0},
-  agente:{area:'ojeador',crear:()=>{const x=Math.round(30000*(NDIV+1-G.division));return {x,texto:`Un agente ofrece un juvenil con gran proyección a cambio de una comisión de ${fmt(x)}.`,op:['Pagar la comisión','Rechazar']}},
+  agente:{area:'ojeador',crear:()=>{const [lo,hi]=RANGO_DIV[G.division];const x=Math.round(3000*Math.pow(1.09,(lo+hi)/2)*0.6/1000)*1000;return {x,texto:`Un agente ofrece un juvenil con gran proyección a cambio de una comisión de ${fmt(x)}.`,op:['Pagar la comisión','Rechazar']}},
     aplicar:(d,i)=>{if(i===0){pagar('fichajes',d.x);const [lo,hi]=RANGO_DIV[G.division];const p=genJugador(lo,hi,16,18);p.pot=clamp(p.ovr+rnd(18,30),p.ovr,96);p.contrato=ri(120,160);recalc(p);if(G.jugadores.length<26){G.jugadores.push(p);log('Llega '+p.nombre+' ('+p.pos+', '+Math.round(p.ovr)+' → '+Math.round(p.pot)+').','ok')}}},auto:d=>G.dinero>d.x*5&&G.jugadores.length<24?0:1},
   fuga:{area:'gerente',crear:()=>{const ks=Object.keys(PERSONAL).filter(k=>G.personal[k]>0&&G.personal[k]<5);if(!ks.length||G.rep<40)return null;const k=pick(ks);const prima=PERSONAL[k].salario(G.personal[k]+1)*6;return {k,prima,texto:`Un club grande quiere llevarse a tu ${PERSONAL[k].nombre.toLowerCase()} (nivel ${G.personal[k]}).`,op:['Ascenderlo para retenerlo ('+fmt(prima)+')','Dejarlo ir (pierdes al empleado)']}},
     aplicar:(d,i)=>{if(i===0){if(G.dinero>=d.prima){pagar('personal',d.prima);G.personal[d.k]=Math.min(5,G.personal[d.k]+1)}}else{G.personal[d.k]=0;noticia('agencia','Se marcha el '+PERSONAL[d.k].nombre.toLowerCase()+' a un club grande')}},auto:d=>G.dinero>d.prima*3?0:1},
@@ -536,7 +543,7 @@ function crearCrisis(){if(G.crisis)return;const k=pick(Object.keys(CRISIS));cons
   if(k==='sancion'){G.liga[0].pts=Math.max(0,G.liga[0].pts-3);const multa=Math.round(ingresoSemanal()*2);pagar('mant',multa);log('⚠ '+c.n+': -3 puntos y multa de '+fmt(multa)+'.','bad')}else log('⚠ '+c.n+': '+c.desc,'bad');noticia('mercado','⚠ '+c.n)}
 function crisisSemana(){if(!G.crisis)return;G.crisis.restan--;if(G.crisis.restan<=0){log('Termina: '+CRISIS[G.crisis.tipo].n+'.');G.crisis=null}}
 function fechaFIFA(){const conv=G.jugadores.filter(j=>!(j.lesion>0)&&j.ovr>=Math.max(66,avgOvr()+4)&&Math.random()<0.6);if(!conv.length)return;
-  for(const j of conv){j.energia=clamp(j.energia-10,0,100);j.valor=Math.round(j.valor*1.04);j.convocatorias=(j.convocatorias||0)+1;if(Math.random()<0.05)lesionar(j,ri(1,3),'con su selección')}
+  for(const j of conv){j.energia=clamp(j.energia-10,0,100);j.cartel=Math.min(1.3,(j.cartel||1)*1.04);j.convocatorias=(j.convocatorias||0)+1;if(Math.random()<0.05)lesionar(j,ri(1,3),'con su selección')}
   G.rep=clamp(G.rep+0.15*conv.length,0,100);log('Fecha FIFA: '+conv.map(j=>j.nombre+' ('+bandera(j.nac)+')').join(', ')+' convocado'+(conv.length>1?'s':'')+' con su selección. Vuelven con menos energía y más cartel.','warn');noticia('jugador',conv.length+' jugador'+(conv.length>1?'es':'')+' del club en la fecha FIFA')}
 const LOGROS=[
   {id:'primera_victoria',n:'Primera victoria',d:'Gana tu primer partido',c:g=>g.resultados.some(r=>r.res==='V')},
@@ -566,7 +573,7 @@ function rechazarEuropa(){const o=G.ofertaJ;if(!o||!o.europa)return;const j=G.ju
 function ventanaAbierta(){const m=mitad();if(numEq()===12)return (G.semana>=1&&G.semana<=4)||(G.semana>=12&&G.semana<=14);return (G.semana>=1&&G.semana<=3)||(G.semana>=m&&G.semana<=m+1)}
 function generarMercado(){G.mercado=[];const rivales=G.liga.slice(1);const [lo,hi]=RANGO_DIV[G.division];
   for(let i=0;i<6;i++){const r=pick(rivales);const j=genJugador(clamp(r.fuerza+rnd(-6,6),lo-6,hi+8),clamp(r.fuerza+rnd(-2,10),lo-6,hi+12),20,31);j.club=r.nombre;const kR=G.division===1?0.8+G.rep/100*0.6:1;j.precio=Math.round(j.valor*1.25*kR/1000)*1000;j.salario=Math.round(salarioDe(j.ovr)*1.1*kR/10)*10;j.contrato=ri(100,156);G.mercado.push(j)}
-  if(G.division===1){const grandes=['Real Madrid','FC Barcelona','Manchester City','Bayern München','Paris SG','Inter','Juventus','Liverpool','Chelsea','Atlético de Madrid','Benfica','Porto','Ajax','Milan','Arsenal'];for(let i=0;i<2;i++){const av=avgOvr();const ovr=clamp(rnd(Math.max(85,av-2),Math.min(97,av+7)),85,97);const j=genJugador(ovr,ovr,23,30);j.nac=pick(PAISES);j.club=pick(grandes);j.intransferible=true;const kRep=0.6+G.rep/100*1.2;j.precio=Math.round(Math.pow(ovr-82,1.8)*2e6*kRep/1e6)*1e6;j.salario=Math.round(salarioDe(j.ovr)*1.5*kRep/10)*10;j.contrato=ri(100,156);j.estrella=true;G.mercado.push(j)}}
+  if(G.division===1){const grandes=['Real Madrid','FC Barcelona','Manchester City','Bayern München','Paris SG','Inter','Juventus','Liverpool','Chelsea','Atlético de Madrid','Benfica','Porto','Ajax','Milan','Arsenal'];for(let i=0;i<2;i++){const av=avgOvr();const ovr=clamp(rnd(Math.max(85,av-2),Math.min(97,av+7)),85,97);const j=genJugador(ovr,ovr,23,30);j.nac=pick(PAISES);j.club=pick(grandes);j.intransferible=true;const kRep=0.6+G.rep/100*1.2;j.precio=Math.max(2e6,Math.round(j.valor*1.6*kRep/1e6)*1e6);j.salario=Math.round(salarioDe(j.ovr)*1.5*kRep/10)*10;j.contrato=ri(100,156);j.estrella=true;G.mercado.push(j)}}
   if(G.recienAscendido&&G.semana===1){for(let i=0;i<2;i++){const j=genJugador(lo+3,lo+9,22,28);j.club='Cedido por '+pick(clubesDivision(Math.max(1,G.division-1)).filter(x=>x!==G.nombreClub));j.precio=Math.round(j.valor*0.1/1000)*1000;j.salario=Math.round(salarioDe(j.ovr)/10)*10;j.contrato=jornadas()+2;j.cedido=true;G.mercado.push(j)}log('Dos clubes ofrecen jugadores cedidos por una temporada al recién ascendido.','warn')}
   if((G.division===2||G.division===3)&&G.semana===1&&Math.random()<0.7){const j=genJugador(hi+5,hi+9,31,33);j.club=pick(clubesDivision(1).filter(x=>x!==G.nombreClub));j.precio=Math.round(j.valor*1.1/1000)*1000;j.salario=Math.round(salarioDe(j.ovr)*1.2/10)*10;j.contrato=ri(50,80);j.bandera=true;G.mercado.push(j)}
   {const j=genJugador(lo+2,hi,28,32);const r=pick(rivales);j.club=r.nombre;j.precio=Math.round(j.valor*1.1/1000)*1000;j.salario=Math.round(salarioDe(j.ovr)*1.05/10)*10;j.contrato=ri(60,110);G.mercado.push(j)}
@@ -598,7 +605,7 @@ function eventos(){
   const r=Math.random();
   if(r<0.05){const j=pick(G.jugadores.filter(x=>!(x.lesion>0)));if(j)lesionar(j,ri(1,5),'en un entrenamiento')}
   else if(r<0.08){const b=Math.round(G.fans*rnd(1,3));cobrar('merch',b);log('Un vídeo viral del club se dispara: +'+fmt(b)+' en ventas.','ok')}
-  else if(r<0.16&&ventanaAbierta()&&G.jugadores.length>12&&!G.ofertaJ){const j=once()[0];const of=Math.round(j.valor*rnd(1.2,1.8)/1000)*1000;G.ofertaJ={id:j.id,v:of,restan:3};log('Un club grande ofrece '+fmt(of)+' por '+j.nombre+'. (Plantilla → Aceptar)','warn')}
+  else if(r<0.16&&ventanaAbierta()&&G.jugadores.length>12&&!G.ofertaJ){const j=once().filter(x=>!x.cedido&&!x.intransferible)[0];const of=Math.round(j.valor*rnd(1.2,1.8)/1000)*1000;G.ofertaJ={id:j.id,v:of,restan:3};log('Un club grande ofrece '+fmt(of)+' por '+j.nombre+'. (Plantilla → Aceptar)','warn')}
   if(G.ofertaJ){G.ofertaJ.restan--;if(G.ofertaJ.restan<0){if(G.ofertaJ.europa)rechazarEuropa();G.ofertaJ=null}}
   G.moral=clamp(G.moral+((60-Math.min(12,G.rachaTitulos*2))-G.moral)*0.08,0,100);
   const suplentes=G.jugadores.filter(j=>(j.sinJugar||0)>=8&&j.ovr>=avgOvr()+2);if(suplentes.length>=2&&Math.random()<0.15){const j=pick(suplentes);log(j.nombre+' se queja en la prensa: lleva '+j.sinJugar+' partidos sin jugar.','warn');noticia('jugador',j.nombre+' pide minutos');G.moral=clamp(G.moral-1,0,100)}
@@ -616,21 +623,28 @@ function promoverCanterano(id,auto){const i=G.canteranos.findIndex(p=>p.id===id)
 function semanasEnClub(j){return j&&j.fichadoSem!==undefined?Math.max(0,G.semTotal-j.fichadoSem):999}
 function bloqueadoVenta(j){return j&&!j.cedido&&semanasEnClub(j)<20}
 function factorVenta(j){const base=(ventanaAbierta()?0.7:0.5)+0.05*G.personal.deportivo;return semanasEnClub(j)<40?base*0.55:base}
+function sacarJugador(j){if(!j)return null;G.jugadores=G.jugadores.filter(x=>x!==j);
+  G.renovaciones=G.renovaciones.filter(r=>r.id!==j.id);
+  if(G.ofertaJ&&G.ofertaJ.id===j.id)G.ofertaJ=null;
+  if(G.once){G.once.xi=(G.once.xi||[]).filter(i=>i!==j.id);G.once.banco=(G.once.banco||[]).filter(i=>i!==j.id);G.once.fuera=(G.once.fuera||[]).filter(i=>i!==j.id)}
+  return j}
 function venderJugador(id,auto){const j=G.jugadores.find(x=>x.id===id);if(!j||G.jugadores.length<=11||j.cedido)return false;
   if(bloqueadoVenta(j)){if(!auto)log(j.nombre+' lleva '+semanasEnClub(j)+' semanas en el club: la cláusula de formación impide venderlo hasta las 20.','warn');return false}
   const v=Math.round(j.valor*factorVenta(j));
-  G.jugadores=G.jugadores.filter(x=>x!==j);G.renovaciones=G.renovaciones.filter(r=>r.id!==id);cobrar('traspasos',v);if(G.ofertaJ&&G.ofertaJ.id===id)G.ofertaJ=null;log((auto?'El director deportivo vende':'Vendes')+' a '+j.nombre+' por '+fmt(v)+'.','ok');noticia('mercado',j.nombre+' sale del club por '+fmt(v));renderUI();return true}
-function aceptarOfertaJ(){if(!G.ofertaJ)return;const j=G.jugadores.find(x=>x.id===G.ofertaJ.id);if(j){if(G.ofertaJ.europa&&mejorXI().some(x=>x.id===j.id))G.titularesVendidos=(G.titularesVendidos||0)+1;G.jugadores=G.jugadores.filter(x=>x!==j);cobrar('traspasos',G.ofertaJ.v);log('Aceptas la oferta: '+j.nombre+' se marcha por '+fmt(G.ofertaJ.v)+'.','ok')}G.ofertaJ=null;renderUI()}
+  sacarJugador(j);cobrar('traspasos',v);log((auto?'El director deportivo vende':'Vendes')+' a '+j.nombre+' por '+fmt(v)+'.','ok');noticia('mercado',j.nombre+' sale del club por '+fmt(v));renderUI();return true}
+function aceptarOfertaJ(){if(!G.ofertaJ)return;const j=G.jugadores.find(x=>x.id===G.ofertaJ.id);if(j){if(G.ofertaJ.europa&&mejorXI().some(x=>x.id===j.id))G.titularesVendidos=(G.titularesVendidos||0)+1;const imp=G.ofertaJ.v;sacarJugador(j);cobrar('traspasos',imp);log('Aceptas la oferta: '+j.nombre+' se marcha por '+fmt(imp)+'.','ok')}G.ofertaJ=null;renderUI()}
 function aceptarOferta(auto){if(!G.oferta)return;G.patro={...G.oferta,restan:G.oferta.dur};G.oferta=null;log((auto?'El director comercial firma':'Firmas')+' con '+G.patro.nombre+': '+fmt(G.patro.semanal)+'/semana.','ok');noticia('agencia',G.patro.nombre+', nuevo patrocinador principal');renderUI()}
 function costeCampana(c){return Math.round(c.coste*(1-Math.min(0.6,G.inst.oficinas*0.08)))}
-function lanzarCampana(id,auto){const c=CAMPANAS.find(x=>x.id===id);const coste=costeCampana(c);if(G.campana||G.dinero<coste)return;pagar('campanas',coste);
+function lanzarCampana(id,auto){const c=CAMPANAS.find(x=>x.id===id);const coste=costeCampana(c);if(G.campana||G.dinero<coste)return;
+  if(G.campanaEspera>0){if(!auto)log('El departamento de marketing necesita '+G.campanaEspera+' semana(s) más antes de otra campaña.','warn');return}
+  G.campanaEspera=6;pagar('campanas',coste);
   const gain=Math.round((Math.max(0,fansMax()-G.fans)*c.pct*2+c.base)*(1+0.1*G.personal.marketing));G.fans+=gain;if(c.moral)G.moral=clamp(G.moral+c.moral,0,100);
   G.campana={...c,restan:c.dur};log((auto?'Marketing lanza':'Lanzas')+' "'+c.nombre+'": +'+fmtN(gain)+' aficionados.','ok');noticia('agencia','Campaña "'+c.nombre+'": '+fmtN(gain)+' nuevos aficionados');renderUI()}
 
 // ============================================================ PARTIDO
 function iniciarPartido(copa){
   const pg=copa&&copa.fase==='grupos'?copa.grupo.calendario.find(p=>p.sem===G.semana):null;
-  const cal=copa?{rival:null,local:pg?pg.local:copa.ronda%2===0}:G.calendario[G.semana-1];const rival=copa?(pg?copa.grupo.rivales[pg.r]:copa.rivales[copa.ronda]):G.liga[cal.rival];
+  const cal=copa?{rival:null,local:copa.playoff?true:pg?pg.local:copa.ronda%2===0}:G.calendario[G.semana-1];const rival=copa?(pg?copa.grupo.rivales[pg.r]:copa.rivales[copa.ronda]):G.liga[cal.rival];
   const mia=fuerzaEquipo(),riv=rival.fuerza*(cal.local?0.95:1.05);const ratio=mia/riv;
   let lMia=clamp(1.35*Math.pow(ratio,2.2),0.15,5.5),lRiv=clamp(1.35*Math.pow(1/ratio,2.2),0.15,5.5);
   const T=G.tactica||'equilibrada';if(T==='ofensiva'){lMia*=1.25;lRiv*=1.2}else if(T==='defensiva'){lMia*=0.8;lRiv*=0.72}else if(T==='contragolpe'){if(riv>mia){lMia*=1.12;lRiv*=0.88}else{lMia*=0.94;lRiv*=1.06}}
@@ -701,11 +715,11 @@ function finPartido(){
   if(G.semana>jornadas()){const cl=clasificacion();const pos=cl.findIndex(e=>e.yo)+1;
     if(G.division>1&&pos>directos()&&pos<=directos()+plazasPlayoff()&&!G.enPlayoff&&G.semana===jornadas()+1){const nR=plazasPlayoff()===4?2:1;const rivalesPO=cl.filter((e,i)=>!e.yo&&i+1>directos()&&i+1<=directos()+plazasPlayoff()).sort(()=>Math.random()-.5).slice(0,nR);
       G.copas.push({id:'playoff',nombre:'Playoff de ascenso',playoff:true,rondas:nR===2?[jornadas()+1,jornadas()+2]:[jornadas()+1],nombresRonda:nR===2?['Semifinal','Final']:['Final'],rivales:rivalesPO.map(r=>({nombre:r.nombre,fuerza:r.fuerza,color:r.color})),ronda:0,vivo:true,premios:nR===2?[100000,250000]:[250000],rep:0.5});G.enPlayoff=true;
-      log(nR===2?'¡Playoff de ascenso! Semifinal el domingo en casa ante '+rivalesPO[0].nombre+'; la final sería en campo neutral ante '+rivalesPO[1].nombre+'.':'¡Playoff de ascenso! Final a partido único el domingo en casa ante '+rivalesPO[0].nombre+'.','warn');noticia('agencia',G.nombreClub+' jugará el playoff de ascenso')}
+      log(nR===2?'¡Playoff de ascenso! Semifinal el domingo en casa ante '+rivalesPO[0].nombre+'; la final sería en casa ante '+rivalesPO[1].nombre+'.':'¡Playoff de ascenso! Final a partido único el domingo en casa ante '+rivalesPO[0].nombre+'.','warn');noticia('agencia',G.nombreClub+' jugará el playoff de ascenso')}
     else if(!G.enPlayoff)finTemporada()}
   save();renderUI();
 }
-function fijarObjetivo(){const mia=fuerzaEquipo();let rank=1+G.liga.filter(e=>!e.yo&&e.fuerza>mia).length;const n=numEq();const d=directos(),mitadAlta=n===12?6:4,salvar=zonaDescenso()-1;
+function fijarObjetivo(){const mia=fuerzaPlantilla();let rank=1+G.liga.filter(e=>!e.yo&&e.fuerza>mia).length;const n=numEq();const d=directos(),mitadAlta=n===12?6:4,salvar=zonaDescenso()-1;
   const amb=G.presidente&&G.presidente.tipo==='ambicioso';if(amb)rank-=1;if(G.transicion)rank+=3;let o;const mejorRival=Math.max(...G.liga.filter(e=>!e.yo).map(e=>e.fuerza));const favorito=mia>=mejorRival+1.5||(amb&&rank<=2)||(G.division===1&&G.rachaTitulos>=2);
   if(rank<=2&&favorito)o={pos:1,texto:G.division>1?'Ascender como campeón':'Ganar la liga'};else if(rank<=4)o=G.division>1?{pos:d+plazasPlayoff(),texto:'Ascender (directo o por playoff)',ascenso:true}:{pos:3,texto:'Clasificar a la Libertadores (top 3)'};else if(rank<=6)o={pos:mitadAlta,texto:'Terminar en la mitad alta (top '+mitadAlta+')'};else o={pos:salvar,texto:'Mantener la categoría (no bajar del '+salvar+'º)'};
   if(G.transicion&&G.division===1){o={pos:99,copa:true,texto:'Llegar a cuartos de la Copa '+G.pais};}if(G.transicion)o.texto+=' · temporada de transición';o.presupuesto=true;G.objetivo=o;log('Objetivo de la directiva esta temporada: '+o.texto+', sin acabar en números rojos.','warn')}
@@ -713,15 +727,15 @@ const PRESIDENTES={equilibrado:{n:'Presidente equilibrado',d:'Pide lo razonable 
 function nuevoPresidente(){const tipos=Object.keys(PRESIDENTES);const tipo=G.presidente?pick(tipos.filter(t=>t!==G.presidente.tipo)):'equilibrado';G.presidente={tipo,nombre:pick(NOM)+' '+pick(APE),desde:G.temporada};if(G.temporada>1)log('Nuevo presidente: '+G.presidente.nombre+', '+PRESIDENTES[tipo].n.toLowerCase()+'. '+PRESIDENTES[tipo].d,'warn')}
 function crearCopas(posPrev,divPrev){
   G.copas=[];
-  {const divs=G.rep>=60?[2,1,1,1,1]:G.rep>=35?[3,2,1,1,1]:[4,3,2,1,1];const mia=G.jugadores.length?fuerzaEquipo():0;const rivales=divs.map((dv,i)=>{const [lo,hi]=RANGO_DIV[dv];const n=pick(clubesDivision(dv).filter(x=>x!==G.nombreClub));let f=i>=3?rnd(hi-4,hi+2):rnd(lo,hi);if(i>=3)f=Math.max(f,mia*rnd(0.94,1.02)*dif().riv);return {nombre:n,fuerza:f,color:PALETA[3+i%6]}});
-    G.copas.push({id:'copa',nombre:'Copa '+G.pais,rondas:numEq()===12?[3,7,11,15,19]:[2,5,8,11,14],nombresRonda:['Dieciseisavos','Octavos','Cuartos','Semifinal','Final'],rivales,ronda:0,vivo:true,premios:[60000,150000,400000,1000000,3000000],rep:0.6})}
+  {const divs=G.rep>=60?[2,1,1,1,1]:G.rep>=35?[3,2,1,1,1]:[4,3,2,1,1];const mia=G.jugadores.length?fuerzaPlantilla():0;const rivales=divs.map((dv,i)=>{const [lo,hi]=RANGO_DIV[dv];const n=pick(clubesDivision(dv).filter(x=>x!==G.nombreClub));let f=i>=3?rnd(hi-4,hi+2):rnd(lo,hi);if(i>=3)f=Math.max(f,mia*rnd(0.94,1.02)*dif().riv);return {nombre:n,fuerza:f,color:PALETA[3+i%6]}});
+    G.copas.push({id:'copa',nombre:'Copa '+G.pais,rondas:numEq()===12?[3,7,11,15,19]:[2,5,8,11,14],nombresRonda:['Dieciseisavos','Octavos','Cuartos','Semifinal','Final'],rivales,ronda:0,vivo:true,premios:[60000,150000,400000,1000000,3000000].map(x=>Math.round(x*[0,1.6,1,0.7,0.5][G.division])),rep:0.6})}
   if(divPrev===1&&posPrev<=6){const lib=posPrev<=3;const pool=(lib?LIBERTADORES:SUDAMERICANA).filter(n=>n!==G.nombreClub).sort(()=>Math.random()-.5);
     const [lo,hi]=lib?[84,93]:[72,82];
     const grupoRiv=pool.slice(0,3).map((n,i)=>({nombre:n,fuerza:rnd(lo,hi)+(i===0?2:0),color:PALETA[2+i]}));
     G.copas.push({id:lib?'libertadores':'sudamericana',nombre:lib?'Copa Libertadores':'Copa Sudamericana',continental:true,fase:'grupos',
       grupo:{rivales:grupoRiv,pts:[0,0,0,0],calendario:[2,4,6,8,10,12].map((sem,i)=>({sem,r:i%3,local:i<3}))},
       rondas:[14,16,18,20],nombresRonda:['Octavos','Cuartos','Semifinal','Final'],
-      rivales:pool.slice(3,7).map((n,i)=>({nombre:n,fuerza:rnd(lo,hi)-1+i*1.5,color:PALETA[5+i%5]})),ronda:0,vivo:true,premios:lib?[650000,1300000,2600000,7800000]:[260000,520000,1050000,2900000],premioGrupo:lib?200000:80000,rep:lib?1.5:0.8})}
+      rivales:pool.slice(3,7).map((n,i)=>({nombre:n,fuerza:rnd(lo,hi)-1+i*1.5,color:PALETA[5+i%5]})),ronda:0,vivo:true,premios:lib?[2600000,5200000,10400000,31000000]:[1000000,2100000,4200000,11600000],premioGrupo:lib?600000:240000,rep:lib?1.5:0.8})}
 }
 function clasificacion(){return G.liga.slice().sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf)}
 function cerrarSemana(){G.partido=null;G.dia=1;G.semTotal++;resumenSemanal();G.informePrev=G.informe||{};G.informe={};if(G.autoPausa){G.autoPausa=false;G.vel=0}}
@@ -731,7 +745,7 @@ function domingoReceso(){if(G.receso===2){for(const j of G.jugadores)j.energia=c
   iniciarPartido({id:'amistoso',nombre:'Amistoso de pretemporada',amistoso:true,lujo,rivales:[riv],ronda:0,vivo:true,nombresRonda:['Amistoso'],rondas:[0],premios:[0],rep:0})}
 function finTemporada(){
   const cl=clasificacion();const pos=cl.findIndex(e=>e.yo)+1;const divPrevReal=G.division;
-  const premio=Math.round(PREMIO[G.division]*(1.3-pos*0.025));cobrar('premios',premio);
+  const premio=Math.round(PREMIO[G.division]*Math.max(0.15,1.55-pos*0.12));cobrar('premios',premio);
   const msg='Fin de temporada '+G.temporada+': terminas '+pos+'º en '+NOMBRE_DIV[G.division]+'. Premio: '+fmt(premio)+'.';
   let cambio='';
   if(pos===1){G.stats.titulos++;G.rep=clamp(G.rep+6,0,100);G.rachaTitulos++}else G.rachaTitulos=0;
@@ -743,23 +757,24 @@ function finTemporada(){
   else if(!subioPO&&pos>=zd&&G.division<NDIV){G.division++;G.rep=clamp(G.rep-8,0,100);G.fans=Math.round(G.fans*0.9);cambio='Descenso a '+NOMBRE_DIV[G.division]+'.'}
   else if(pos<=3&&G.division===1){cambio=pos===1?'¡CAMPEÓN DE PRIMERA DIVISIÓN DE '+G.pais.toUpperCase()+'!':'Podio en la máxima categoría.'}
   let veredicto='';
-  if(G.objetivo){const cN=G.copas.find(c=>c.id==='copa');const ok=G.objetivo.copa?!!(cN&&cN.ronda>=2):G.objetivo.ascenso?cambio.startsWith('¡ASCENSO'):pos<=G.objetivo.pos;const caja=G.dinero>=0;let d=G.temporada>=6?-4:0;
-    if(ok){d+=15;if(pos===1&&G.objetivo.pos>1)d+=10;G.fallosSeguidos=0;veredicto='Objetivo cumplido ('+G.objetivo.texto+'): la directiva está satisfecha.'}else{d-=(pos<=G.objetivo.pos+2?10:20)*(G.temporada<=8?0.6:1);G.fallosSeguidos++;veredicto='Objetivo incumplido ('+G.objetivo.texto+')'+(pos<=G.objetivo.pos+2?' por poco.':'.')}
+  if(G.objetivo){const cN=G.copas.find(c=>c.id==='copa');const ok=G.objetivo.copa?!!(cN&&cN.ronda>=2):G.objetivo.ascenso?cambio.startsWith('¡ASCENSO'):pos<=G.objetivo.pos;const caja=G.dinero>=0;let d=G.temporada>=9?-5:G.temporada>=7?-3:G.temporada>=6?-1:0;
+    if(ok){d+=15;if(pos===1&&G.objetivo.pos>1)d+=10;G.fallosSeguidos=0;G.fallosGraves=0;veredicto='Objetivo cumplido ('+G.objetivo.texto+'): la directiva está satisfecha.'}else{d-=(pos<=G.objetivo.pos+2?10:20)*(G.temporada<=8?0.6:1);G.fallosSeguidos++;if(pos>G.objetivo.pos+2||cambio.startsWith('Descenso'))G.fallosGraves=(G.fallosGraves||0)+1;else G.fallosGraves=0;veredicto='Objetivo incumplido ('+G.objetivo.texto+')'+(pos<=G.objetivo.pos+2?' por poco.':'.')}
     if(!caja){d-=10;veredicto+=' Terminas en números rojos.'}if(cambio.startsWith('Descenso'))d-=20;if(pos===1)d+=8;
     if(G.presidente){const P=G.presidente;if(P.tipo==='austero'){if(salariosSemana()>ingresoSemanal()*0.5){d-=8;veredicto+=' El presidente austero se queja de la masa salarial.'}else{d+=4}}
       if(P.tipo==='popular'){const cant=mejorXI().filter(j=>j.canterano).length+banquillo().slice(0,3).filter(j=>j.canterano).length;if(cant>=2){d+=6;G.fans=Math.round(G.fans+(fansMax()-G.fans)*0.03);veredicto+=' El presidente celebra a los '+cant+' canteranos con minutos.'}else{d-=4;veredicto+=' El presidente quería más canteranos en el once.'}}}
-    if(d<0)d*=dif().dir;G.confianza=clamp(G.confianza+d,0,100);veredicto+=' Confianza: '+Math.round(G.confianza)+'/100.';log(veredicto,d>=0?'ok':'bad')}
+    if(d<0)d*=dif().dir*(G.legado.includes('fundacion')?0.7:1);G.confianza=clamp(G.confianza+d,0,100);if(G.temporada<6)G.confianza=Math.max(12,G.confianza);else if(G.temporada<8)G.confianza=Math.max(6,G.confianza);veredicto+=' Confianza: '+Math.round(G.confianza)+'/100.';log(veredicto,d>=0?'ok':'bad');
+    if(G.confianza<30&&G.temporada>=4){const aviso=G.confianza<18?'La directiva ha perdido la paciencia: otra temporada así y te destituyen.':'La directiva está impaciente. Cumple el próximo objetivo o peligra tu puesto.';log('⚠ '+aviso,'bad');noticia('agencia',G.nombreClub+': la directiva cuestiona al gestor');veredicto+=' '+aviso}}
   let dividendo=0;{const costes=Object.keys(PROYECTOS).filter(id=>!G.legado.includes(id)&&!G.proyectos[id]&&PROYECTOS[id].req(G)).map(id=>PROYECTOS[id].coste);const proximo=costes.length?Math.min(...costes):0;const reserva=(salariosSemana()+personalSemana()+mantSemana())*26+20e6+(G.division===1?120e6:G.division===2?40e6:0)+proximo;const exceso=G.dinero-reserva;if(exceso>0){dividendo=Math.round(exceso*0.3);if(!G.fin.gas.dividendos)G.fin.gas.dividendos=0;pagar('dividendos',dividendo);log('La directiva reparte dividendos: '+fmt(dividendo)+' (30 % del excedente sobre una reserva de '+fmt(reserva)+(proximo?', que incluye el siguiente proyecto de legado':'')+').','warn');veredicto+=' Dividendos: '+fmt(dividendo)+'.'}}
   if(G.recienAscendido){const bono=TV[G.division]*10;cobrar('premios',bono);log('Bono de ascenso: la liga adelanta '+fmt(bono)+' de derechos de TV para reforzar la plantilla.','ok');veredicto+=' Bono de ascenso: '+fmt(bono)+'.'}
   G.historia.unshift({t:G.temporada,div:G.division,pos,premio,dinero:Math.round(G.dinero),fans:G.fans,rep:+G.rep.toFixed(1),ovr:+avgOvr().toFixed(1)});
   if(!G.leyendaMostrada&&(G.stats.libertadores>=3||(G.stats.titulos>=10&&G.stats.libertadores>=1))){G.leyendaMostrada=true;setTimeout(modalLeyenda,50)}
-  if(G.confianza<=0||(G.temporada>=6&&G.fallosSeguidos>=(G.temporada<=8?4:3)&&G.confianza<25)){G.gameOver=true;log('La directiva te destituye. Fin de la partida.','bad');save();modal(`<h2>Destituido</h2><p>${veredicto}</p><p>La directiva de ${G.nombreClub} prescinde de tus servicios tras ${G.temporada} temporadas.</p><p class="hint">Ligas: ${G.stats.titulos} · Copas: ${G.stats.copas} · Ascensos: ${G.stats.ascensos}</p><p><button class="b" onclick="cerrarModal();modalNuevo()">Nueva partida</button></p>`);return}
+  if(G.confianza<=0||(G.temporada>=6&&G.fallosSeguidos>=(G.temporada<=8?4:3)&&G.confianza<25)||(G.temporada>=8&&(G.fallosGraves||0)>=2&&G.confianza<35)){G.gameOver=true;log('La directiva te destituye. Fin de la partida.','bad');save();modal(`<h2>Destituido</h2><p>${veredicto}</p><p>La directiva de ${G.nombreClub} prescinde de tus servicios tras ${G.temporada} temporadas.</p><p class="hint">Ligas: ${G.stats.titulos} · Copas: ${G.stats.copas} · Ascensos: ${G.stats.ascensos}</p><p><button class="b" onclick="cerrarModal();modalNuevo()">Nueva partida</button></p>`);return}
   const xiAntes=new Set(mejorXI().map(j=>j.id));
   const retirados=[];
   for(const j of G.jugadores){if(j.intransferibleHasta&&j.intransferibleHasta<=G.temporada+1){delete j.intransferible;delete j.intransferibleHasta}j.edad++;if(j.edad>=36||(j.edad>=33&&Math.random()<0.4))retirados.push(j);recalc(j)}
   for(const r of retirados){G.retirados.unshift({nombre:r.nombre,pos:r.pos,edad:r.edad,goles:G.goleadoresHist[r.nombre]||0,pj:r.pjTotal||r.pj,canterano:!!r.canterano,t:G.temporada})}if(G.retirados.length>12)G.retirados.length=12;
-  {const ced=G.jugadores.filter(j=>j.cedido);if(ced.length){G.jugadores=G.jugadores.filter(j=>!j.cedido);log('Terminan las cesiones: '+ced.map(j=>j.nombre).join(', ')+' vuelven a su club.','warn')}}
-  G.jugadores=G.jugadores.filter(j=>!retirados.includes(j));for(const j of G.jugadores){j.pjTotal=(j.pjTotal||0)+j.pj;j.goles=0;j.pj=0;j.pjSup=0}
+  {const ced=G.jugadores.filter(j=>j.cedido);if(ced.length){for(const c of ced)sacarJugador(c);log('Terminan las cesiones: '+ced.map(j=>j.nombre).join(', ')+' vuelven a su club.','warn')}}
+  for(const r of retirados)sacarJugador(r);for(const j of G.jugadores){j.pjTotal=(j.pjTotal||0)+j.pj;j.goles=0;j.pj=0;j.pjSup=0}
   const seVan=retirados.filter(r=>xiAntes.has(r.id)).length+(G.titularesVendidos||0);G.titularesVendidos=0;G.transicion=seVan>=2;if(G.transicion){G.transicionCanterano=false;log('Generación perdida: se retiran '+seVan+' titulares. La directiva relaja el objetivo y la academia promete una joya.','warn')}
   G.temporada++;G.semana=1;G.resultados=[];G.receso=2;{const c=elegirCapitan();if(c)log('Capitán de la temporada: '+c.nombre+' ('+c.edad+' años, '+((c.pjTotal||0))+' partidos). El director deportivo no lo venderá.','ok')}if((G.temporada-1)%5===0||!G.presidente)nuevoPresidente();genLiga();crearCopas(pos,divPrevReal);fijarObjetivo();
   log(msg,'ok');if(cambio)log(cambio,pos<=3?'ok':'bad');noticia('agencia',cambio||('Temporada cerrada: '+pos+'º en '+NOMBRE_DIV[G.division]));if(pos===1)noticia('agencia','¡'+G.nombreClub+' campeón de '+NOMBRE_DIV[divPrevReal]+'!');
@@ -785,7 +800,7 @@ function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const 
   else{const desc={1:'pagos y cobros de la semana',2:'informes del ojeador y la academia',3:'tu personal toma sus decisiones',4:'noticias y ofertas',5:'entrenamiento intensivo',6:'previa del partido',7:'día de partido'}[G.dia];const cs=G.dia<=3?copaEstaSemana():null;linea='<b>'+DIAS[G.dia-1]+'</b>, '+(G.receso?'pretemporada (semana '+(3-G.receso)+' de 2)':'jornada '+G.semana)+': '+desc+'.'+(cs?' <b>El miércoles, '+cs.c.nombre+'</b> ('+cs.ronda+') '+(cs.local?'en casa ante ':'en campo de ')+cs.rival.nombre+'.':'')+(G.receso===2?' El domingo no hay partido: vacaciones.':G.receso===1?' El domingo, amistoso de pretemporada en casa.':rival?' El domingo, '+(cal.local?'partido en casa contra ':'visita a ')+rival.nombre+'.':'')+(G.vel===0?'':G.autoPausa?' <span class="good">Jugando la semana…</span>':' <span class="warnc">Avance continuo ×'+G.vel+'</span>')}
   $('#hoy').innerHTML='<div class="linea">'+linea+'</div><div class="ctl"><button class="principal" id="btnSemana" '+(G.gameOver||P?'disabled':'')+'>▶ Jugar la semana</button><button class="sec" id="btnPaso" title="Un día (→)" '+(G.gameOver?'disabled':'')+'>⏭ Día</button>'+(G.vel>0?'<button class="sec" id="btnPausa" title="Pausa (espacio)">⏸</button>':'')+'<div class="speed"><span>continuo</span>'+[1,2,4,8].map(v=>'<button data-v="'+v+'" class="'+(G.vel===v&&!G.autoPausa?'on':'')+'">'+v+'×</button>').join('')+'</div></div>'}
 function copaEstaSemana(){for(const c of G.copas){if(!c.vivo||c.playoff)continue;if(c.fase==='grupos'){const p=c.grupo.calendario.find(p=>p.sem===G.semana);if(p)return {c,rival:c.grupo.rivales[p.r],ronda:'fase de grupos',local:p.local,premio:c.premioGrupo}}else if(c.rondas[c.ronda]===G.semana)return {c,rival:c.rivales[c.ronda],ronda:c.nombresRonda[c.ronda],local:c.ronda%2===0,premio:c.premios[c.ronda]}}return null}
-function nPendientes(){return G.decisiones.length+G.renovaciones.length+(G.oferta?1:0)+(G.ofertaJ&&G.jugadores.some(j=>j.id===G.ofertaJ.id)?1:0)}
+function nPendientes(){return G.decisiones.length+G.renovaciones.filter(r=>G.jugadores.some(j=>j.id===r.id)).length+(G.oferta?1:0)+(G.ofertaJ&&G.jugadores.some(j=>j.id===G.ofertaJ.id)?1:0)}
 function vPendientes(){let h='';
   if(G.oferta)h+=`<div class="card" style="border-color:#facc15"><div class="row"><span>🤝 Patrocinio: <b>${G.oferta.nombre}</b> ofrece <b>${fmt(G.oferta.semanal)}/sem</b> durante ${G.oferta.dur} semanas${G.patro?' (ahora: '+G.patro.nombre+', '+fmt(G.patro.semanal)+')':''} · ${G.oferta.restan} sem</span><span><button class="b" data-a="acepPatro">Aceptar</button> <button class="b sec" data-a="rechPatro">No</button></span></div></div>`;
   if(G.ofertaJ){const j=G.jugadores.find(x=>x.id===G.ofertaJ.id);if(j)h+=`<div class="card" style="border-color:#facc15"><div class="row"><span>${G.ofertaJ.europa?'🇪🇺 <b>'+G.ofertaJ.europa+'</b> quiere a':'💸 Oferta por'} <b>${j.nombre}</b> (${Math.round(j.ovr)}): <b class="good">${fmt(G.ofertaJ.v)}</b> (valor ${fmt(j.valor)})${G.ofertaJ.europa?' · si dices no, moral -8':''} · ${G.ofertaJ.restan+1} sem</span><span><button class="b" data-a="ofertaJ">Aceptar</button> <button class="b sec" data-a="rechOfertaJ">No</button></span></div></div>`}
@@ -823,7 +838,7 @@ function vSedeBasica(){
   const P=G.presidente?PRESIDENTES[G.presidente.tipo]:null;
   let h=`<h2>${bandera(G.pais)} ${G.nombreClub}</h2>`+vResumen();
   h+=`<div class="card"><div class="kv"><span>${NOMBRE_DIV[G.division]} de ${G.pais} · temporada ${G.temporada}</span><b>${q('Reputación')} ${G.rep.toFixed(0)} · ${q('Moral')} ${Math.round(G.moral)}</b></div>`;
-  if(G.objetivo)h+=`<div class="kv" style="margin-top:6px"><span>🎯 ${G.objetivo.texto}</span><b title="Confianza de la directiva"><span class="bar" style="width:70px"><i style="width:${G.confianza}%;background:${G.confianza<30?'#ef4444':G.confianza<55?'#facc15':'#22c55e'}"></i></span> ${Math.round(G.confianza)}</b></div>`;
+  if(G.objetivo)h+=`<div class="kv" style="margin-top:6px"><span>🎯 ${G.objetivo.texto}</span><b title="Confianza de la directiva"><span class="bar" style="width:70px"><i style="width:${G.confianza}%;background:${G.confianza<30?'#ef4444':G.confianza<55?'#facc15':'#22c55e'}"></i></span> ${Math.round(G.confianza)}</b></div>${G.confianza<30?'<p class="hint badc">⚠ La directiva está impaciente: cumple el objetivo de esta temporada o peligra tu puesto.</p>':''}`;
   if(P)h+=`<p class="hint" style="margin:6px 0 0">${P.n} (${G.presidente.nombre}): ${P.d}</p>`;
   h+=`</div><h3>Instalaciones</h3>`;
   for(const k in INST){const l=G.inst[k],max=l>=INST[k].max,c=costeObra(k);
@@ -885,7 +900,7 @@ function vPartidos(){
   const cl=clasificacion();
   let h=`<h2>${NOMBRE_DIV[G.division]} de ${G.pais}</h2>`;
   if(G.partido){const P=G.partido;h+=`<div class="card"><b>En juego:</b> ${P.local?G.nombreClub+' '+P.marcador[0]+' - '+P.marcador[1]+' '+P.rival.nombre:P.rival.nombre+' '+P.marcador[1]+' - '+P.marcador[0]+' '+G.nombreClub}</div>`}
-  else if(G.enPlayoff){const c=G.copas.find(x=>x.id==='playoff');if(c&&c.vivo)h+=`<div class="card"><b>🏁 Playoff de ascenso · ${c.nombresRonda[c.ronda]}</b> · domingo ${c.ronda===0?'en casa':'en campo neutral'} ante <b>${c.rivales[c.ronda].nombre}</b> (fuerza ${c.rivales[c.ronda].fuerza.toFixed(0)})</div>`}
+  else if(G.enPlayoff){const c=G.copas.find(x=>x.id==='playoff');if(c&&c.vivo)h+=`<div class="card"><b>🏁 Playoff de ascenso · ${c.nombresRonda[c.ronda]}</b> · domingo en casa ante <b>${c.rivales[c.ronda].nombre}</b> (fuerza ${c.rivales[c.ronda].fuerza.toFixed(0)})</div>`}
   else if(G.receso){h+='<div class="card"><b>Pretemporada</b> · '+(G.receso===2?'semana de vacaciones: sin partido, la plantilla recupera energía.':'domingo: amistoso de pretemporada en casa (taquilla al 60 %).')+'</div>'}
   else if(G.semana<=jornadas()){const c=G.calendario[G.semana-1];const r=G.liga[c.rival];
     h+=`<div class="card"><b>Domingo · jornada ${G.semana}</b> · ${c.local?'en casa vs':'visita a'} <b>${r.nombre}</b><p>Fuerza ${r.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}${c.local?' · taquilla prevista '+fmt(asistencia(G.precio)*G.precio):' · sin taquilla'}</p></div>`}
@@ -935,10 +950,11 @@ function vVentas(){
 
 function vPubli(){
   let h=`<h2>Publicidad</h2><div class="card"><div class="kv"><span>Aficionados</span><b>${fmtN(G.fans)} de ${fmtN(fansMax())} posibles</b></div><span class="bar" style="width:100%"><i style="width:${Math.min(100,100*G.fans/fansMax())}%"></i></span><p class="hint">El potencial sube con la división, la reputación, el estadio y los títulos.</p></div>`;
-  if(G.campana)h+=`<div class="card"><b>Campaña activa: ${G.campana.nombre}</b> · ${G.campana.restan} sem · merchandising ×1.35</div>`;
+  if(G.campana)h+=`<div class="card"><b>Campaña activa: ${G.campana.nombre}</b> · ${G.campana.restan} sem · merchandising +${Math.round((G.campana.merch||0.05)*100)} %</div>`;
+  else if(G.campanaEspera>0)h+=`<div class="card"><b>Marketing descansa</b> · ${G.campanaEspera} semana(s) hasta poder lanzar otra campaña</div>`;
   h+=`<h3>Campañas</h3>`;
   for(const c of CAMPANAS){const coste=costeCampana(c);const gain=Math.round((Math.max(0,fansMax()-G.fans)*c.pct*2+c.base)*(1+0.1*G.personal.marketing));
-    h+=`<div class="card"><div class="row"><span><b>${c.nombre}</b> · +${fmtN(gain)} aficionados · ${c.dur} sem</span><button class="b" data-a="campana" data-id="${c.id}" ${G.campana||G.dinero<coste?'disabled':''}>${fmt(coste)}</button></div></div>`}
+    h+=`<div class="card"><div class="row"><span><b>${c.nombre}</b> · +${fmtN(gain)} aficionados · merchandising +${Math.round((c.merch||0.05)*100)} % · ${c.dur} sem</span><button class="b" data-a="campana" data-id="${c.id}" ${G.campana||G.campanaEspera>0||G.dinero<coste?'disabled':''}>${fmt(coste)}</button></div></div>`}
   if(G.personal.marketing&&G.auto.marketing)h+=`<p class="hint">El jefe de marketing las lanza los miércoles cuando hay caja.</p>`;
   return h;
 }
@@ -966,7 +982,7 @@ $('#side').addEventListener('input',e=>{const b=e.target;const a=b.dataset.a;if(
   save()});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;G.tab=b.dataset.t;renderUI();sonidoClick()});
 
-function modalLeyenda(){modal(`<h2>⭐ Eres una leyenda</h2><p>${G.nombreClub} tiene ${G.stats.titulos} ligas, ${G.stats.copaNacional} copas y ${G.stats.libertadores} Libertadores. Puedes seguir mandando... o empezar de nuevo en otro país con tu prestigio.</p><p class="hint"><b>Nueva partida +</b>: conservas el 5 % de la caja (máximo 5 M€), empiezas con reputación 25 y todo el personal contratado a nivel 1, y cada nivel de prestigio suma un 10 % al potencial de aficionados.</p><p><button class="b" id="btnNP">Nueva partida + (prestigio ${(G.prestigio||0)+1})</button> <button class="b sec" onclick="cerrarModal()">Seguir con este club</button></p>`);
+function modalLeyenda(){modal(`<h2>⭐ Eres una leyenda</h2><p>${G.nombreClub} tiene ${G.stats.titulos} ligas, ${G.stats.copaNacional} copas y ${G.stats.libertadores} Libertadores. Puedes seguir mandando... o empezar de nuevo en otro país con tu prestigio.</p><p class="hint"><b>Nueva partida +</b>: conservas el 5 % de la caja (máximo 5 M€), empiezas con reputación 25 y todo el personal contratado a nivel 1, y cada nivel de prestigio suma un 12 % al potencial de aficionados.</p><p><button class="b" id="btnNP">Nueva partida + (prestigio ${(G.prestigio||0)+1})</button> <button class="b sec" onclick="cerrarModal()">Seguir con este club</button></p>`);
   $('#btnNP').addEventListener('click',()=>{const h={prestigio:(G.prestigio||0)+1,dinero:Math.min(5e6,G.dinero*0.05),rep:25,logros:G.logros||[]};cerrarModal();modalNuevo(h)})}
 function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
 const PIEL=['#D7CBB0','#C9B79C','#B79E7B','#8C6A4E','#DCC9A6','#E4D4C8','#A3B18A','#588157'];const PELO=['#1f1a17','#3b2a1a','#6b4a2b','#c9a227','#b0b0b0','#8b1a1a'];
@@ -1002,7 +1018,7 @@ function modalNuevo(herencia){if(herencia&&!herencia.prestigio)herencia=null;
   let sw='';PALETA.forEach((c,i)=>sw+=`<span class="sw ${i===0?'on':''}" style="background:${c}" data-c="${c}"></span>`);
   modal(`<h2>Nueva partida</h2>${G?'<p class="hint">Se borrará la partida actual.</p>':''}
   <label>Nombre del club</label><input id="inNombre" type="text" value="${esc(G?G.nombreClub:'Mi Club FC')}" style="width:100%">
-  <label>País (liga con clubes reales, datos de Agente Agente)</label><select id="inPais" style="width:100%">${PAISES.map(p=>`<option value="${p}" ${(G?G.pais:'Chile')===p?'selected':''}>${bandera(p)} ${p}</option>`).join('')}</select>
+  <label>País (liga con clubes reales)</label><select id="inPais" style="width:100%">${PAISES.map(p=>`<option value="${p}" ${(G?G.pais:'Chile')===p?'selected':''}>${bandera(p)} ${p}</option>`).join('')}</select>
   <label>Color del club</label><div id="inColor">${sw}</div>
 ${herencia&&herencia.prestigio?'<p class="hint">⭐ Nueva partida + con prestigio '+herencia.prestigio+'</p>':''}
   <p><button class="b" id="btnEmpezar">Empezar en Tercera división</button> ${G?'<button class="b sec" onclick="cerrarModal()">Cancelar</button>':''}</p>`);
