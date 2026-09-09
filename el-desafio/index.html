@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>El Desafío</title>
-<meta name="google-adsense-account" content="ca-pub-6113562135089306">
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
@@ -48,13 +47,13 @@ canvas#scene{max-width:100%;max-height:100%;aspect-ratio:16/10;cursor:pointer;di
 h2{margin:0 0 8px;font-size:16px}
 .verres{color:var(--blue);text-decoration:underline;white-space:nowrap}
 .tbl{overflow-x:auto;max-width:100%}
-.ene{color:var(--muted);font-variant-numeric:tabular-nums}
+.ene{color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
 .semilla{font-family:ui-monospace,Consolas,monospace;font-size:18px;letter-spacing:1px;color:var(--ok)}
 .campo{background:linear-gradient(#1e7a39,#27964b);border:2px solid #d1fae5;border-radius:8px;padding:8px 4px;display:flex;flex-direction:column;gap:6px}
 .campo .fila{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;min-height:30px}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{position:relative;background:#0b1220;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:4px 7px 7px;font-size:11px;cursor:pointer;overflow:hidden;white-space:nowrap;font-family:inherit}
-.chip b{font-size:12px}.chip em{font-style:normal;font-size:9px;font-weight:700;color:#94a3b8;margin:0 4px 0 3px;letter-spacing:.3px}.chip.xi em{color:#86efac}.chip.xi{background:#0f2a1a;border-color:#22c55e}.chip.banco{border-color:#facc15}.chip i{position:absolute;left:0;bottom:0;height:3px;display:block}.chip:disabled{opacity:.5;cursor:not-allowed}
+.chip b{font-size:12px}.chip em{font-style:normal;font-size:11px;font-weight:700;color:#94a3b8;margin:0 4px 0 3px;letter-spacing:.3px}.chip.xi em{color:#86efac}.chip.xi{background:#0f2a1a;border-color:#22c55e}.chip.banco{border-color:#facc15}.chip i{position:absolute;left:0;bottom:0;height:3px;display:block}.chip:disabled{opacity:.5;cursor:not-allowed}
 h3{margin:14px 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
 .card .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -96,19 +95,19 @@ canvas#scene{touch-action:none}
 #hoy .principal:disabled{opacity:.5;cursor:not-allowed}
 #hoy .sec{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 10px;cursor:pointer;font-weight:700}
 #hoy .speed{display:flex;gap:3px;margin-left:auto}#hoy .speed button{padding:4px 7px;font-size:11px;border-radius:5px}
-#hoy .speed span{font-size:10px;color:var(--muted);align-self:center;margin-right:2px}
+#hoy .speed span{font-size:11px;color:var(--muted);align-self:center;margin-right:2px}
 #sub{display:flex;gap:4px;flex-wrap:wrap;margin:0 0 10px}#sub button{background:var(--panel2);border:1px solid var(--line);color:var(--muted);border-radius:14px;padding:4px 10px;font-size:12px;cursor:pointer}#sub button.on{background:#fff;color:#0b1220;border-color:#fff;font-weight:700}
 .pill.POR,.pill.DEF,.pill.MED,.pill.DEL{color:var(--text)}
 abbr.q{text-decoration:none;border-bottom:1px dotted var(--muted);cursor:help}
 #logbar .punto{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--bad);margin-left:4px;vertical-align:middle}
 #tuto{position:absolute;left:12px;bottom:12px;max-width:340px;background:rgba(10,15,28,.96);border:1px solid var(--ok);border-radius:10px;padding:12px 14px;font-size:13px;z-index:5;box-shadow:0 8px 30px rgba(0,0,0,.5)}
-#tuto b{color:#fff}#tuto .paso{font-size:10px;color:var(--ok);letter-spacing:.1em;text-transform:uppercase}#tuto .btns{margin-top:8px;display:flex;gap:6px}
+#tuto b{color:#fff}#tuto .paso{font-size:11px;color:var(--ok);letter-spacing:.1em;text-transform:uppercase}#tuto .btns{margin-top:8px;display:flex;gap:6px}
 .tuto-target{outline:2px solid var(--ok)!important;outline-offset:2px;animation:pulso 1.2s infinite}
 @keyframes pulso{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}50%{box-shadow:0 0 0 8px rgba(34,197,94,0)}}
 details.inf{margin:4px 0;font-size:12px}details.inf summary{cursor:pointer;color:var(--text)}details.inf p{margin:4px 0 0 12px;color:var(--muted)}
 .hint,.tend{font-size:12px}
-.tend{font-size:10px;color:var(--muted)}.tend.up{color:var(--ok)}.tend.down{color:var(--bad)}
-@media (max-width:700px){#slot,#btnExportar,#btnImportar{display:none}header{gap:8px;padding:6px 8px}header .logo{font-size:15px}.stat{padding:0 5px}.stat b{font-size:13px}.stat small{font-size:10px}.speed button,button.b{padding:8px 11px;font-size:13px}#tabs button{padding:10px 5px;font-size:12px}#tabContent{padding:8px}td,th{padding:6px 4px}button.b{min-height:34px}.chip{padding:5px 7px 8px;font-size:11px;min-height:40px}.chip b{font-size:12px}.campo{padding:6px 2px}.campo .fila{gap:3px}
+.tend{font-size:11px;color:var(--muted)}.tend.up{color:var(--ok)}.tend.down{color:var(--bad)}
+@media (max-width:700px){#slot,#btnExportar,#btnImportar{display:none}header{gap:8px;padding:6px 8px}header .logo{font-size:15px}.stat{padding:0 5px}.stat b{font-size:13px}.stat small{font-size:11px}.speed button,button.b{padding:8px 11px;font-size:13px}#tabs button{padding:10px 5px;font-size:12px}#tabContent{padding:8px}td,th{padding:6px 4px}button.b{min-height:34px}.chip{padding:5px 7px 8px;font-size:11px;min-height:40px}.chip b{font-size:12px}.campo{padding:6px 2px}.campo .fila{gap:3px}
   #hoy .speed button{padding:9px 12px;font-size:13px;min-height:40px}#sub button{padding:9px 14px;font-size:13px;min-height:40px}
   #logbar button{padding:9px 12px;font-size:13px;min-height:40px}.sw{width:34px;height:34px}
   abbr.q{padding:2px 0}#sceneWrap{flex:0 0 30%}#log{height:58px}#tabs button{padding:11px 4px}}
@@ -693,8 +692,9 @@ function lanzarCampana(id,auto){const c=CAMPANAS.find(x=>x.id===id);const coste=
 // ============================================================ PARTIDO
 function iniciarPartido(copa){
   const pg=copa&&copa.fase==='grupos'?copa.grupo.calendario.find(p=>p.sem===G.semana):null;
-  const cal=copa?{rival:null,local:copa.playoff?true:pg?pg.local:copa.ronda%2===0}:G.calendario[G.semana-1];const rival=copa?(pg?copa.grupo.rivales[pg.r]:copa.rivales[copa.ronda]):G.liga[cal.rival];
-  const mia=fuerzaEquipo(),riv=rival.fuerza*(cal.local?0.95:1.05);const ratio=mia/riv;
+  const finalConti=!!(copa&&copa.continental&&!pg&&copa.ronda===copa.rondas.length-1);
+  const cal=copa?{rival:null,local:copa.playoff?true:pg?pg.local:copa.ronda%2===0,neutral:finalConti}:G.calendario[G.semana-1];const rival=copa?(pg?copa.grupo.rivales[pg.r]:copa.rivales[copa.ronda]):G.liga[cal.rival];
+  const mia=fuerzaEquipo(),riv=rival.fuerza*(cal.neutral?1:cal.local?0.95:1.05);const ratio=mia/riv;
   let lMia=clamp(1.35*Math.pow(ratio,2.2),0.15,5.5),lRiv=clamp(1.35*Math.pow(1/ratio,2.2),0.15,5.5);
   const T=G.tactica||'equilibrada';if(T==='ofensiva'){lMia*=1.25;lRiv*=1.2}else if(T==='defensiva'){lMia*=0.8;lRiv*=0.72}else if(T==='contragolpe'){if(riv>mia){lMia*=1.12;lRiv*=0.88}else{lMia*=0.94;lRiv*=1.06}}
   const gm=poisson(lMia),gr=poisson(lRiv);
@@ -704,7 +704,7 @@ function iniciarPartido(copa){
   if(cal.local){asist=Math.round(asistencia(G.precio)*rnd(0.92,1.02)*(copa&&copa.amistoso?(copa.lujo?1:0.6):1));entradas=asist*G.precio}
   const xi=onceDelPartido(copa);
   for(const g of goles)if(g.mio){const w=xi.map(j=>(j.pos==='DEL'?6:j.pos==='MED'?3:j.pos==='DEF'?1:0.1)*(j.canterano?1.15:1));let s=w.reduce((a,b)=>a+b,0),r=azar()*s;for(let i=0;i<xi.length;i++){r-=w[i];if(r<=0){g.autor=xi[i].nombre;g.autorId=xi[i].id;break}}}
-  G.partido={copa:copa?copa.id:null,xiIds:xi.map(j=>j.id),supIds:banquillo(xi).slice(0,3).map(j=>j.id),efectos:false,lujo:!!(copa&&copa.lujo),continental:!!(copa&&copa.continental),grupo:!!pg,rival,local:cal.local,el:0,dur:4200,goles,gm,gr,marcador:[0,0],minuto:0,asist,entradas,ultimoGol:null,golEl:-1e9};
+  G.partido={copa:copa?copa.id:null,neutral:!!cal.neutral,xiIds:xi.map(j=>j.id),supIds:banquillo(xi).slice(0,3).map(j=>j.id),efectos:false,lujo:!!(copa&&copa.lujo),continental:!!(copa&&copa.continental),grupo:!!pg,rival,local:cal.local,el:0,dur:4200,goles,gm,gr,marcador:[0,0],minuto:0,asist,entradas,ultimoGol:null,golEl:-1e9};
 }
 function aplicarEfectosPartido(){const P=G.partido;if(!P||P.efectos)return;P.efectos=true;
   const busca=id=>G.jugadores.find(j=>j.id===id);
@@ -742,7 +742,7 @@ function finPartido(){
       c.ronda++;if(c.ronda>=c.rondas.length){c.vivo=false;if(!c.playoff)G.stats.copas++;if(c.id==='libertadores'){G.stats.libertadores++;G.libertadoresGanadaT=G.temporada}else if(c.id==='sudamericana')G.stats.sudamericana++;else if(c.playoff){}else{G.stats.copaNacional++;G.confianza=clamp(G.confianza+8,0,100)}G.rep=clamp(G.rep+c.rep*5,0,100);G.fans=Math.round(G.fans+(fansMax()-G.fans)*0.2);log('¡CAMPEÓN DE LA '+c.nombre.toUpperCase()+'!','ok');noticia('agencia','¡'+G.nombreClub+' gana la '+c.nombre+'!')}}
     else{c.vivo=false;G.moral=clamp(G.moral-4,0,100);log(c.nombre+' · '+rn+' vs '+rival.nombre+': '+gm+'-'+gr+(gm===gr?' (penales)':'')+' · eliminado.','bad');if(!c.continental&&!c.playoff&&rival.fuerza<fuerzaEquipo()*0.9){G.confianza=clamp(G.confianza-3,0,100);log('La afición y la directiva no perdonan la eliminación ante un rival menor.','bad')}}
     if(!(c.playoff&&!c.vivo)){const marc=P.local?G.nombreClub+' '+gm+' - '+gr+' '+rival.nombre:rival.nombre+' '+gr+' - '+gm+' '+G.nombreClub;const sig=c.vivo?'Siguiente: '+c.nombresRonda[c.ronda]+' ante '+c.rivales[c.ronda].nombre+(c.playoff?' (el próximo domingo)':' (miércoles de la jornada '+c.rondas[c.ronda]+')'):'';
-      modal('<h2>'+(c.playoff?'🏁 ':c.continental?'🌎 ':'🏆 ')+c.nombre+' · '+rn+'</h2><p><b>'+marc+'</b>'+(gm===gr?' (penales)':'')+(P.local?' · '+fmtN(P.asist)+' espectadores':' · fuera de casa')+'</p><p>'+(gana?(c.vivo?'Pasas de ronda. Premio: '+fmt(c.premios[c.ronda-1])+'.':c.playoff?'¡Ascenso conseguido!':'¡CAMPEÓN! Premio: '+fmt(c.premios[c.ronda-1])+'.'):c.playoff?'Se acabó el sueño del ascenso por esta temporada.':'Eliminado.')+'</p>'+(sig?'<p class="hint">'+sig+'</p>':'')+'<p><button class="b" onclick="cerrarModal()">Continuar</button></p>')}
+      modal('<h2>'+(c.playoff?'🏁 ':c.continental?'🌎 ':'🏆 ')+c.nombre+' · '+rn+'</h2><p><b>'+marc+'</b>'+(gm===gr?' (penales)':'')+(P.local?' · '+fmtN(P.asist)+' espectadores':P.neutral?' · campo neutral':' · fuera de casa')+'</p><p>'+(gana?(c.vivo?'Pasas de ronda. Premio: '+fmt(c.premios[c.ronda-1])+'.':c.playoff?'¡Ascenso conseguido!':'¡CAMPEÓN! Premio: '+fmt(c.premios[c.ronda-1])+'.'):c.playoff?'Se acabó el sueño del ascenso por esta temporada.':'Eliminado.')+'</p>'+(sig?'<p class="hint">'+sig+'</p>':'')+'<p><button class="b" onclick="cerrarModal()">Continuar</button></p>')}
     if(c.playoff){G.partido=null;G.dia=1;G.semana++;G.semTotal++;resumenSemanal();G.informePrev=G.informe||{};G.informe={};if(G.autoPausa){G.autoPausa=false;G.vel=0}
       if(!c.vivo){G.playoffResultado=gana?'ganado':'perdido';G.enPlayoff=false;finTemporada()}save();renderUI();return}
     G.partido=null;G.dia++;save();renderUI();return}
@@ -784,7 +784,7 @@ function crearCopas(posPrev,divPrev){
     G.copas.push({id:lib?'libertadores':'sudamericana',nombre:lib?'Copa Libertadores':'Copa Sudamericana',continental:true,fase:'grupos',
       grupo:{rivales:grupoRiv,pts:[0,0,0,0],calendario:SEM_GRUPOS.map((sem,i)=>({sem,r:i%3,local:i<3}))},
       rondas:[14,16,18,20],nombresRonda:['Octavos','Cuartos','Semifinal','Final'],
-      rivales:pool.slice(3,7).map((n,i)=>({nombre:n,fuerza:rnd(lo,hi)-1+i*1.5,color:PALETA[5+i%5]})),ronda:0,vivo:true,premios:lib?[2600000,5200000,10400000,31000000]:[1000000,2100000,4200000,11600000],premioGrupo:lib?600000:240000,rep:lib?1.5:0.8})}
+      rivales:pool.slice(3,7).map((n,i)=>({nombre:n,fuerza:rnd(lo,hi)-2+i*0.8,color:PALETA[5+i%5]})),ronda:0,vivo:true,premios:lib?[2600000,5200000,10400000,31000000]:[1000000,2100000,4200000,11600000],premioGrupo:lib?600000:240000,rep:lib?1.5:0.8})}
 }
 function clasificacion(){return G.liga.slice().sort((a,b)=>b.pts-a.pts||(b.gf-b.gc)-(a.gf-a.gc)||b.gf-a.gf)}
 function cerrarSemana(){G.partido=null;G.dia=1;G.semTotal++;resumenSemanal();G.informePrev=G.informe||{};G.informe={};if(G.autoPausa){G.autoPausa=false;G.vel=0}}
@@ -852,7 +852,7 @@ function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const 
   if(G.dia===1&&G.resumen&&!P&&!G.gameOver){const R=G.resumen;const bal=R.ti-R.tg;
     linea+=' <a href="#" data-a="verResumen" class="verres">Ver el resumen de la semana</a> <span class="'+(bal>=0?'good':'badc')+'">'+(bal>=0?'+':'')+fmt(bal)+'</span>'}
   $('#hoy').innerHTML='<div class="linea">'+linea+'</div><div class="ctl"><button class="principal" id="btnSemana" '+(G.gameOver||P?'disabled':'')+'>▶ Jugar la semana</button><button class="sec" id="btnPaso" title="Un día (→)" '+(G.gameOver?'disabled':'')+'>⏭ Día</button>'+(G.vel>0?'<button class="sec" id="btnPausa" title="Pausa (espacio)" aria-label="Pausar">⏸</button>':'')+'<div class="speed"><span>continuo</span>'+[1,2,4,8].map(v=>'<button data-v="'+v+'" class="'+(G.vel===v&&!G.autoPausa?'on':'')+'">'+v+'×</button>').join('')+'</div></div>'}
-function copaEstaSemana(){for(const c of G.copas){if(!c.vivo||c.playoff)continue;if(c.fase==='grupos'){const p=c.grupo.calendario.find(p=>p.sem===G.semana);if(p)return {c,rival:c.grupo.rivales[p.r],ronda:'fase de grupos',local:p.local,premio:c.premioGrupo}}else if(c.rondas[c.ronda]===G.semana)return {c,rival:c.rivales[c.ronda],ronda:c.nombresRonda[c.ronda],local:c.ronda%2===0,premio:c.premios[c.ronda]}}return null}
+function copaEstaSemana(){for(const c of G.copas){if(!c.vivo||c.playoff)continue;if(c.fase==='grupos'){const p=c.grupo.calendario.find(p=>p.sem===G.semana);if(p)return {c,rival:c.grupo.rivales[p.r],ronda:'fase de grupos',local:p.local,premio:c.premioGrupo}}else if(c.rondas[c.ronda]===G.semana)return {c,rival:c.rivales[c.ronda],ronda:c.nombresRonda[c.ronda],local:c.ronda%2===0,neutral:!!(c.continental&&c.ronda===c.rondas.length-1),premio:c.premios[c.ronda]}}return null}
 function nPendientes(){return G.decisiones.length+G.renovaciones.filter(r=>G.jugadores.some(j=>j.id===r.id)).length+(G.oferta?1:0)+(G.ofertaJ&&G.jugadores.some(j=>j.id===G.ofertaJ.id)?1:0)}
 function vPendientes(){let h='';
   if(G.oferta)h+=`<div class="card" style="border-color:#facc15"><div class="row"><span>🤝 Patrocinio: <b>${G.oferta.nombre}</b> ofrece <b>${fmt(G.oferta.semanal)}/sem</b> durante ${G.oferta.dur} semanas${G.patro?' (ahora: '+G.patro.nombre+', '+fmt(G.patro.semanal)+')':''} · ${G.oferta.restan} sem</span><span><button class="b" data-a="acepPatro">Aceptar</button> <button class="b sec" data-a="rechPatro">No</button></span></div></div>`;
@@ -965,9 +965,9 @@ function vPartidos(){
   if(G.partido){const P=G.partido;h+=`<div class="card"><b>En juego:</b> ${P.local?G.nombreClub+' '+P.marcador[0]+' - '+P.marcador[1]+' '+P.rival.nombre:P.rival.nombre+' '+P.marcador[1]+' - '+P.marcador[0]+' '+G.nombreClub}</div>`}
   else if(G.enPlayoff){const c=G.copas.find(x=>x.id==='playoff');if(c&&c.vivo)h+=`<div class="card"><b>🏁 Playoff de ascenso · ${c.nombresRonda[c.ronda]}</b> · domingo en casa ante <b>${c.rivales[c.ronda].nombre}</b> (fuerza ${c.rivales[c.ronda].fuerza.toFixed(0)})</div>`}
   else if(G.receso){h+='<div class="card"><b>Pretemporada</b> · '+(G.receso===2?'semana de vacaciones: sin partido, la plantilla recupera energía.':'domingo: amistoso de pretemporada en casa (taquilla al 60 %).')+'</div>'}
-  else if(G.semana<=jornadas()){const c=G.calendario[G.semana-1];const r=G.liga[c.rival];
+  else if(G.semana<=jornadas()&&G.calendario[G.semana-1]){const c=G.calendario[G.semana-1];const r=G.liga[c.rival]||{nombre:"por designar",fuerza:0};
     h+=`<div class="card"><b>Domingo · jornada ${G.semana}</b> · ${c.local?'en casa vs':'visita a'} <b>${r.nombre}</b><p>Fuerza ${r.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}${c.local?' · taquilla prevista '+fmt(asistencia(G.precio)*G.precio):' · sin taquilla'}</p></div>`}
-  {const cs=copaEstaSemana();if(cs&&G.dia<=3&&!G.partido)h+=`<div class="card" style="border-color:#facc15"><b>🏆 Miércoles · ${cs.c.nombre} · ${cs.ronda}</b> · ${cs.local?'en casa vs':'visita a'} <b>${cs.rival.nombre}</b><p>Fuerza ${cs.rival.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}${cs.premio?' · premio '+fmt(cs.premio):''}${cs.local?' · taquilla prevista '+fmt(asistencia(G.precio)*G.precio):''}. El entrenador rota a los titulares cansados.</p></div>`}
+  {const cs=copaEstaSemana();if(cs&&G.dia<=3&&!G.partido)h+=`<div class="card" style="border-color:#facc15"><b>🏆 Miércoles · ${cs.c.nombre} · ${cs.ronda}</b> · ${cs.neutral?'final en campo neutral ante':cs.local?'en casa vs':'visita a'} <b>${cs.rival.nombre}</b><p>Fuerza ${cs.rival.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}${cs.premio?' · premio '+fmt(cs.premio):''}${cs.local?' · taquilla prevista '+fmt(asistencia(G.precio)*G.precio):''}. El entrenador rota a los titulares cansados.</p></div>`}
   for(const c of G.copas){if(c.fase==='grupos'&&c.vivo){const g=c.grupo;const filas=[[G.nombreClub,g.pts[0],true],...g.rivales.map((r,i)=>[r.nombre,g.pts[i+1],false])].sort((a,b)=>b[1]-a[1]);const prox=g.calendario.find(p=>p.sem>G.semana||(p.sem===G.semana&&G.dia<=3));
       h+=`<div class="card"><b>🌎 ${c.nombre} · grupo</b><table>${filas.map((f,i)=>`<tr class="${f[2]?'me':''}"><td>${i+1}</td><td>${f[0]}</td><td>${f[1]} pts</td></tr>`).join('')}</table><p class="hint">Pasan dos. ${prox?'Miércoles de la jornada '+prox.sem+' '+(prox.local?'vs ':'en ')+g.rivales[prox.r].nombre:''}</p></div>`;continue}
     h+=`<div class="card"><b>${c.continental?'🌎 ':'🏆 '}${c.nombre}</b> · ${c.vivo?`${c.nombresRonda[c.ronda]}, miércoles de la jornada ${c.rondas[c.ronda]} vs <b>${c.rivales[c.ronda].nombre}</b> · premio ${fmt(c.premios[c.ronda])}`:(c.ronda>=c.rondas.length?'<span class="good">¡Campeón!</span>':'<span class="badc">Eliminado</span>')}</div>`}
@@ -992,7 +992,7 @@ function vOnce(){const xi=mejorXI();const b=banquillo(xi);const ids=new Set(xi.m
 function vTactica(){let h=`<h2>Táctica del domingo</h2>`;
 for(const k in TACTICAS)h+=`<label class="chk"><input type="radio" name="tactica" data-a="tactica" value="${k}" ${G.tactica===k?'checked':''}> <b>${TACTICAS[k].n}</b> — ${TACTICAS[k].d}</label>`;
   if(G.personal.entrenador&&G.auto.entrenador)h+=`<p class="hint warnc">El entrenador la elige cada sábado según el rival.</p>`;
-  const cal=G.calendario[G.semana-1];if(cal){const r=G.liga[cal.rival];const ratio=fuerzaEquipo()/(r.fuerza*(cal.local?0.95:1.05));h+=`<div class="card"><b>Próximo rival: ${r.nombre}</b><p>Fuerza ${r.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}: ${ratio>1.12?'eres claramente superior, la ofensiva rinde.':ratio<0.88?'es más fuerte, la defensiva reduce el daño.':ratio<0.98?'es algo mejor: el contragolpe encaja.':'partido parejo, equilibrada.'}</p></div>`}
+  const cal=G.calendario[G.semana-1];if(cal&&G.liga[cal.rival]){const r=G.liga[cal.rival];const ratio=fuerzaEquipo()/(r.fuerza*(cal.local?0.95:1.05));h+=`<div class="card"><b>Próximo rival: ${r.nombre}</b><p>Fuerza ${r.fuerza.toFixed(0)} frente a tu ${fuerzaEquipo().toFixed(0)}: ${ratio>1.12?'eres claramente superior, la ofensiva rinde.':ratio<0.88?'es más fuerte, la defensiva reduce el daño.':ratio<0.98?'es algo mejor: el contragolpe encaja.':'partido parejo, equilibrada.'}</p></div>`}
   return h;
 }
 function vVentas(){
@@ -1516,6 +1516,5 @@ requestAnimationFrame(frame);loop();renderSlots();
 if(load()){renderLog();renderUI();modalInicio()}else modalNuevo();
 </script>
 <script defer src="../volver.js" data-pos="bottom-right"></script>
-<script defer src="../publicidad.js"></script>
 </body>
 </html>
