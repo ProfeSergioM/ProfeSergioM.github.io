@@ -7,20 +7,9 @@
 	<link rel="icon" href="juego.icon.png" />
 	<meta name="description" content="De una vulcanizadora de chapa a ganar los cuatro campeonatos mundiales. Juego de gestion." />
 
-	<!-- ============================================================
-	     PUBLICIDAD (Google AdSense)
-	     ============================================================
-	     Para encenderla hay que hacer DOS cosas, las dos con el mismo
-	     numero de editor (el "ca-pub-..." que da AdSense):
-
-	     1) Descomentar el <script> de aca abajo y poner el numero.
-	     2) Descomentar el bloque <ins> del banner, mas abajo, y poner el
-	        mismo numero en data-ad-client y el del bloque en data-ad-slot.
-
-	     Ademas, en la RAIZ del sitio tiene que existir ads.txt con la
-	     linea que AdSense indica. Ver PUBLICIDAD.md.
-	<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-	     ============================================================ -->
+	<!-- La publicidad la maneja ../publicidad.js, uno solo para todo el
+	     sitio. Con el numero de editor vacio no carga nada de Google y este
+	     hueco queda con su cartelito. Ver PUBLICIDAD.md. -->
 
 	<style>
 		:root { --bg: #0b1220; --panel: #151f33; --line: #2a3a5c; --text: #e6edf7; --muted: #8fa2c2; }
@@ -44,18 +33,12 @@
 <body>
 	<iframe id="marco" src="juego.html" title="Ruta al Podio" allow="autoplay; fullscreen"></iframe>
 
-	<div id="banner">
-		<!-- Cuando AdSense este aprobado, borrar el div de abajo y descomentar el <ins>.
-		<ins class="adsbygoogle"
-		     style="display:inline-block;width:320px;height:50px"
-		     data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-		     data-ad-slot="0000000000"></ins>
-		<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-		-->
+	<div id="banner" data-anuncio="banner">
 		<div class="aviso">espacio publicitario 320 x 50</div>
 	</div>
 
 	<div id="girar">Gira el telefono: el juego es apaisado.</div>
 	<script defer src="../volver.js" data-pos="bottom-right"></script>
+<script defer src="../publicidad.js"></script>
 </body>
 </html>

@@ -1,99 +1,133 @@
 # Poner publicidad de Google en el sitio
 
-Guía para encender AdSense en profesergiom.github.io. Todo lo que hay que
-tocar del lado del código ya está preparado: falta tu número de editor.
+Todo lo del lado del código ya está hecho. Falta tu número de editor, que
+solo te lo puede dar Google. Estos son los pasos, en orden.
 
 ---
 
-## 1. Crear la cuenta y pedir el sitio
+## Paso 1. Crear la cuenta de AdSense
 
-En <https://adsense.google.com> creás la cuenta con tu cuenta de Google y
-agregás el sitio **profesergiom.github.io**.
+Entrá a <https://adsense.google.com> con tu cuenta de Google y creá la
+cuenta. Cuando te pregunte el sitio, poné:
 
-AdSense te va a dar un **número de editor** con esta forma:
+```
+profesergiom.github.io
+```
+
+Al terminar, AdSense te muestra tu **número de editor**, con esta forma:
 
 ```
 ca-pub-1234567890123456
 ```
 
-Ese número aparece en todos los pasos siguientes. Anotalo.
+Son `ca-pub-` y dieciséis dígitos. **Anotalo**: es lo único que hace falta
+para todo lo que sigue.
 
-## 2. Verificar que el sitio es tuyo
+## Paso 2. Escribirlo en el sitio
 
-AdSense pide poner un script en el `<head>` de la página. Hay que ponerlo en
-**todas** las páginas del sitio, no solo en la portada: `index.html` de la
-raíz y el de cada juego.
+Una sola orden, desde la carpeta del sitio, con tu número en lugar del del
+ejemplo:
 
-```html
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890123456" crossorigin="anonymous"></script>
+```bash
+python poner-publicidad.py ca-pub-1234567890123456
 ```
 
-En Ruta al Podio ese script ya está escrito y comentado en
-`ruta-al-podio/index.html`: hay que descomentarlo y cambiar las X por tu
-número. Ojo: ese archivo se regenera al exportar el juego, así que el cambio
-va también en el original, `ruta-al-podio/web/portada.html` del proyecto de
-Godot.
+Eso hace, solo, las cuatro cosas que pide AdSense:
 
-## 3. El archivo ads.txt
+| qué | dónde |
+|---|---|
+| la etiqueta de verificación | en el `<head>` de las ocho páginas |
+| el cargador de anuncios | `publicidad.js`, que ya incluyen todas |
+| el archivo `ads.txt` | en la raíz, con tu número |
+| el original del juego | `ruta-al-podio/web/portada.html`, para que no se pierda al exportar |
 
-En la **raíz** del sitio (al lado de `index.html`) tiene que existir un
-archivo llamado `ads.txt` con una sola línea, con tu número sin el `ca-`:
+Se puede correr las veces que haga falta: actualiza en vez de duplicar.
+Para apagar todo y dejar el sitio sin nada de Google:
 
-```
-google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0
-```
-
-Queda accesible en `https://profesergiom.github.io/ads.txt`. Sin esto,
-AdSense marca el sitio como "no autorizado" y no paga.
-
-## 4. Crear el bloque y pegarlo
-
-En AdSense, **Anuncios → Por bloque de anuncios → Display**. Elegí tamaño
-fijo 320×50 (el hueco que ya tiene el juego). Te da un `data-ad-slot`.
-
-En `ruta-al-podio/index.html`, dentro de `<div id="banner">`, borrá el
-`<div class="aviso">` y descomentá el bloque:
-
-```html
-<ins class="adsbygoogle"
-     style="display:inline-block;width:320px;height:50px"
-     data-ad-client="ca-pub-1234567890123456"
-     data-ad-slot="0000000000"></ins>
-<script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
+```bash
+python poner-publicidad.py --apagar
 ```
 
-## 5. Esperar la revisión
+## Paso 3. Subirlo
 
-Google revisa el sitio antes de mostrar anuncios. Suele tardar de unos días
-a dos semanas. Hasta que aprueben, el hueco queda en blanco.
+```bash
+git add -A && git commit -m "publicidad: numero de editor" && git push
+```
+
+GitHub Pages tarda un par de minutos. Después comprobá que estas dos cosas
+se ven en el navegador:
+
+- <https://profesergiom.github.io/ads.txt> muestra una línea con tu número.
+- En cualquier página, con "ver código fuente", aparece la etiqueta
+  `google-adsense-account` con tu número.
+
+## Paso 4. Pedir la revisión
+
+Volvé a AdSense y dale a **Verificar** o **Solicitar revisión**. Google
+mira el sitio a mano. Suele tardar de unos días a dos semanas. Hasta que
+aprueben, el hueco del banner queda con su cartelito y el sitio funciona
+igual que siempre.
+
+## Paso 5. Crear el bloque y encenderlo
+
+Ya aprobado, en AdSense: **Anuncios → Por bloque de anuncios → Display**.
+Elegí tamaño fijo **320 × 50**, que es el hueco que ya tiene el juego.
+Te da un número de bloque (`data-ad-slot`), de solo dígitos.
+
+Ese número va como **segundo argumento**:
+
+```bash
+python poner-publicidad.py ca-pub-1234567890123456 9876543210
+git add -A && git commit -m "publicidad: bloque del banner" && git push
+```
+
+Desde ahí, el banner de abajo de Ruta al Podio muestra anuncios de verdad.
 
 ---
+
+## Cómo está armado
+
+`publicidad.js` es uno solo para todo el sitio y tiene **dos constantes
+arriba de todo**: el editor y el número del bloque. Con el editor vacío el
+archivo no hace nada: no carga nada de Google, no pone cookies, y el hueco
+del banner queda con su cartelito. Por eso se puede tener el archivo
+publicado desde antes de que exista la cuenta.
+
+El anuncio sale en cualquier elemento con `data-anuncio="banner"`. Hoy lo
+tiene el hueco de abajo de Ruta al Podio. Para poner uno en otra página
+alcanza con agregarle ese atributo a un `div`.
+
+**El anuncio está fuera del juego a propósito.** El lienzo de Godot ocupa
+toda la ventana en la que vive, así que el juego va en un marco y el banner
+queda debajo. Así el anuncio nunca tapa el juego ni se confunde con los
+controles, que además es lo que exige la política de AdSense.
+
+`ruta-al-podio/index.html` se regenera cada vez que exportás el juego desde
+Godot, así que el script parchea también el original,
+`ruta-al-podio/web/portada.html`. Si alguna vez el banner deja de aparecer
+después de exportar, volvé a correr `poner-publicidad.py`.
 
 ## Lo que conviene saber antes
 
 - **El sitio necesita contenido propio y tráfico real.** Google rechaza
-  sitios vacíos o con poco contenido. Siete juegos jugables ayudan; un sitio
-  recién creado y sin visitas suele ser rechazado la primera vez. Se puede
-  volver a pedir.
-- **Hacen falta páginas de privacidad y de cookies.** AdSense usa cookies, y
-  para visitantes de Europa hay que pedir consentimiento. Google ofrece un
-  "mensaje de privacidad y consentimiento" que se activa desde el panel de
-  AdSense y se muestra solo. Conviene activarlo.
+  sitios vacíos o con pocas visitas. Siete juegos jugables ayudan, pero un
+  sitio recién creado y sin visitas suele ser rechazado la primera vez. Se
+  puede volver a pedir.
+- **Hacen falta privacidad y consentimiento de cookies.** AdSense usa
+  cookies, y para visitantes de Europa hay que pedir permiso. Google ofrece
+  un "mensaje de privacidad y consentimiento" que se activa desde el panel
+  de AdSense y se muestra solo. Conviene activarlo.
 - **Nunca hagas clic en tus propios anuncios**, ni le pidas a nadie que lo
   haga. Es la causa más común de cuentas cerradas.
 - **Cuánto paga**: con un banner de 320×50 en un sitio de juegos chico, el
-  orden de magnitud es de centavos de dólar por cada mil impresiones. Para
-  cobrar hay que llegar a 70 dólares acumulados. Con pocas visitas, esto es
-  un experimento, no un ingreso.
-- **El anuncio está fuera del juego a propósito**: el lienzo de Godot ocupa
-  toda la ventana en la que vive, así que el juego va en un marco y el
-  banner debajo. Así el anuncio nunca tapa el juego ni se mezcla con los
-  controles, que además es lo que exige la política de AdSense (no confundir
-  anuncios con la interfaz).
+  orden de magnitud es de centavos de dólar por cada mil impresiones, y
+  para cobrar hay que llegar a 70 dólares acumulados. Con pocas visitas
+  esto es un experimento, no un ingreso.
 
 ## Alternativas si AdSense rechaza el sitio
 
 - **Ko-fi o Cafecito**: un botón de donación, sin revisión ni mínimos.
 - **itch.io**: publicar los juegos ahí también, con propinas opcionales.
-- Redes de anuncios para juegos web como **CrazyGames** o **GameDistribution**,
-  que piden juego terminado pero suelen ser más accesibles que AdSense.
+- Redes de anuncios para juegos web como **CrazyGames** o
+  **GameDistribution**, que piden el juego terminado pero suelen ser más
+  accesibles que AdSense.
