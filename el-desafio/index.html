@@ -7,7 +7,7 @@
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
-html,body{height:100%}
+html,body{height:100%;height:100dvh}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden;font-size:14px}
 header{display:flex;align-items:center;gap:14px;padding:6px 14px;background:#0a0f1c;border-bottom:1px solid var(--line);flex-wrap:wrap}
 header .logo{font-weight:800;font-size:18px;letter-spacing:.5px;color:#fff}
@@ -26,7 +26,7 @@ header .logo span{color:var(--ok)}
 #cal .dias{display:flex;gap:4px;flex:0 0 auto}
 #cal .dia{width:36px;height:44px;border-radius:7px;background:#1e2a44;border:1px solid #2a3a5c;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;position:relative;font-size:13px;font-weight:700;color:var(--muted)}
 #cal .dia span{font-size:12px;font-weight:400}
-#cal .dia.on{color:#0b1220;border-color:#fff}#cal .dia.on span{color:#fff}
+#cal .dia.on{border-color:#fff}#cal .dia.on span{color:inherit;opacity:.9}
 #cal .dia i{position:absolute;left:4px;right:4px;bottom:3px;height:2px;background:rgba(255,255,255,.8);transform-origin:left;display:block}
 #cal .info{flex:1 1 0;min-width:0;text-align:right}#cal .info b{font-size:13px;color:#fff;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#cal .info small{font-size:11px;color:var(--muted);white-space:nowrap}
 #cal .info b.gol{color:var(--warn)}
@@ -45,6 +45,7 @@ canvas#scene{max-width:100%;max-height:100%;aspect-ratio:16/10;cursor:pointer;di
 #log div{padding:1px 0}
 #log .ok{color:#86efac}#log .bad{color:#fca5a5}#log .warn{color:#fde68a}
 h2{margin:0 0 8px;font-size:16px}
+.verres{color:var(--blue);text-decoration:underline;white-space:nowrap}
 .campo{background:linear-gradient(#1e7a39,#27964b);border:2px solid #d1fae5;border-radius:8px;padding:8px 4px;display:flex;flex-direction:column;gap:6px}
 .campo .fila{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;min-height:30px}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
@@ -75,14 +76,14 @@ label.chk{display:flex;gap:6px;align-items:center;cursor:pointer;font-size:12px;
 .good{color:var(--ok)}.badc{color:var(--bad)}.warnc{color:var(--warn)}
 select,input[type=number],input[type=text]{background:#0b1220;color:var(--text);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:13px}
 #modal{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:10}
-#modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;max-width:520px;width:90%}
+#modal .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px;max-width:520px;width:90%;max-height:88dvh;overflow:auto}
 #modal h2{font-size:20px}
 #modal label{display:block;margin:8px 0 4px;font-size:12px;color:var(--muted)}
 .hint{font-size:11px;color:var(--muted)}
 .sw{display:inline-block;width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;margin:2px}
 .sw.on{border-color:#fff}
 canvas#scene{touch-action:none}
-@media (max-width:1000px){#main{flex-direction:column}#sceneWrap{flex:0 0 40%}#side{width:100%;flex:1 1 0;border-left:0;border-top:1px solid var(--line)}#log{height:70px}}
+@media (max-width:1000px){#main{flex-direction:column}#sceneWrap{flex:0 0 36%}#side{width:100%;flex:1 1 0;border-left:0;border-top:1px solid var(--line)}#log{height:70px}}
 #hoy{padding:10px 12px;border-bottom:1px solid var(--line);background:#111a2e}
 #hoy .linea{font-size:13px;margin-bottom:8px}#hoy .linea b{color:#fff}
 #hoy .ctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -101,7 +102,10 @@ abbr.q{text-decoration:none;border-bottom:1px dotted var(--muted);cursor:help}
 @keyframes pulso{0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}50%{box-shadow:0 0 0 8px rgba(34,197,94,0)}}
 details.inf{margin:4px 0;font-size:12px}details.inf summary{cursor:pointer;color:var(--text)}details.inf p{margin:4px 0 0 12px;color:var(--muted)}
 .tend{font-size:10px;color:var(--muted)}.tend.up{color:var(--ok)}.tend.down{color:var(--bad)}
-@media (max-width:700px){#slot,#btnExportar,#btnImportar{display:none}header{gap:8px;padding:6px 8px}header .logo{font-size:15px}.stat{padding:0 5px}.stat b{font-size:13px}.stat small{font-size:10px}.speed button,button.b{padding:8px 11px;font-size:13px}#tabs button{padding:10px 5px;font-size:12px}#tabContent{padding:8px}td,th{padding:6px 4px}button.b{min-height:34px}.chip{padding:3px 5px 6px;font-size:10px}.chip b{font-size:11px}.campo{padding:6px 2px}.campo .fila{gap:3px}}
+@media (max-width:700px){#slot,#btnExportar,#btnImportar{display:none}header{gap:8px;padding:6px 8px}header .logo{font-size:15px}.stat{padding:0 5px}.stat b{font-size:13px}.stat small{font-size:10px}.speed button,button.b{padding:8px 11px;font-size:13px}#tabs button{padding:10px 5px;font-size:12px}#tabContent{padding:8px}td,th{padding:6px 4px}button.b{min-height:34px}.chip{padding:5px 7px 8px;font-size:11px;min-height:40px}.chip b{font-size:12px}.campo{padding:6px 2px}.campo .fila{gap:3px}
+  #hoy .speed button{padding:9px 12px;font-size:13px;min-height:40px}#sub button{padding:9px 14px;font-size:13px;min-height:40px}
+  #logbar button{padding:9px 12px;font-size:13px;min-height:40px}.sw{width:34px;height:34px}
+  abbr.q{padding:2px 0}#sceneWrap{flex:0 0 30%}#log{height:58px}#tabs button{padding:11px 4px}}
 #logbar{display:flex;gap:4px;padding:3px 8px 0;background:#0f172a;border-top:1px solid var(--line)}
 #logbar button{background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;padding:3px 8px;border-radius:6px}
 #logbar button.on{background:var(--panel2);color:#fff}
@@ -192,6 +196,7 @@ const LIBERTADORES=['Boca Juniors','Flamengo','Colo-Colo','LDU Quito','River Pla
 const SUDAMERICANA=['Independiente','Grêmio FBPA','Cobreloa','Barcelona SC','San Lorenzo','Fluminense','Everton de Viña','Emelec','Estudiantes de La Plata','Botafogo','Coquimbo Unido','Junior de Barranquilla','Santa Fe','Nacional de Montevideo','Cerro Porteño','Alianza Lima'];
 const POS=['POR','DEF','MED','DEL'];
 const NDIV=4;
+const META_ISLA=1000e6;
 function numEq(){return G.division<=2?12:9}
 function jornadas(){return (numEq()-1)*2}
 function mitad(){return numEq()===12?12:9}
@@ -204,7 +209,7 @@ const TV=[0,300000,105000,33000,8000];
 const PREMIO=[0,12000000,2400000,600000,220000];
 const TACTICAS={equilibrada:{n:'Equilibrada',d:'sin modificadores'},ofensiva:{n:'Ofensiva',d:'marcas más (+25 %) pero recibes más (+20 %)'},defensiva:{n:'Defensiva',d:'recibes menos (-28 %) pero marcas menos (-20 %)'},contragolpe:{n:'Contragolpe',d:'ideal contra rivales más fuertes (+12 %/-12 %); castiga contra rivales débiles'}};
 const GLOS={OVR:'Nivel actual del jugador, de 20 a 99. Decide la fuerza del equipo.',Potencial:'Nivel máximo que puede alcanzar entrenando. Los jóvenes tienen más margen.',Energía:'Cansancio. Baja con partidos y entrenos, sube con descanso. Por debajo de 15 no juega.',Moral:'Ánimo del vestuario. Sube con victorias; baja con derrotas (el doble en casa) y con suplentes buenos que no juegan.',Confianza:'Paciencia de la directiva contigo. Si llega a cero te destituyen.',Reputación:'Prestigio del club, de 0 a 100. Atrae aficionados, patrocinios y mejores precios.',Foco:'En qué se concentra el entrenamiento esta semana.',Prima:'Pago único al firmar o renovar un contrato.'};
-function q(t){return '<abbr class="q" title="'+(GLOS[t]||'')+'">'+t+'</abbr>'}
+function q(t){return '<abbr class="q" data-a="glos" data-k="'+esc(t)+'" title="'+esc(GLOS[t]||'')+'">'+esc(t)+'</abbr>'}
 const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const DIAS_C=['L','M','X','J','V','S','D'];
 const DIA_ICONO=['💶','🔭','🤖','📰','🏃','🛒','⚽'];
@@ -309,7 +314,7 @@ function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[
     personal:{ojeador:0,entrenador:0,deportivo:0,comercial:0,marketing:0,gerente:0},
     auto:{ojeador:true,entrenador:true,deportivo:true,comercial:true,marketing:true,gerente:true},
     precio:10,foco:'general',tactica:'equilibrada',patro:null,oferta:null,ofertaJ:null,campana:null,
-    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},autoPausa:false,tutorial:0,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,desbloqueos:{},plantillaDetalle:false,precioTocado:false,focoTocado:false,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
+    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},autoPausa:false,tutorial:0,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,desbloqueos:{},plantillaDetalle:false,precioTocado:false,focoTocado:false,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,isla:false,islaOfrecida:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
     stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}}}
 function newGame(nombre,pais,color,dificultad,herencia){
   G=estadoBase();G.nombreClub=limpiaTexto(nombre,40)||'Mi Club FC';G.pais=PAISES.includes(pais)?pais:'Chile';G.color=/^#[0-9a-f]{6}$/i.test(color||'')?color:PALETA[0];
@@ -419,6 +424,7 @@ function tick(){
     if(G.dinero<-2000000){const j=once().filter(x=>!x.cedido)[0];if(j){const v=Math.round(j.valor*.6);sacarJugador(j);cobrar('traspasos',v);log('El banco fuerza la venta de '+j.nombre+' por '+fmt(v)+' para cubrir deudas.','bad')}}
     else if(G.dinero<0){log('Caja en negativo: los jugadores pierden moral y la directiva se impacienta.','warn');G.moral=clamp(G.moral-4,0,100);G.confianza=clamp(G.confianza-2,0,100)}
   }
+  if(!G.islaOfrecida&&G.dinero>=META_ISLA){G.islaOfrecida=true;G.isla=true;G.vel=0;setTimeout(modalIsla,60)}
   cobrar('merch',merchSemana()/7);
   if(d<=6)entrenar(G.receso===2?0:d===5?1.5:1);
   if(d===2){ojear();if(G.semana===6||G.semana===(numEq()===12?17:12))fechaFIFA()}
@@ -553,7 +559,8 @@ const LOGROS=[
   {id:'copa',n:'Copero',d:'Ganar la Copa nacional',c:g=>g.stats.copaNacional>=1},{id:'sudam',n:'Continental',d:'Ganar la Sudamericana',c:g=>g.stats.sudamericana>=1},{id:'libert',n:'Gloria eterna',d:'Ganar la Libertadores',c:g=>g.stats.libertadores>=1},{id:'libert3',n:'Rey de América',d:'Tres Libertadores',c:g=>g.stats.libertadores>=3},
   {id:'estadio8',n:'Arena',d:'Estadio a nivel 8',c:g=>g.inst.estadio>=8},{id:'todo12',n:'Campus completo',d:'Todas las instalaciones al máximo',c:g=>Object.keys(INST).every(k=>g.inst[k]>=12)},{id:'estadio100k',n:'Cien mil',d:'Estadio de 100.000',c:g=>g.inst.estadio>=13},
   {id:'personal',n:'Plantilla técnica',d:'Los seis empleados contratados',c:g=>Object.values(g.personal).every(v=>v>0)},{id:'personal5',n:'Cuerpo técnico de élite',d:'Todo el personal a nivel 5',c:g=>Object.values(g.personal).every(v=>v>=5)},
-  {id:'invicto',n:'Invicto',d:'Una temporada entera sin perder',c:g=>g.records.invicto>=22},{id:'racha10',n:'Imparable',d:'Diez victorias seguidas',c:g=>g.records.racha>=10},{id:'goleada',n:'Manita',d:'Ganar por 5 o más',c:g=>g.records.goleada&&g.records.goleada.dif>=5},
+  {id:'invicto',n:'Invicto',d:'Una temporada entera sin perder',c:g=>g.records.invicto>=22},
+  {id:'isla',n:'La isla',d:'Mil millones en caja',c:g=>g.dinero>=META_ISLA},{id:'racha10',n:'Imparable',d:'Diez victorias seguidas',c:g=>g.records.racha>=10},{id:'goleada',n:'Manita',d:'Ganar por 5 o más',c:g=>g.records.goleada&&g.records.goleada.dif>=5},
   {id:'goles500',n:'Medio millar',d:'500 goles del club',c:g=>g.stats.goles>=500},{id:'goleador100',n:'Ídolo',d:'Un jugador con 100 goles en el club',c:g=>Object.values(g.goleadoresHist).some(v=>v>=100)},
   {id:'canterano',n:'De la casa',d:'Un canterano titular marca',c:g=>g.jugadores.some(j=>j.canterano&&j.goles>0)},{id:'estrella',n:'Galáctico',d:'Fichar una estrella internacional',c:g=>g.jugadores.some(j=>j.estrella)},
   {id:'legado',n:'Constructor',d:'Inaugurar un proyecto de legado',c:g=>g.legado.length>=1},{id:'legado5',n:'Ciudad del fútbol',d:'Los cinco proyectos de legado',c:g=>g.legado.length>=5},
@@ -764,7 +771,7 @@ function finTemporada(){
       if(P.tipo==='popular'){const cant=mejorXI().filter(j=>j.canterano).length+banquillo().slice(0,3).filter(j=>j.canterano).length;if(cant>=2){d+=6;G.fans=Math.round(G.fans+(fansMax()-G.fans)*0.03);veredicto+=' El presidente celebra a los '+cant+' canteranos con minutos.'}else{d-=4;veredicto+=' El presidente quería más canteranos en el once.'}}}
     if(d<0)d*=dif().dir*(G.legado.includes('fundacion')?0.7:1);G.confianza=clamp(G.confianza+d,0,100);if(G.temporada<6)G.confianza=Math.max(12,G.confianza);else if(G.temporada<8)G.confianza=Math.max(6,G.confianza);veredicto+=' Confianza: '+Math.round(G.confianza)+'/100.';log(veredicto,d>=0?'ok':'bad');
     if(G.confianza<30&&G.temporada>=4){const aviso=G.confianza<18?'La directiva ha perdido la paciencia: otra temporada así y te destituyen.':'La directiva está impaciente. Cumple el próximo objetivo o peligra tu puesto.';log('⚠ '+aviso,'bad');noticia('agencia',G.nombreClub+': la directiva cuestiona al gestor');veredicto+=' '+aviso}}
-  let dividendo=0;{const costes=Object.keys(PROYECTOS).filter(id=>!G.legado.includes(id)&&!G.proyectos[id]&&PROYECTOS[id].req(G)).map(id=>PROYECTOS[id].coste);const proximo=costes.length?Math.min(...costes):0;const reserva=(salariosSemana()+personalSemana()+mantSemana())*26+20e6+(G.division===1?120e6:G.division===2?40e6:0)+proximo;const exceso=G.dinero-reserva;if(exceso>0){dividendo=Math.round(exceso*0.3);if(!G.fin.gas.dividendos)G.fin.gas.dividendos=0;pagar('dividendos',dividendo);log('La directiva reparte dividendos: '+fmt(dividendo)+' (30 % del excedente sobre una reserva de '+fmt(reserva)+(proximo?', que incluye el siguiente proyecto de legado':'')+').','warn');veredicto+=' Dividendos: '+fmt(dividendo)+'.'}}
+  let dividendo=0;{const costes=Object.keys(PROYECTOS).filter(id=>!G.legado.includes(id)&&!G.proyectos[id]&&PROYECTOS[id].req(G)).map(id=>PROYECTOS[id].coste);const proximo=costes.length?Math.min(...costes):0;const reserva=(salariosSemana()+personalSemana()+mantSemana())*26+20e6+(G.division===1?120e6:G.division===2?40e6:0)+proximo;const exceso=G.dinero-reserva;if(exceso>0){dividendo=Math.min(60e6,Math.round(exceso*0.15));if(!G.fin.gas.dividendos)G.fin.gas.dividendos=0;pagar('dividendos',dividendo);log('La directiva reparte dividendos: '+fmt(dividendo)+' (15 % del excedente sobre una reserva de '+fmt(reserva)+(proximo?', que incluye el siguiente proyecto de legado':'')+').','warn');veredicto+=' Dividendos: '+fmt(dividendo)+'.'}}
   if(G.recienAscendido){const bono=TV[G.division]*10;cobrar('premios',bono);log('Bono de ascenso: la liga adelanta '+fmt(bono)+' de derechos de TV para reforzar la plantilla.','ok');veredicto+=' Bono de ascenso: '+fmt(bono)+'.'}
   G.historia.unshift({t:G.temporada,div:G.division,pos,premio,dinero:Math.round(G.dinero),fans:G.fans,rep:+G.rep.toFixed(1),ovr:+avgOvr().toFixed(1)});
   if(!G.leyendaMostrada&&(G.stats.libertadores>=3||(G.stats.titulos>=10&&G.stats.libertadores>=1))){G.leyendaMostrada=true;setTimeout(modalLeyenda,50)}
@@ -798,6 +805,8 @@ function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const 
   else if(n)linea='<b>📌 '+(n>1?'Tienes '+n+' decisiones pendientes.':'Tienes una decisión pendiente.')+'</b> Está arriba, en esta pestaña. El juego espera tu respuesta.';
   else if(G.enPlayoff){const c=G.copas.find(x=>x.id==='playoff');linea='<b>'+DIAS[G.dia-1]+'</b>, playoff de ascenso: el domingo, '+(c&&c.vivo?c.nombresRonda[c.ronda].toLowerCase()+' ante '+c.rivales[c.ronda].nombre:'')+'.'}
   else{const desc={1:'pagos y cobros de la semana',2:'informes del ojeador y la academia',3:'tu personal toma sus decisiones',4:'noticias y ofertas',5:'entrenamiento intensivo',6:'previa del partido',7:'día de partido'}[G.dia];const cs=G.dia<=3?copaEstaSemana():null;linea='<b>'+DIAS[G.dia-1]+'</b>, '+(G.receso?'pretemporada (semana '+(3-G.receso)+' de 2)':'jornada '+G.semana)+': '+desc+'.'+(cs?' <b>El miércoles, '+cs.c.nombre+'</b> ('+cs.ronda+') '+(cs.local?'en casa ante ':'en campo de ')+cs.rival.nombre+'.':'')+(G.receso===2?' El domingo no hay partido: vacaciones.':G.receso===1?' El domingo, amistoso de pretemporada en casa.':rival?' El domingo, '+(cal.local?'partido en casa contra ':'visita a ')+rival.nombre+'.':'')+(G.vel===0?'':G.autoPausa?' <span class="good">Jugando la semana…</span>':' <span class="warnc">Avance continuo ×'+G.vel+'</span>')}
+  if(G.dia===1&&G.resumen&&!P&&!G.gameOver){const R=G.resumen;const bal=R.ti-R.tg;
+    linea+=' <a href="#" data-a="verResumen" class="verres">Ver el resumen de la semana</a> <span class="'+(bal>=0?'good':'badc')+'">'+(bal>=0?'+':'')+fmt(bal)+'</span>'}
   $('#hoy').innerHTML='<div class="linea">'+linea+'</div><div class="ctl"><button class="principal" id="btnSemana" '+(G.gameOver||P?'disabled':'')+'>▶ Jugar la semana</button><button class="sec" id="btnPaso" title="Un día (→)" '+(G.gameOver?'disabled':'')+'>⏭ Día</button>'+(G.vel>0?'<button class="sec" id="btnPausa" title="Pausa (espacio)">⏸</button>':'')+'<div class="speed"><span>continuo</span>'+[1,2,4,8].map(v=>'<button data-v="'+v+'" class="'+(G.vel===v&&!G.autoPausa?'on':'')+'">'+v+'×</button>').join('')+'</div></div>'}
 function copaEstaSemana(){for(const c of G.copas){if(!c.vivo||c.playoff)continue;if(c.fase==='grupos'){const p=c.grupo.calendario.find(p=>p.sem===G.semana);if(p)return {c,rival:c.grupo.rivales[p.r],ronda:'fase de grupos',local:p.local,premio:c.premioGrupo}}else if(c.rondas[c.ronda]===G.semana)return {c,rival:c.rivales[c.ronda],ronda:c.nombresRonda[c.ronda],local:c.ronda%2===0,premio:c.premios[c.ronda]}}return null}
 function nPendientes(){return G.decisiones.length+G.renovaciones.filter(r=>G.jugadores.some(j=>j.id===r.id)).length+(G.oferta?1:0)+(G.ofertaJ&&G.jugadores.some(j=>j.id===G.ofertaJ.id)?1:0)}
@@ -817,7 +826,8 @@ function renderUIInterno(){renderHeader();revisarDesbloqueos();if(!SUBS[G.tab])G
   const bar=subs.length>1?'<div id="sub">'+subs.map(([id,n])=>'<button data-s="'+id+'" class="'+(id===G.sub[G.tab]?'on':'')+'">'+n+'</button>').join('')+'</div>':'';
   const v=VISTAS[G.sub[G.tab]]||vSedeBasica;$('#tabContent').innerHTML=bar+vPendientes()+v();if(G.sub[G.tab]==='palmares')dibujarGrafica();renderTutorial()}
 $('#modalBox').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
-  if(a==='fichaRenovar'){renovar(b.dataset.id);cerrarModal()}else if(a==='fichaVender'){venderJugador(b.dataset.id);cerrarModal()}save()});
+  if(a==='fichaRenovar'){renovar(b.dataset.id);cerrarModal()}else if(a==='fichaVender'){venderJugador(b.dataset.id);cerrarModal()}
+  else if(a==='islaRetiro'){cerrarModal();retiroIsla()}else if(a==='islaSeguir'){cerrarModal();log('Rechazas la isla: sigues al mando de '+G.nombreClub+'.','warn')}save()});
 $('#tabContent').addEventListener('click',e=>{const b=e.target.closest('#sub button');if(!b)return;G.sub[G.tab]=b.dataset.s;renderUI();sonidoClick()});
 function dibujarGrafica(){const c=document.getElementById('grafica');if(!c||!c.getContext)return;const g=c.getContext('2d');const Wc=c.width,Hc=c.height;g.clearRect(0,0,Wc,Hc);
   const pts=G.historia.slice().reverse().map(h=>({dinero:h.dinero||0,fans:h.fans||0,rep:h.rep||0,ovr:h.ovr||0,t:h.t}));pts.push({dinero:G.dinero,fans:G.fans,rep:G.rep,ovr:avgOvr(),t:G.temporada,actual:true});
@@ -828,6 +838,8 @@ function dibujarGrafica(){const c=document.getElementById('grafica');if(!c||!c.g
   g.textAlign='left';g.fillStyle='#22c55e';g.fillText(fmt(G.dinero),pad,12);g.fillStyle='#38bdf8';g.fillText(fmtN(G.fans)+' af.',pad+90,12);g.fillStyle='#facc15';g.fillText('rep '+G.rep.toFixed(0),pad+190,12);g.fillStyle='#f472b6';g.fillText('OVR '+avgOvr().toFixed(0),pad+250,12)}
 function modal(html){$('#modalBox').innerHTML=html;$('#modal').style.display='flex'}
 function cerrarModal(){$('#modal').style.display='none'}
+function contraste(hex){if(!/^#[0-9a-f]{6}$/i.test(hex||''))return '#0b1220';const n=parseInt(hex.slice(1),16);
+  const l=(0.299*((n>>16)&255)+0.587*((n>>8)&255)+0.114*(n&255))/255;return l>0.55?'#0b1220':'#ffffff'}
 const bandera=n=>BANDERA[n]||'';
 
 function vResumen(){const R=G.resumen;if(!R)return '';const bal=R.ti-R.tg;
@@ -937,6 +949,8 @@ function vVentas(){
   const f0=G.finPrev;const bal=f0?Object.values(f0.ing).reduce((a,b)=>a+b,0)-Object.values(f0.gas).reduce((a,b)=>a+b,0):0;
   let h=`<h2>Dinero</h2><div class="card"><b>Caja: ${fmt(G.dinero)}</b> · ${bal>=0?'<span class="good">sube '+fmt(bal)+' por semana</span>':'<span class="badc">baja '+fmt(-bal)+' por semana</span>'}${tasaLujo()>0?'<p class="warnc">Tasa de lujo: '+fmt(tasaLujo())+'/sem porque los salarios ('+fmt(salariosSemana())+') superan el 55 % de los ingresos.</p>':''}</div>`;
   h+=`<div class="card"><b>Entrada: ${G.precio} €</b><input type="range" min="1" max="200" value="${G.precio}" data-a="precio"><div class="kv"><span>Asistencia prevista</span><b>${fmtN(as)} / ${fmtN(cap)}${as>=cap*0.98?' <span class="warnc">lleno</span>':''}</b></div><div class="kv"><span>Taquilla por partido en casa</span><b class="good">${fmt(as*G.precio)}</b></div>${G.personal.comercial&&G.auto.comercial?'<p class="hint">El director comercial lo ajusta los miércoles.</p>':'<p class="hint">Precio óptimo estimado: '+precioOptimo()+' €.</p>'}</div>`;
+  {const p=clamp(100*G.dinero/META_ISLA,0,100);
+    h+=`<div class="card"><div class="row"><b>🏝 Camino a la isla</b><b>${fmt(G.dinero)} de ${fmt(META_ISLA)}</b></div><span class="bar" style="width:100%;height:10px"><i style="width:${p}%;background:${p>=100?'#22c55e':'#38bdf8'}"></i></span><p class="hint">${G.gameOver?'Historia terminada.':p>=100?'Ya puedes retirarte cuando quieras.':'Cuando la caja llegue a mil millones podrás dejarlo todo y retirarte. La directiva reparte cada temporada el 15 % del excedente, así que la meta pide un club grande y bien llevado.'}</p></div>`}
   h+=`<div class="card"><b>Patrocinador</b>${G.patro?` · ${G.patro.nombre}, <span class="good">${fmt(G.patro.semanal)}/sem</span>, ${G.patro.restan} sem`:' · <span class="hint">ninguno. Las ofertas llegan los jueves.</span>'}</div>`;
   const f=G.finPrev||G.fin;
   if(f){const ti=Object.values(f.ing).reduce((a,b)=>a+b,0),tg=Object.values(f.gas).reduce((a,b)=>a+b,0);
@@ -969,7 +983,9 @@ function vPersonal(){
 
 // ---- eventos UI
 $('#side').addEventListener('click',e=>{
-  const b=e.target.closest('[data-a]');if(!b||b.tagName==='INPUT')return;const a=b.dataset.a;if(a==='ficha'){e.preventDefault();modalFicha(b.dataset.id);return}if(a==='detalle'){e.preventDefault();G.plantillaDetalle=!G.plantillaDetalle;renderUI();return}
+  const b=e.target.closest('[data-a]');if(!b||b.tagName==='INPUT')return;const a=b.dataset.a;if(a==='ficha'){e.preventDefault();modalFicha(b.dataset.id);return}
+  if(a==='verResumen'){e.preventDefault();irA('club','sede');return}
+  if(a==='glos'){e.preventDefault();const k=b.dataset.k;modal('<h2>'+esc(k)+'</h2><p>'+esc(GLOS[k]||'')+'</p><p><button class="b" onclick="cerrarModal()">Entendido</button></p>');return}if(a==='detalle'){e.preventDefault();G.plantillaDetalle=!G.plantillaDetalle;renderUI();return}
   if(a==='inst')mejorarInst(b.dataset.k);else if(a==='contratar')contratar(b.dataset.k);else if(a==='despedir')despedir(b.dataset.k);
   else if(a==='fichar')ficharProspecto(b.dataset.id);else if(a==='promover')promoverCanterano(b.dataset.id);else if(a==='vender')venderJugador(b.dataset.id);
   else if(a==='ofertaJ')aceptarOfertaJ();else if(a==='rechOfertaJ'){if(G.ofertaJ&&G.ofertaJ.europa)rechazarEuropa();G.ofertaJ=null;renderUI()}else if(a==='acepPatro')aceptarOferta();else if(a==='rechPatro'){G.oferta=null;renderUI()}
@@ -982,6 +998,19 @@ $('#side').addEventListener('input',e=>{const b=e.target;const a=b.dataset.a;if(
   save()});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;G.tab=b.dataset.t;renderUI();sonidoClick()});
 
+function modalIsla(){const t=G.temporada;
+  modal(`<h2>🏝 Mil millones</h2><p>La caja de ${esc(G.nombreClub)} alcanza <b>${fmt(G.dinero)}</b> en la temporada ${t}. Has llevado a un club de Tercera hasta aquí: puedes dejarlo y retirarte a esa isla que llevas años mirando en el mapa, o quedarte al mando y ver hasta dónde llega.</p>
+  <div class="card"><div class="kv"><span>Temporadas al mando</span><b>${t}</b></div><div class="kv"><span>Ligas</span><b>${G.stats.titulos}</b></div><div class="kv"><span>Copas</span><b>${G.stats.copaNacional||0}</b></div><div class="kv"><span>Libertadores</span><b>${G.stats.libertadores}</b></div><div class="kv"><span>Aficionados</span><b>${fmtN(G.fans)}</b></div></div>
+  <p><button class="b" data-a="islaRetiro">🏝 Retirarme a la isla</button> <button class="b sec" data-a="islaSeguir">Seguir al mando</button></p>`)}
+function retiroIsla(){G.gameOver=true;G.vel=0;
+  log('🏝 Te retiras a tu isla privada con '+fmt(G.dinero)+' en la caja del club, tras '+G.temporada+' temporadas.','ok');
+  noticia('agencia','El gestor de '+G.nombreClub+' se retira tras alcanzar los mil millones');
+  save();
+  modal(`<h2>🏝 Fin de la historia</h2><p>Dejas ${esc(G.nombreClub)} con <b>${fmt(G.dinero)}</b> en caja y te vas. La isla no tiene liga, ni directiva, ni fecha FIFA.</p>
+  <div class="card"><div class="kv"><span>Temporadas</span><b>${G.temporada}</b></div><div class="kv"><span>Ligas</span><b>${G.stats.titulos}</b></div><div class="kv"><span>Copas nacionales</span><b>${G.stats.copaNacional||0}</b></div><div class="kv"><span>Libertadores</span><b>${G.stats.libertadores}</b></div><div class="kv"><span>Sudamericanas</span><b>${G.stats.sudamericana}</b></div><div class="kv"><span>Ascensos</span><b>${G.stats.ascensos}</b></div><div class="kv"><span>Aficionados</span><b>${fmtN(G.fans)}</b></div></div>
+  <p class="hint">Puedes empezar de nuevo en otro país conservando tu prestigio.</p>
+  <p><button class="b" id="btnNP">Nueva partida + (prestigio ${(G.prestigio||0)+1})</button> <button class="b sec" onclick="cerrarModal()">Cerrar</button></p>`);
+  const b=$('#btnNP');if(b)b.addEventListener('click',()=>{const h={prestigio:(G.prestigio||0)+1,dinero:Math.min(5e6,Math.round(G.dinero*0.05)),rep:25,logros:G.logros||[]};cerrarModal();modalNuevo(h)})}
 function modalLeyenda(){modal(`<h2>⭐ Eres una leyenda</h2><p>${G.nombreClub} tiene ${G.stats.titulos} ligas, ${G.stats.copaNacional} copas y ${G.stats.libertadores} Libertadores. Puedes seguir mandando... o empezar de nuevo en otro país con tu prestigio.</p><p class="hint"><b>Nueva partida +</b>: conservas el 5 % de la caja (máximo 5 M€), empiezas con reputación 25 y todo el personal contratado a nivel 1, y cada nivel de prestigio suma un 12 % al potencial de aficionados.</p><p><button class="b" id="btnNP">Nueva partida + (prestigio ${(G.prestigio||0)+1})</button> <button class="b sec" onclick="cerrarModal()">Seguir con este club</button></p>`);
   $('#btnNP').addEventListener('click',()=>{const h={prestigio:(G.prestigio||0)+1,dinero:Math.min(5e6,G.dinero*0.05),rep:25,logros:G.logros||[]};cerrarModal();modalNuevo(h)})}
 function hashStr(s){let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h}
@@ -1327,7 +1356,7 @@ function renderCal(){const el=$('#cal');if(!el||!G)return;const P=G.partido;cons
   else {const cs=G.dia<=3?copaEstaSemana():null;info='<b>'+DIAS[G.dia-1]+': '+DIA_DESC[G.dia-1]+'</b><small>'+(G.receso===2?'Pretemporada: vacaciones':G.receso===1?'Domingo: amistoso de pretemporada':cs?'Miércoles: '+cs.c.nombre+' '+(cs.local?'vs ':'en ')+cs.rival.nombre:cal?'Domingo: '+(cal.local?'vs ':'en ')+G.liga[cal.rival].nombre+' · entrada '+G.precio+' €':'')+'</small>'}
   const firma=G.dia+'|'+G.semana+'|'+Math.round(prog*24)+'|'+info+'|'+G.vel+'|'+G.temporada;if(firma===calFirma)return;calFirma=firma;
   let dias='';for(let i=0;i<7;i++){const cur=i===G.dia-1;const copaHoy=i===2&&G.copas.some(c=>c.vivo&&c.rondas[c.ronda]===G.semana);
-    dias+='<div class="dia'+(cur?' on':'')+'" style="'+(cur?'background:'+G.color:'')+'">'+DIAS_C[i]+'<span>'+(copaHoy?'🏆':DIA_ICONO[i])+'</span>'+(cur&&prog>0?'<i style="transform:scaleX('+prog.toFixed(2)+')"></i>':'')+'</div>'}
+    dias+='<div class="dia'+(cur?' on':'')+'" style="'+(cur?'background:'+G.color+';color:'+contraste(G.color):'')+'">'+DIAS_C[i]+'<span>'+(copaHoy?'🏆':DIA_ICONO[i])+'</span>'+(cur&&prog>0?'<i style="transform:scaleX('+prog.toFixed(2)+')"></i>':'')+'</div>'}
   el.innerHTML='<div class="club"><b>'+bandera(G.pais)+' '+G.nombreClub+(G.prestigio?' '+'⭐'.repeat(Math.min(5,G.prestigio)):'')+'</b><small>'+NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+(G.receso?' · Pretemporada':' · Jornada '+G.semana)+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:'')+'</small></div><div class="dias">'+dias+'</div><div class="info">'+info+'</div>'}
 function drawCalendario(){renderCal();
   if(false){txt(NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+' · Jornada '+G.semana+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:''),14,40,'#8fa2c2',10);
