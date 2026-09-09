@@ -49,7 +49,7 @@ h2{margin:0 0 8px;font-size:16px}
 .campo .fila{display:flex;justify-content:center;gap:4px;flex-wrap:wrap;min-height:30px}
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .chip{position:relative;background:#0b1220;border:1px solid var(--line);color:var(--text);border-radius:6px;padding:4px 7px 7px;font-size:11px;cursor:pointer;overflow:hidden;white-space:nowrap;font-family:inherit}
-.chip b{font-size:12px}.chip.xi{background:#0f2a1a;border-color:#22c55e}.chip.banco{border-color:#facc15}.chip i{position:absolute;left:0;bottom:0;height:3px;display:block}.chip:disabled{opacity:.5;cursor:not-allowed}
+.chip b{font-size:12px}.chip em{font-style:normal;font-size:9px;font-weight:700;color:#94a3b8;margin:0 4px 0 3px;letter-spacing:.3px}.chip.xi em{color:#86efac}.chip.xi{background:#0f2a1a;border-color:#22c55e}.chip.banco{border-color:#facc15}.chip i{position:absolute;left:0;bottom:0;height:3px;display:block}.chip:disabled{opacity:.5;cursor:not-allowed}
 h3{margin:14px 0 6px;font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
 .card .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -865,7 +865,7 @@ function vPartidos(){
 
 function vOnce(){const xi=mejorXI();const b=banquillo(xi);const ids=new Set(xi.map(j=>j.id)),bids=new Set(b.map(j=>j.id));const man=!!(G.once&&G.once.manual);
   const cnt={POR:0,DEF:0,MED:0,DEL:0};for(const j of xi)cnt[j.pos]++;
-  const chip=j=>{const est=ids.has(j.id)?'xi':bids.has(j.id)?'banco':'resto';return `<button class="chip ${est}" data-a="onceCiclo" data-id="${j.id}" ${j.lesion>0?'disabled':''} title="${j.nombre} · ${j.pos} ${Math.round(j.ovr)} · energía ${Math.round(j.energia)}"><b>${Math.round(j.ovr)}</b> ${j.nombre.split(' ').slice(-1)[0]}${j.lesion>0?' 🚑':j.energia<40?' 😓':''}<i style="width:${j.energia}%;background:${j.energia<40?'#ef4444':j.energia<70?'#facc15':'#22c55e'}"></i></button>`};
+  const chip=j=>{const est=ids.has(j.id)?'xi':bids.has(j.id)?'banco':'resto';return `<button class="chip ${est}" data-a="onceCiclo" data-id="${j.id}" ${j.lesion>0?'disabled':''} title="${j.nombre} · ${j.pos} ${Math.round(j.ovr)} · energía ${Math.round(j.energia)}"><b>${Math.round(j.ovr)}</b><em>${j.pos}</em>${j.nombre.split(' ').slice(-1)[0]}${j.lesion>0?' 🚑':j.energia<40?' 😓':''}<i style="width:${j.energia}%;background:${j.energia<40?'#ef4444':j.energia<70?'#facc15':'#22c55e'}"></i></button>`};
   let h=`<h2>Once titular y banquillo</h2><p class="hint">${man?'Alineación <b>manual</b>: se respeta mientras los elegidos estén disponibles; el entrenador solo rellena huecos.':'Alineación <b>automática</b>: los once mejores disponibles.'} Toca un jugador para moverlo: titular → banquillo → fuera de la convocatoria → titular.${man?' <a href="#" data-a="onceAuto" style="color:var(--text)">Volver a automático</a>':''}</p>`;
   h+=`<p class="hint">Sistema ${cnt.POR}-${cnt.DEF}-${cnt.MED}-${cnt.DEL} · fuerza <b>${fuerzaEquipo().toFixed(1)}</b>${cnt.POR===0?' · <span class="warnc">¡sin portero! (-15 %)</span>':''}${xi.length<11?' · <span class="warnc">solo '+xi.length+' disponibles</span>':''}</p>`;
   h+='<div class="campo">';for(const p of ['DEL','MED','DEF','POR'])h+='<div class="fila">'+xi.filter(j=>j.pos===p).map(chip).join('')+'</div>';h+='</div>';
