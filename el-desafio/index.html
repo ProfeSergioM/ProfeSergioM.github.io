@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>El Desafío</title>
-<meta name="google-adsense-account" content="ca-pub-6113562135089306">
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
@@ -337,7 +336,8 @@ function estadoBase(){return {nombreClub:'Mi Club FC',pais:'Chile',color:PALETA[
     personal:{ojeador:0,entrenador:0,deportivo:0,comercial:0,marketing:0,gerente:0},
     auto:{ojeador:true,entrenador:true,deportivo:true,comercial:true,marketing:true,gerente:true},
     precio:10,foco:'general',tactica:'equilibrada',patro:null,oferta:null,ofertaJ:null,campana:null,
-    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},autoPausa:false,tutorial:0,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,desbloqueos:{},plantillaDetalle:false,precioTocado:false,focoTocado:false,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,nombreEstadio:null,seq:0,pausadoPorMi:false,isla:false,islaOfrecida:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
+    resultados:[],log:[],fin:null,finPrev:null,partido:null,historia:[],semTotal:1,copas:[],renovaciones:[],mercado:[],decisiones:[],obras:{},racha:0,resumen:null,slot:1,proyectos:{},legado:[],rachaTitulos:0,prestigio:0,presidente:null,transicion:false,transicionCanterano:false,leyendaMostrada:false,dificultad:'normal',crisis:null,records:{asistencia:0,goleada:null,racha:0,invicto:0},goleadoresHist:{},retirados:[],logros:[],noticias:[],autoPausa:false,informe:{},informePrev:{},tendencia:{dinero:0,fans:0},cajaLunes:null,fansLunes:null,confianza:60,objetivo:null,fallosSeguidos:0,gameOver:false,nombreEstadio:null,
+    ui:{tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},plantillaDetalle:false,precioTocado:false,focoTocado:false,desbloqueos:{},tutorial:0},seq:0,pausadoPorMi:false,isla:false,islaOfrecida:false,fallosGraves:0,campanaEspera:0,palmaresRivales:{},recienAscendido:false,receso:0,mercadoClave:'',once:null,
     stats:{titulos:0,ascensos:0,goles:0,copas:0,copaNacional:0,libertadores:0,sudamericana:0}}}
 function newGame(nombre,pais,color,dificultad,herencia){
   G=estadoBase();G.nombreClub=limpiaTexto(nombre,40)||'Mi Club FC';G.pais=PAISES.includes(pais)?pais:'Chile';G.color=/^#[0-9a-f]{6}$/i.test(color||'')?color:PALETA[0];
@@ -357,7 +357,14 @@ function marcarGuardado(ok,e){if(ok===guardadoOk)return;guardadoOk=ok;const el=$
 const EFIMERO=['partido','informe','informePrev','resumen','finPrev'];
 function save(){if(!G)return;const p=G.partido;try{G.partido=null;G.slot=SLOT;
     localStorage.setItem(SAVE_KEY(),JSON.stringify(G,(k,v)=>EFIMERO.includes(k)?undefined:v));localStorage.setItem('clubtycoon_slot',SLOT);marcarGuardado(true)}catch(e){marcarGuardado(false,e)}finally{G.partido=p}}
-function migrar(g){g=saneaEstado(g);if(typeof g.rngEstado!=='number')g.rngEstado=(Math.random()*4294967296)|0;G=g;const b=estadoBase();let n=0;if(g.tutorial===undefined)g.tutorial=99;const mapa={sede:'club',personal:'club',plantilla:'equipo',cantera:'equipo',entreno:'equipo',partidos:'competicion',ventas:'dinero',publi:'dinero'};if(mapa[g.tab]){const sub={...b.sub};sub[mapa[g.tab]]=g.tab;g.sub=sub;g.tab=mapa[g.tab]}if(!g.sub||typeof g.sub!=='object')g.sub={...b.sub};
+function migrar(g){g=saneaEstado(g);
+  if(!g.ui||typeof g.ui!=='object'){g.ui={};
+    for(const k of ['tab','sub','plantillaDetalle','tutorial','desbloqueos','precioTocado','focoTocado'])
+      if(g[k]!==undefined){g.ui[k]=g[k];delete g[k]}}
+  {const b={tab:'club',sub:{club:'sede',equipo:'plantilla',competicion:'partidos',dinero:'ventas'},plantillaDetalle:false,precioTocado:false,focoTocado:false,desbloqueos:{},tutorial:0};
+   for(const k in b)if(g.ui[k]===undefined)g.ui[k]=b[k];
+   if(!g.ui.sub||typeof g.ui.sub!=='object')g.ui.sub={...b.sub};else for(const k in b.sub)if(!g.ui.sub[k])g.ui.sub[k]=b.sub[k];}
+if(typeof g.rngEstado!=='number')g.rngEstado=(Math.random()*4294967296)|0;G=g;const b=estadoBase();let n=0;if(g.ui.tutorial===undefined)g.ui.tutorial=99;const mapa={sede:'club',personal:'club',plantilla:'equipo',cantera:'equipo',entreno:'equipo',partidos:'competicion',ventas:'dinero',publi:'dinero'};if(mapa[g.ui.tab]){const sub={...b.ui.sub};sub[mapa[g.ui.tab]]=g.ui.tab;g.ui.sub=sub;g.ui.tab=mapa[g.ui.tab]}if(!g.ui.sub||typeof g.ui.sub!=='object')g.ui.sub={...b.ui.sub};
   for(const k in b)if(g[k]===undefined||g[k]===null&&b[k]!==null&&typeof b[k]==='object'){g[k]=b[k];n++}
   for(const k of ['stats','inst','personal','auto'])for(const j in b[k])if(g[k][j]===undefined)g[k][j]=b[k][j];
   if(!g.records||typeof g.records!=='object')g.records=b.records;for(const j in b.records)if(g.records[j]===undefined)g.records[j]=b.records[j];
@@ -841,7 +848,7 @@ function renderHeader(){
   $('#hFans').textContent=fmtN(G.fans);$('#hFansT').innerHTML='Aficionados · '+tend(G.tendencia.fans,fmtN);
   const pos=clasificacion().findIndex(e=>e.yo)+1;$('#hPos').textContent=pos+'º';$('#hPosT').textContent=NOMBRE_DIV[G.division]+' · J'+G.semana+' · T'+G.temporada;
   document.querySelectorAll('.speed button').forEach(b=>b.classList.toggle('on',+b.dataset.v===G.vel));
-  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===G.tab));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===G.ui.tab));
   renderHoy();renderCal();
 }
 function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const n=nPendientes();const rival=cal?G.liga[cal.rival]:null;let linea='';
@@ -866,18 +873,18 @@ function renderUI(){if(SILENCIO)return;try{renderUIInterno()}catch(e){console.er
 const SUBS={club:[['sede','Sede'],['personal','Personal'],['palmares','Palmarés']],equipo:[['plantilla','Plantilla'],['once','Once'],['cantera','Cantera y mercado'],['entreno','Entrenamiento']],competicion:[['partidos','Partidos'],['tactica','Táctica']],dinero:[['ventas','Ventas'],['publi','Publicidad']]};
 const VISTAS={sede:vSedeBasica,personal:vPersonal,palmares:vPalmares,plantilla:vPlantilla,once:vOnce,cantera:vCantera,entreno:vEntreno,partidos:vPartidos,tactica:vTactica,ventas:vVentas,publi:vPubli};
 function seccionVisible(id){if(id==='palmares')return G.historia.length>0||G.stats.titulos>0||(G.logros||[]).length>=3;if(id==='tactica')return G.semana>1||G.temporada>1||G.personal.entrenador>0;return true}
-function irA(tab,sub){G.tab=tab;if(sub)G.sub[tab]=sub;renderUI()}
-function revisarDesbloqueos(){for(const id of ['palmares','tactica'])if(seccionVisible(id)&&!G.desbloqueos[id]){G.desbloqueos[id]=true;log('🔓 Nueva sección: '+(id==='palmares'?'Palmarés, en Club':'Táctica, en Competición')+'.','ok')}}
-function renderUIInterno(){renderHeader();revisarDesbloqueos();if(!SUBS[G.tab])G.tab='club';const subs=SUBS[G.tab].filter(([id])=>seccionVisible(id));if(!subs.some(([id])=>id===G.sub[G.tab]))G.sub[G.tab]=subs[0][0];
-  const bar=subs.length>1?'<div id="sub">'+subs.map(([id,n])=>'<button data-s="'+id+'" class="'+(id===G.sub[G.tab]?'on':'')+'">'+n+'</button>').join('')+'</div>':'';
-  const v=VISTAS[G.sub[G.tab]]||vSedeBasica;$('#tabContent').innerHTML=bar+vPendientes()+v();if(G.sub[G.tab]==='palmares')dibujarGrafica();renderTutorial()}
+function irA(tab,sub){G.ui.tab=tab;if(sub)G.ui.sub[tab]=sub;renderUI()}
+function revisarDesbloqueos(){for(const id of ['palmares','tactica'])if(seccionVisible(id)&&!G.ui.desbloqueos[id]){G.ui.desbloqueos[id]=true;log('🔓 Nueva sección: '+(id==='palmares'?'Palmarés, en Club':'Táctica, en Competición')+'.','ok')}}
+function renderUIInterno(){renderHeader();revisarDesbloqueos();if(!SUBS[G.ui.tab])G.ui.tab='club';const subs=SUBS[G.ui.tab].filter(([id])=>seccionVisible(id));if(!subs.some(([id])=>id===G.ui.sub[G.ui.tab]))G.ui.sub[G.ui.tab]=subs[0][0];
+  const bar=subs.length>1?'<div id="sub">'+subs.map(([id,n])=>'<button data-s="'+id+'" class="'+(id===G.ui.sub[G.ui.tab]?'on':'')+'">'+n+'</button>').join('')+'</div>':'';
+  const v=VISTAS[G.ui.sub[G.ui.tab]]||vSedeBasica;$('#tabContent').innerHTML=bar+vPendientes()+v();if(G.ui.sub[G.ui.tab]==='palmares')dibujarGrafica();renderTutorial()}
 $('#modalBox').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
   if(a==='fichaRenovar'){renovar(b.dataset.id);cerrarModal()}else if(a==='fichaVender'){const j=G.jugadores.find(x=>x.id===b.dataset.id);cerrarModal();
     if(j)confirmar('Vender a '+j.nombre,'Sale del club por <b>'+fmt(Math.round(j.valor*factorVenta(j)))+'</b>, menos de lo que vale ('+fmt(j.valor)+'). No hay vuelta atrás.','Vender',()=>venderJugador(j.id))}
   else if(a==='ranura'){cerrarModal();cambiarSlot(+b.dataset.n)}else if(a==='expo'){exportar()}else if(a==='impo'){cerrarModal();$('#inImportar').click()}
   else if(a==='confOk'){const f=CONFIRMA;CONFIRMA=null;cerrarModal();if(f)f()}else if(a==='confNo'){CONFIRMA=null;cerrarModal()}
   else if(a==='islaRetiro'){cerrarModal();retiroIsla()}else if(a==='islaSeguir'){cerrarModal();log('Rechazas la isla: sigues al mando de '+G.nombreClub+'.','warn')}save()});
-$('#tabContent').addEventListener('click',e=>{const b=e.target.closest('#sub button');if(!b)return;G.sub[G.tab]=b.dataset.s;renderUI();sonidoClick()});
+$('#tabContent').addEventListener('click',e=>{const b=e.target.closest('#sub button');if(!b)return;G.ui.sub[G.ui.tab]=b.dataset.s;renderUI();sonidoClick()});
 function dibujarGrafica(){const c=document.getElementById('grafica');if(!c||!c.getContext)return;const g=c.getContext('2d');const Wc=c.width,Hc=c.height;g.clearRect(0,0,Wc,Hc);
   const pts=G.historia.slice().reverse().map(h=>({dinero:h.dinero||0,fans:h.fans||0,rep:h.rep||0,ovr:h.ovr||0,t:h.t}));pts.push({dinero:G.dinero,fans:G.fans,rep:G.rep,ovr:avgOvr(),t:G.temporada,actual:true});
   const series=[['dinero','#22c55e'],['fans','#38bdf8'],['rep','#facc15'],['ovr','#f472b6']];const pad=22;
@@ -930,7 +937,7 @@ function vPalmares(){let h='<h2>Palmarés</h2>';
 function vPlantilla(){
   const xi=new Set(mejorXI().map(j=>j.id));const js=plantillaOrdenada();
   let h=`<h2>Plantilla ${js.length}/26</h2><p class="hint">Fuerza del once: <b>${fuerzaEquipo().toFixed(1)}</b> · Salarios: ${fmt(salariosSemana())}/sem</p>`;
-    const D=G.plantillaDetalle;h+=`<p class="hint">Toca un nombre para ver su ficha, venderlo o renovarlo. <a href="#" data-a="detalle" style="color:var(--text)">${D?'Ocultar detalles':'Mostrar detalles'}</a></p>`;
+    const D=G.ui.plantillaDetalle;h+=`<p class="hint">Toca un nombre para ver su ficha, venderlo o renovarlo. <a href="#" data-a="detalle" style="color:var(--text)">${D?'Ocultar detalles':'Mostrar detalles'}</a></p>`;
   h+=`<div class="tbl"><table><tr><th>Jugador</th><th>Pos</th><th>${q('OVR')}</th><th>${q('Energía')}</th><th>Estado</th>${D?'<th>Ed.</th><th>'+q('Potencial')+'</th><th>Gol</th><th>Sal./sem</th><th>Contr.</th><th>Valor</th>':''}</tr>`;
   for(const j of js){const est=[xi.has(j.id)?'★':'',j.lesion>0?'🚑'+j.lesion:'',G.renovaciones.some(r=>r.id===j.id)?'📝':'',j.canterano?'🌱':'',j.capitan?'©':'',bloqueadoVenta(j)?'🔗':'',j.estrella?'⭐':'',j.bandera?'🚩':'',j.cedido?'🔄':'',j.intransferibleHasta>G.temporada?'🔒':'',j.contrato<=8?'⏳':''].filter(Boolean).join(' ');
     h+=`<tr><td><a href="#" data-a="ficha" data-id="${j.id}" style="color:inherit">${bandera(j.nac)} ${j.nombre}</a></td><td><span class="pill ${j.pos}">${j.pos}</span></td><td><b>${Math.round(j.ovr)}</b></td><td style="white-space:nowrap">${barraEnergia(j.energia)}</td><td>${est}</td>${D?`<td>${j.edad}</td><td>${Math.round(j.pot)}</td><td>${j.goles}</td><td>${fmt(j.salario)}</td><td class="${j.contrato<=8?'warnc':''}">${j.contrato}s</td><td>${fmt(j.valor)}</td>`:''}</tr>`}
@@ -1037,7 +1044,7 @@ function vPersonal(){
 $('#side').addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(!b||b.tagName==='INPUT')return;const a=b.dataset.a;if(a==='ficha'){e.preventDefault();modalFicha(b.dataset.id);return}
   if(a==='verResumen'){e.preventDefault();irA('club','sede');return}
-  if(a==='glos'){e.preventDefault();const k=b.dataset.k;modal('<h2>'+esc(k)+'</h2><p>'+esc(GLOS[k]||'')+'</p><p><button class="b" onclick="cerrarModal()">Entendido</button></p>');return}if(a==='detalle'){e.preventDefault();G.plantillaDetalle=!G.plantillaDetalle;renderUI();return}
+  if(a==='glos'){e.preventDefault();const k=b.dataset.k;modal('<h2>'+esc(k)+'</h2><p>'+esc(GLOS[k]||'')+'</p><p><button class="b" onclick="cerrarModal()">Entendido</button></p>');return}if(a==='detalle'){e.preventDefault();G.ui.plantillaDetalle=!G.ui.plantillaDetalle;renderUI();return}
   if(a==='inst')mejorarInst(b.dataset.k);else if(a==='contratar')contratar(b.dataset.k);else if(a==='despedir')despedir(b.dataset.k);
   else if(a==='fichar')ficharProspecto(b.dataset.id);else if(a==='promover')promoverCanterano(b.dataset.id);else if(a==='vender')venderJugador(b.dataset.id);
   else if(a==='ofertaJ')aceptarOfertaJ();else if(a==='rechOfertaJ'){if(G.ofertaJ&&G.ofertaJ.europa)rechazarEuropa();G.ofertaJ=null;renderUI()}else if(a==='acepPatro')aceptarOferta();else if(a==='rechPatro'){G.oferta=null;renderUI()}
@@ -1046,13 +1053,13 @@ $('#side').addEventListener('click',e=>{
 });
 let GUARDA=null;
 $('#side').addEventListener('input',e=>{const b=e.target;const a=b.dataset.a;if(!a)return;
-  if(a==='precio'){G.precio=+b.value;G.precioTocado=true;
+  if(a==='precio'){G.precio=+b.value;G.ui.precioTocado=true;
     const cap=INST.estadio.cap[G.inst.estadio],as=asistencia(G.precio);
     const c=b.closest('.card');if(c){const kv=c.querySelectorAll('.kv b');if(kv[0])kv[0].innerHTML=fmtN(as)+' / '+fmtN(cap)+(as>=cap*0.98?' <span class="warnc">lleno</span>':'');if(kv[1])kv[1].textContent=fmt(as*G.precio);const t=c.querySelector('b');if(t)t.textContent='Entrada: '+G.precio+' €'}
     clearTimeout(GUARDA);GUARDA=setTimeout(()=>{save();renderUI()},400);return}
-  else if(a==='foco'){G.foco=b.value;G.focoTocado=true;renderUI()}else if(a==='tactica'){G.tactica=b.value;renderUI()}else if(a==='auto'){G.auto[b.dataset.k]=b.checked}else if(a==='sombra'){for(const k in PERSONAL)G.auto[k]=b.checked;renderUI()}
+  else if(a==='foco'){G.foco=b.value;G.ui.focoTocado=true;renderUI()}else if(a==='tactica'){G.tactica=b.value;renderUI()}else if(a==='auto'){G.auto[b.dataset.k]=b.checked}else if(a==='sombra'){for(const k in PERSONAL)G.auto[k]=b.checked;renderUI()}
   save()});
-$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;G.tab=b.dataset.t;renderUI();sonidoClick()});
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;G.ui.tab=b.dataset.t;renderUI();sonidoClick()});
 
 function modalAyuda(){modal(`<h2>Ayuda</h2>
   <h3>Atajos</h3><div class="card"><div class="kv"><span>Espacio</span><b>pausa y reanuda</b></div><div class="kv"><span>→ o N</span><b>avanza un día</b></div><div class="kv"><span>1 · 2 · 4 · 8</span><b>velocidad continua</b></div><div class="kv"><span>Escape</span><b>cierra la ventana</b></div><div class="kv"><span>? o H</span><b>esta ayuda</b></div></div>
@@ -1100,17 +1107,17 @@ function modalFicha(id){const j=G.jugadores.find(x=>x.id===id);if(!j)return;cons
   dibujarAvatar($('#avatar'),j)}
 const TUTO=[
   {t:'Bienvenido a tu club',d:'Esto es tu sede. Cada edificio es una zona del juego y puedes tocarlo. Empieza contratando un <b>ojeador</b>: es quien encuentra jugadores.',ir:['club','personal'],ok:g=>g.personal.ojeador>0,boton:'Ir a Personal'},
-  {t:'El precio de la entrada',d:'La taquilla es tu primer ingreso. Mueve el precio y mira cómo cambia la asistencia prevista. El director comercial lo hará por ti cuando lo contrates.',ir:['dinero','ventas'],ok:g=>g.precioTocado,boton:'Ir a Ventas'},
-  {t:'Cómo entrenan',d:'Elige el <b>foco</b> de la semana. Con jóvenes en la plantilla, "Jóvenes" los hace crecer más rápido.',ir:['equipo','entreno'],ok:g=>g.focoTocado,boton:'Ir a Entrenamiento'},
+  {t:'El precio de la entrada',d:'La taquilla es tu primer ingreso. Mueve el precio y mira cómo cambia la asistencia prevista. El director comercial lo hará por ti cuando lo contrates.',ir:['dinero','ventas'],ok:g=>g.ui.precioTocado,boton:'Ir a Ventas'},
+  {t:'Cómo entrenan',d:'Elige el <b>foco</b> de la semana. Con jóvenes en la plantilla, "Jóvenes" los hace crecer más rápido.',ir:['equipo','entreno'],ok:g=>g.ui.focoTocado,boton:'Ir a Entrenamiento'},
   {t:'Juega la semana',d:'Pulsa <b>▶ Jugar la semana</b>. Pasan los siete días, el domingo se juega el partido y el lunes el juego se detiene solo con el resumen.',ir:null,ok:g=>g.semana>1||g.temporada>1,boton:null},
   {t:'Tu resumen del lunes',d:'Cada lunes verás aquí el resultado, la cuenta de la semana, los avisos y lo que hizo tu personal con su porqué. Eso es todo: contrata, decide cuando te pregunten y juega semana a semana.',ir:['club','sede'],ok:g=>false,boton:'Entendido'}];
 function renderTutorial(){const movil=window.matchMedia&&window.matchMedia('(max-width:1000px)').matches;
   const otro=$(movil?'#tuto':'#tutoMovil');if(otro){otro.innerHTML='';otro.hidden=true}
-  const el=$(movil?'#tutoMovil':'#tuto');if(!el)return;document.querySelectorAll('.tuto-target').forEach(x=>x.classList.remove('tuto-target'));const i=G.tutorial;if(i===undefined||i>=TUTO.length||i===99){el.hidden=true;return}
-  const p=TUTO[i];if(p.ok(G)&&i<TUTO.length-1){G.tutorial=i+1;return renderTutorial()}
+  const el=$(movil?'#tutoMovil':'#tuto');if(!el)return;document.querySelectorAll('.tuto-target').forEach(x=>x.classList.remove('tuto-target'));const i=G.ui.tutorial;if(i===undefined||i>=TUTO.length||i===99){el.hidden=true;return}
+  const p=TUTO[i];if(p.ok(G)&&i<TUTO.length-1){G.ui.tutorial=i+1;return renderTutorial()}
   el.hidden=false;el.innerHTML=`<div class="paso">Guía · paso ${i+1} de ${TUTO.length}</div><b>${p.t}</b><p style="margin:4px 0">${p.d}</p><div class="btns">${p.boton?`<button class="b" data-tuto="ir">${p.boton}</button>`:''}${i===TUTO.length-1?'':'<button class="b sec" data-tuto="skip">Saltar la guía</button>'}</div>`;
-  if(p.ir){const tb=document.querySelector('#tabs button[data-t="'+p.ir[0]+'"]');if(tb&&G.tab!==p.ir[0])tb.classList.add('tuto-target');const sb=document.querySelector('#sub button[data-s="'+p.ir[1]+'"]');if(sb&&G.sub[G.tab]!==p.ir[1])sb.classList.add('tuto-target')}else{const bs=$('#btnSemana');if(bs)bs.classList.add('tuto-target')}}
-function clicTutorial(e){const b=e.target.closest('button');if(!b||!G)return;const i=G.tutorial;const p=TUTO[i];if(b.dataset.tuto==='skip'){G.tutorial=99}else if(p&&p.ir){if(i===TUTO.length-1)G.tutorial=99;else irA(p.ir[0],p.ir[1])}else if(p&&!p.ir){G.tutorial=99}save();renderUI();renderTutorial()}
+  if(p.ir){const tb=document.querySelector('#tabs button[data-t="'+p.ir[0]+'"]');if(tb&&G.ui.tab!==p.ir[0])tb.classList.add('tuto-target');const sb=document.querySelector('#sub button[data-s="'+p.ir[1]+'"]');if(sb&&G.ui.sub[G.ui.tab]!==p.ir[1])sb.classList.add('tuto-target')}else{const bs=$('#btnSemana');if(bs)bs.classList.add('tuto-target')}}
+function clicTutorial(e){const b=e.target.closest('button');if(!b||!G)return;const i=G.ui.tutorial;const p=TUTO[i];if(b.dataset.tuto==='skip'){G.ui.tutorial=99}else if(p&&p.ir){if(i===TUTO.length-1)G.ui.tutorial=99;else irA(p.ir[0],p.ir[1])}else if(p&&!p.ir){G.ui.tutorial=99}save();renderUI();renderTutorial()}
 $('#tuto').addEventListener('click',clicTutorial);$('#tutoMovil').addEventListener('click',clicTutorial);
 function modalInicio(){const pos=clasificacion().findIndex(e=>e.yo)+1;modal(`<h2>${bandera(G.pais)} ${G.nombreClub}</h2><p>Hay una partida guardada: temporada <b>${G.temporada}</b>, jornada <b>${G.semana}</b>, ${pos}º en ${NOMBRE_DIV[G.division]}, caja ${fmt(G.dinero)}.</p><p><button class="b" id="btnContinuar">▶ Continuar</button> <button class="b sec" id="btnOtra">Nueva partida</button></p><p class="hint">Las tres ranuras de guardado están en la cabecera.</p>`);$("#btnContinuar").addEventListener("click",()=>{cerrarModal();renderUI()});$("#btnOtra").addEventListener("click",()=>modalNuevo(null))}
 function modalNuevo(herencia){if(herencia&&!herencia.prestigio)herencia=null;
@@ -1124,7 +1131,7 @@ function modalNuevo(herencia){if(herencia&&!herencia.prestigio)herencia=null;
   ${herencia&&herencia.prestigio?'<p class="hint">⭐ Nueva partida + con prestigio '+herencia.prestigio+'</p>':''}
   <p><button class="b" id="btnEmpezar">Empezar en Tercera división</button> ${G?'<button class="b sec" onclick="cerrarModal()">Cancelar</button>':''}</p>`);
   $('#inColor').addEventListener('click',e=>{const s=e.target.closest('.sw');if(!s)return;document.querySelectorAll('.sw').forEach(x=>x.classList.remove('on'));s.classList.add('on')});
-  $('#btnEmpezar').addEventListener('click',()=>{const c=document.querySelector('.sw.on').dataset.c;newGame($('#inNombre').value||'Mi Club FC',$('#inPais').value,c,($('#inDif')||{}).value||'normal',herencia&&herencia.prestigio?herencia:null);if(herencia&&herencia.prestigio)G.tutorial=99;cerrarModal();renderLog();renderUI();renderSlots()});
+  $('#btnEmpezar').addEventListener('click',()=>{const c=document.querySelector('.sw.on').dataset.c;newGame($('#inNombre').value||'Mi Club FC',$('#inPais').value,c,($('#inDif')||{}).value||'normal',herencia&&herencia.prestigio?herencia:null);if(herencia&&herencia.prestigio)G.ui.tutorial=99;cerrarModal();renderLog();renderUI();renderSlots()});
 }
 const SND={on:true,ctx:null,crowd:null};try{SND.on=localStorage.getItem('clubtycoon_sonido')!=='0'}catch(e){}
 function audioInit(){if(SND.ctx)return;try{SND.ctx=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}
@@ -1518,6 +1525,5 @@ requestAnimationFrame(frame);loop();renderSlots();
 if(load()){renderLog();renderUI();modalInicio()}else modalNuevo();
 </script>
 <script defer src="../volver.js" data-pos="bottom-right"></script>
-<script defer src="../publicidad.js"></script>
 </body>
 </html>
