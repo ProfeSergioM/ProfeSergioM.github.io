@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>El Desafío</title>
-<meta name="google-adsense-account" content="ca-pub-6113562135089306">
 <style>
 :root{--bg:#0b1220;--panel:#151f33;--panel2:#1e2a44;--line:#2a3a5c;--text:#e6edf7;--muted:#8fa2c2;--ok:#22c55e;--warn:#facc15;--bad:#ef4444;--blue:#38bdf8}
 *{box-sizing:border-box}
@@ -131,6 +130,7 @@ details.inf{margin:4px 0;font-size:12px}details.inf summary{cursor:pointer;color
   <select id="slot" title="Ranura de guardado"></select>
   <button class="b sec" id="btnExportar" title="Descargar la partida como archivo" aria-label="Descargar la partida">⬇</button>
   <button class="b sec" id="btnImportar" title="Cargar una partida desde archivo" aria-label="Cargar una partida">⬆</button><input type="file" id="inImportar" accept=".json" style="display:none">
+  <button class="b sec" id="btnIdioma" title="Switch to English" aria-label="Idioma / Language">EN</button>
   <button class="b sec" id="btnAyuda" title="Ayuda, atajos e iconos (tecla ?)" aria-label="Ayuda">?</button>
   <button class="b sec" id="btnSonido" title="Sonido" aria-label="Activar o silenciar el sonido">🔊</button>
   <button class="b sec" id="btnNuevo">Nueva partida</button>
@@ -173,7 +173,498 @@ const pick=a=>a[ri(0,a.length-1)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function poisson(l){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=azar()}while(p>L);return k-1}
 function fmt(n){const s=n<0?'-':'';n=Math.abs(n);if(n>=1e6)return s+(n/1e6).toFixed(2)+' M€';if(n>=1e3)return s+(n/1e3).toFixed(1)+' k€';return s+Math.round(n)+' €'}
-function fmtN(n){return Math.round(n).toLocaleString('es-ES')}
+function fmtN(n){return Math.round(n).toLocaleString(IDIOMA==='en'?'en-US':'es-ES')}
+// ============================================================ IDIOMA
+const CLAVE_IDIOMA='clubtycoon_idioma';
+let IDIOMA='es';
+try{const g=localStorage.getItem(CLAVE_IDIOMA);
+  IDIOMA=(g==='en'||g==='es')?g:(((navigator.language||'es').toLowerCase().startsWith('es'))?'es':'en')}catch(e){}
+// La clave del diccionario es el texto en español con los números sustituidos por ¤.
+function claveIdioma(t){const n=[];return [t.replace(/\d+(?:[.,]\d+)*/g,m=>{n.push(m);return '\u00a4'}),n]}
+function trTexto(t){
+  if(IDIOMA!=='en'||!t)return t;
+  const m=/^(\s*)([\s\S]*?)(\s*)$/.exec(t);const ini=m[1],cuerpo=m[2],fin=m[3];
+  if(!cuerpo)return t;
+  const v=trFrase(cuerpo);return v===null?t:ini+v+fin}
+function buscarEN(c){
+  if(EN[c]!==undefined)return EN[c];
+  const [k,nums]=claveIdioma(c);
+  let v=EN[k];
+  if(v===undefined&&/^[a-záéíóúñ]/.test(k)){const K=k[0].toUpperCase()+k.slice(1);
+    if(EN[K]!==undefined)v=EN[K][0].toLowerCase()+EN[K].slice(1)}
+  if(v===undefined)return null;
+  let i=0;return v.replace(/\u00a4/g,()=>nums[i++]!==undefined?nums[i-1]:'')}
+function trUno(c){
+  if(!c)return null;
+  let v=buscarEN(c);if(v!==null)return v;
+  if(/[.:;!?]$/.test(c)){v=buscarEN(c.slice(0,-1));if(v!==null)return v.replace(/[.]$/,'')+c.slice(-1)}
+  else{v=buscarEN(c+'.');if(v!==null)return v.replace(/\.$/,'')}
+  for(const [re,dest] of EN_RE){re.lastIndex=0;if(re.test(c)){re.lastIndex=0;return c.replace(re,dest)}}
+  for(const [a,b] of EN_PREF){if(c.startsWith(a)){const resto=c.slice(a.length);const t=trUno(resto);return b+(t===null?resto:t)}}
+  return null}
+// Muchos textos llevan emoji o viñeta delante: se traduce el núcleo y se conservan los adornos.
+function trAdornos(c){
+  const m=/^([^\p{L}\p{N}]*)([\s\S]*?)(\s*)$/u.exec(c);
+  if(!m||!m[2]||(!m[1]&&!m[3]))return null;
+  const v=trUno(m[2]);return v===null?null:m[1]+v+m[3]}
+// Y muchos son varias frases pegadas con separadores: se traduce lo que se reconozca.
+const SEPS=[' · ','. ',': ',' — ',', '];
+function trPartes(c,nivel){
+  for(let i=nivel;i<SEPS.length;i++){
+    const p=c.split(SEPS[i]);if(p.length<2)continue;
+    let cambio=false;
+    const out=p.map(x=>{let v=trUno(x);if(v===null)v=trAdornos(x);if(v===null)v=trPartes(x,i+1);
+      if(v===null)return x;cambio=true;return v});
+    if(cambio)return out.join(SEPS[i])}
+  return null}
+function trFrase(c){
+  let v=trUno(c);if(v!==null)return v;
+  v=trAdornos(c);if(v!==null)return v;
+  v=trPartes(c,0);if(v!==null)return v;
+  MISS.add(c);return null}
+const MISS=new Set();
+const ATRIBS=['title','aria-label','placeholder'];
+function tr(h){
+  if(IDIOMA!=='en'||typeof h!=='string')return h;
+  h=h.replace(/(^|>)([^<>]+)(?=<|$)/g,(m,p,txt)=>p+trTexto(txt));
+  h=h.replace(/\b(title|aria-label|placeholder)="([^"<>]*)"/g,(m,a,v)=>{
+    const d=trTexto(v);return d===v?m:a+'="'+esc(d)+'"'});
+  return h}
+// El texto original de la cabecera se guarda para poder volver al español sin recargar.
+const ORIG_TXT=new WeakMap(),ORIG_ATR=new WeakMap();
+function trDOM(raiz){
+  if(!raiz)return;
+  const w=document.createTreeWalker(raiz,NodeFilter.SHOW_TEXT);const nodos=[];
+  while(w.nextNode())nodos.push(w.currentNode);
+  for(const n of nodos){if(!ORIG_TXT.has(n))ORIG_TXT.set(n,n.nodeValue);
+    const o=ORIG_TXT.get(n);n.nodeValue=IDIOMA==='en'?trTexto(o):o}
+  const els=[raiz].concat([...raiz.querySelectorAll('*')]);
+  for(const el of els){
+    let g=ORIG_ATR.get(el);
+    if(!g){g={};for(const a of ATRIBS)if(el.hasAttribute&&el.hasAttribute(a))g[a]=el.getAttribute(a);ORIG_ATR.set(el,g)}
+    for(const a in g)el.setAttribute(a,IDIOMA==='en'?trTexto(g[a]):g[a])}}
+function aplicarIdioma(render){
+  try{localStorage.setItem(CLAVE_IDIOMA,IDIOMA)}catch(e){}
+  document.documentElement.lang=IDIOMA;
+  trDOM(document.querySelector('header'));
+  trDOM(document.querySelector('#tabs'));
+  trDOM(document.querySelector('#logbar'));
+  const b=$('#btnIdioma');if(b){b.textContent=IDIOMA==='en'?'ES':'EN';
+    b.title=IDIOMA==='en'?'Cambiar a español':'Switch to English'}
+  calFirma='';renderSlots();
+  if(render!==false&&G){renderUI();renderLog();renderCal()}}
+function cambiarIdioma(){IDIOMA=IDIOMA==='en'?'es':'en';aplicarIdioma();if(G)save()}
+setTimeout(()=>aplicarIdioma(false),0);
+// ============================================================ DICCIONARIO
+// Clave: el texto en español tal y como sale a pantalla, con los números en ¤.
+const EN={
+// --- cabecera y navegación
+'Caja':'Cash','Aficionados':'Fans','Posición':'Position','Nueva partida':'New game','⚠ Sin guardar':'⚠ Not saving',
+'Ranura de guardado':'Save slot','Descargar la partida como archivo':'Download the game as a file','Descargar la partida':'Download the game',
+'Cargar una partida desde archivo':'Load a game from a file','Cargar una partida':'Load a game',
+'Ayuda, atajos e iconos (tecla ?)':'Help, shortcuts and icons (? key)','Ayuda':'Help','Sonido':'Sound','Activar o silenciar el sonido':'Turn the sound on or off',
+'No se puede guardar la partida en este navegador. Pulsa para descargarla.':'This browser cannot save the game. Click to download it.',
+'🏟 Club':'🏟 Club','👥 Equipo':'👥 Squad','⚽ Competición':'⚽ Competition','💶 Dinero':'💶 Money',
+'Registro':'Log','📰 Prensa':'📰 Press','Todavía no hay titulares.':'No headlines yet.',
+'Caja ·':'Cash ·','Aficionados ·':'Fans ·','= sin cambio':'= no change','esta semana':'this week',
+'▲ +¤ M€ esta semana':'▲ +¤ M€ this week','▼ -¤ M€ esta semana':'▼ -¤ M€ this week',
+// --- barra del día
+'▶ Jugar la semana':'▶ Play the week','⏭ Día':'⏭ Day','continuo':'auto','Un día (→)':'One day (→)','Pausa (espacio)':'Pause (space)','Pausar':'Pause',
+'Avance continuo a ¤ por uno':'Auto speed ¤×','Avance continuo a ¤×':'Auto speed ¤×','Avance continuo ×¤':'Auto ×¤',
+'Jugando la semana…':'Playing the week…','Ver el resumen de la semana':'See the week summary','Continuar':'Continue','Cerrar':'Close',
+'Aceptar':'Accept','Cancelar':'Cancel','Entendido':'Got it','Volver':'Back','Subir':'Upgrade','Despedir':'Fire','Renovar':'Renew','Dejar ir':'Let go',
+'Vender':'Sell','Fichar':'Sign','Seguir':'Continue',
+// --- días
+'Lunes':'Monday','Martes':'Tuesday','Miércoles':'Wednesday','Jueves':'Thursday','Viernes':'Friday','Sábado':'Saturday','Domingo':'Sunday',
+'Pagos y cobros semanales':'Weekly payments and income','Informes del ojeador y la academia':'Scout and academy reports',
+'El personal toma sus decisiones':'Your staff makes its calls','Noticias y ofertas':'News and offers','Entrenamiento intensivo':'Hard training',
+'Previa del partido':'Match preview','Día de partido':'Match day',
+// --- divisiones y calendario
+'Primera':'First Division','Primera B':'Second Division','Segunda':'Third Division','Tercera':'Fourth Division',
+'Temporada':'Season','Jornada':'Matchday','Pretemporada':'Preseason','mercado abierto':'transfer window open','ventana de fichajes abierta':'transfer window open',
+'Confianza de la directiva':'Board confidence','Grande histórico: siempre a tu nivel o por encima':'Historic giant: always at your level or above',
+'Palmarés histórico: ligas y Libertadores':'All-time honours: leagues and Libertadores',
+// --- resumen del lunes
+'Partido':'Match','Ingresos':'Income','Gastos':'Costs','Balance':'Balance','Moral':'Morale','Estado':'Status','Valor':'Value',
+'Avisos:':'Alerts:','Sin avisos: todo en orden.':'No alerts: all in order.','Tu personal esta semana':'Your staff this week','¿Por qué?':'Why?',
+'Amistoso de pretemporada':'Preseason friendly','Fin de la partida.':'Game over.','Destituido':'Sacked','Tienes una decisión pendiente.':'You have one decision pending.',
+'Tienes ¤ decisiones pendientes.':'You have ¤ decisions pending.',
+'⚠ La directiva está impaciente: cumple el objetivo de esta temporada o peligra tu puesto.':'⚠ The board is losing patience: hit this season’s target or your job is at risk.',
+'Error al mostrar esta pestaña. Prueba otra o crea una nueva partida.':'This tab could not be shown. Try another one or start a new game.',
+// --- club / instalaciones
+'Instalaciones':'Facilities','Palmarés':'Honours','Sala de trofeos':'Trophy room','La vitrina está vacía. Por ahora.':'The cabinet is empty. For now.',
+'Récords':'Records','Mayor asistencia':'Highest attendance','Mayor goleada':'Biggest win','Mejor racha de victorias':'Best winning run',
+'Más partidos invicto':'Longest unbeaten run','Goleadores históricos':'All-time scorers','Leyendas retiradas':'Retired legends',
+'Logros':'Achievements','Logros (¤ de ¤)':'Achievements (¤ of ¤)','Los logros aparecen aquí cuando los consigues.':'Achievements show up here once you earn them.',
+'Proyectos de legado':'Legacy projects','Inaugurado':'Opened','Requisito no cumplido.':'Requirement not met.',
+'En obras · ¤ sem':'Under construction · ¤ wks',
+'🏝 Mil millones alcanzados':'🏝 One billion reached','Ver el final':'See the ending','En la temporada ¤, tras ¤ días.':'In season ¤, after ¤ days.',
+'Palmarés de los rivales':'Rivals’ honours','Evolución por temporada':'Season by season',
+'Caja (verde) · aficionados (azul) · reputación (amarillo) · OVR medio (rosa). Escala relativa al máximo de cada serie.':'Cash (green) · fans (blue) · reputation (yellow) · average OVR (pink). Each series is scaled to its own maximum.',
+'Historial':'History','Aún no has completado ninguna temporada.':'You have not finished a season yet.',
+
+'Mantenimiento':'Upkeep','Estadio':'Stadium','Centro de entrenamiento':'Training centre','Academia juvenil':'Youth academy','Oficinas':'Offices','Tienda oficial':'Club shop',
+'Ciudad deportiva':'Training complex','Equipo filial':'Reserve team','Fundación del club':'Club foundation','Academia internacional':'International academy',
+'Estadio nuevo de ¤ plazas':'New ¤-seat stadium','Reforma del estadio insignia':'Flagship stadium revamp',
+'Progreso de jugadores +¤ %, lesiones -¤ % y canteranos de más calidad.':'Player progress +¤ %, injuries -¤ % and better youth prospects.',
+'Un canterano extra cada ¤ semanas, con más potencial.':'One extra academy player every ¤ weeks, with more potential.',
+'Potencial de aficionados +¤ % y la directiva perdona más.':'Fan potential +¤ % and a more forgiving board.',
+'El ojeador trae prospectos extranjeros con potencial ¤+.':'The scout brings in foreign prospects with ¤+ potential.',
+'Capacidad ¤, doble techo y entradas +¤ %.':'Capacity ¤, double roof and ticket income +¤ %.',
+'Cada ¤ temporadas: entradas +¤ % y potencial de aficionados +¤ % (acumulable hasta tres veces).':'Every ¤ seasons: ticket income +¤ % and fan potential +¤ % (stacks up to three times).',
+'¤ plazas':'¤ seats',
+// --- plantilla
+'Plantilla ¤/¤':'Squad ¤/¤','Fuerza del once:':'Starting XI strength:','Toca un nombre para ver su ficha, venderlo o renovarlo.':'Tap a name to open his profile, sell him or renew him.',
+'Jugador':'Player','Pos':'Pos','Edad':'Age','Gol':'Gls','Sal./sem':'Wage/wk','Contr.':'Contract','Equipo':'Team','Pts':'Pts',
+'Salario':'Wage','Contrato':'Contract','¤ semanas':'¤ weeks','Esta temporada':'This season','Goles en el club':'Goals for the club','Partidos en el club':'Games for the club',
+'Vender a':'Sell',
+'🔒 Intransferible hasta la temporada ¤.':'🔒 Not for sale until season ¤.','🔄 Está cedido: vuelve a su club en verano.':'🔄 On loan: he returns to his club in the summer.',
+'🔗 Cláusula de formación: no se puede vender hasta las ¤ semanas en el club (lleva ¤).':'🔗 Development clause: he cannot be sold before ¤ weeks at the club (he is on ¤).',
+'Cantera y mercado':'Academy and market','Prospectos del ojeador':'Scout prospects','No queda nadie disponible.':'Nobody left available.',
+'Canteranos (gratis)':'Academy players (free)','La academia presenta uno cada ¤ semanas.':'The academy produces one every ¤ weeks.',
+
+'Entrenamiento':'Training','De lunes a sábado. Progreso base:':'Monday to Saturday. Base progress:','+¤ por semana':'+¤ per week',
+'en jóvenes con margen.':'on young players with room to grow.','El entrenador lo cambia los miércoles si hace falta.':'The coach changes it on Wednesdays if needed.',
+'Lesionados':'Injured','Cansados':'Tired','Jóvenes con margen':'Young with room to grow','En juego:':'In play:',
+'Once titular y banquillo':'Starting XI and bench','manual':'manual','automática':'automatic','Volver a automático':'Back to automatic',
+'nadie':'nobody','vacío':'empty','Sin jugadores':'No players',
+'Los tres primeros suplentes entran en cada partido y no protestan por falta de minutos. En la copa nacional el entrenador rota a los titulares cansados por gente del banquillo.':'The first three substitutes come on in every match and never complain about minutes. In the domestic cup the coach rests tired starters and uses the bench.',
+'Táctica del domingo':'Sunday tactics','El entrenador la elige cada sábado según el rival.':'The coach picks it every Saturday based on the opponent.',
+'Equilibrada':'Balanced','Ofensiva':'Attacking','Defensiva':'Defensive','Contragolpe':'Counter-attack','sin modificadores':'no modifiers',
+'marcas más (+¤ %) pero recibes más (+¤ %)':'you score more (+¤ %) but concede more (+¤ %)',
+'recibes menos (-¤ %) pero marcas menos (-¤ %)':'you concede less (-¤ %) but score less (-¤ %)',
+'ideal contra rivales más fuertes (+¤ %/-¤ %); castiga contra rivales débiles':'ideal against stronger sides (+¤ %/-¤ %); punishes you against weak ones',
+// --- competición
+'Clasificación':'Table','Últimos resultados':'Recent results','Goleadores':'Top scorers','Copa':'Cup','Amistoso':'Friendly','amistoso':'friendly',
+'¡Campeón!':'Champions!','Eliminado':'Knocked out','Pasan dos.':'Top two go through.',
+'Domingo · jornada ¤':'Sunday · matchday ¤','🏁 Playoff de ascenso':'🏁 Promotion playoff','Playoff de ascenso':'Promotion playoff',
+'· domingo en casa ante':'· Sunday at home against','(fuerza ¤)':'(strength ¤)','Fuerza ¤ frente a tu ¤':'Strength ¤ against your ¤',
+'¤ pts':'¤ pts','Octavos':'Round of 16','Cuartos':'Quarter-final','Semifinal':'Semi-final','Final':'Final','fase de grupos':'group stage',
+// --- dinero
+'Ventas':'Tickets','Caja: ¤':'Cash: ¤','Entrada: ¤ €':'Ticket: ¤ €','Asistencia prevista':'Expected attendance','Taquilla por partido en casa':'Gate per home match',
+'El director comercial lo ajusta los miércoles.':'The commercial director adjusts it on Wednesdays.','Precio óptimo estimado: ¤ €.':'Estimated best price: ¤ €.',
+'🏝 Camino a la isla':'🏝 Road to the island','Patrocinador':'Sponsor','ninguno. Las ofertas llegan los jueves.':'none. Offers arrive on Thursdays.',
+'Publicidad':'Marketing','Campañas':'Campaigns','Marketing descansa':'Marketing is idle',
+'El potencial sube con la división, la reputación, el estadio y los títulos.':'Potential grows with your division, reputation, stadium and titles.',
+'El jefe de marketing las lanza los miércoles cuando hay caja.':'The marketing chief launches them on Wednesdays when there is cash.',
+'Redes sociales':'Social media','Vallas por la ciudad':'Billboards across the city','Puertas abiertas':'Open day','Anuncio en televisión':'TV advert','Gira internacional':'International tour',
+'Personal':'Staff','Modo director en la sombra':'Shadow-manager mode',
+'Tu personal decide en su área los miércoles y te lo cuenta el lunes. Solo te preguntan cuando algo necesita tu firma.':'Your staff decides in its own area on Wednesdays and reports back on Monday. They only ask you when something needs your signature.',
+'Decide solo':'Decides alone','Ojeador':'Scout','Entrenador':'Coach','Director deportivo':'Sporting director','Director comercial':'Commercial director',
+'Jefe de marketing':'Marketing chief','Gerente de sede':'Facilities manager',
+'Trae prospectos cada semana (más y mejores por nivel).':'Brings prospects every week (more and better with each level).',
+'Ficha automáticamente al mejor prospecto que encaje en la plantilla cuando hay caja.':'Automatically signs the best prospect that fits the squad when there is cash.',
+'Cada nivel mejora el progreso un ¤ %.':'Each level improves progress by ¤ %.',
+'Elige el foco del entrenamiento según las carencias de la plantilla.':'Picks the training focus based on what the squad lacks.',
+'Consigue un ¤% más por nivel en las ventas de jugadores.':'Gets ¤% more per level on player sales.',
+'Vende veteranos y jugadores sobrantes, y cubre posiciones descubiertas.':'Sells veterans and surplus players, and fills gaps in the squad.',
+'Patrocinios +¤ % por nivel.':'Sponsorship +¤ % per level.',
+'Ajusta el precio de las entradas al óptimo y negocia patrocinadores.':'Sets ticket prices at the best level and negotiates sponsors.',
+'Las campañas cuestan un ¤ % menos por nivel.':'Campaigns cost ¤ % less per level.',
+'Lanza campañas publicitarias cuando la caja lo permite.':'Launches ad campaigns when cash allows.',
+'Obras un ¤% más baratas por nivel.':'Construction ¤% cheaper per level.',
+'Amplía las instalaciones cuando hay caja suficiente, priorizando el estadio si se llena.':'Expands facilities when there is enough cash, starting with the stadium if it sells out.',
+// --- glosario
+'Nivel actual del jugador, de ¤ a ¤. Decide la fuerza del equipo.':'The player’s current level, from ¤ to ¤. It decides the team’s strength.',
+'Nivel máximo que puede alcanzar entrenando. Los jóvenes tienen más margen.':'The highest level he can reach through training. Young players have more room.',
+'Cansancio. Baja con partidos y entrenos, sube con descanso. Por debajo de ¤ no juega.':'Fatigue. It drops with matches and training and rises with rest. Below ¤ he does not play.',
+'Ánimo del vestuario. Sube con victorias; baja con derrotas (el doble en casa) y con suplentes buenos que no juegan.':'Dressing-room mood. Wins raise it; defeats lower it (twice as much at home), as do good substitutes who never play.',
+'Paciencia de la directiva contigo. Si llega a cero te destituyen.':'How patient the board is with you. At zero you are sacked.',
+'Prestigio del club, de ¤ a ¤. Atrae aficionados, patrocinios y mejores precios.':'The club’s standing, from ¤ to ¤. It attracts fans, sponsors and better prices.',
+'En qué se concentra el entrenamiento esta semana.':'What training focuses on this week.',
+'Pago único al firmar o renovar un contrato.':'A one-off payment on signing or renewing a contract.',
+'Potencial':'Potential','Energía':'Energy','Confianza':'Confidence','Reputación':'Reputation','Foco':'Focus','Prima':'Signing fee',
+// --- ayuda
+'Atajos':'Shortcuts','Espacio':'Space','pausa y reanuda':'pause and resume','avanza un día':'advance one day','velocidad continua':'auto speed',
+'Escape':'Escape','cierra la ventana':'closes the dialog','esta ayuda':'this help','Iconos de la plantilla':'Squad icons',
+'titular':'starter','lesionado, con las semanas de baja':'injured, with weeks out','pide renovar':'wants a new contract',
+'contrato a punto de vencer':'contract about to expire','capitán: nunca lo vende el director deportivo':'captain: the sporting director never sells him',
+'cláusula de formación: ¤ semanas sin poder venderlo':'development clause: ¤ weeks before he can be sold',
+'estrella internacional':'international star','cedido: vuelve a su club en verano':'on loan: he returns to his club in the summer',
+'intransferible':'not for sale','por debajo del ¤ % de energía':'below ¤ % energy','En la cabecera':'In the header',
+'niveles de prestigio de partidas anteriores':'prestige levels carried over from earlier games',
+'En la clasificación y el calendario':'In the table and the calendar','grande histórico: siempre a tu nivel o por encima':'historic giant: always at your level or above',
+'🏆 en el calendario':'🏆 in the calendar','partido de copa ese miércoles':'cup match that Wednesday','Cifras':'Numbers',
+'El dinero va en euros para que las categorías sean comparables entre países: k€ son miles y M€ millones.':'Money is in euros so divisions are comparable across countries: k€ means thousands and M€ millions.',
+'Una':'A','jornada':'matchday','es un partido de liga y dura una semana de calendario, de lunes a domingo. La':'is one league match and lasts a calendar week, Monday to Sunday. The',
+'temporada':'season','tiene ¤ jornadas en ¤ más dos semanas de pretemporada.':'has ¤ matchdays in ¤ plus two preseason weeks.',
+'Semilla de la partida':'Game seed',
+'Todo el azar de esta partida sale de una semilla, así que dos partidas nunca salen iguales.':'All the randomness in this game comes from a seed, so no two games ever play out the same.',
+'Es la huella de esta partida: aparece también en el resumen del final.':'It is this game’s fingerprint and it also appears in the ending summary.',
+'Partidas guardadas':'Saved games',
+'Hay tres ranuras. En pantallas pequeñas el selector se oculta para dejar sitio, pero puedes cambiarlas y descargar la partida desde aquí.':'There are three slots. On small screens the selector is hidden to save space, but you can switch slots and download your game from here.',
+'⬇ Descargar partida':'⬇ Download game','⬆ Cargar partida':'⬆ Load game',
+// --- final e isla
+'🏝 Mil millones':'🏝 One billion','🏝 Retirarme a la isla':'🏝 Retire to the island','Seguir al mando':'Stay in charge',
+'📋 Copiar resumen':'📋 Copy summary','🖼 Descargar imagen':'🖼 Download image',
+'Retirarte cierra esta historia y guarda tu club entre las leyendas. Seguir al mando no quita nada: el final ya es tuyo.':'Retiring closes this story and files your club among the legends. Staying in charge takes nothing away: the ending is already yours.',
+'Temporadas al mando':'Seasons in charge','Días de calendario':'Calendar days','Tiempo jugado':'Time played','Llegaste a Primera':'Reached the First Division',
+'Ligas':'Leagues','Copas nacionales':'Domestic cups','Libertadores':'Libertadores','Sudamericanas':'Sudamericana titles','Ascensos':'Promotions',
+'Goles marcados':'Goals scored','Máximo goleador':'Top scorer','Mejor racha':'Best run','Récord de asistencia':'Attendance record',
+'Aficionados al final':'Fans at the end','Mejor puesto en Primera':'Best finish in the First Division','Copas':'Cups','Temporadas':'Seasons',
+'🏝 Fin de la historia':'🏝 End of the story',
+'La isla no tiene liga, ni directiva, ni fecha FIFA.':'The island has no league, no board and no international break.',
+'Puedes empezar de nuevo en otro país conservando tu prestigio.':'You can start again in another country and keep your prestige.',
+'⭐ Eres una leyenda':'⭐ You are a legend','Seguir con este club':'Stay with this club',
+// --- nueva partida
+'Nombre del club':'Club name','País (liga con clubes reales)':'Country (league with real clubs)','Color del club':'Club colour',
+'Empezar en Tercera división':'Start in the fourth division','▶ Continuar':'▶ Continue','Se borrará la partida actual.':'The current game will be erased.',
+'Las tres ranuras de guardado están en la cabecera.':'The three save slots are in the header.','vacía':'empty',
+// --- guía
+'Saltar la guía':'Skip the guide','Bienvenido a tu club':'Welcome to your club',
+'Esto es tu sede. Cada edificio es una zona del juego y puedes tocarlo. Empieza contratando un ojeador: es quien encuentra jugadores.':'This is your ground. Every building is an area of the game and you can tap it. Start by hiring a scout: he is the one who finds players.',
+'Ir a Personal':'Go to Staff','El precio de la entrada':'The ticket price',
+'La taquilla es tu primer ingreso. Mueve el precio y mira cómo cambia la asistencia prevista. El director comercial lo hará por ti cuando lo contrates.':'The gate is your first source of income. Move the price and watch the expected attendance change. The commercial director will do it for you once you hire him.',
+'Ir a Ventas':'Go to Tickets','Cómo entrenan':'How they train','Ir a Entrenamiento':'Go to Training','Juega la semana':'Play the week',
+'Tu resumen del lunes':'Your Monday summary',
+'Cada lunes verás aquí el resultado, la cuenta de la semana, los avisos y lo que hizo tu personal con su porqué. Eso es todo: contrata, decide cuando te pregunten y juega semana a semana.':'Every Monday you will see the result here, the week’s accounts, the alerts and what your staff did and why. That is all there is: hire, decide when they ask, and play week by week.',
+// --- logros
+'Primera victoria':'First win','Gana tu primer partido':'Win your first match','Diez mil':'Ten thousand','Marea':'Tide','Nación':'Nation',
+'Arriba':'Up','Primer ascenso':'First promotion','Élite':'Elite','Llegar a Primera':'Reach the First Division',
+'Campeón':'Champion','Ganar la liga':'Win the league','Dinastía':'Dynasty','Cinco ligas':'Five leagues','Imperio':'Empire','Veinte ligas':'Twenty leagues',
+'Copero':'Cup king','Ganar la Copa nacional':'Win the domestic cup','Continental':'Continental','Ganar la Sudamericana':'Win the Sudamericana',
+'Gloria eterna':'Eternal glory','Ganar la Libertadores':'Win the Libertadores','Rey de América':'King of America','Tres Libertadores':'Three Libertadores',
+'Arena':'Arena','Estadio a nivel ¤':'Stadium at level ¤','Campus completo':'Full campus','Todas las instalaciones al máximo':'Every facility maxed out',
+'Cien mil':'A hundred thousand','Estadio de ¤':'A ¤-seat stadium','Plantilla técnica':'Backroom team','Los seis empleados contratados':'All six staff hired',
+'Cuerpo técnico de élite':'Elite backroom team','Todo el personal a nivel ¤':'All staff at level ¤','Invicto':'Unbeaten',
+'Dieciséis partidos seguidos sin perder':'Sixteen matches without defeat','La isla':'The island','Mil millones en caja':'One billion in the bank',
+'Imparable':'Unstoppable','Diez victorias seguidas':'Ten wins in a row','Manita':'Five-star','Ganar por ¤ o más':'Win by ¤ or more',
+'Medio millar':'Five hundred','¤ goles del club':'¤ club goals','Ídolo':'Idol','Un jugador con ¤ goles en el club':'One player with ¤ goals for the club',
+'De la casa':'Home-grown','Un canterano titular marca':'An academy starter scores','Galáctico':'Galáctico','Fichar una estrella internacional':'Sign an international star',
+'Constructor':'Builder','Inaugurar un proyecto de legado':'Open a legacy project','Ciudad del fútbol':'Football city','Los cinco proyectos de legado':'All five legacy projects',
+'Cien millones':'A hundred million','Mil millones':'One billion','Veterano':'Veteran','Diez temporadas al mando':'Ten seasons in charge',
+'Institución':'Institution','Cincuenta temporadas':'Fifty seasons','Leyenda viva':'Living legend','Nueva partida + completada':'New game + completed',
+// --- presidentes y objetivos
+'Presidente equilibrado':'Balanced president','Pide lo razonable según la plantilla.':'Asks for what the squad can reasonably give.',
+'Presidente austero':'Frugal president','Vigila la caja: si los salarios superan la mitad de los ingresos, pierde confianza.':'Watches the books: if wages pass half of income, he loses faith.',
+'Presidente ambicioso':'Ambitious president','Exige un escalón más de lo que la plantilla da. Los títulos le encantan.':'Demands one step more than the squad can give. He loves trophies.',
+'Presidente popular':'Populist president','Quiere al menos dos canteranos titulares; premia a la afición.':'Wants at least two academy players in the XI; he rewards the fans.',
+'Ascender (directo o por playoff)':'Get promoted (directly or through the playoff)','Clasificar a la Libertadores (top ¤)':'Qualify for the Libertadores (top ¤)',
+'Llegar a cuartos de la Copa':'Reach the cup quarter-finals','Derrota con':'Defeat by',
+// --- crisis
+'La afición protesta por el precio de las entradas.':'The fans are protesting about ticket prices.','Recesión económica':'Economic downturn',
+'Patrocinios -¤ % y merchandising -¤ % durante ¤ semanas.':'Sponsorship -¤ % and merchandising -¤ % for ¤ weeks.',
+'Epidemia: partidos a puerta cerrada':'Outbreak: matches behind closed doors','Sin público ni taquilla durante ¤ semanas.':'No crowd and no gate for ¤ weeks.',
+'Sanción de la federación':'Federation sanction','Te quitan ¤ puntos y pagas una multa por incidentes en la grada.':'You lose ¤ points and pay a fine for trouble in the stands.',
+'Temporal de lluvias':'Spell of heavy rain','La mitad de la afición no acude durante ¤ semanas.':'Half the crowd stays away for ¤ weeks.',
+// --- avisos y mensajes sueltos
+'Resumen copiado: ya puedes pegarlo donde quieras':'Summary copied: paste it wherever you like','Resumen copiado':'Summary copied',
+'No se pudo copiar; el resumen está en el registro':'Could not copy; the summary is in the log','Imagen descargada':'Image downloaded',
+'No se pudo generar la imagen':'The image could not be created','Guardado restablecido':'Saving works again',
+'El archivo no es una partida válida':'That file is not a valid saved game',
+'No se puede guardar: descarga la partida con el botón ⚠ de la cabecera':'Cannot save: download your game with the ⚠ button in the header',
+'Once y banquillo completos: saca antes a alguien.':'Starting XI and bench are full: take someone out first.',
+'Se cierra la ventana de fichajes.':'The transfer window closes.',
+'Caja en negativo: los jugadores pierden moral y la directiva se impacienta.':'Cash in the red: players lose morale and the board loses patience.',
+'El calendario de liga se ha quedado corto: se cierra la temporada.':'The league calendar ran short: the season is closed.',
+'⏸ El juego se detiene: hay una decisión que solo tú puedes tomar.':'⏸ The game pauses: there is a decision only you can make.',
+'La directiva te destituye. Fin de la partida.':'The board sacks you. Game over.',
+'La afición y la directiva no perdonan la eliminación ante un rival menor.':'Fans and board do not forgive going out to a smaller side.',
+'Semana de vacaciones: la plantilla descansa y recupera energía. El próximo domingo, amistoso de pretemporada.':'Holiday week: the squad rests and recovers energy. Next Sunday there is a preseason friendly.',
+'Dos clubes ofrecen jugadores cedidos por una temporada al recién ascendido.':'Two clubs offer season-long loans to the newly promoted side.',
+'⚠ El juego se ha detenido por un error interno. Puedes seguir jugando; si se repite, exporta la partida con el botón ⬇ de la cabecera.':'⚠ The game stopped because of an internal error. You can keep playing; if it happens again, export your game with the ⬇ button in the header.',
+'Cada día pasa algo distinto: pagos el lunes, informes el martes, decisiones del personal el miércoles... y partido el domingo.':'Something different happens each day: payments on Monday, reports on Tuesday, staff decisions on Wednesday... and the match on Sunday.',
+'lleno':'full','canterano':'academy','cesión':'loan','fichaje bandera':'marquee signing','normal':'normal','Fácil':'Easy','Normal':'Normal','Difícil':'Hard',
+};
+// Frases con nombres propios dentro: se traduce el arranque y el resto se deja tal cual.
+const EN_PREF=[
+['¿Por qué? ','Why? '],
+['partido en casa contra ','home match against '],
+['partido a domicilio contra ','away match against '],
+['partido fuera contra ','away match against '],
+['amistoso en casa contra ','home friendly against '],
+['amistoso contra ','friendly against '],
+['en casa ante ','at home against '],
+['en campo de ','away at '],
+['Palmarés histórico de los grandes del país, con lo ganado desde que llegaste. Las 👑 son clubes que dirigiste en partidas anteriores. Último campeón de la Libertadores: ','All-time honours of the country’s big clubs, including everything won since you arrived. 👑 marks clubs you managed in earlier games. Last Libertadores winner: '],
+['Próximo rival: ','Next opponent: '],
+['Campaña activa: ','Active campaign: '],
+['Patrocinador: ','Sponsor: '],
+['Objetivo de la directiva esta temporada: ','Board target for this season: '],
+['El director deportivo no renueva a ','The sporting director does not renew '],
+['El director deportivo firma a ','The sporting director signs '],
+['Caja en negativo: el director deportivo vende a ','Cash in the red: the sporting director sells '],
+['El banco fuerza la venta de ','The bank forces the sale of '],
+['El entrenador plantea el partido con táctica ','The coach sets up the match with a '],
+['El entrenador cambia el foco a: ','The coach switches the focus to: '],
+['La academia presenta a su joya: ','The academy unveils its jewel: '],
+['La academia presenta un canterano: ','The academy brings up a youngster: '],
+['El filial sube a ','The reserves promote '],
+['Rotación en la copa: entran ','Cup rotation: on come '],
+['Termina el contrato con ','Contract ends with '],
+['Fichaje bandera: la afición se ilusiona con ','Marquee signing: the fans are dreaming about '],
+['Oferta de patrocinio de ','Sponsorship offer from '],
+['Terminan las obras: ','Construction finished: '],
+['Terminan las cesiones: ','Loans end: '],
+['Nuevo presidente: ','New president: '],
+['Capitán de la temporada: ','Captain of the season: '],
+['Amistoso de pretemporada vs ','Preseason friendly vs '],
+['Amistoso de lujo: ','Marquee friendly: '],
+['Fecha FIFA: ','International break: '],
+['Se retiran: ','Retiring: '],
+['Generación perdida: se retiran ','Lost generation: retiring '],
+['🔓 Nueva sección: ','🔓 New section: '],
+['🏅 Logro: ','🏅 Achievement: '],
+['📌 Decisión pendiente: ','📌 Pending decision: '],
+['Sin respuesta: ','No answer: '],
+['Despedir al ','Fire the '],
+['Despides a ','You fire '],
+['Aceptas la oferta: ','You accept the offer: '],
+['Retienes al ','You keep '],
+['🏛 Inauguras ','🏛 You open '],
+['¡Bienvenido a ','Welcome to '],
+['Partida importada en la ranura ','Game imported into slot '],
+['Rechazas la isla: sigues al mando de ','You turn down the island: you stay in charge of '],
+['🏝 Te retiras a tu isla privada con ','🏝 You retire to your private island with '],
+['Vender a ','Sell '],
+['Llega ','In comes '],
+['Termina: ','Ends: '],
+['Faltan ','Missing '],
+['Se abre la ventana de fichajes (','The transfer window opens ('],
+['Tasa de lujo: pagas ','Luxury tax: you pay '],
+['Masa salarial demasiado alta (','Wage bill too high ('],
+['No hay caja para la prima: el ','No cash for the signing fee: the '],
+['El departamento de marketing necesita ','The marketing department needs '],
+['La plantilla está llena (','The squad is full ('],
+['La directiva reparte dividendos: ','The board pays a dividend: '],
+['Bono de ascenso: la liga adelanta ','Promotion bonus: the league advances '],
+['Un club grande ofrece ','A big club offers '],
+['Un vídeo viral del club se dispara: +','A club video goes viral: +'],
+['Termina el patrocinio del nombre del estadio: vuelve a llamarse Estadio ','The stadium naming deal ends: it is called Estadio '],
+['¡CAMPEÓN DE LA','CHAMPIONS OF THE'],
+['Nivel ','Level '],
+['Nv ','Lv '],
+];
+// Frases con números y nombres mezclados.
+const EN_RE=[
+[/^Ranura (\d+): (.*)$/,'Slot $1: $2'],
+[/^([\d.,]+) goles · T(\d+)$/,'$1 goals · S$2'],
+[/^([\d.,]+) goles · ([\d.,]+) PJ$/,'$1 goals · $2 apps'],
+[/^Temporada (\d+)$/,'Season $1'],
+[/^Jornada (\d+)$/,'Matchday $1'],
+[/^(\d+) años$/,'$1 years old'],
+[/^(\d+) años, (\d+) partidos$/,'$1 years old, $2 matches'],
+[/^temporada (\d+)$/,'season $1'],
+[/^jornada (\d+)$/,'matchday $1'],
+[/^Semana (\d+)$/,'Week $1'],
+[/^Temporada (\d+) terminada$/,'Season $1 finished'],
+[/^Sistema ([\d-]+) · fuerza$/,'Formation $1 · strength'],
+[/^Banquillo \((\d+)\/(\d+)\)$/,'Bench ($1/$2)'],
+[/^Fuera de la convocatoria \((\d+)\)$/,'Not in the squad ($1)'],
+[/^solo (\d+) disponibles$/,'only $1 available'],
+[/^¡sin portero! \(-(\d+) ?%\)$/,'no goalkeeper! (-$1 %)'],
+[/^Nv (\d+) · (.*)$/,'Lv $1 · $2'],
+[/^([\d.,]+) de ([\d.,]+) posibles$/,'$1 of $2 possible'],
+[/^Ligas: (\d+) · Copas: (\d+) · Ascensos: (\d+)$/,'Leagues: $1 · Cups: $2 · Promotions: $3'],
+[/^Ligas: (\d+) · Copas nacionales: (\d+) · Libertadores: (\d+) · Sudamericana: (\d+) · Ascensos: (\d+) · Goles: (\d+)$/,'Leagues: $1 · Domestic cups: $2 · Libertadores: $3 · Sudamericana: $4 · Promotions: $5 · Goals: $6'],
+[/^La directiva de (.*) prescinde de tus servicios tras (\d+) temporadas\.$/,'The board of $1 dispenses with your services after $2 seasons.'],
+[/^Ahora, dos semanas de pretemporada: vacaciones y un amistoso antes de la jornada (\d+)\.$/,'Now two preseason weeks: a holiday and a friendly before matchday $1.'],
+[/^Primera B de ([^·.]+)$/,(m,p)=>'Second Division of '+E(p)],
+[/^Primera de ([^·.]+)$/,(m,p)=>'First Division of '+E(p)],
+[/^Segunda de ([^·.]+)$/,(m,p)=>'Third Division of '+E(p)],
+[/^Tercera de ([^·.]+)$/,(m,p)=>'Fourth Division of '+E(p)],
+[/^(\d+)º$/,ord],
+[/^J(\d+)$/,'MD$1'],
+[/^T(\d+)$/,'S$1'],
+[/^(POR|DEF|MED|DEL) ([\d.,]+)$/,(m,p,n)=>POS_EN[p]+' '+n],
+[/^(POR|DEF|MED|DEL)$/,(m,p)=>POS_EN[p]],
+[/^Presidente (equilibrado|austero|ambicioso|popular) \((.+)\)$/,(m,t,n)=>({equilibrado:'Balanced',austero:'Frugal',ambicioso:'Ambitious',popular:'Populist'})[t]+' president ('+n+')'],
+[/^🎯 Acabar entre los (\d+) primeros$/,'🎯 Finish in the top $1'],
+[/^Acabar entre los (\d+) primeros$/,'Finish in the top $1'],
+[/^Terminar en la mitad alta \(top (\d+)\)$/,'Finish in the top half (top $1)'],
+[/^sube (.+) por semana$/,'up $1 per week'],
+[/^baja (.+) por semana$/,'down $1 per week'],
+[/^(.+) de (1000\.00 M€|[\d.,]+ ?[kM]?€)$/,'$1 of $2'],
+[/^playoff del (\d+)º al (\d+)º$/,'playoff for places $1 to $2'],
+[/^Suben (\d+)$/,'$1 go up'],
+[/^Ranura (\d+)$/,'Slot $1'],
+[/^Ranura (\d+) \(actual\)$/,'Slot $1 (current)'],
+[/^tiene (\d+) jornadas en (.+) más dos semanas de pretemporada\.$/,(m,n,d)=>'has '+n+' matchdays in '+(EN[d]||d)+' plus two preseason weeks.'],
+[/^Ranura (\d+) · T(\d+)$/,'Slot $1 · S$2'],
+[/^Renovar \((.+)\)$/,'Renew ($1)'],
+[/^Vender por (.+)$/,'Sell for $1'],
+[/^pide (.+)\/sem \+ prima (.+)$/,'asks $1/wk + $2 fee'],
+[/^Salarios: (.+)$/,'Wages: $1'],
+[/^caja (.+)$/,'cash $1'],
+[/^Caja: (.+)$/,'Cash: $1'],
+[/^Tasa de lujo: (.+)\/sem porque los salarios \((.+)\) superan el (\d+) ?% de los ingresos\.$/,'Luxury tax: $1/wk because wages ($2) are over $3 % of income.'],
+[/^(\d+)º en (Primera B|Primera|Segunda|Tercera)$/,(m,n,d)=>ord(0,n)+' in '+EN[d]],
+[/^Copa (?!Libertadores|Sudamericana)([^·.]+)$/,'$1 Cup'],
+[/^paso (\d+) de (\d+)$/,'step $1 of $2'],
+];
+const POS_EN={POR:'GK',DEF:'DF',MED:'MF',DEL:'FW'};
+function ord(m,n){n=+n;const d=n%10,c=n%100;
+  return n+((d===1&&c!==11)?'st':(d===2&&c!==12)?'nd':(d===3&&c!==13)?'rd':'th')}
+Object.assign(EN,{
+// mejoras del estadio
+'Cancha, una grada y un food truck':'A pitch, one stand and a food truck',
+'Segunda grada y marcador':'Second stand and scoreboard',
+'Entradas con torniquetes y segundo puesto de comida':'Turnstiles and a second food stall',
+'Cuatro torres de iluminación y gradas frontales':'Four floodlight towers and end stands',
+'Gradas más altas y acceso pavimentado':'Taller stands and paved access',
+'Techo sobre las gradas principales':'Roof over the main stands',
+'Palcos VIP y kioscos comerciales':'VIP boxes and retail kiosks',
+'Pantalla gigante e iluminación perimetral':'Big screen and perimeter lighting',
+'Zona hospitality: entradas +8 %':'Hospitality area: ticket income +8 %',
+'Museo del club y tour: merchandising +10 %':'Club museum and tour: merchandising +10 %',
+'Centro comercial anexo: entradas y merchandising +8 %':'Attached shopping centre: tickets and merchandising +8 %',
+'Estadio inteligente: entradas +10 %, merchandising +10 %':'Smart stadium: tickets +10 %, merchandising +10 %',
+'Estadio nuevo de 100.000 plazas':'New 100,000-seat stadium',
+// instalaciones
+'Progreso de jugadores':'Player progress','base':'base','lesiones -¤ % de duración':'injury length -¤ %',
+'vestuarios':'dressing rooms','gimnasio':'gym','segunda cancha':'second pitch',
+'Canterano gratis cada ¤ semanas':'Free academy player every ¤ weeks','calidad ¤-¤':'quality ¤-¤',
+'Patrocinios +¤%':'Sponsorship +¤%','campañas -¤% coste':'campaigns -¤% cost',
+'Merchandising':'Merchandising','¤ €/aficionado/semana':'¤ €/fan/week',
+'Ampliar':'Upgrade','Contratar':'Hire','Sede':'Ground','Mostrar detalles':'Show details','Ocultar detalles':'Hide details','Plantilla':'Squad','Once':'Line-up','Partidos':'Matches',
+'Nivel máximo':'Max level','Máximo':'Maxed',
+// cabecera del calendario
+'Guía':'Guide','Mercado':'Market','abierto hasta la jornada ¤':'open until matchday ¤',
+'cerrado, abre en la jornada ¤ y en la ¤':'closed, opens on matchday ¤ and on ¤',
+'Salarios: ¤ k€/sem':'Wages: ¤ k€/wk','Salarios':'Wages','¤ ligas':'¤ leagues','¤ liga':'¤ league',
+// hoy
+'pagos y cobros de la semana':'the week’s payments and income','El domingo':'On Sunday','El miércoles':'On Wednesday',
+'jornada ¤':'matchday ¤','entrada ¤ €':'ticket ¤ €','en casa vs':'at home vs','fuera vs':'away vs','a domicilio vs':'away vs',
+'Fin de la pretemporada':'End of preseason','vacaciones':'holiday',
+'Hay una partida guardada: temporada':'There is a saved game: season',', jornada':', matchday',
+'Guía · paso ¤ de ¤':'Guide · step ¤ of ¤',
+// entrenamiento y once
+'Foco de la semana':'Focus of the week','de la semana':'of the week','por semana':'per week',
+'General':'General','Ataque':'Attack','Defensa':'Defence','Físico (descanso)':'Fitness (rest)','Jóvenes':'Youth',
+'todos por igual':'everyone alike','delanteros y medios':'forwards and midfielders','defensas y portero':'defenders and goalkeeper',
+'descanso: recupera energía':'rest: recovers energy','los de 22 años o menos':'those aged 22 or under',
+'Alineación':'Line-up','¤ días':'¤ days','¤ día':'¤ day','Físico':'Physical','Técnica':'Technical','Mental':'Mental','años':'years old','Táctica':'Tactics','Competición':'Competition','Club':'Club','Palmarés, en Club':'Honours, in Club','Táctica, en Competición':'Tactics, in Competition','→ o N':'→ or N','? o H':'? or H','o':'or','Fuerza del once':'Starting XI strength','¤ k€/sem':'¤ k€/wk','¤ M€/sem':'¤ M€/wk','¤ €/sem':'¤ €/wk','Salarios: ¤ k€/sem':'Wages: ¤ k€/wk','mercado abierto':'transfer window open','💱 mercado abierto':'💱 transfer window open','los once mejores disponibles':'the eleven best available',
+'Toca un jugador para moverlo: titular → banquillo → fuera de la convocatoria → titular.':'Tap a player to move him: starter → bench → out of the squad → starter.','energía ¤':'energy ¤','Energía ¤':'Energy ¤','ninguno':'none','ninguna':'none',
+'los once mejores disponibles. Toca un jugador para moverlo: titular → banquillo → fuera de la convocatoria → titular.':'the eleven best available. Tap a player to move him: starter → bench → out of the squad → starter.',
+'se respeta mientras los elegidos estén disponibles; el entrenador solo rellena huecos.':'it is kept as long as your picks are available; the coach only fills the gaps.',
+'Contrata un ojeador en Club → Personal para recibir informes.':'Hire a scout in Club → Staff to start getting reports.',
+'Cada veterano de 30 o más en el once suma experiencia (+1 de fuerza, hasta tres); el capitán © suma otro 0,5 y nunca lo vende el director deportivo. ★ titular · 🚑 lesionado (semanas) · 📝 pide renovar · ⏳ contrato a punto de vencer · 🌱 canterano · 🔗 cláusula de formación (20 semanas sin poder venderlo) · ⭐ estrella · 🚩 fichaje bandera · 🔄 cedido (vuelve a su club en verano) · 🔒 intransferible':'Every veteran aged 30 or over in the XI adds experience (+1 strength, up to three); the captain © adds another 0.5 and the sporting director never sells him. ★ starter · 🚑 injured (weeks) · 📝 wants a new contract · ⏳ contract about to expire · 🌱 academy · 🔗 development clause (20 weeks before he can be sold) · ⭐ star · 🚩 marquee signing · 🔄 on loan (returns to his club in the summer) · 🔒 not for sale',
+// competición
+'Dieciseisavos':'Round of 32','Treintaidosavos':'Round of 64','miércoles de la jornada ¤ vs':'Wednesday of matchday ¤ vs',
+'premio ¤ k€':'prize ¤ k€','premio ¤ M€':'prize ¤ M€','taquilla prevista ¤ k€':'expected gate ¤ k€','taquilla prevista ¤ M€':'expected gate ¤ M€',
+'PJ':'P','DG':'GD','GF':'GF','GC':'GA','Pos':'Pos','Rival':'Opponent','Resultado':'Result',
+'Suben ¤ · playoff del ¤º al ¤º':'¤ go up · playoff for places ¤ to ¤',
+// dinero
+'Cuenta de la semana':'This week’s accounts','Total':'Total','Semana':'Week',
+'+¤ aficionados':'+¤ fans','merchandising +¤ %':'merchandising +¤ %','¤ sem':'¤ wks','¤ semana(s)':'¤ week(s)',
+'Cuando la caja llegue a mil millones podrás dejarlo todo y retirarte. La directiva reparte cada temporada el 15 % del excedente, así que la meta pide un club grande y bien llevado.':'Once the bank hits one billion you can walk away and retire. The board pays out 15 % of the surplus every season, so the goal needs a big, well-run club.',
+'· ¤ semana(s) hasta poder lanzar otra campaña':'· ¤ week(s) until you can launch another campaign',
+'Tasa de lujo: ¤ k€/sem porque los salarios (¤ k€) superan el ¤ % de los ingresos.':'Luxury tax: ¤ k€/wk because wages (¤ k€) are over ¤ % of income.',
+// guía
+'Esto es tu sede.':'This is your ground.','Cada edificio es una zona del juego y puedes tocarlo.':'Every building is an area of the game and you can tap it.',
+'Empieza contratando un':'Start by hiring a','ojeador':'scout',': es quien encuentra jugadores.':': he is the one who finds players.',
+'La taquilla es tu primer ingreso.':'The gate is your first source of income.',
+'Mueve el precio y mira cómo cambia la asistencia prevista.':'Move the price and watch the expected attendance change.',
+'El director comercial lo hará por ti cuando lo contrates.':'The commercial director will do it for you once you hire him.',
+'Elige el':'Choose the','foco':'focus','de la semana. Con jóvenes en la plantilla, "Jóvenes" los hace crecer más rápido.':'of the week. With young players in the squad, "Youth" makes them grow faster.',
+'Pulsa':'Press','▶ Jugar la semana':'▶ Play the week','. Pasan los siete días, el domingo se juega el partido y el lunes el juego se detiene solo con el resumen.':'. The seven days go by, the match is played on Sunday and on Monday the game pauses by itself with the summary.',
+'Cada lunes verás aquí el resultado, la cuenta de la semana, los avisos y lo que hizo tu personal con su porqué.':'Every Monday you will see the result here, the week’s accounts, the alerts and what your staff did and why.',
+'Eso es todo: contrata, decide cuando te pregunten y juega semana a semana.':'That is all there is: hire, decide when they ask, and play week by week.',
+// personal
+'🔭 Ojeador':'🔭 Scout','🏃 Entrenador':'🏃 Coach','📋 Director deportivo':'📋 Sporting director','💼 Director comercial':'💼 Commercial director',
+'📣 Jefe de marketing':'📣 Marketing chief','🏗 Gerente de sede':'🏗 Facilities manager',
+});
+
 const ESCAPES={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
 function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>ESCAPES[c])}
 function limpiaTexto(v,max){return String(v==null?'':v).replace(/[<>]/g,'').trim().slice(0,max||80)}
@@ -231,6 +722,8 @@ const GLOS={OVR:'Nivel actual del jugador, de 20 a 99. Decide la fuerza del equi
 function q(t){return '<abbr class="q" data-a="glos" data-k="'+esc(t)+'" title="'+esc(GLOS[t]||'')+'">'+esc(t)+'</abbr>'}
 const DIAS=['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const DIAS_C=['L','M','X','J','V','S','D'];
+const DIAS_C_EN=['M','T','W','T','F','S','S'];
+function diaIni(i){return IDIOMA==='en'?DIAS_C_EN[i]:DIAS_C[i]}
 const DIA_ICONO=['💶','🔭','🤖','📰','🏃','🛒','⚽'];
 const DIA_DESC=['Pagos y cobros semanales','Informes del ojeador y la academia','El personal toma sus decisiones','Noticias y ofertas','Entrenamiento intensivo','Previa del partido','Día de partido'];
 // progresión con rendimientos decrecientes (idea de Agente Agente)
@@ -381,21 +874,23 @@ if(typeof g.rngEstado!=='number')g.rngEstado=(Math.random()*4294967296)|0;G=g;
   if(n)console.info('Partida migrada: '+n+' campos añadidos');return g}
 function load(){try{const s=localStorage.getItem(SAVE_KEY());if(!s)return false;const g=JSON.parse(s);if(!g||!g.pais)return false;g.partido=null;g.vel=0;G=migrar(g);return true}catch(e){console.error('No se pudo cargar la partida',e);return false}}
 function cambiarSlot(n){save();SLOT=n;try{localStorage.setItem('clubtycoon_slot',SLOT)}catch(e){}if(load()){renderLog();renderUI()}else{G=null;modalNuevo()}renderSlots()}
-function renderSlots(){const sel=$('#slot');if(!sel)return;let h='';for(let i=1;i<=3;i++){let info='vacía';try{const s=localStorage.getItem('clubtycoon_v2_'+i);if(s){const g=JSON.parse(s);info=g.nombreClub+' · T'+g.temporada}}catch(e){}h+=`<option value="${i}" ${i===SLOT?'selected':''}>Ranura ${i}: ${info}</option>`}sel.innerHTML=h}
+function renderSlots(){const sel=$('#slot');if(!sel)return;let h='';for(let i=1;i<=3;i++){let info='vacía';try{const s=localStorage.getItem('clubtycoon_v2_'+i);if(s){const g=JSON.parse(s);info=g.nombreClub+' · '+(IDIOMA==='en'?'S':'T')+g.temporada}}catch(e){}h+=`<option value="${i}" ${i===SLOT?'selected':''}>Ranura ${i}: ${info}</option>`}sel.innerHTML=tr(h)}
 function exportar(){if(!G)return;save();const blob=new Blob([JSON.stringify(G)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='el-desafio-'+G.nombreClub.replace(/\s+/g,'_')+'-T'+G.temporada+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function importar(file){const r=new FileReader();r.onload=()=>{const prev=G;try{const g=JSON.parse(r.result);if(!g||!g.pais||!g.jugadores)throw new Error('formato');g.partido=null;g.vel=0;const m=migrar(g);if(!m.jugadores.length)throw new Error('sin jugadores');G=m;save();renderLog();renderUI();renderSlots();aviso('Partida importada en la ranura '+SLOT,'ok')}catch(e){G=prev;console.error('Importación rechazada',e);aviso('El archivo no es una partida válida','bad')}};r.readAsText(file)}
 
 // ============================================================ LOG / TOAST
 function noticia(tipo,titular){if(!G.noticias)G.noticias=[];G.noticias.unshift({t:G.temporada,s:G.semana,tipo,titular});if(G.noticias.length>60)G.noticias.length=60}
 let logModo='log';
-function renderLog(){if(logModo==='prensa'){const ic={partido:'⚽',agencia:'🏢',jugador:'👤',mercado:'📰'};$('#log').innerHTML=(G.noticias||[]).length?G.noticias.map(n=>`<div><span class="hint">T${n.t}·J${n.s}</span> ${ic[n.tipo]||'📰'} <b>${n.titular}</b></div>`).join(''):'<div class="hint">Todavía no hay titulares.</div>';return}
-  $('#log').innerHTML=G.log.map(l=>`<div class="${l.cls||''}"><span class="hint">J${l.s}${l.d?'·'+l.d:''}</span> ${l.msg}</div>`).join('')}
+const DIAS_EN=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function diaCorto(d){if(IDIOMA!=='en')return d;const i=DIAS_C.indexOf(d);return i<0?d:DIAS_EN[i]}
+function renderLog(){if(logModo==='prensa'){const ic={partido:'⚽',agencia:'🏢',jugador:'👤',mercado:'📰'};$('#log').innerHTML=tr((G.noticias||[]).length?G.noticias.map(n=>`<div><span class="hint">T${n.t}·J${n.s}</span> ${ic[n.tipo]||'📰'} <b>${n.titular}</b></div>`).join(''):'<div class="hint">Todavía no hay titulares.</div>');return}
+  $('#log').innerHTML=tr(G.log.map(l=>`<div class="${l.cls||''}"><span class="hint">${IDIOMA==='en'?'W':'J'}${l.s}${l.d?'·'+diaCorto(l.d):''}</span> ${l.msg}</div>`).join(''))}
 $('#log').addEventListener('click',()=>{logNuevos=0;document.querySelectorAll('#logbar .punto').forEach(x=>x.remove())});
 $('#logbar').addEventListener('click',e=>{logNuevos=0;document.querySelectorAll('#logbar .punto').forEach(x=>x.remove());const b=e.target.closest('button');if(!b)return;logModo=b.dataset.m;document.querySelectorAll('#logbar button').forEach(x=>x.classList.toggle('on',x===b));if(G)renderLog()});
 function log(msg,cls){G.log.unshift({s:G.semana,t:G.temporada,d:DIAS_C[G.dia-1],msg,cls});if(G.log.length>80)G.log.length=80;renderLog();if(cls!==undefined)toast(msg,cls)}
 let logNuevos=0;
 function aviso(msg,cls){const c=$('#toasts');if(!c)return;if(c.children.length>=3)c.removeChild(c.firstChild);
-  const d=document.createElement('div');d.className='toast '+(cls||'');d.textContent=msg;c.appendChild(d);setTimeout(()=>{if(d.parentNode)d.parentNode.removeChild(d)},6000)}
+  const d=document.createElement('div');d.className='toast '+(cls||'');d.textContent=trTexto(msg);c.appendChild(d);setTimeout(()=>{if(d.parentNode)d.parentNode.removeChild(d)},6000)}
 function toast(msg,cls){logNuevos++;const lb=$('#logbar');if(lb&&!lb.querySelector('.punto'))lb.querySelector('button').insertAdjacentHTML('beforeend','<span class="punto"></span>');return;const d=document.createElement('div');d.className='toast '+(cls||'');d.textContent=msg;$('#toasts').appendChild(d);setTimeout(()=>d.remove(),6000);while($('#toasts').children.length>5)$('#toasts').firstChild.remove()}
 
 // ============================================================ LÓGICA
@@ -802,6 +1297,319 @@ function sembrarHistoria(){
     p.ligas+=l.ligas;p.libertadores+=l.libertadores;p.tuyo=true}
   const campeon=Object.entries(PR).sort((a,b)=>b[1].libertadores-a[1].libertadores)[0];
   if(campeon)G.libertadoresUltimo=campeon[0]}
+// Mensajes del registro: llevan nombres y cifras dentro, así que van por patrón.
+const TACT_EN={equilibrada:'balanced',ofensiva:'attacking',defensiva:'defensive',contragolpe:'counter-attacking'};
+function P(x){return POS_EN[x]||x}
+function E(x){const v=trUno(x);return v===null?x:v}
+const EN_LOG=[
+[/^El gerente pone la primera piedra de (.+) \((.+), (\d+) semanas\)\.$/,(m,a,b,c)=>'The manager breaks ground on '+E(a)+' ('+b+', '+c+' weeks).'],
+[/^Pones la primera piedra de (.+) \((.+), (\d+) semanas\)\.$/,(m,a,b,c)=>'You break ground on '+E(a)+' ('+b+', '+c+' weeks).'],
+[/^🏛 Inauguras (.+?)\. (.+)$/,(m,a,b)=>'🏛 You open '+E(a)+'. '+E(b)],
+[/^Inaugurada la (.+)$/,(m,a)=>'Opened: '+E(a)],
+[/^¡Bienvenido a (.+) \((.+)\)! Empiezas en (.+) con (.+) en caja\.$/,(m,a,b,c,d)=>'Welcome to '+a+' ('+b+')! You start in '+E(c)+' with '+d+' in the bank.'],
+[/^Rotación en la copa: entran (.+)\.$/,'Cup rotation: on come $1.'],
+[/^Tasa de lujo: pagas (.+) esta semana porque los salarios superan el (\d+) % de los ingresos\.$/,'Luxury tax: you pay $1 this week because wages are over $2 % of income.'],
+[/^Termina el contrato con (.+)\.$/,'The deal with $1 comes to an end.'],
+[/^Se abre la ventana de fichajes \((verano|invierno)\): (\d+) jugadores disponibles hasta la jornada (\d+)\.$/,(m,t,n,j)=>'The transfer window opens ('+(t==='verano'?'summer':'winter')+'): '+n+' players available until matchday '+j+'.'],
+[/^(.+) recibe el alta médica\.$/,'$1 is back from injury.'],
+[/^Caja en negativo: el director deportivo vende a (.+) para cuadrar cuentas\.$/,'Cash in the red: the sporting director sells $1 to balance the books.'],
+[/^El banco fuerza la venta de (.+) por (.+) para cubrir deudas\.$/,'The bank forces the sale of $1 for $2 to cover debts.'],
+[/^El entrenador plantea el partido con táctica (\w+) ante (.+)\.$/,(m,t,r)=>'The coach sets up '+(TACT_EN[t]||t)+' against '+r+'.'],
+[/^La academia presenta a su joya: (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'The academy unveils its jewel: '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^La academia presenta un canterano: (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'The academy brings up a youngster: '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^El filial sube a (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'The reserves promote '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^Llega (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'In comes '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^El ojeador ficha a (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'The scout signs '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^Fichas a (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\)\.$/,(m,n,p,a,b)=>'You sign '+n+' ('+P(p)+', '+a+' → '+b+').'],
+[/^El ojeador sube al primer equipo a (.+)\.$/,'The scout promotes $1 to the first team.'],
+[/^Subes al primer equipo a (.+)\.$/,'You promote $1 to the first team.'],
+[/^El entrenador cambia el foco a: (.+)\.$/,(m,f)=>'The coach switches the focus to: '+E(f)+'.'],
+[/^El director deportivo no renueva a (.+)\.$/,'The sporting director does not renew $1.'],
+[/^Masa salarial demasiado alta \((.+)\/sem frente a ingresos de (.+)\): el director deportivo vende a (.+)\.$/,'Wage bill too high ($1/wk against income of $2): the sporting director sells $3.'],
+[/^El director deportivo firma a (.+) \((POR|DEF|MED|DEL), (\d+)\) por (.+)\.$/,(m,n,p,o,c)=>'The sporting director signs '+n+' ('+P(p)+', '+o+') for '+c+'.'],
+[/^Plantilla bajo mínimos (.+): el club firma a (\d+) agente\(s\) libre\(s\) para poder competir\.$/,'Squad below the minimum $1: the club signs $2 free agent(s) to be able to compete.'],
+[/^(.+) pide renovar: (.+)\/sem \(ahora (.+)\)\. Quedan (\d+) semanas de contrato\.$/,'$1 wants a new deal: $2/wk (currently $3). $4 weeks left on his contract.'],
+[/^(.+) termina contrato y se marcha libre\.$/,'$1 runs down his contract and leaves on a free.'],
+[/^Faltan (.+) para pagar la prima de renovación de (.+)\.$/,'You are $1 short of paying $2’s renewal fee.'],
+[/^El director deportivo renueva a (.+) por (.+)\/sem \(prima (.+)\)\.$/,'The sporting director renews $1 at $2/wk ($3 fee).'],
+[/^Renuevas a (.+) por (.+)\/sem \(prima (.+)\)\.$/,'You renew $1 at $2/wk ($3 fee).'],
+[/^La plantilla está llena \((\d+)\): el agente se lleva su juvenil a otro club y no pagas nada\.$/,'The squad is full ($1): the agent takes his youngster elsewhere and you pay nothing.'],
+[/^Retienes al (.+) con una prima de (.+)\.$/,(m,q,p)=>'You keep the '+E(q)+' with a '+p+' bonus.'],
+[/^No hay caja para la prima: el (.+) se marcha igual\.$/,(m,q)=>'No cash for the bonus: the '+E(q)+' leaves anyway.'],
+[/^Se marcha el (.+) a un club grande$/,(m,q)=>'The '+E(q)+' leaves for a big club'],
+[/^⚠ (.+): -3 puntos y multa de (.+)\.$/,(m,c,f)=>'⚠ '+E(c)+': -3 points and a '+f+' fine.'],
+[/^⚠ (Recesión económica|Epidemia: partidos a puerta cerrada|Sanción de la federación|Temporal de lluvias): (.+)$/,(m,c,d)=>'⚠ '+E(c)+': '+E(d)],
+[/^Termina: (.+)\.$/,(m,c)=>'Over: '+E(c)+'.'],
+[/^Fecha FIFA: (.+) convocados? con su selección\. Vuelven con menos energía y más cartel\.$/,'International break: $1 called up by their country. They come back with less energy and a bigger name.'],
+[/^(\d+) jugadores? del club en la fecha FIFA$/,'$1 club player(s) on international duty'],
+[/^🏅 Logro: (.+?) — (.+)$/,(m,a,b)=>'🏅 Achievement: '+E(a)+' — '+E(b)],
+[/^🏅 Logro desbloqueado: (.+)$/,(m,a)=>'🏅 Achievement unlocked: '+E(a)],
+[/^📌 Decisión pendiente: (.+)$/,(m,a)=>'📌 Pending decision: '+E(a)],
+[/^Sin respuesta: (.+) Se aplica la opción por defecto\.$/,(m,a)=>'No answer: '+E(a)+' The default option is applied.'],
+[/^🇪🇺 (.+) ofrece (.+) por (.+)\. Si lo rechazas, el vestuario y él lo tomarán mal\.$/,'🇪🇺 $1 offers $2 for $3. Turn it down and both he and the dressing room will take it badly.'],
+[/^(.+) pregunta por (.+)$/,'$1 asks about $2'],
+[/^(.+) se queda a disgusto tras rechazar a (.+): moral -8\.$/,'$1 is unhappy after $2 was turned down: morale -8.'],
+[/^El director deportivo ficha a (.+) \((POR|DEF|MED|DEL), (\d+)\) de (.+) por (.+) \+ prima (.+)\.$/,(m,n,p,o,c,pr,b)=>'The sporting director signs '+n+' ('+P(p)+', '+o+') from '+c+' for '+pr+' + '+b+' fee.'],
+[/^Fichas a (.+) \((POR|DEF|MED|DEL), (\d+)\) de (.+) por (.+) \+ prima (.+)\.$/,(m,n,p,o,c,pr,b)=>'You sign '+n+' ('+P(p)+', '+o+') from '+c+' for '+pr+' + '+b+' fee.'],
+[/^Fichaje bandera: la afición se ilusiona con (.+) y la moral sube\.$/,'Marquee signing: the fans are dreaming about $1 and morale rises.'],
+[/^Bombazo: (.+) llega desde (.+) por (.+)$/,'Blockbuster: $1 arrives from $2 for $3'],
+[/^Fichaje: (.+) llega desde (.+) por (.+)$/,'Signing: $1 arrives from $2 for $3'],
+[/^(.+) se lesiona (.+): (\d+) semanas? de baja\.$/,'$1 picks up an injury $2: $3 week(s) out.'],
+[/^Oferta de patrocinio de (.+): (.+)\/semana durante (\d+) semanas\.$/,'Sponsorship offer from $1: $2/week for $3 weeks.'],
+[/^Un vídeo viral del club se dispara: \+(.+) en ventas\.$/,'A club video goes viral: +$1 in sales.'],
+[/^Un club grande ofrece (.+) por (.+)\. \(Plantilla → Aceptar\)$/,'A big club offers $1 for $2. (Squad → Accept)'],
+[/^(.+) se queja en la prensa: lleva (\d+) partidos sin jugar\.$/,'$1 complains to the press: $2 matches without a game.'],
+[/^(.+) pide minutos$/,'$1 wants minutes'],
+[/^El gerente inicia las obras de (.+) \(nivel (\d+)\) por (.+): (\d+) semanas?\.$/,(m,a,l,c,s)=>'The manager starts work on '+E(a)+' (level '+l+') for '+c+': '+s+' week(s).'],
+[/^Inicias las obras de (.+) \(nivel (\d+)\) por (.+): (\d+) semanas?\.$/,(m,a,l,c,s)=>'You start work on '+E(a)+' (level '+l+') for '+c+': '+s+' week(s).'],
+[/^Terminan las obras: (.+) a nivel (\d+)\.$/,(m,a,l)=>'Work finished: '+E(a)+' at level '+l+'.'],
+[/^Terminan las obras: (.+) a nivel (\d+), (.+)\.$/,(m,a,l,d)=>'Work finished: '+E(a)+' at level '+l+', '+E(d)+'.'],
+[/^Asciendes a (.+) \(nivel (\d+)\)\. Prima: (.+)\.$/,(m,a,l,p)=>'You promote the '+E(a)+' (level '+l+'). Bonus: '+p+'.'],
+[/^Contratas a (.+) \(nivel (\d+)\)\. Prima: (.+)\.$/,(m,a,l,p)=>'You hire a '+E(a)+' (level '+l+'). Bonus: '+p+'.'],
+[/^Despides a (.+)\.$/,(m,a)=>'You fire the '+E(a)+'.'],
+[/^(.+) es intransferible hasta la temporada (\d+)\.$/,'$1 is not for sale until season $2.'],
+[/^(.+) lleva (\d+) semanas en el club: la cláusula de formación impide venderlo hasta las 20\.$/,'$1 has been at the club $2 weeks: the development clause blocks a sale before 20.'],
+[/^El director deportivo vende a (.+) por (.+)\.$/,'The sporting director sells $1 for $2.'],
+[/^Vendes a (.+) por (.+)\.$/,'You sell $1 for $2.'],
+[/^(.+) sale del club por (.+)$/,'$1 leaves the club for $2'],
+[/^Aceptas la oferta: (.+) se marcha por (.+)\.$/,'You accept the offer: $1 leaves for $2.'],
+[/^El director comercial firma con (.+): (.+)\/semana\.$/,'The commercial director signs with $1: $2/week.'],
+[/^Firmas con (.+): (.+)\/semana\.$/,'You sign with $1: $2/week.'],
+[/^(.+), nuevo patrocinador principal$/,'$1, new main sponsor'],
+[/^El departamento de marketing necesita (\d+) semanas? más antes de otra campaña\.$/,'The marketing department needs $1 more week(s) before another campaign.'],
+[/^Marketing lanza "(.+)": \+(.+) aficionados\.$/,(m,c,n)=>'Marketing launches "'+E(c)+'": +'+n+' fans.'],
+[/^Lanzas "(.+)": \+(.+) aficionados\.$/,(m,c,n)=>'You launch "'+E(c)+'": +'+n+' fans.'],
+[/^Campaña "(.+)": (.+) nuevos aficionados$/,(m,c,n)=>'Campaign "'+E(c)+'": '+n+' new fans'],
+[/^(.+) · grupo vs (.+): (\d+)-(\d+)$/,(m,c,r,a,b)=>E(c)+' · group vs '+r+': '+a+'-'+b],
+[/^(.+) · grupo vs (.+): (\d+)-(\d+) · (.+)$/,(m,c,r,a,b,p)=>E(c)+' · group vs '+r+': '+a+'-'+b+' · '+p],
+[/^Amistoso de pretemporada vs (.+): (\d+)-(\d+) · (.+) espectadores \((.+)\)\. El domingo arranca la liga\.$/,'Preseason friendly vs $1: $2-$3 · $4 spectators ($5). The league starts on Sunday.'],
+[/^(.+) se fijó en (.+) durante el amistoso y ofrece (.+)\. Si lo rechazas, la moral del jugador cae\.$/,'$1 spotted $2 in the friendly and offers $3. Turn it down and his morale drops.'],
+[/^(.+) · (.+) vs (.+): (\d+)-(\d+) · pasas de ronda, premio (.+)$/,(m,c,r,o,a,b,p)=>E(c)+' · '+E(r)+' vs '+o+': '+a+'-'+b+' · you go through, prize '+p],
+[/^(.+) · (.+) vs (.+): (\d+)-(\d+) \(penales\) · pasas de ronda, premio (.+)$/,(m,c,r,o,a,b,p)=>E(c)+' · '+E(r)+' vs '+o+': '+a+'-'+b+' (on penalties) · you go through, prize '+p],
+[/^(.+) · (.+) vs (.+): (\d+)-(\d+) · eliminado\.$/,(m,c,r,o,a,b)=>E(c)+' · '+E(r)+' vs '+o+': '+a+'-'+b+' · knocked out.'],
+[/^(.+) · (.+) vs (.+): (\d+)-(\d+) \(penales\) · eliminado\.$/,(m,c,r,o,a,b)=>E(c)+' · '+E(r)+' vs '+o+': '+a+'-'+b+' (on penalties) · knocked out.'],
+[/^¡CAMPEÓN DE LA (.+)!$/,'CHAMPIONS OF THE $1!'],
+[/^¡(.+) gana la (.+)!$/,'$1 wins the $2!'],
+[/^Goleada: (.+)$/,'Thrashing: $1'],
+[/^Paliza: (.+)$/,'Hammering: $1'],
+[/^Victoria ante (.+) \((\d+)-(\d+)\)$/,'Win against $1 ($2-$3)'],
+[/^Empate a (\d+) con (.+)$/,'$1-$1 draw with $2'],
+[/^Derrota con (.+) \((\d+)-(\d+)\)$/,'Defeat by $1 ($2-$3)'],
+[/^Local vs (.+): (\d+)-(\d+) · (.+) espectadores \((.+)\)$/,'Home vs $1: $2-$3 · $4 spectators ($5)'],
+[/^Visitante vs (.+): (\d+)-(\d+)$/,'Away vs $1: $2-$3'],
+[/^¡Playoff de ascenso! Semifinal el domingo en casa ante (.+); la final sería en casa ante (.+)\.$/,'Promotion playoff! Semi-final on Sunday at home against $1; the final would be at home against $2.'],
+[/^¡Playoff de ascenso! Final a partido único el domingo en casa ante (.+)\.$/,'Promotion playoff! One-off final on Sunday at home against $1.'],
+[/^(.+) jugará el playoff de ascenso$/,'$1 will play the promotion playoff'],
+[/^Objetivo de la directiva esta temporada: (.+), sin acabar en números rojos\.$/,(m,o)=>'Board target for this season: '+E(o)+', without ending in the red.'],
+[/^Nuevo presidente: (.+), (.+)\. (.+)$/,(m,n,t,d)=>'New president: '+n+', '+E(t)+'. '+E(d)],
+[/^Amistoso de lujo: (.+) visita tu estadio\. Prima de (.+) y taquilla completa\.$/,'Marquee friendly: $1 visits your ground. A $2 fee and the full gate.'],
+[/^La directiva reparte dividendos: (.+) \(15 % del excedente sobre una reserva de (.+)\)\.$/,'The board pays a dividend: $1 (15 % of the surplus over a $2 reserve).'],
+[/^La directiva reparte dividendos: (.+) \(15 % del excedente sobre una reserva de (.+), que incluye el siguiente proyecto de legado\)\.$/,'The board pays a dividend: $1 (15 % of the surplus over a $2 reserve, which covers the next legacy project).'],
+[/^Bono de ascenso: la liga adelanta (.+) de derechos de TV para reforzar la plantilla\.$/,'Promotion bonus: the league advances $1 of TV money to strengthen the squad.'],
+[/^Terminan las cesiones: (.+) vuelven a su club\.$/,'Loans end: $1 return to their clubs.'],
+[/^Generación perdida: se retiran (\d+) titulares\. La directiva relaja el objetivo y la academia promete una joya\.$/,'Lost generation: $1 starters retire. The board eases the target and the academy promises a gem.'],
+[/^Termina el patrocinio del nombre del estadio: vuelve a llamarse Estadio (.+)\.$/,'The stadium naming deal ends: it goes back to being Estadio $1.'],
+[/^Capitán de la temporada: (.+) \((\d+) años, (\d+) partidos\)\. El director deportivo no lo venderá\.$/,'Captain of the season: $1 ($2 years old, $3 matches). The sporting director will not sell him.'],
+[/^Temporada cerrada: (\d+)º en (.+)$/,(m,p,d)=>'Season closed: '+ord(0,p)+' in '+E(d)],
+[/^¡(.+) campeón de (.+)!$/,(m,c,d)=>c+' wins the '+E(d)+'!'],
+[/^Se retiran: (.+)\.$/,'Retiring: $1.'],
+[/^🔓 Nueva sección: (.+), en (.+)\.$/,(m,a,b)=>'🔓 New section: '+E(a)+', in '+E(b)+'.'],
+[/^Rechazas la isla: sigues al mando de (.+)\.$/,'You turn down the island: you stay in charge of $1.'],
+[/^🏝 Te retiras a tu isla privada con (.+) en la caja del club, tras (\d+) temporadas\.$/,'🏝 You retire to your private island with $1 in the club’s bank, after $2 seasons.'],
+[/^El gestor de (.+) se retira tras alcanzar los mil millones$/,'The manager of $1 retires after reaching one billion'],
+[/^(.+): la directiva cuestiona al gestor$/,'$1: the board questions the manager'],
+[/^(\d+) semanas? de baja$/,'$1 week(s) out'],
+];
+EN_RE.push(...EN_LOG);
+// Dilemas: el texto lleva nombres y cifras.
+EN_RE.push(
+[/^(.+), tu capitán, pide un aumento del 30 % \(de (.+) a (.+)\/sem\)\.$/,'$1, your captain, is asking for a 30 % rise (from $2 to $3/wk).'],
+[/^(.+) quiere irse a un club más grande\. Hay una oferta de (.+)\.$/,'$1 wants to move to a bigger club. There is a $2 offer on the table.'],
+[/^(.+) ofrece (.+) por poner su nombre al estadio durante dos temporadas\.$/,'$1 offers $2 to put its name on the stadium for two seasons.'],
+[/^Una televisión ofrece (.+) por un amistoso entre semana\.$/,'A TV channel offers $1 for a midweek friendly.'],
+[/^El ayuntamiento ofrece (.+) si abres la sede a los colegios de la ciudad\.$/,'The city council offers $1 if you open the ground to local schools.'],
+[/^Un agente ofrece un juvenil con gran proyección a cambio de una comisión de (.+)\.$/,'An agent offers a highly rated youngster in exchange for a $1 commission.'],
+[/^Un club grande quiere llevarse a tu (.+) \(nivel (\d+)\)\.$/,(m,q,l)=>'A big club wants to take your '+E(q)+' (level '+l+').'],
+[/^(.+) llegó tarde a entrenar dos veces esta semana\.$/,'$1 turned up late to training twice this week.'],
+[/^Ascenderlo para retenerlo \((.+)\)$/,'Promote him to keep him ($1)'],
+[/^Decides: (.+) — (.+)$/,(m,a,b)=>'You decide: '+E(a)+' — '+E(b)],
+[/^(.+) decide: (.+) — (.+)$/,(m,q,a,b)=>E(q)+' decides: '+E(a)+' — '+E(b)]
+);
+Object.assign(EN,{
+'Concederlo (+moral)':'Grant it (+morale)','Negarlo (-moral, podría querer irse)':'Refuse (-morale, he may want out)',
+'Venderlo':'Sell him','Retenerlo (-moral, -energía)':'Keep him (-morale, -energy)',
+'Aceptar (-3 reputación, -2 % aficionados)':'Accept (-3 reputation, -2 % fans)','Rechazar (+1 reputación)':'Refuse (+1 reputation)',
+'Bajar el precio un 20 % (más aficionados)':'Cut the price by 20 % (more fans)','Mantenerlo (-2 % aficionados)':'Hold it (-2 % fans)',
+'Jugarlo (cobrar, -12 energía a los titulares)':'Play it (take the money, -12 energy for the starters)','Rechazar':'Refuse',
+'Aceptar (+aficionados)':'Accept (+fans)','Pagar la comisión':'Pay the commission',
+'Dejarlo ir (pierdes al empleado)':'Let him go (you lose the employee)',
+'Multarlo (cobras dos semanas de salario, -moral)':'Fine him (you collect two weeks of wages, -morale)','Hablar con él (+moral)':'Have a word with him (+morale)',
+'Decides':'You decide','ojeador':'scout','entrenador':'coach','director deportivo':'sporting director','director comercial':'commercial director',
+'jefe de marketing':'marketing chief','gerente de sede':'facilities manager','Llegar a cuartos de la Copa':'Reach the cup quarter-finals',
+});
+// Avisos del lunes y marcador del partido.
+EN_RE.push(
+[/^📋 Resumen de la jornada (\d+)$/,'📋 Matchday $1 summary'],
+[/^vs (.+) (\d+)-(\d+)( ✔| ✘| =)?$/,'vs $1 $2-$3$4'],
+[/^en (.+) (\d+)-(\d+)( ✔| ✘| =)?$/,'at $1 $2-$3$4'],
+[/^(\d+) jugadores cansados: el foco físico los recuperaría\.$/,'$1 tired players: the fitness focus would bring them back.'],
+[/^(\d+) renovación\(es\) pendiente\(s\) en Plantilla\.$/,'$1 contract renewal(s) waiting in Squad.'],
+[/^(\d+) decisión\(es\) esperando respuesta\.$/,'$1 decision(s) waiting for an answer.'],
+[/^Estás lejos de tu potencial de aficionados \((.+) de (.+)\): una campaña ayudaría\.$/,'You are well below your fan potential ($1 of $2): a campaign would help.'],
+[/^Pagas (.+) de tasa de lujo cada semana: baja la masa salarial por debajo del 55 % de los ingresos\.$/,'You pay $1 in luxury tax every week: get the wage bill below 55 % of income.'],
+[/^Falta un (.+) en la plantilla\.$/,(m,p)=>'The squad is short of a '+E(p)+'.'],
+[/^Resumen semanal listo en 🏟 Sede · (\d+) aviso\(s\)$/,'Weekly summary ready in 🏟 Ground · $1 alert(s)'],
+[/^Clubes de (.+)$/,(m,d)=>E(d)+' clubs']
+);
+Object.assign(EN,{
+'El estadio se llena: ampliarlo daría más taquilla.':'The ground sells out: expanding it would bring in more gate money.',
+'Sin patrocinador: oficinas y director comercial atraen ofertas.':'No sponsor: offices and a commercial director attract offers.',
+'Caja en negativo: la directiva pierde confianza cada semana.':'Cash in the red: the board loses confidence every week.',
+'Resumen semanal listo en 🏟 Sede':'Weekly summary ready in 🏟 Ground',
+'portero':'goalkeeper','defensa':'defender','centrocampista':'midfielder','delantero':'forward',
+});
+// Países y textos del final, partidos por las negritas.
+Object.assign(EN,{
+'Brasil':'Brazil','Perú':'Peru','¤ de ¤':'¤ of ¤',
+'alcanza los mil millones en la temporada':'reaches one billion in season',
+'. Te costó':'. It took you','de calendario y':'of calendar time and','de juego.':'of play.',
+'Dejas':'You leave','en caja y te vas. La isla no tiene liga, ni directiva, ni fecha FIFA.':'in the bank and walk away. The island has no league, no board and no international break.',
+'La caja de':'The bank balance of','alcanza':'reaches',
+'en la temporada ¤. Has llevado a un club de Tercera hasta aquí: puedes dejarlo y retirarte a esa isla que llevas años mirando en el mapa, o quedarte al mando y ver hasta dónde llega.':'in season ¤. You have taken a fourth-division club all the way here: you can walk away to that island you have been eyeing on the map for years, or stay in charge and see how far it goes.',
+'tiene':'has','ligas,':'leagues,','copas y':'cups and','Libertadores. Puedes seguir mandando... o empezar de nuevo en otro país con tu prestigio.':'Libertadores. You can keep managing... or start again in another country with your prestige.',
+': conservas el ¤ % de la caja (máximo ¤ M€), empiezas con reputación ¤ y todo el personal contratado a nivel ¤, y cada nivel de prestigio suma un ¤ % al potencial de aficionados.':': you keep ¤ % of the bank (up to ¤ M€), you start with ¤ reputation and every staff member hired at level ¤, and each prestige level adds ¤ % to your fan potential.',
+'Nueva partida +':'New game +',
+});
+EN_RE.push(
+[/^Nueva partida \+ \(prestigio (\d+)\)$/,'New game + (prestige $1)'],
+[/^⭐ Nueva partida \+ con prestigio (\d+)$/,'⭐ New game + with prestige $1']
+);
+// ===== Ronda 3: partido en juego, objetivos, directiva, y las explicaciones del personal automático =====
+Object.assign(EN,{
+'Amistoso en juego':'Friendly in progress','Partido de copa en juego':'Cup match in progress','Partido en juego':'Match in progress',
+'Ganar la liga':'Win the league','Ascender como campeón':'Go up as champions',
+'Ascender (directo o por playoff)':'Get promoted (directly or through the playoff)',
+'Clasificar a la Libertadores (top 3)':'Qualify for the Libertadores (top 3)',
+'· temporada de transición':'· transition season',
+'La directiva ha perdido la paciencia: otra temporada así y te destituyen.':'The board has run out of patience: another season like this and you are sacked.',
+'La directiva está impaciente. Cumple el próximo objetivo o peligra tu puesto.':'The board is getting impatient. Hit the next target or your job is at risk.',
+'amistoso':'friendly','fase de grupos':'group stage','en campo de':'away at','en casa ante':'at home against',
+});
+EN_RE.unshift(
+[/^Terminar en la mitad alta \(top (\d+)\)$/,'Finish in the top half (top $1)'],
+[/^Acabar entre los (\d+) primeros$/,'Finish in the top $1'],
+[/^Mantener la categoría \(no bajar del (\d+)º\)$/,'Stay up (do not drop below $1th)'],
+[/^Llegar a cuartos de la Copa (.+)$/,'Reach the $1 Cup quarter-finals'],
+[/^Objetivo de la directiva esta temporada: (.+), sin acabar en números rojos\.$/,(m,o)=>'Board target for this season: '+E(o)+', without ending in the red.'],
+// el marcador en vivo y las cabeceras de partido no necesitan traducción propia: nombres y cifras ya están en el idioma correcto
+[/^· (.+) (\d+) - (\d+) (.+) · (\d+)'$/,'· $1 $2 - $3 $4 · $5\''],
+[/^(.+) (\d+) - (\d+) (.+) · (\d+)'$/,'$1 $2 - $3 $4 · $5\''],
+[/^(\d+)'$/,'$1\''],
+[/^(.+) vs (.+) · (.+) espectadores$/,'$1 vs $2 · $3 spectators'],
+[/^(.+) vs (.+) · Copa (.+) · (.+) espectadores$/,'$1 vs $2 · $3 Cup · $4 spectators'],
+[/^(.+) vs (.+) · Copa (.+) · fuera de casa$/,'$1 vs $2 · $3 Cup · away'],
+[/^(.+) vs (.+) · fuera de casa$/,'$1 vs $2 · away'],
+[/^(.+) vs (.+) · campo neutral$/,'$1 vs $2 · neutral ground'],
+[/^Siguiente: (.+) ante (.+) \(miércoles de la jornada (\d+)\)$/,(m,r,riv,j)=>'Next: '+E(r)+' against '+riv+' (Wednesday of matchday '+j+')'],
+// avisos con importes en cualquier unidad
+[/^([▲▼]) ([+-].+) esta semana$/,'$1 $2 this week'],
+[/^(\d+) espectadores$/,'$1 spectators'],
+[/^· ([\d.,]+) espectadores \(([\d.,]+ ?[kM]?€)\)$/,'· $1 spectators ($2)'],
+[/^\(penales\) · ([\d.,]+) espectadores \(([\d.,]+ ?[kM]?€)\)$/,'(on penalties) · $1 spectators ($2)'],
+[/^· ([\d.,]+) espectadores$/,'· $1 spectators'],
+[/^\(penales\) · ([\d.,]+) espectadores$/,'(on penalties) · $1 spectators'],
+[/^· fuera de casa$/,'· away'],
+[/^\(penales\) · fuera de casa$/,'(on penalties) · away'],
+[/^· campo neutral$/,'· neutral ground'],
+[/^\(penales\) · campo neutral$/,'(on penalties) · neutral ground'],
+[/^\(penales\)$/,'(on penalties)'],
+// mensajes y motivos del personal automático (panel "Tu personal esta semana")
+[/^Decidí "(.+)" ante: (.+)$/,(m,op,texto)=>'I decided "'+E(op)+'" on: '+E(texto)],
+[/^Fiché a (.+) \((POR|DEF|MED|DEL), (\d+) → (\d+)\) por (.+)$/,(m,n,p,a,b,c)=>'I signed '+n+' ('+P(p)+', '+a+' → '+b+') for '+c],
+[/^Subí al canterano (.+) al primer equipo$/,'I promoted academy player $1 to the first team'],
+[/^Cambié el foco a (.+)$/,(m,f)=>'I switched the focus to '+E(f)],
+[/^Acepté la oferta de (.+) por (.+) \((.+)\)$/,'I accepted $1’s offer for $2 ($3)'],
+[/^Rechacé la oferta de (.+) por (.+)$/,'I turned down $1’s offer for $2'],
+[/^Rechacé la oferta de (.+)$/,'I turned down $1’s offer'],
+[/^Renové a (.+) por (.+)\/sem$/,'I renewed $1 at $2/wk'],
+[/^No renové a (.+)$/,'I did not renew $1'],
+[/^Vendí a (.+) \((\d+), (\d+) años\)$/,'I sold $1 ($2, $3 years old)'],
+[/^Compré a (.+) \((POR|DEF|MED|DEL), (\d+)\) por (.+)$/,(m,n,p,o,c)=>'I bought '+n+' ('+P(p)+', '+o+') for '+c],
+[/^Fiché al prospecto (.+) para cubrir la posición de (POR|DEF|MED|DEL)$/,(m,n,p)=>'I signed prospect '+n+' to cover '+P(p)],
+[/^Puse la entrada a (.+) €$/,'I set the ticket price to $1 €'],
+[/^Firmé con (.+) por (.+)\/sem$/,'I signed with $1 at $2/wk'],
+[/^Lancé la campaña "(.+)" por (.+)$/,(m,c,p)=>'I launched the "'+E(c)+'" campaign for '+p],
+[/^Puse la primera piedra de (.+)$/,(m,p)=>'I broke ground on '+E(p)],
+[/^Inicié las obras de (.+) \(nivel (\d+)\) por (.+)$/,(m,f,l,c)=>'I started work on '+E(f)+' (level '+l+') for '+c],
+// motivos ("¿Por qué?") del personal automático
+[/^Es la opción que más conviene con la caja y la plantilla actuales\.$/,'It is the option that best suits our current cash and squad.'],
+[/^Faltaba un (POR|DEF|MED|DEL) en la plantilla y la caja cubre el fichaje más de dos veces\.$/,(m,p)=>'We were short a '+P(p)+' and cash covers the deal more than twice over.'],
+[/^Su potencial \((\d+)\) supera en más de 4 puntos la media de la plantilla \((\d+)\) y hay caja de sobra\.$/,'His potential ($1) is more than 4 points above the squad average ($2) and we have cash to spare.'],
+[/^Potencial (\d+) frente a una media de (\d+), y es gratis\.$/,'Potential $1 against a squad average of $2, and he is free.'],
+[/^(\d+) jugadores con menos de 45 de energía: toca descansar\.$/,'$1 players below 45 energy: time to rest.'],
+[/^(\d+) jóvenes con más de 8 puntos de margen: aprovecho para que crezcan\.$/,'$1 youngsters with more than 8 points of room to grow: I am using it to develop them.'],
+[/^La delantera \((\d+)\) va por detrás de la defensa \((\d+)\)\.$/,'The attack ($1) lags behind the defence ($2).'],
+[/^La defensa \((\d+)\) va por detrás del ataque \((\d+)\)\.$/,'The defence ($1) lags behind the attack ($2).'],
+[/^Plantilla equilibrada y descansada: reparto el trabajo\.$/,'Squad balanced and rested: I am spreading the work evenly.'],
+[/^Tiene (\d+) años y pagan muy por encima de su valor\.$/,'He is $1 and they are paying well above his value.'],
+[/^Pagan el doble de su valor\.$/,'They are paying double his value.'],
+[/^Es titular y no tenemos recambio en su posición; asumo el enfado\.$/,'He is a starter and we have no cover in his position; I am accepting the fallout.'],
+[/^Es joven y aún puede crecer con nosotros; asumo el enfado\.$/,'He is young and can still grow with us; I am accepting the fallout.'],
+[/^Rinde cerca de la media o es joven con proyección, y el nuevo salario cabe en el presupuesto\.$/,'He performs near the average or is a young prospect, and the new wage fits the budget.'],
+[/^Con (\d+) años pide más de lo que va a rendir\.$/,'At $1 he is asking for more than he will deliver.'],
+[/^Su salario dejaría la masa salarial por encima del 58 % de los ingresos\.$/,'His wage would push the wage bill above 58 % of income.'],
+[/^Tiene (\d+) años y ya no rinde por encima de la media; mejor venderlo ahora que aún vale algo\.$/,'He is $1 and no longer performs above average; better to sell him now while he is still worth something.'],
+[/^Está 10 puntos por debajo de la media y sobran jugadores en su posición\.$/,'He is 10 points below average and we have a surplus in his position.'],
+[/^Faltaba un (POR|DEF|MED|DEL)\. Su salario cabe en el presupuesto y la caja cubre el fichaje varias veces\.$/,(m,p)=>'We were short a '+P(p)+'. His wage fits the budget and cash covers the deal several times over.'],
+[/^Faltaba experiencia: tenemos menos de cuatro mayores de 28\. Su salario cabe en el presupuesto y la caja cubre el fichaje varias veces\.$/,'We lacked experience: we have fewer than four players aged 28 or over. His wage fits the budget and cash covers the deal several times over.'],
+[/^Mejora en más de 3 puntos al titular más flojo\. Su salario cabe en el presupuesto y la caja cubre el fichaje varias veces\.$/,'He improves on our weakest starter by more than 3 points. His wage fits the budget and cash covers the deal several times over.'],
+[/^No había suficientes (POR|DEF|MED|DEL) en la plantilla\.$/,(m,p)=>'We did not have enough '+P(p)+'s in the squad.'],
+[/^La demanda supera el aforo: se puede cobrar más sin vaciar el estadio\.$/,'Demand outstrips capacity: we can charge more without emptying the ground.'],
+[/^Bajando el precio entra más gente y la taquilla total sube\.$/,'Cutting the price brings in more people and total gate revenue rises.'],
+[/^Paga más que el patrocinador actual\.$/,'It pays more than our current sponsor.'],
+[/^No teníamos patrocinador\.$/,'We had no sponsor.'],
+[/^Pagaba menos que (.+)\.$/,'It was paying less than $1.'],
+[/^Estamos al (\d+) % del potencial de aficionados y la caja cubre la campaña de sobra\.$/,'We are at $1 % of our fan potential and cash easily covers the campaign.'],
+[/^Cumplimos el requisito y la caja supera el coste en más de un 60 %\.$/,'We meet the requirement and cash exceeds the cost by more than 60 %.'],
+[/^El estadio se llena: cada plaza nueva es taquilla\.$/,'The ground sells out: every new seat is gate money.'],
+[/^Era la ampliación más barata, la caja la cubre varias veces y los ingresos siguen por encima del gasto fijo\.$/,'It was the cheapest upgrade, cash covers it several times over and income still clears our fixed costs.'],
+);
+// ===== Ronda 4: fin de temporada, ascensos/descensos, copas y detalles menores =====
+Object.assign(EN,{
+'Está arriba, en esta pestaña. El juego espera tu respuesta.':'It is above, in this tab. The game is waiting for your answer.',
+'Crea una nueva desde el botón de arriba.':'Start a new one from the button above.',
+'Pasan los dos primeros.':'The top two go through.',
+'Eliminado en el playoff de ascenso.':'Knocked out of the promotion playoff.',
+'¡Ascenso conseguido!':'Promotion secured!',
+'Se acabó el sueño del ascenso por esta temporada.':'The promotion dream is over for this season.',
+'Eliminado.':'Knocked out.',
+'Podio en la máxima categoría.':'A podium finish in the top flight.',
+'🤝 Patrocinio:':'🤝 Sponsorship:','💸 Oferta por':'💸 Offer for','quiere a':'wants',
+'Terminas en números rojos.':'You end the season in the red.',
+'El presidente austero se queja de la masa salarial.':'The frugal president complains about the wage bill.',
+'El presidente quería más canteranos en el once.':'The president wanted more academy players in the XI.',
+});
+EN_RE.unshift(
+[/^Fin de temporada (\d+): terminas (\d+)º en (.+)\. Premio: (.+)\.$/,(m,t,p,d,pr)=>'End of season '+t+': you finish '+ord(0,p)+' in '+E(d)+'. Prize: '+pr+'.'],
+[/^¡ASCENSO por el playoff a (.+)!$/,(m,d)=>'PROMOTED via the playoff to '+E(d)+'!'],
+[/^¡ASCENSO a (.+)!$/,(m,d)=>'PROMOTED to '+E(d)+'!'],
+[/^Descenso a (.+)\.$/,(m,d)=>'Relegated to '+E(d)+'.'],
+[/^¡CAMPEÓN DE PRIMERA DIVISIÓN DE (.+)!$/,(m,p)=>'CHAMPIONS OF '+p+'!'],
+[/^Objetivo cumplido \((.+)\): la directiva está satisfecha\.$/,(m,o)=>'Target met ('+E(o)+'): the board is satisfied.'],
+[/^Objetivo incumplido \((.+)\) por poco\.$/,(m,o)=>'Target missed ('+E(o)+') by a whisker.'],
+[/^Objetivo incumplido \((.+)\)\.$/,(m,o)=>'Target missed ('+E(o)+').'],
+[/^El presidente celebra a los (\d+) canteranos con minutos\.$/,'The president is delighted to see $1 academy players getting minutes.'],
+[/^Confianza: (\d+)\/100\.$/,'Confidence: $1/100.'],
+[/^(\d+)º del grupo con (\d+) puntos\. ¡A octavos!$/,(m,p,pt)=>ord(0,p)+' in the group with '+pt+' points. Through to the round of 16!'],
+[/^(\d+)º del grupo con (\d+) puntos\. Eliminado\.$/,(m,p,pt)=>ord(0,p)+' in the group with '+pt+' points. Knocked out.'],
+[/^Pasas de ronda\. Premio: (.+)\.$/,'Through to the next round. Prize: $1.'],
+[/^¡CAMPEÓN! Premio: (.+)\.$/,'CHAMPIONS! Prize: $1.'],
+[/^Siguiente: (.+) ante (.+) \(el próximo domingo\)$/,(m,r,riv)=>'Next: '+E(r)+' against '+riv+' (next Sunday)'],
+[/^Fin de la pretemporada: el próximo domingo arranca la liga(.*)\.$/,(m,resto)=>'End of preseason: the league kicks off next Sunday'+E(resto)+'.'],
+[/^, jornada (\d+) (en casa ante|en campo de) (.+)$/,(m,j,loc,riv)=>', matchday '+j+' '+(loc==='en casa ante'?'at home against':'away at')+' '+riv],
+[/^(\d+) semana\(s\) para decidir; luego se aplica la última opción\.$/,'$1 week(s) to decide; after that the default option applies.'],
+[/^Vendí a (.+) para cuadrar cuentas$/,'I sold $1 to balance the books'],
+);
 const CLAVE_LEYENDAS='clubtycoon_leyendas';
 function leerLeyendas(){try{const v=JSON.parse(localStorage.getItem(CLAVE_LEYENDAS)||'[]');return Array.isArray(v)?v.slice(0,12):[]}catch(e){return []}}
 function guardarLeyenda(){if(!G||G.stats.titulos+G.stats.libertadores===0)return;
@@ -871,9 +1679,9 @@ function finTemporada(){
 // ============================================================ UI
 function tend(v,fmtF){if(!v)return '<span class="tend">= sin cambio</span>';return '<span class="tend '+(v>0?'up':'down')+'">'+(v>0?'▲ +':'▼ ')+fmtF(v)+' esta semana</span>'}
 function renderHeader(){
-  $('#hDinero').textContent=fmt(G.dinero);$('#hDinero').style.color=G.dinero<0?'#f87171':'#fff';$('#hDineroT').innerHTML='Caja · '+tend(G.tendencia.dinero,fmt);
-  $('#hFans').textContent=fmtN(G.fans);$('#hFansT').innerHTML='Aficionados · '+tend(G.tendencia.fans,fmtN);
-  const pos=clasificacion().findIndex(e=>e.yo)+1;$('#hPos').textContent=pos+'º';$('#hPosT').textContent=NOMBRE_DIV[G.division]+' · J'+G.semana+' · T'+G.temporada;
+  $('#hDinero').textContent=fmt(G.dinero);$('#hDinero').style.color=G.dinero<0?'#f87171':'#fff';$('#hDineroT').innerHTML=tr('Caja · '+tend(G.tendencia.dinero,fmt));
+  $('#hFans').textContent=fmtN(G.fans);$('#hFansT').innerHTML=tr('Aficionados · '+tend(G.tendencia.fans,fmtN));
+  const pos=clasificacion().findIndex(e=>e.yo)+1;$('#hPos').textContent=trTexto(pos+'º');$('#hPosT').textContent=trTexto(NOMBRE_DIV[G.division])+' · '+(IDIOMA==='en'?'MD':'J')+G.semana+' · '+(IDIOMA==='en'?'S':'T')+G.temporada;
   document.querySelectorAll('.speed button').forEach(b=>b.classList.toggle('on',+b.dataset.v===G.vel));
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===G.ui.tab));
   renderHoy();renderCal();
@@ -886,7 +1694,7 @@ function renderHoy(){const P=G.partido;const cal=G.calendario[G.semana-1];const 
   else{const desc={1:'pagos y cobros de la semana',2:'informes del ojeador y la academia',3:'tu personal toma sus decisiones',4:'noticias y ofertas',5:'entrenamiento intensivo',6:'previa del partido',7:'día de partido'}[G.dia];const cs=G.dia<=3?copaEstaSemana():null;linea='<b>'+DIAS[G.dia-1]+'</b>, '+(G.receso?'pretemporada (semana '+(3-G.receso)+' de 2)':'jornada '+G.semana)+': '+desc+'.'+(cs?' <b>El miércoles, '+cs.c.nombre+'</b> ('+cs.ronda+') '+(cs.local?'en casa ante ':'en campo de ')+cs.rival.nombre+'.':'')+(G.receso===2?' El domingo no hay partido: vacaciones.':G.receso===1?' El domingo, amistoso de pretemporada en casa.':rival?' El domingo, '+(cal.local?'partido en casa contra ':'visita a ')+rival.nombre+'.':'')+(G.vel===0?'':G.autoPausa?' <span class="good">Jugando la semana…</span>':' <span class="warnc">Avance continuo ×'+G.vel+'</span>')}
   if(G.dia===1&&G.resumen&&!P&&!G.gameOver){const R=G.resumen;const bal=R.ti-R.tg;
     linea+=' <a href="#" data-a="verResumen" class="verres">Ver el resumen de la semana</a> <span class="'+(bal>=0?'good':'badc')+'">'+(bal>=0?'+':'')+fmt(bal)+'</span>'}
-  $('#hoy').innerHTML='<div class="linea">'+linea+'</div><div class="ctl"><button class="principal" id="btnSemana" '+(G.gameOver||P?'disabled':'')+'>▶ Jugar la semana</button><button class="sec" id="btnPaso" title="Un día (→)" '+(G.gameOver?'disabled':'')+'>⏭ Día</button>'+(G.vel>0?'<button class="sec" id="btnPausa" title="Pausa (espacio)" aria-label="Pausar">⏸</button>':'')+'<div class="speed"><span>continuo</span>'+[1,2,4,8].map(v=>'<button data-v="'+v+'" aria-label="Avance continuo a '+v+' por uno" title="Avance continuo a '+v+'×" class="'+(G.vel===v&&!G.autoPausa?'on':'')+'">'+v+'×</button>').join('')+'</div></div>'}
+  $('#hoy').innerHTML=tr('<div class="linea">'+linea+'</div><div class="ctl"><button class="principal" id="btnSemana" '+(G.gameOver||P?'disabled':'')+'>▶ Jugar la semana</button><button class="sec" id="btnPaso" title="Un día (→)" '+(G.gameOver?'disabled':'')+'>⏭ Día</button>'+(G.vel>0?'<button class="sec" id="btnPausa" title="Pausa (espacio)" aria-label="Pausar">⏸</button>':'')+'<div class="speed"><span>continuo</span>'+[1,2,4,8].map(v=>'<button data-v="'+v+'" aria-label="Avance continuo a '+v+' por uno" title="Avance continuo a '+v+'×" class="'+(G.vel===v&&!G.autoPausa?'on':'')+'">'+v+'×</button>').join('')+'</div></div>')}
 function copaEstaSemana(){for(const c of G.copas){if(!c.vivo||c.playoff)continue;if(c.fase==='grupos'){const p=c.grupo.calendario.find(p=>p.sem===G.semana);if(p)return {c,rival:c.grupo.rivales[p.r],ronda:'fase de grupos',local:p.local,premio:c.premioGrupo}}else if(c.rondas[c.ronda]===G.semana)return {c,rival:c.rivales[c.ronda],ronda:c.nombresRonda[c.ronda],local:c.ronda%2===0,neutral:!!(c.continental&&c.ronda===c.rondas.length-1),premio:c.premios[c.ronda]}}return null}
 function nPendientes(){return G.decisiones.length+G.renovaciones.filter(r=>G.jugadores.some(j=>j.id===r.id)).length+(G.oferta?1:0)+(G.ofertaJ&&G.jugadores.some(j=>j.id===G.ofertaJ.id)?1:0)}
 function vPendientes(){let h='';
@@ -904,7 +1712,7 @@ function irA(tab,sub){G.ui.tab=tab;if(sub)G.ui.sub[tab]=sub;renderUI()}
 function revisarDesbloqueos(){for(const id of ['palmares','tactica'])if(seccionVisible(id)&&!G.ui.desbloqueos[id]){G.ui.desbloqueos[id]=true;log('🔓 Nueva sección: '+(id==='palmares'?'Palmarés, en Club':'Táctica, en Competición')+'.','ok')}}
 function renderUIInterno(){renderHeader();revisarDesbloqueos();if(!SUBS[G.ui.tab])G.ui.tab='club';const subs=SUBS[G.ui.tab].filter(([id])=>seccionVisible(id));if(!subs.some(([id])=>id===G.ui.sub[G.ui.tab]))G.ui.sub[G.ui.tab]=subs[0][0];
   const bar=subs.length>1?'<div id="sub">'+subs.map(([id,n])=>'<button data-s="'+id+'" class="'+(id===G.ui.sub[G.ui.tab]?'on':'')+'">'+n+'</button>').join('')+'</div>':'';
-  const v=VISTAS[G.ui.sub[G.ui.tab]]||vSedeBasica;$('#tabContent').innerHTML=bar+vPendientes()+v();if(G.ui.sub[G.ui.tab]==='palmares')dibujarGrafica();renderTutorial()}
+  const v=VISTAS[G.ui.sub[G.ui.tab]]||vSedeBasica;$('#tabContent').innerHTML=tr(bar+vPendientes()+v());if(G.ui.sub[G.ui.tab]==='palmares')dibujarGrafica();renderTutorial()}
 $('#modalBox').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a;
   if(a==='fichaRenovar'){renovar(b.dataset.id);cerrarModal()}else if(a==='fichaVender'){const j=G.jugadores.find(x=>x.id===b.dataset.id);cerrarModal();
     if(j)confirmar('Vender a '+j.nombre,'Sale del club por <b>'+fmt(Math.round(j.valor*factorVenta(j)))+'</b>, menos de lo que vale ('+fmt(j.valor)+'). No hay vuelta atrás.','Vender',()=>venderJugador(j.id))}
@@ -920,7 +1728,7 @@ function dibujarGrafica(){const c=document.getElementById('grafica');if(!c||!c.g
   for(const [k,col] of series){const vals=pts.map(p=>p[k]);const mx=Math.max(1,...vals.map(v=>Math.abs(v)));g.strokeStyle=col;g.lineWidth=2;g.beginPath();pts.forEach((p,i)=>{const x=pad+(Wc-pad-8)*(pts.length>1?i/(pts.length-1):0.5);const y=Hc-pad-(Hc-2*pad)*clamp(p[k]/mx,-1,1);i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();g.fillStyle=col;pts.forEach((p,i)=>{const x=pad+(Wc-pad-8)*(pts.length>1?i/(pts.length-1):0.5);const y=Hc-pad-(Hc-2*pad)*clamp(p[k]/mx,-1,1);g.beginPath();g.arc(x,y,2.5,0,7);g.fill()})}
   g.fillStyle='#8fa2c2';g.font='10px system-ui';g.textAlign='center';pts.forEach((p,i)=>{const x=pad+(Wc-pad-8)*(pts.length>1?i/(pts.length-1):0.5);g.fillText('T'+p.t+(p.actual?'*':''),x,Hc-6)});
   g.textAlign='left';g.fillStyle='#22c55e';g.fillText(fmt(G.dinero),pad,12);g.fillStyle='#38bdf8';g.fillText(fmtN(G.fans)+' af.',pad+90,12);g.fillStyle='#facc15';g.fillText('rep '+G.rep.toFixed(0),pad+190,12);g.fillStyle='#f472b6';g.fillText('OVR '+avgOvr().toFixed(0),pad+250,12)}
-function modal(html){$('#modalBox').innerHTML=html;$('#modal').style.display='flex'}
+function modal(html){$('#modalBox').innerHTML=tr(html);$('#modal').style.display='flex'}
 function confirmar(titulo,texto,etiqueta,accion){CONFIRMA=accion;
   modal('<h2>'+esc(titulo)+'</h2><p>'+texto+'</p><p><button class="b bad" data-a="confOk">'+esc(etiqueta)+'</button> <button class="b sec" data-a="confNo">Cancelar</button></p>')}
 let CONFIRMA=null;
@@ -1214,7 +2022,7 @@ function renderTutorial(){const movil=window.matchMedia&&window.matchMedia('(max
   const otro=$(movil?'#tuto':'#tutoMovil');if(otro){otro.innerHTML='';otro.hidden=true}
   const el=$(movil?'#tutoMovil':'#tuto');if(!el)return;document.querySelectorAll('.tuto-target').forEach(x=>x.classList.remove('tuto-target'));const i=G.ui.tutorial;if(i===undefined||i>=TUTO.length||i===99){el.hidden=true;return}
   const p=TUTO[i];if(p.ok(G)&&i<TUTO.length-1){G.ui.tutorial=i+1;return renderTutorial()}
-  el.hidden=false;el.innerHTML=`<div class="paso">Guía · paso ${i+1} de ${TUTO.length}</div><b>${p.t}</b><p style="margin:4px 0">${p.d}</p><div class="btns">${p.boton?`<button class="b" data-tuto="ir">${p.boton}</button>`:''}${i===TUTO.length-1?'':'<button class="b sec" data-tuto="skip">Saltar la guía</button>'}</div>`;
+  el.hidden=false;el.innerHTML=tr(`<div class="paso">Guía · paso ${i+1} de ${TUTO.length}</div><b>${p.t}</b><p style="margin:4px 0">${p.d}</p><div class="btns">${p.boton?`<button class="b" data-tuto="ir">${p.boton}</button>`:''}${i===TUTO.length-1?'':'<button class="b sec" data-tuto="skip">Saltar la guía</button>'}</div>`);
   if(p.ir){const tb=document.querySelector('#tabs button[data-t="'+p.ir[0]+'"]');if(tb&&G.ui.tab!==p.ir[0])tb.classList.add('tuto-target');const sb=document.querySelector('#sub button[data-s="'+p.ir[1]+'"]');if(sb&&G.ui.sub[G.ui.tab]!==p.ir[1])sb.classList.add('tuto-target')}else{const bs=$('#btnSemana');if(bs)bs.classList.add('tuto-target')}}
 function clicTutorial(e){const b=e.target.closest('button');if(!b||!G)return;const i=G.ui.tutorial;const p=TUTO[i];if(b.dataset.tuto==='skip'){G.ui.tutorial=99}else if(p&&p.ir){if(i===TUTO.length-1)G.ui.tutorial=99;else irA(p.ir[0],p.ir[1])}else if(p&&!p.ir){G.ui.tutorial=99}save();renderUI();renderTutorial()}
 $('#tuto').addEventListener('click',clicTutorial);$('#tutoMovil').addEventListener('click',clicTutorial);
@@ -1256,6 +2064,7 @@ document.addEventListener('keydown',e=>{if(!G||e.target.tagName==='INPUT'||e.tar
   else if(e.key==='1')setVel(1);else if(e.key==='2')setVel(2);else if(e.key==='4')setVel(4);else if(e.key==='8')setVel(8);
   else if(e.key==='?'||(e.key==='h'&&!e.ctrlKey&&!e.metaKey))modalAyuda()});
 $('#btnAyuda').addEventListener('click',modalAyuda);
+$('#btnIdioma').addEventListener('click',cambiarIdioma);
 $('#btnNuevo').addEventListener('click',()=>modalNuevo(null));
 $('#slot').addEventListener('change',e=>cambiarSlot(+e.target.value));
 $('#btnExportar').addEventListener('click',exportar);
@@ -1547,14 +2356,14 @@ function renderCal(){const el=$('#cal');if(!el||!G)return;const P=G.partido;cons
   else {const cs=G.dia<=3?copaEstaSemana():null;info='<b>'+DIAS[G.dia-1]+': '+DIA_DESC[G.dia-1]+'</b><small>'+(G.receso===2?'Pretemporada: vacaciones':G.receso===1?'Domingo: amistoso de pretemporada':cs?'Miércoles: '+cs.c.nombre+' '+(cs.local?'vs ':'en ')+cs.rival.nombre:cal?'Domingo: '+(cal.local?'vs ':'en ')+G.liga[cal.rival].nombre+' · entrada '+G.precio+' €':'')+'</small>'}
   const firma=G.dia+'|'+G.semana+'|'+Math.round(prog*24)+'|'+info+'|'+G.vel+'|'+G.temporada;if(firma===calFirma)return;calFirma=firma;
   let dias='';for(let i=0;i<7;i++){const cur=i===G.dia-1;const copaHoy=i===2&&G.copas.some(c=>c.vivo&&c.rondas[c.ronda]===G.semana);
-    dias+='<div class="dia'+(cur?' on':'')+'" style="'+(cur?'background:'+G.color+';color:'+contraste(G.color):'')+'">'+DIAS_C[i]+'<span>'+(copaHoy?'🏆':DIA_ICONO[i])+'</span>'+(cur&&prog>0?'<i style="transform:scaleX('+prog.toFixed(2)+')"></i>':'')+'</div>'}
-  el.innerHTML='<div class="club"><b>'+bandera(G.pais)+' '+G.nombreClub+(G.prestigio?' '+'🏅'.repeat(Math.min(5,G.prestigio)):'')+'</b><small>'+NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+(G.receso?' · Pretemporada':' · Jornada '+G.semana)+(ventanaAbierta()?' · 💱 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:'')+'</small></div><div class="dias">'+dias+'</div><div class="info">'+info+'</div>'}
+    dias+='<div class="dia'+(cur?' on':'')+'" style="'+(cur?'background:'+G.color+';color:'+contraste(G.color):'')+'">'+diaIni(i)+'<span>'+(copaHoy?'🏆':DIA_ICONO[i])+'</span>'+(cur&&prog>0?'<i style="transform:scaleX('+prog.toFixed(2)+')"></i>':'')+'</div>'}
+  el.innerHTML=tr('<div class="club"><b>'+bandera(G.pais)+' '+G.nombreClub+(G.prestigio?' '+'🏅'.repeat(Math.min(5,G.prestigio)):'')+'</b><small>'+NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+(G.receso?' · Pretemporada':' · Jornada '+G.semana)+(ventanaAbierta()?' · 💱 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:'')+'</small></div><div class="dias">'+dias+'</div><div class="info">'+info+'</div>')}
 function drawCalendario(){renderCal();
   if(false){txt(NOMBRE_DIV[G.division]+' de '+G.pais+' · Temporada '+G.temporada+' · Jornada '+G.semana+(ventanaAbierta()?' · 🔁 mercado abierto':'')+(G.dificultad&&G.dificultad!=='normal'?' · '+dif().n:''),14,40,'#8fa2c2',10);
   const x0=W/2-7*34/2;
   for(let i=0;i<7;i++){const x=x0+i*34;const cur=i===G.dia-1;
     rr(x,8,30,42,6,cur?G.color:'#1e2a44',cur?'#fff':'#2a3a5c');
-    const copaHoy=i===2&&G.copas.some(c=>c.vivo&&c.rondas[c.ronda]===G.semana);txt(DIAS_C[i],x+15,23,cur?'#0b1220':'#8fa2c2',12,'center',true);txt(copaHoy?'🏆':DIA_ICONO[i],x+15,42,'#fff',11,'center');
+    const copaHoy=i===2&&G.copas.some(c=>c.vivo&&c.rondas[c.ronda]===G.semana);txt(diaIni(i),x+15,23,cur?'#0b1220':'#8fa2c2',12,'center',true);txt(copaHoy?'🏆':DIA_ICONO[i],x+15,42,'#fff',11,'center');
     if(cur&&!G.partido&&G.vel>0){const p=clamp(acum/(TICK/G.vel),0,1);ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillRect(x+3,46,24*p,2)}}
   const cal=G.calendario[G.semana-1];const P=G.partido;
   if(P){const casa=P.local?G.nombreClub:P.rival.nombre,fuera=P.local?P.rival.nombre:G.nombreClub;const mc=P.local?P.marcador:[P.marcador[1],P.marcador[0]];
