@@ -63,6 +63,11 @@
   .proximo h2{color:rgba(243,236,230,.35);text-shadow:none}
   .proximo:hover{transform:none;box-shadow:none}
 
+  .idioma{position:absolute;top:0;right:0}
+  #cambiar-idioma{font-family:inherit;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+    padding:6px 12px;color:var(--hueso);background:rgba(243,236,230,.07);cursor:pointer;
+    border:1px solid rgba(243,236,230,.22);transform:skewX(-12deg);transition:background .15s,border-color .15s}
+  #cambiar-idioma:hover,#cambiar-idioma:focus-visible{background:rgba(0,229,255,.14);border-color:rgba(0,229,255,.5);outline:none}
   footer{margin-top:34px;padding-top:16px;border-top:1px solid rgba(243,236,230,.14);
     font-size:11px;color:var(--ceniza);letter-spacing:.04em;line-height:1.7}
   footer a{color:var(--ceniza)}
@@ -71,7 +76,8 @@
 </head>
 <body>
 
-<header>
+<header style="position:relative">
+  <div class="idioma"><button id="cambiar-idioma" type="button">Español</button></div>
   <h1 class="impact">Proyectos</h1>
   <p class="bajada">Cosas que hice para probar ideas. Todo corre en el navegador, sin instalar nada
     y sin cuentas. Andan igual en el teléfono que en la computadora.</p>
@@ -207,6 +213,7 @@
   El código de cada proyecto está en <a href="https://github.com/ProfeSergioM">GitHub</a>.
 </footer>
 
+<script src="idioma.js"></script>
 <script defer src="publicidad.js"></script>
 </body>
 </html>
