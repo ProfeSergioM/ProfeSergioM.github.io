@@ -17,6 +17,18 @@ canvas { display:block; }
   color:rgba(255,255,255,.75); font-size:12px; z-index:5; padding:0 10px;
 }
 
+/* Cartel de "¡GOL!" al anotar */
+#gol {
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; z-index:6; opacity:0; transition:opacity .15s;
+}
+#gol span {
+  font-size:clamp(40px,12vw,90px); font-weight:900; color:#FFD54A;
+  text-shadow:0 0 14px rgba(0,0,0,.8), 0 0 30px rgba(255,213,74,.6);
+  letter-spacing:.04em; transform:rotate(-6deg);
+}
+#gol.mostrar { opacity:1; }
+
 /* Controles en pantalla */
 .control { position:fixed; z-index:8; }
 #joystick {
@@ -104,7 +116,8 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S (mantener): cargar pase</div>
+<div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S (mantener): cargar pase · Goles: <span id="goles">0</span></div>
+<div id="gol"><span>¡GOL!</span></div>
 <div id="panel-parametros" hidden></div>
 <div id="panel-stats"><h3>Stats del equipo</h3></div>
 <button id="btn-parametros" class="control" type="button">Vars</button>
@@ -323,7 +336,12 @@ joyBase.addEventListener("pointercancel", joySoltar);
 document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaTiro(); });
 document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaPase(); });
 window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); if (cargandoPase) soltarPase(); });
-document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
+document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  posicionInicial();
+  golesAnotados = 0;
+  spanGoles.textContent = golesAnotados;
+});
 document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
   e.preventDefault();
   const panel = document.getElementById("panel-parametros");
@@ -332,7 +350,7 @@ document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
 
 // Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
 const TIRO_POTENCIA_DISENO_MAX = 620;
-const PASE_POTENCIA_DISENO_MAX = 480; // el pase no tiene stat de potencia: la maneja la carga
+const PASE_POTENCIA_DISENO_MAX = 600; // el pase no tiene stat de potencia: la maneja la carga
 // Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
 // cuando la precisión efectiva es 0. Con 100 no hay desvío.
 const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
@@ -647,6 +665,55 @@ function actualizarPelota(dt){
   }
 }
 
+// ── Arco (sin arquero, para probar los tiros) ────────────────
+// Un solo arco fijo en el mundo, lejos del punto de saque. Sin equipo rival: cualquier tiro
+// (o incluso llevarla adentro dominándola) que cruce la línea de gol dentro del ancho cuenta gol.
+const ARCO_X = 900;          // dónde está la línea de gol, sobre el eje x
+const ARCO_ANCHO = 220;      // ancho del arco, centrado en y=0
+const ARCO_PROFUNDIDAD = 60; // qué tan "profundo" se dibuja el arco/red
+const POSTE_RADIO = 8;       // grosor de cada poste, para el rebote
+
+function dentroDelArco(y){ return Math.abs(y) < ARCO_ANCHO / 2; }
+
+// Los postes son sólidos: si la pelota los toca, rebota en vez de pasar de largo.
+function colisionPostes(){
+  const postes = [ { x: ARCO_X, y: -ARCO_ANCHO/2 }, { x: ARCO_X, y: ARCO_ANCHO/2 } ];
+  for (const poste of postes) {
+    const dx = ball.x - poste.x, dy = ball.y - poste.y;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    const minDist = POSTE_RADIO + ball.r;
+    if (dist >= minDist) continue;
+    const nx = dx / dist, ny = dy / dist;
+    ball.x = poste.x + nx * minDist; ball.y = poste.y + ny * minDist;
+    const vNormal = ball.vx * nx + ball.vy * ny;
+    ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
+    ball.vx *= 0.6; ball.vy *= 0.6; // pierde energía en el palo
+  }
+}
+
+let golesAnotados = 0;
+let mostrandoGol = false;
+const divGol = document.getElementById("gol");
+const spanGoles = document.getElementById("goles");
+
+function anotarGol(){
+  if (mostrandoGol) return; // no contar de nuevo mientras se muestra el cartel
+  mostrandoGol = true;
+  golesAnotados++;
+  spanGoles.textContent = golesAnotados;
+  divGol.classList.add("mostrar");
+  setTimeout(() => {
+    divGol.classList.remove("mostrar");
+    posicionInicial();
+    mostrandoGol = false;
+  }, 1200);
+}
+
+function revisarGol(){
+  if (mostrandoGol) return;
+  if (ball.x > ARCO_X && dentroDelArco(ball.y)) anotarGol();
+}
+
 // Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan (revisa cada par).
 // Como son compañeros, si dos chocan y uno de ellos domina la pelota, esta queda al azar entre esos dos.
 let chocando = new Set(); // claves "i-j" de los pares actualmente superpuestos
@@ -760,6 +827,22 @@ function dibujarCancha(){
   ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
 }
 
+function dibujarArco(){
+  // red
+  ctx.fillStyle = "rgba(255,255,255,.18)";
+  ctx.fillRect(ARCO_X, -ARCO_ANCHO/2, ARCO_PROFUNDIDAD, ARCO_ANCHO);
+  // marco
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 6;
+  ctx.strokeRect(ARCO_X, -ARCO_ANCHO/2, ARCO_PROFUNDIDAD, ARCO_ANCHO);
+  // postes, más marcados
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(ARCO_X, -ARCO_ANCHO/2, POSTE_RADIO, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(ARCO_X, ARCO_ANCHO/2, POSTE_RADIO, 0, Math.PI*2); ctx.fill();
+  // línea de gol
+  ctx.strokeStyle = "rgba(255,255,255,.7)"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(ARCO_X, -ARCO_ANCHO/2 - 20); ctx.lineTo(ARCO_X, ARCO_ANCHO/2 + 20); ctx.stroke();
+}
+
 function dibujarJugador(p, esActivo, numero){
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
@@ -840,6 +923,7 @@ function dibujar(){
   ctx.translate(viewW/2 - camera.x, viewH/2 - camera.y);
 
   dibujarCancha();
+  dibujarArco();
   players.forEach((p, i) => dibujarJugador(p, i === activo, i + 1));
   dibujarBalon();
 
@@ -866,6 +950,8 @@ function bucle(ahora){
   actualizarIA(dt);
   colisionJugadores();
   actualizarPelota(dt);
+  colisionPostes();
+  revisarGol();
   actualizarPosesion();
   actualizarCamara(dt);
   if (cargandoTiro) {
@@ -895,6 +981,7 @@ function actualizarPanelParametros(){
     ["Carga pase", PASE_CARGA_DURACION + "s, mínimo " + Math.round(PASE_CARGA_MINIMA*100) + "% de potencia"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
+    ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
