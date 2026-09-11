@@ -42,6 +42,25 @@ canvas { display:block; }
   background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
 }
 .control:active { filter:brightness(1.25); }
+
+/* Paneles de stats de cada jugador */
+.panel-stats {
+  position:fixed; top:50%; transform:translateY(-50%);
+  width:112px; background:rgba(0,0,0,.55); color:#fff; border-radius:10px;
+  padding:9px 10px; font-size:11px; z-index:5; pointer-events:none;
+}
+.panel-stats.izq { left:10px; }
+.panel-stats.der { right:10px; }
+.panel-stats h3 { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:7px; }
+.panel-stats .numero {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:18px; height:18px; border-radius:50%; background:#4FA3FF; color:#08243f;
+  font-weight:bold; font-size:11px; flex:none;
+}
+.stat-fila { margin-bottom:5px; }
+.stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:2px; }
+.stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
+.stat-relleno { height:100%; background:#4FE0C0; }
 </style>
 </head>
 <body>
@@ -49,6 +68,8 @@ canvas { display:block; }
 <canvas id="c"></canvas>
 
 <div id="ayuda">Flechas: moverse · A: patear · S: pasar</div>
+<div id="panel-izq" class="panel-stats izq"><h3><span class="numero">1</span>Jugador</h3></div>
+<div id="panel-der" class="panel-stats der"><h3><span class="numero">2</span>Jugador</h3></div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <button id="btn-pasar" class="control" type="button">Pasar</button>
@@ -85,6 +106,37 @@ const players = [
   crearJugador("#4FA3FF", "#1E62B0", -160, 0),
   crearJugador("#4FA3FF", "#1E62B0", 160, 0)
 ];
+// ── Panel de stats por jugador (jugador 1 a la izquierda, jugador 2 a la derecha) ──
+const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"] ];
+function crearFilasStats(contenedor){
+  const filas = {};
+  STATS_MOSTRADAS.forEach(([clave, etiqueta]) => {
+    const fila = document.createElement("div"); fila.className = "stat-fila";
+    const nombre = document.createElement("div"); nombre.className = "stat-nombre";
+    nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
+    const barra = document.createElement("div"); barra.className = "stat-barra";
+    const relleno = document.createElement("div"); relleno.className = "stat-relleno";
+    barra.appendChild(relleno);
+    fila.appendChild(nombre); fila.appendChild(barra);
+    contenedor.appendChild(fila);
+    filas[clave] = { valor: nombre.querySelector(".stat-valor"), relleno };
+  });
+  return filas;
+}
+const panelesStats = [
+  crearFilasStats(document.getElementById("panel-izq")),
+  crearFilasStats(document.getElementById("panel-der"))
+];
+function actualizarPanelesStats(){
+  players.forEach((p, i) => {
+    const filas = panelesStats[i];
+    STATS_MOSTRADAS.forEach(([clave]) => {
+      filas[clave].valor.textContent = Math.round(p[clave]);
+      filas[clave].relleno.style.width = p[clave] + "%";
+    });
+  });
+}
+
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
@@ -95,26 +147,18 @@ let baseReceptor = null;     // posición del receptor al momento del envío, pa
 
 // Pintas de la pelota: puntos fijos sobre una esfera unitaria (marco propio de la pelota).
 // z>0 mira hacia la cámara (arriba); z<=0 queda del otro lado y no se dibuja.
-// Cuatro anillos (desfasados entre sí) más los dos polos, para que la cobertura sea continua
-// y en cualquier orientación se vea la pelota llena de pintas, sin huecos.
+// Se reparten con una espiral de Fibonacci: es la forma más simple de distribuir puntos
+// de manera pareja sobre una esfera, así la cobertura de pintas queda regular y sin huecos.
+const PINTAS_CANTIDAD = 34, PINTAS_TAM = 0.145;
+const ANGULO_DORADO = Math.PI * (3 - Math.sqrt(5));
 function crearPatronPelota(){
-  const puntos = [
-    { x:0, y:0, z:1, tam:0.22 },
-    { x:0, y:0, z:-1, tam:0.22 }
-  ];
-  const anillos = [
-    { lat: Math.PI/5, tam:0.17 },
-    { lat: Math.PI*2/5, tam:0.17 },
-    { lat: Math.PI - Math.PI*2/5, tam:0.17 },
-    { lat: Math.PI - Math.PI/5, tam:0.17 }
-  ];
-  anillos.forEach((anillo, fila) => {
-    const desfase = (fila % 2) * (Math.PI/5);
-    for (let i = 0; i < 5; i++) {
-      const az = i * (Math.PI*2/5) + desfase;
-      puntos.push({ x: Math.sin(anillo.lat)*Math.cos(az), y: Math.sin(anillo.lat)*Math.sin(az), z: Math.cos(anillo.lat), tam: anillo.tam });
-    }
-  });
+  const puntos = [];
+  for (let i = 0; i < PINTAS_CANTIDAD; i++) {
+    const z = 1 - (2*i + 1) / PINTAS_CANTIDAD;
+    const radio = Math.sqrt(1 - z*z);
+    const az = i * ANGULO_DORADO;
+    puntos.push({ x: radio*Math.cos(az), y: radio*Math.sin(az), z, tam: PINTAS_TAM });
+  }
   return puntos;
 }
 
@@ -263,9 +307,9 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
 // El jugador sin la pelota (modo práctica) sigue al que la lleva, manteniéndose a unos metros.
 const DISTANCIA_SEGUIMIENTO = 90;
-// Mientras la pelota va suelta camino a él, el receptor se acomoda un poco (como máximo un radio
-// suyo) hacia donde se movía quien se la envió, para ayudar a recibirla.
-const RECEPCION_AJUSTE_MAX_FACTOR = 1;
+// Mientras la pelota va suelta camino a él, el receptor se acomoda un poco (como máximo dos
+// radios suyos) hacia donde se movía quien se la envió, para ayudar a recibirla.
+const RECEPCION_AJUSTE_MAX_FACTOR = 2;
 
 function actualizarIA(dt){
   const seguidor = players[1 - activo];
@@ -437,7 +481,7 @@ function dibujarCancha(){
   ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
 }
 
-function dibujarJugador(p, esActivo){
+function dibujarJugador(p, esActivo, numero){
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
   ctx.fillStyle = p.color;
@@ -445,6 +489,13 @@ function dibujarJugador(p, esActivo){
   ctx.lineWidth = 4;
   ctx.strokeStyle = p.oscuro;
   ctx.stroke();
+
+  // número identificador, para reconocer a cada jugador (coincide con su panel de stats)
+  ctx.fillStyle = "#fff";
+  ctx.font = `bold ${Math.round(p.r*0.9)}px Arial`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(numero, p.x, p.y);
 
   // indicador de hacia dónde mira (para entender el pateo/pase)
   ctx.beginPath();
@@ -510,7 +561,7 @@ function dibujar(){
   ctx.translate(VIEW_W/2 - camera.x, viewH/2 - camera.y);
 
   dibujarCancha();
-  players.forEach((p, i) => dibujarJugador(p, i === activo));
+  players.forEach((p, i) => dibujarJugador(p, i === activo, i + 1));
   dibujarBalon();
 
   ctx.restore();
@@ -543,6 +594,7 @@ function bucle(ahora){
   requestAnimationFrame(bucle);
 }
 posicionInicial();
+actualizarPanelesStats();
 requestAnimationFrame(bucle);
 
 })();
