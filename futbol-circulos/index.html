@@ -54,29 +54,16 @@ canvas { display:block; }
 #barra-carga-tiro.activa { opacity:1; }
 #barra-carga-tiro-cubierta { position:absolute; top:0; right:0; height:100%; width:100%; background:rgba(0,0,0,.6); }
 
-/* Paneles de stats de cada jugador, lo más arriba posible en cada esquina */
-.panel-stats {
-  position:fixed; top:56px;
-  width:112px; background:rgba(0,0,0,.55); color:#fff; border-radius:10px;
+/* Una sola caja de stats, compartida por los 3 jugadores del equipo, lo más arriba posible */
+#panel-stats {
+  position:fixed; top:56px; left:10px;
+  width:130px; background:rgba(0,0,0,.55); color:#fff; border-radius:10px;
   padding:9px 10px; font-size:11px; z-index:5; pointer-events:none;
 }
-.panel-stats.izq { left:10px; }
-.panel-stats.der { right:10px; }
-.panel-stats h3 { display:flex; align-items:center; gap:6px; font-size:12px; margin-bottom:7px; }
-.panel-stats .numero {
-  display:inline-flex; align-items:center; justify-content:center;
-  width:18px; height:18px; border-radius:50%; background:#4FA3FF; color:#08243f;
-  font-weight:bold; font-size:11px; flex:none;
-}
+#panel-stats h3 { font-size:12px; margin-bottom:7px; opacity:.9; }
 /* Atributos fijos (no se gastan): solo nombre y valor, sin barra */
 .stat-fila-simple { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
 .stat-fila-simple .stat-valor { color:#fff; font-weight:bold; }
-
-/* Recursos que se gastan y se recuperan jugando: con barra */
-.stat-fila { margin-top:8px; margin-bottom:5px; }
-.stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:2px; }
-.stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
-.stat-relleno { height:100%; background:#FFB454; }
 
 /* Panel con las variables/constantes del motor que estamos afinando */
 #panel-parametros {
@@ -94,8 +81,7 @@ canvas { display:block; }
 
 <div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S: pasar</div>
 <div id="panel-parametros"></div>
-<div id="panel-izq" class="panel-stats izq"><h3><span class="numero">1</span>Jugador</h3></div>
-<div id="panel-der" class="panel-stats der"><h3><span class="numero">2</span>Jugador</h3></div>
+<div id="panel-stats"><h3>Stats del equipo</h3></div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <button id="btn-pasar" class="control" type="button">Pasar</button>
@@ -121,69 +107,48 @@ const CONTROL_FIRMEZA_MIN = 3, CONTROL_FIRMEZA_MAX = 14;  // qué tan rápido "a
 // alcanza con que pase a menos de esta cantidad de "radios suyos" de distancia.
 const RADIO_RECEPCION_FACTOR = 2;
 
-function crearJugador(color, oscuro, x, y){
+// Atributos del equipo (0-100 cada uno): los comparten los 3 jugadores, no son individuales.
+const statsComunes = {
+  velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100, resistencia:100,
+  potenciaTiro:100, precisionTiro:100, precisionPase:100
+};
+
+function crearJugador(color, oscuro){
   return {
-    color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
-    velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100, resistencia:100,
-    potenciaTiro:100, precisionTiro:100, precisionPase:100,
-    // Recursos de fatiga (no son atributos fijos: se consumen y se recuperan jugando).
+    color, oscuro, x:0, y:0, vx:0, vy:0, dirX:1, dirY:0, r:26,
+    // Recursos de fatiga: estos sí son individuales, cada jugador se cansa por su cuenta.
     energiaSprint:100, aguante:100
   };
 }
 
 // ── Estado ──────────────────────────────────────────────────
 const players = [
-  crearJugador("#4FA3FF", "#1E62B0", -160, 0),
-  crearJugador("#4FA3FF", "#1E62B0", 160, 0)
+  crearJugador("#4FA3FF", "#1E62B0"),
+  crearJugador("#4FA3FF", "#1E62B0"),
+  crearJugador("#4FA3FF", "#1E62B0")
 ];
-// ── Panel de stats por jugador (jugador 1 a la izquierda, jugador 2 a la derecha) ──
-// Atributos fijos (0-100, no se gastan solos: se muestran como número, sin barra).
+
+// ── Caja de stats, única para todo el equipo (no se gastan: se muestran como número, sin barra) ──
 const STATS_MOSTRADAS = [
   ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"],
   ["sprint","Sprint"], ["resistencia","Resistencia"],
   ["potenciaTiro","Potencia tiro"], ["precisionTiro","Precisión tiro"], ["precisionPase","Precisión pase"]
 ];
-// Recursos de fatiga: se consumen y se recuperan jugando, por ahora los únicos con barra.
-const RECURSOS_MOSTRADOS = [ ["energiaSprint","Energía sprint"], ["aguante","Aguante"] ];
-
 function crearFilaSimple(contenedor, etiqueta){
   const fila = document.createElement("div"); fila.className = "stat-fila-simple";
   fila.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
   contenedor.appendChild(fila);
   return { valor: fila.querySelector(".stat-valor") };
 }
-function crearFilaRecurso(contenedor, etiqueta){
-  const fila = document.createElement("div"); fila.className = "stat-fila";
-  const nombre = document.createElement("div"); nombre.className = "stat-nombre";
-  nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
-  const barra = document.createElement("div"); barra.className = "stat-barra";
-  const relleno = document.createElement("div"); relleno.className = "stat-relleno";
-  barra.appendChild(relleno);
-  fila.appendChild(nombre); fila.appendChild(barra);
-  contenedor.appendChild(fila);
-  return { valor: nombre.querySelector(".stat-valor"), relleno };
-}
-function crearFilasStats(contenedor){
+const filasPanelStats = (() => {
+  const contenedor = document.getElementById("panel-stats");
   const filas = {};
   STATS_MOSTRADAS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaSimple(contenedor, etiqueta); });
-  RECURSOS_MOSTRADOS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaRecurso(contenedor, etiqueta); });
   return filas;
-}
-const panelesStats = [
-  crearFilasStats(document.getElementById("panel-izq")),
-  crearFilasStats(document.getElementById("panel-der"))
-];
-function actualizarPanelesStats(){
-  players.forEach((p, i) => {
-    const filas = panelesStats[i];
-    STATS_MOSTRADAS.forEach(([clave]) => {
-      filas[clave].valor.textContent = Math.round(p[clave]);
-    });
-    RECURSOS_MOSTRADOS.forEach(([clave]) => {
-      const v = Math.max(0, Math.min(100, p[clave]));
-      filas[clave].valor.textContent = Math.round(v);
-      filas[clave].relleno.style.width = v + "%";
-    });
+})();
+function actualizarPanelStats(){
+  STATS_MOSTRADAS.forEach(([clave]) => {
+    filasPanelStats[clave].valor.textContent = Math.round(statsComunes[clave]);
   });
 }
 
@@ -192,8 +157,8 @@ let conPelota = null; // índice del jugador que domina la pelota, o null si est
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 // Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
 // quien se la envió, para ayudar a recibirla (ver actualizarIA).
-let direccionEnvio = null;   // {x,y} dirección de quien pateó/pasó, al momento de soltar la pelota
-let baseReceptor = null;     // posición del receptor al momento del envío, para no alejarlo más de un radio
+let direccionEnvio = null;    // {x,y} dirección de quien pateó/pasó, al momento de soltar la pelota
+let baseReceptores = null;    // posición de cada compañero al momento del envío, para no alejarlos más de la cuenta
 
 // Pintas de la pelota: puntos fijos sobre una esfera unitaria (marco propio de la pelota).
 // z>0 mira hacia la cámara (arriba); z<=0 queda del otro lado y no se dibuja.
@@ -212,21 +177,31 @@ function crearPatronPelota(){
   return puntos;
 }
 
-const ball = { x:-80, y:0, vx:0, vy:0, r:15*0.75, patron: crearPatronPelota() };
-const camera = { x:players[0].x, y:players[0].y };
+const ball = { x:-120, y:0, vx:0, vy:0, r:15*0.75, patron: crearPatronPelota() };
+const camera = { x:0, y:0 };
+
+// Formación inicial de los 3 jugadores del equipo (en triángulo, alrededor del punto de saque).
+const FORMACION_INICIAL = [
+  { x:-200, y:0, dirX:1, dirY:0 },
+  { x:0, y:-150, dirX:0, dirY:1 },
+  { x:200, y:0, dirX:-1, dirY:0 }
+];
 
 function posicionInicial(){
-  players[0].x = -160; players[0].y = 0; players[0].vx = players[0].vy = 0; players[0].dirX = 1; players[0].dirY = 0;
-  players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
-  players.forEach(p => { p.energiaSprint = 100; p.aguante = 100; });
-  ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
+  players.forEach((p, i) => {
+    const f = FORMACION_INICIAL[i];
+    p.x = f.x; p.y = f.y; p.vx = 0; p.vy = 0; p.dirX = f.dirX; p.dirY = f.dirY;
+    p.energiaSprint = 100; p.aguante = 100;
+  });
+  camera.x = players[0].x; camera.y = players[0].y;
+  ball.x = -120; ball.y = 0; ball.vx = ball.vy = 0;
   ball.patron = crearPatronPelota();
   activo = 0;
   conPelota = null;
   ultimoPateador = null;
   direccionEnvio = null;
-  baseReceptor = null;
-  chocando = false;
+  baseReceptores = null;
+  chocando = new Set();
   cargandoTiro = false;
   tiempoCargaTiro = 0;
   barraCargaTiro.classList.remove("activa");
@@ -298,7 +273,7 @@ const PASE_PRECISION_ERROR_MAX = Math.PI / 9;  // 20°
 // Carga del tiro: mantener presionado patear llena una barra en TIRO_CARGA_DURACION segundos.
 // Hasta la mitad de la carga, controla la potencia y la precisión queda intacta (100% del stat).
 // Pasada la mitad, se sigue ganando potencia, pero la precisión cae del 100% al 50% del stat.
-const TIRO_CARGA_DURACION = 2; // segundos para cargar al máximo
+const TIRO_CARGA_DURACION = 1; // segundos para cargar al máximo
 let cargandoTiro = false;
 let tiempoCargaTiro = 0;
 
@@ -320,11 +295,10 @@ function soltarTiro(){
   patear(tiempoCargaTiro / TIRO_CARGA_DURACION);
 }
 
-// Registra hacia dónde se movía quien soltó la pelota, para que el compañero se acomode un poco (ver actualizarIA).
+// Registra hacia dónde se movía quien soltó la pelota, para que los compañeros se acomoden un poco (ver actualizarIA).
 function registrarEnvio(p){
   direccionEnvio = { x: p.dirX, y: p.dirY };
-  const receptor = players[1 - activo];
-  baseReceptor = { x: receptor.x, y: receptor.y };
+  baseReceptores = players.map(j => ({ x: j.x, y: j.y }));
 }
 
 // Patea con la carga [0,1] alcanzada. La potencia escala con toda la carga; la precisión se
@@ -333,8 +307,8 @@ function patear(carga){
   if (conPelota !== activo) return;
   const p = players[activo];
   const factorPrecision = carga <= 0.5 ? 1 : (1.5 - carga);
-  const potencia = TIRO_POTENCIA_DISENO_MAX * (p.potenciaTiro / 100) * carga;
-  const precisionEfectiva = p.precisionTiro * factorPrecision;
+  const potencia = TIRO_POTENCIA_DISENO_MAX * (statsComunes.potenciaTiro / 100) * carga;
+  const precisionEfectiva = statsComunes.precisionTiro * factorPrecision;
   const error = (1 - precisionEfectiva / 100) * TIRO_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
   const angulo = Math.atan2(p.dirY, p.dirX) + error;
   ball.vx += Math.cos(angulo) * potencia;
@@ -348,7 +322,7 @@ function patear(carga){
 function pasar(){
   if (conPelota !== activo) return;
   const p = players[activo];
-  const error = (1 - p.precisionPase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
+  const error = (1 - statsComunes.precisionPase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
   const angulo = Math.atan2(p.dirY, p.dirX) + error;
   ball.vx += Math.cos(angulo) * PASE_POTENCIA_DISENO_MAX;
   ball.vy += Math.sin(angulo) * PASE_POTENCIA_DISENO_MAX;
@@ -407,7 +381,7 @@ function tasaAguante(stat, efecto){
 
 function actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt){
   if (sprintando) {
-    const tasa = ENERGIA_SPRINT_TASA_MAX + (ENERGIA_SPRINT_TASA_MIN - ENERGIA_SPRINT_TASA_MAX) * (p.sprint / 100);
+    const tasa = ENERGIA_SPRINT_TASA_MAX + (ENERGIA_SPRINT_TASA_MIN - ENERGIA_SPRINT_TASA_MAX) * (statsComunes.sprint / 100);
     p.energiaSprint = Math.max(0, p.energiaSprint - tasa * dt);
   } else {
     p.energiaSprint = Math.min(100, p.energiaSprint + ENERGIA_SPRINT_RECUPERACION * dt);
@@ -419,7 +393,7 @@ function actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt){
     else if (marchaResultante === MARCHA_TROTAR) efecto = RESISTENCIA_EFECTO_TROTAR;
     else efecto = RESISTENCIA_EFECTO_CAMINAR;
   }
-  p.aguante = Math.max(0, Math.min(100, p.aguante - tasaAguante(p.resistencia, efecto) * dt));
+  p.aguante = Math.max(0, Math.min(100, p.aguante - tasaAguante(statsComunes.resistencia, efecto) * dt));
 }
 
 // Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
@@ -444,8 +418,8 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
   if (moviendo) {
     dx /= len; dy /= len;
-    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (p.agilidad / 100), dt);
-    const acel = ACEL_DISENO_MAX * (p.aceleracion / 100);
+    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (statsComunes.agilidad / 100), dt);
+    const acel = ACEL_DISENO_MAX * (statsComunes.aceleracion / 100);
     p.vx += p.dirX * acel * dt;
     p.vy += p.dirY * acel * dt;
   } else {
@@ -454,7 +428,7 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
   }
   // El aguante agotado también resta un poco de tope de velocidad en general.
   const factorAguante = 0.5 + 0.5 * (p.aguante / 100);
-  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (marchaResultante / 100) * factorAguante;
+  const velTope = VEL_DISENO_MAX * (statsComunes.velocidad / 100) * (marchaResultante / 100) * factorAguante;
   const vel = Math.hypot(p.vx, p.vy);
   if (vel > velTope) { p.vx = p.vx/vel*velTope; p.vy = p.vy/vel*velTope; }
   p.x += p.vx * dt; p.y += p.vy * dt;
@@ -467,26 +441,29 @@ const DISTANCIA_SEGUIMIENTO = 90;
 const RECEPCION_AJUSTE_MAX_FACTOR = 2;
 
 function actualizarIA(dt){
-  const seguidor = players[1 - activo];
+  players.forEach((seguidor, i) => {
+    if (i === activo) return; // este lo maneja el jugador (ver bucle principal)
 
-  if (conPelota === activo) {
-    const portador = players[activo];
-    const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
-    const dist = Math.hypot(ddx, ddy);
-    if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
-    const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
-    actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
-    return;
-  }
-
-  if (direccionEnvio && baseReceptor) {
-    const movido = Math.hypot(seguidor.x - baseReceptor.x, seguidor.y - baseReceptor.y);
-    if (movido < seguidor.r * RECEPCION_AJUSTE_MAX_FACTOR) {
-      actualizarJugador(seguidor, direccionEnvio.x, direccionEnvio.y, MARCHA_CAMINAR, dt);
+    if (conPelota === activo) {
+      const portador = players[activo];
+      const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
+      const dist = Math.hypot(ddx, ddy);
+      if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
+      const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
+      actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
       return;
     }
-  }
-  actualizarJugador(seguidor, 0, 0, 0, dt);
+
+    if (direccionEnvio && baseReceptores) {
+      const base = baseReceptores[i];
+      const movido = Math.hypot(seguidor.x - base.x, seguidor.y - base.y);
+      if (movido < seguidor.r * RECEPCION_AJUSTE_MAX_FACTOR) {
+        actualizarJugador(seguidor, direccionEnvio.x, direccionEnvio.y, MARCHA_CAMINAR, dt);
+        return;
+      }
+    }
+    actualizarJugador(seguidor, 0, 0, 0, dt);
+  });
 }
 
 // Qué tan pegada queda la pelota al jugador que la domina, según su atributo "control".
@@ -516,7 +493,7 @@ function rotarPatron(puntos, ejeX, ejeY, ejeZ, theta){
 function actualizarPelota(dt){
   if (conPelota !== null) {
     const p = players[conPelota];
-    const n = nivelControl(p.control);
+    const n = nivelControl(statsComunes.control);
     const tx = p.x + p.dirX * n.offset, ty = p.y + p.dirY * n.offset;
     const s = Math.min(1, n.firmeza * dt);
     ball.x += (tx - ball.x) * s;
@@ -535,32 +512,37 @@ function actualizarPelota(dt){
   }
 }
 
-// Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan.
-// Como son compañeros, si chocan mientras alguno domina la pelota, esta queda al azar en uno de los dos.
-let chocando = false;
+// Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan (revisa cada par).
+// Como son compañeros, si dos chocan y uno de ellos domina la pelota, esta queda al azar entre esos dos.
+let chocando = new Set(); // claves "i-j" de los pares actualmente superpuestos
 function colisionJugadores(){
-  const a = players[0], b = players[1];
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const dist = Math.hypot(dx, dy) || 0.001;
-  const minDist = a.r + b.r;
-  if (dist >= minDist) { chocando = false; return; }
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i], b = players[j];
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      const minDist = a.r + b.r;
+      const clave = i + "-" + j;
+      if (dist >= minDist) { chocando.delete(clave); continue; }
 
-  const nx = dx / dist, ny = dy / dist;
-  const overlap = minDist - dist;
-  a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
-  b.x += nx * overlap / 2; b.y += ny * overlap / 2;
-  const empuje = 40;
-  a.vx -= nx * empuje; a.vy -= ny * empuje;
-  b.vx += nx * empuje; b.vy += ny * empuje;
+      const nx = dx / dist, ny = dy / dist;
+      const overlap = minDist - dist;
+      a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
+      b.x += nx * overlap / 2; b.y += ny * overlap / 2;
+      const empuje = 40;
+      a.vx -= nx * empuje; a.vy -= ny * empuje;
+      b.vx += nx * empuje; b.vy += ny * empuje;
 
-  if (!chocando && conPelota !== null) {
-    conPelota = Math.random() < 0.5 ? 0 : 1;
-    activo = conPelota;
-    ultimoPateador = null;
-    direccionEnvio = null;
-    baseReceptor = null;
+      if (!chocando.has(clave) && (conPelota === i || conPelota === j)) {
+        conPelota = Math.random() < 0.5 ? i : j;
+        activo = conPelota;
+        ultimoPateador = null;
+        direccionEnvio = null;
+        baseReceptores = null;
+      }
+      chocando.add(clave);
+    }
   }
-  chocando = true;
 }
 
 // Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
@@ -581,7 +563,7 @@ function actualizarPosesion(){
       activo = i;
       ultimoPateador = null;
       direccionEnvio = null;
-      baseReceptor = null;
+      baseReceptores = null;
       break;
     }
   }
@@ -598,12 +580,19 @@ function actualizarCamara(dt){
 // ── Dibujo ────────────────────────────────────────────────
 const canvas = document.getElementById("c");
 const ctx = canvas.getContext("2d");
-let scale = 1, viewH = 600;
+let scale = 1, viewW = VIEW_W, viewH = 600;
+
+// En pantalla táctil (celular/tablet), el zoom se calcula desde el lado más corto de la
+// pantalla, para que al rotar de vertical a horizontal se mantenga el mismo nivel de zoom
+// (se ve más campo a los costados, en vez de acercar la cámara).
+const ES_TACTIL = window.matchMedia("(pointer: coarse)").matches;
 
 function ajustarTamano(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  scale = canvas.width / VIEW_W;
+  const base = ES_TACTIL ? Math.min(canvas.width, canvas.height) : canvas.width;
+  scale = base / VIEW_W;
+  viewW = canvas.width / scale;
   viewH = canvas.height / scale;
 }
 window.addEventListener("resize", ajustarTamano);
@@ -611,7 +600,7 @@ ajustarTamano();
 
 function dibujarCancha(){
   const franja = 100;
-  const izq = camera.x - VIEW_W/2 - franja, der = camera.x + VIEW_W/2 + franja;
+  const izq = camera.x - viewW/2 - franja, der = camera.x + viewW/2 + franja;
   const arriba = camera.y - viewH/2, abajo = camera.y + viewH/2;
   const primero = Math.floor(izq / franja) * franja;
   for (let x = primero; x < der; x += franja) {
@@ -713,7 +702,7 @@ function dibujar(){
 
   ctx.save();
   ctx.scale(scale, scale);
-  ctx.translate(VIEW_W/2 - camera.x, viewH/2 - camera.y);
+  ctx.translate(viewW/2 - camera.x, viewH/2 - camera.y);
 
   dibujarCancha();
   players.forEach((p, i) => dibujarJugador(p, i === activo, i + 1));
@@ -749,7 +738,6 @@ function bucle(ahora){
     barraCargaTiroCubierta.style.width = (100 - (tiempoCargaTiro / TIRO_CARGA_DURACION) * 100) + "%";
   }
   dibujar();
-  actualizarPanelesStats(); // la fatiga cambia en vivo, así que el panel se refresca cada cuadro
 
   requestAnimationFrame(bucle);
 }
@@ -778,7 +766,7 @@ function actualizarPanelParametros(){
 }
 
 posicionInicial();
-actualizarPanelesStats();
+actualizarPanelStats();
 actualizarPanelParametros();
 requestAnimationFrame(bucle);
 
