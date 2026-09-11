@@ -233,7 +233,7 @@ function actualizarBarraFatiga(){
 
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
-let conPelotaRival = false; // true si quien la domina es el rival (ver colisionRivalJugadores)
+let conPelotaRivalIdx = null; // índice (en rivales) de quién la domina, o null (ver colisionRivalJugadores)
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 // Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
 // quien se la envió, para ayudar a recibirla (ver actualizarIA).
@@ -267,11 +267,18 @@ const FORMACION_INICIAL = [
   { x:200, y:0, dirX:-1, dirY:0 }
 ];
 
-// ── Rival (intercepta pases y marca de cerca al portador, nada más: no presiona, no ataca) ──
-const rival = crearJugador("#E64A4A", "#B23030");
-const RIVAL_INICIAL = { x:180, y:70, dirX:-1, dirY:0 };
-// "Control" del rival para disputar la pelota al chocar con el portador (ver colisionRivalJugadores):
-// el equipo usa su stat compartido "control", el rival usa este valor fijo. Con el default de
+// ── Rivales (marcan de cerca, cubren líneas de pase e interceptan pases en el aire; nada más:
+// no presionan en bloque ni atacan al arco propio) ──
+const rivales = [
+  crearJugador("#E64A4A", "#B23030"),
+  crearJugador("#E64A4A", "#B23030")
+];
+const RIVALES_FORMACION_INICIAL = [
+  { x:180, y:70, dirX:-1, dirY:0 },
+  { x:180, y:-70, dirX:-1, dirY:0 }
+];
+// "Control" de cada rival para disputar la pelota al chocar con el portador (ver colisionRivalJugadores):
+// el equipo usa su stat compartido "control", los rivales usan este valor fijo. Con el default de
 // ambos (100 y 50) el equipo se queda con la pelota 2 de cada 3 disputas.
 const RIVAL_CONTROL = 50;
 
@@ -286,7 +293,7 @@ function posicionInicial(){
   ball.patron = crearPatronPelota();
   activo = 0;
   conPelota = null;
-  conPelotaRival = false;
+  conPelotaRivalIdx = null;
   conPelotaArquero = false;
   autopilotRestante = 0;
   ultimoPateador = null;
@@ -301,8 +308,10 @@ function posicionInicial(){
   tiempoCargaPase = 0;
   barraCargaPase.classList.remove("activa");
   mallaAbultamiento = null;
-  rival.x = RIVAL_INICIAL.x; rival.y = RIVAL_INICIAL.y; rival.vx = 0; rival.vy = 0;
-  rival.dirX = RIVAL_INICIAL.dirX; rival.dirY = RIVAL_INICIAL.dirY;
+  rivales.forEach((r, i) => {
+    const f = RIVALES_FORMACION_INICIAL[i];
+    r.x = f.x; r.y = f.y; r.vx = 0; r.vy = 0; r.dirX = f.dirX; r.dirY = f.dirY;
+  });
   arquero.x = ARQUERO_INICIAL.x; arquero.y = ARQUERO_INICIAL.y; arquero.vx = 0; arquero.vy = 0;
   arquero.dirX = ARQUERO_INICIAL.dirX; arquero.dirY = ARQUERO_INICIAL.dirY;
 }
@@ -666,60 +675,110 @@ function actualizarIA(dt){
   });
 }
 
-// El rival hace tres cosas nada más: si le ganó la pelota a alguien, avanza con ella (sigue de
-// largo en la dirección hacia la que ya iba, sin apuntar a ningún lado en particular: no tiene
-// arco propio ni juega en equipo, solo avanza); si no la tiene pero un pase (o tiro) va en el
-// aire, corre a interceptarlo, apuntando un poco adelantado a hacia dónde va la pelota; y si no
-// pasa ninguna de las dos, sigue de cerca a quien tiene la pelota (marca), corriendo directo
-// hacia él sin frenar antes de tiempo: la marca solo es útil si el rival realmente llega a
-// disputarle la pelota (ver colisionRivalJugadores), así que no hay una distancia de "quedarse
-// cerca pero sin tocar" — el choque entre los dos ya se encarga de no dejarlos superponerse. Sin
-// nada de lo anterior (pelota suelta parada, o entre que se corta un pase y alguien la recupera)
-// se queda quieto: no persigue la pelota suelta por su cuenta.
-const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apunta al camino de la pelota
+// Los rivales hacen cuatro cosas nada más: si le ganaron la pelota a alguien, el que la tiene
+// avanza con ella (sigue de largo en la dirección hacia la que ya iba, sin apuntar a ningún lado
+// en particular: no tienen arco propio ni juegan en equipo con la pelota, solo avanzan); si nadie
+// la tiene pero un pase (o tiro) va en el aire, los dos corren a interceptarlo, apuntando un poco
+// adelantado a hacia dónde va la pelota; si el equipo la tiene, el rival más cercano al portador
+// lo marca de cerca (corriendo directo hacia él, sin frenar antes de tiempo: la marca solo es
+// útil si realmente llega a disputarle la pelota, ver colisionRivalJugadores) mientras el OTRO no
+// se amontona sobre el mismo jugador — se adelanta a cubrir la línea de pase hacia el compañero
+// del portador mejor ubicado (el más cercano al arco), parándose a mitad de camino entre los dos,
+// para ya estar en el camino si el pase sale en vez de arrancar a perseguirlo recién cuando se
+// suelta. Sin nada de lo anterior (pelota suelta parada, o entre que se corta un pase y alguien
+// la recupera) se quedan quietos: no persiguen la pelota suelta por su cuenta.
+const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apuntan al camino de la pelota
 
-function actualizarRival(dt){
-  if (conPelotaRival) {
-    actualizarJugador(rival, rival.dirX, rival.dirY, MARCHA_CORRER, dt);
+function actualizarRivales(dt){
+  if (conPelotaRivalIdx !== null) {
+    rivales.forEach(r => {
+      if (r === rivales[conPelotaRivalIdx]) actualizarJugador(r, r.dirX, r.dirY, MARCHA_CORRER, dt);
+      else actualizarJugador(r, 0, 0, 0, dt);
+    });
     return;
   }
 
   const paseEnVuelo = conPelota === null && direccionEnvio !== null;
   if (paseEnVuelo) {
     const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
-    const dx = objX - rival.x, dy = objY - rival.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+    rivales.forEach(r => {
+      const dx = objX - r.x, dy = objY - r.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
+    });
     return;
   }
 
   if (conPelota !== null) {
     const portador = players[conPelota];
-    const dx = portador.x - rival.x, dy = portador.y - rival.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+    let marcador = rivales[0], distMin = Math.hypot(portador.x-rivales[0].x, portador.y-rivales[0].y);
+    for (let k = 1; k < rivales.length; k++) {
+      const dk = Math.hypot(portador.x-rivales[k].x, portador.y-rivales[k].y);
+      if (dk < distMin) { distMin = dk; marcador = rivales[k]; }
+    }
+    // El compañero del portador más cerca del arco: la opción de pase más peligrosa, y por eso la
+    // que conviene cubrir en vez de simplemente amontonarse a marcar al mismo portador.
+    let mejorCompanero = null, mejorDistGol = Infinity;
+    players.forEach((c, i) => {
+      if (i === conPelota) return;
+      const dGol = Math.hypot(ARCO_X - c.x, -c.y);
+      if (dGol < mejorDistGol) { mejorDistGol = dGol; mejorCompanero = c; }
+    });
+
+    rivales.forEach(r => {
+      if (r === marcador) {
+        const dx = portador.x-r.x, dy = portador.y-r.y, dist = Math.hypot(dx,dy) || 1;
+        actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
+      } else if (mejorCompanero) {
+        const tx = (portador.x+mejorCompanero.x)/2, ty = (portador.y+mejorCompanero.y)/2;
+        const dx = tx-r.x, dy = ty-r.y, dist = Math.hypot(dx,dy) || 1;
+        actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
+      } else {
+        actualizarJugador(r, 0, 0, 0, dt);
+      }
+    });
     return;
   }
 
-  actualizarJugador(rival, 0, 0, 0, dt);
+  rivales.forEach(r => actualizarJugador(r, 0, 0, 0, dt));
 }
 
-// Si el rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
+// Si algún rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
 // rebota lejos de él y se cancela el aviso de pase, así los compañeros dejan de acomodarse para
 // recibir algo que ya no va a llegar.
 function colisionRival(){
-  if (conPelota !== null || conPelotaRival || conPelotaArquero) return; // ya la tiene alguien, no es una pelota suelta
-  const dx = ball.x - rival.x, dy = ball.y - rival.y;
+  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return; // ya la tiene alguien, no es una pelota suelta
+  for (const r of rivales) {
+    const dx = ball.x - r.x, dy = ball.y - r.y;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    const minDist = r.r + ball.r;
+    if (dist >= minDist) continue;
+    const nx = dx/dist, ny = dy/dist;
+    ball.x = r.x + nx*minDist; ball.y = r.y + ny*minDist;
+    const vel = Math.hypot(ball.vx, ball.vy);
+    ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
+    ultimoPateador = null;
+    direccionEnvio = null;
+    baseReceptores = null;
+    return; // ya la tocó uno; no hace falta revisar al otro en el mismo cuadro
+  }
+}
+
+// Los dos rivales tampoco se atraviesan entre sí (mismo empuje de separación que entre
+// compañeros, sin disputa de posesión: son del mismo equipo, no hay nada que sortear al azar).
+function colisionRivales(){
+  const a = rivales[0], b = rivales[1];
+  const dx = b.x-a.x, dy = b.y-a.y;
   const dist = Math.hypot(dx, dy) || 0.001;
-  const minDist = rival.r + ball.r;
+  const minDist = a.r + b.r;
   if (dist >= minDist) return;
   const nx = dx/dist, ny = dy/dist;
-  ball.x = rival.x + nx*minDist; ball.y = rival.y + ny*minDist;
-  const vel = Math.hypot(ball.vx, ball.vy);
-  ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
-  ultimoPateador = null;
-  direccionEnvio = null;
-  baseReceptores = null;
+  const overlap = minDist - dist;
+  a.x -= nx*overlap/2; a.y -= ny*overlap/2;
+  b.x += nx*overlap/2; b.y += ny*overlap/2;
+  const empuje = 40;
+  a.vx -= nx*empuje; a.vy -= ny*empuje;
+  b.vx += nx*empuje; b.vy += ny*empuje;
 }
 
 // Qué tan pegada queda la pelota al jugador que la domina, según su atributo "control".
@@ -755,13 +814,14 @@ function actualizarPelota(dt){
     ball.x += (tx - ball.x) * s;
     ball.y += (ty - ball.y) * s;
     ball.vx = p.vx; ball.vy = p.vy;
-  } else if (conPelotaRival) {
+  } else if (conPelotaRivalIdx !== null) {
+    const r = rivales[conPelotaRivalIdx];
     const n = nivelControl(RIVAL_CONTROL); // mismo "control" que usa para disputar la pelota
-    const tx = rival.x + rival.dirX * n.offset, ty = rival.y + rival.dirY * n.offset;
+    const tx = r.x + r.dirX * n.offset, ty = r.y + r.dirY * n.offset;
     const s = Math.min(1, n.firmeza * dt);
     ball.x += (tx - ball.x) * s;
     ball.y += (ty - ball.y) * s;
-    ball.vx = rival.vx; ball.vy = rival.vy;
+    ball.vx = r.vx; ball.vy = r.vy;
   } else {
     const f = Math.max(0, 1 - ROCE_PELOTA * dt);
     ball.vx *= f; ball.vy *= f;
@@ -1029,7 +1089,10 @@ const RADIO_CORNER = 0.9144 * UNIDADES_POR_METRO;
 // define qué tan de cerca sigue el ángulo de la pelota bajo los palos (100 = pegado a la pelota;
 // menos, se queda más centrado y cubre peor los palos); "control" define qué tan seguido ataja
 // atrapando la pelota en vez de solo darle rebote (ver colisionArquero).
-const arqueroStats = { colocacion: 100, control: 100 };
+// "Control" en 82 (no 100): así "atrapar limpio vs. dar rebote" (ver atajarConRebote más abajo)
+// deja de ser una certeza matemática. Con control=100, `Math.random() < control/100` nunca puede
+// fallar y el rebote quedaba como código prácticamente inalcanzable en una partida real.
+const arqueroStats = { colocacion: 100, control: 82 };
 
 function dentroDelArea(x, y){
   return x >= AREA_X_MIN && x <= AREA_X_MAX && Math.abs(y) <= AREA_ANCHO / 2;
@@ -1096,6 +1159,22 @@ const ARQUERO_INCERTIDUMBRE = 0.2; // hasta con control perfecto (100), esta fra
 const ARQUERO_SOSTIENE_DURACION = 2; // segundos que retiene la pelota atrapada antes de despejarla
 const ARQUERO_DESPEJE_POTENCIA = 700; // velocidad con la que sale disparada al despejar
 
+// Atrapar limpio vs. solo dar rebote no depende nada más que del "control": un remate muy fuerte
+// es más difícil de sostener incluso para un arquero con control perfecto (en la realidad, los
+// rebotes pasan mucho más seguido con remates fuertes que con tiros suaves). Por debajo de
+// ARQUERO_ATRAPE_VEL_SUAVE la potencia no resta nada; por encima de ARQUERO_ATRAPE_VEL_FUERTE resta
+// lo máximo (ARQUERO_ATRAPE_FACTOR_MIN, ni con control 100 se garantiza atraparlo limpio).
+const ARQUERO_ATRAPE_VEL_SUAVE = 400;
+const ARQUERO_ATRAPE_VEL_FUERTE = 1200;
+const ARQUERO_ATRAPE_FACTOR_MIN = 0.35;
+
+function factorPotenciaAtrape(velocidad){
+  if (velocidad <= ARQUERO_ATRAPE_VEL_SUAVE) return 1;
+  if (velocidad >= ARQUERO_ATRAPE_VEL_FUERTE) return ARQUERO_ATRAPE_FACTOR_MIN;
+  const t = (velocidad - ARQUERO_ATRAPE_VEL_SUAVE) / (ARQUERO_ATRAPE_VEL_FUERTE - ARQUERO_ATRAPE_VEL_SUAVE);
+  return 1 - t * (1 - ARQUERO_ATRAPE_FACTOR_MIN);
+}
+
 let conPelotaArquero = false; // true mientras retiene la pelota atrapada, antes de despejarla
 
 // Al despejar, en vez de tirar siempre hacia adelante con dispersión al azar, el arquero elige
@@ -1110,7 +1189,7 @@ const ARQUERO_DESPEJE_MARGEN_OBSTACULO = 20; // qué tan cerca del camino ya cue
 
 function direccionDespejeLibre(){
   let mejorAngulo = Math.PI, mejorDistancia = -Infinity, mejorCercania = Infinity;
-  const obstaculos = players.concat([rival]);
+  const obstaculos = players.concat(rivales);
   for (let i = 0; i < ARQUERO_DESPEJE_CANDIDATOS; i++) {
     const t = i / (ARQUERO_DESPEJE_CANDIDATOS - 1);
     const angulo = Math.PI + (t - 0.5) * ARQUERO_DESPEJE_ABANICO;
@@ -1172,7 +1251,7 @@ function atajarConRebote(nx, ny){
 
 function colisionArquero(prevX, prevY){
   if (mostrandoGol || conPelotaArquero) return;
-  if (conPelota !== null || conPelotaRival) return; // ya la tiene alguien, no hay nada que atajar
+  if (conPelota !== null || conPelotaRivalIdx !== null) return; // ya la tiene alguien, no hay nada que atajar
 
   const minDist = arquero.r + ball.r;
   const dx = ball.x - prevX, dy = ball.y - prevY; // recorrido de la pelota en este cuadro
@@ -1205,7 +1284,9 @@ function colisionArquero(prevX, prevY){
   const nx = (cx - arquero.x) / dist, ny = (cy - arquero.y) / dist;
   ball.x = arquero.x + nx * minDist; ball.y = arquero.y + ny * minDist;
 
-  if (Math.random() < arqueroStats.control / 100) atajarAtrapando();
+  const velocidadImpacto = Math.hypot(ball.vx, ball.vy);
+  const probabilidadAtrapar = (arqueroStats.control / 100) * factorPotenciaAtrape(velocidadImpacto);
+  if (Math.random() < probabilidadAtrapar) atajarAtrapando();
   else atajarConRebote(nx, ny);
 }
 
@@ -1217,7 +1298,7 @@ function colisionArquero(prevX, prevY){
 // para no amontonarse encima suyo en ese momento.
 const ARQUERO_ESPACIO_PERSONAL = 52; // unidades extra (≈ un cuerpo) mientras retiene la pelota
 function colisionArqueroJugadores(){
-  const jugadores = players.concat([rival]);
+  const jugadores = players.concat(rivales);
   for (const j of jugadores) {
     const dx = j.x - arquero.x, dy = j.y - arquero.y;
     const dist = Math.hypot(dx, dy) || 0.001;
@@ -1263,7 +1344,7 @@ function colisionJugadores(){
   }
 }
 
-// El rival también es sólido: si choca contra un jugador, ambos se separan igual que entre
+// Los rivales también son sólidos: si chocan contra un jugador, ambos se separan igual que entre
 // compañeros (eso sí, recién al tocarse los cuerpos, con el radio real de cada uno). Pero
 // disputar la pelota es más generoso: alcanza con estar a RIVAL_ALCANCE de distancia además del
 // contacto físico, no hace falta llegar a superponerse. Sin este margen, alcanzar el cuerpo
@@ -1272,53 +1353,56 @@ function colisionJugadores(){
 // Si alguno de los dos tiene la pelota dentro de ese alcance, se disputa: queda al azar, pero
 // pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL). A
 // quien se la quitan se queda quieto en seco (pierde toda su velocidad); a quien se la queda no
-// se le toca la velocidad, sigue avanzando hacia donde iba (para el rival, ver actualizarRival;
+// se le toca la velocidad, sigue avanzando hacia donde iba (para el rival, ver actualizarRivales;
 // para un jugador, lo que ya venía haciendo el humano o la IA).
 const RIVAL_ALCANCE = 30; // unidades de más, sobre el contacto físico, para poder disputar la pelota
-let chocandoRival = new Set(); // índices de jugadores actualmente dentro del alcance de disputa del rival
+let chocandoRival = new Set(); // claves "k-i" (rival k, jugador i) actualmente dentro del alcance de disputa
 function colisionRivalJugadores(){
-  for (let i = 0; i < players.length; i++) {
-    const p = players[i];
-    const dx = p.x - rival.x, dy = p.y - rival.y;
-    const dist = Math.hypot(dx, dy) || 0.001;
-    const minDistFisico = p.r + rival.r;
-    const minDistDisputa = minDistFisico + RIVAL_ALCANCE;
+  rivales.forEach((r, k) => {
+    for (let i = 0; i < players.length; i++) {
+      const p = players[i];
+      const dx = p.x - r.x, dy = p.y - r.y;
+      const dist = Math.hypot(dx, dy) || 0.001;
+      const minDistFisico = p.r + r.r;
+      const minDistDisputa = minDistFisico + RIVAL_ALCANCE;
+      const clave = k + "-" + i;
 
-    if (dist < minDistFisico) {
-      const nx = dx / dist, ny = dy / dist;
-      const overlap = minDistFisico - dist;
-      p.x += nx * overlap / 2; p.y += ny * overlap / 2;
-      rival.x -= nx * overlap / 2; rival.y -= ny * overlap / 2;
-      const empuje = 40;
-      p.vx += nx * empuje; p.vy += ny * empuje;
-      rival.vx -= nx * empuje; rival.vy -= ny * empuje;
-    }
-
-    if (dist >= minDistDisputa) { chocandoRival.delete(i); continue; }
-
-    if (!chocandoRival.has(i)) {
-      const probEquipo = statsComunes.control / (statsComunes.control + RIVAL_CONTROL);
-      if (conPelota === i && Math.random() >= probEquipo) {
-        // el rival le gana la disputa: se la queda él, y el jugador se frena en seco
-        conPelota = null;
-        conPelotaRival = true;
-        p.vx = 0; p.vy = 0;
-        ultimoPateador = null;
-        direccionEnvio = null;
-        baseReceptores = null;
-      } else if (conPelotaRival && Math.random() < probEquipo) {
-        // el equipo recupera la disputa: pasa a controlarla ese jugador, y el rival se frena en seco
-        conPelotaRival = false;
-        conPelota = i;
-        activo = i;
-        rival.vx = 0; rival.vy = 0;
-        ultimoPateador = null;
-        direccionEnvio = null;
-        baseReceptores = null;
+      if (dist < minDistFisico) {
+        const nx = dx / dist, ny = dy / dist;
+        const overlap = minDistFisico - dist;
+        p.x += nx * overlap / 2; p.y += ny * overlap / 2;
+        r.x -= nx * overlap / 2; r.y -= ny * overlap / 2;
+        const empuje = 40;
+        p.vx += nx * empuje; p.vy += ny * empuje;
+        r.vx -= nx * empuje; r.vy -= ny * empuje;
       }
+
+      if (dist >= minDistDisputa) { chocandoRival.delete(clave); continue; }
+
+      if (!chocandoRival.has(clave)) {
+        const probEquipo = statsComunes.control / (statsComunes.control + RIVAL_CONTROL);
+        if (conPelota === i && Math.random() >= probEquipo) {
+          // el rival le gana la disputa: se la queda él, y el jugador se frena en seco
+          conPelota = null;
+          conPelotaRivalIdx = k;
+          p.vx = 0; p.vy = 0;
+          ultimoPateador = null;
+          direccionEnvio = null;
+          baseReceptores = null;
+        } else if (conPelotaRivalIdx === k && Math.random() < probEquipo) {
+          // el equipo recupera la disputa: pasa a controlarla ese jugador, y el rival se frena en seco
+          conPelotaRivalIdx = null;
+          conPelota = i;
+          activo = i;
+          r.vx = 0; r.vy = 0;
+          ultimoPateador = null;
+          direccionEnvio = null;
+          baseReceptores = null;
+        }
+      }
+      chocandoRival.add(clave);
     }
-    chocandoRival.add(i);
-  }
+  });
 }
 
 // Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
@@ -1326,7 +1410,7 @@ function colisionRivalJugadores(){
 // Mientras la tiene el rival, esto no se aplica: solo se la pueden disputar chocando contra él
 // (ver colisionRivalJugadores), no por simple cercanía a la pelota.
 function actualizarPosesion(){
-  if (conPelota !== null || conPelotaRival || conPelotaArquero) return;
+  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return;
   if (ultimoPateador !== null) {
     const p = players[ultimoPateador];
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
@@ -1573,7 +1657,7 @@ function dibujar(){
   dibujarLimites();
   dibujarMarcasCancha();
   dibujarArco();
-  dibujarJugador(rival, false, "R");
+  rivales.forEach((r, k) => dibujarJugador(r, false, "R" + (k + 1)));
   dibujarJugador(arquero, false, "A");
   players.forEach((p, i) => dibujarJugador(p, i === activo, i + 1));
   dibujarBalon();
@@ -1616,19 +1700,19 @@ function bucle(ahora){
   // (ver colisionPostesJugador): tiene que ser de antes de CUALQUIER cosa que pueda correrlos
   // este cuadro, movimiento propio o empujones de otras colisiones.
   const prevJugadores = players.map(p => ({ x: p.x, y: p.y }));
-  const prevRival = { x: rival.x, y: rival.y };
+  const prevRivales = rivales.map(r => ({ x: r.x, y: r.y }));
   const prevArquero = { x: arquero.x, y: arquero.y };
 
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
-  actualizarRival(dt);
+  actualizarRivales(dt);
   actualizarArquero(dt);
   colisionJugadores();
   colisionRivalJugadores();
+  colisionRivales();
   colisionArqueroJugadores();
   players.forEach((p, i) => { colisionPostesJugador(p, prevJugadores[i].x, prevJugadores[i].y); limitarJugadorACancha(p); });
-  colisionPostesJugador(rival, prevRival.x, prevRival.y);
-  limitarJugadorACancha(rival);
+  rivales.forEach((r, k) => { colisionPostesJugador(r, prevRivales[k].x, prevRivales[k].y); limitarJugadorACancha(r); });
   colisionPostesJugador(arquero, prevArquero.x, prevArquero.y);
   const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
@@ -1669,7 +1753,7 @@ function actualizarPanelParametros(){
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
-    ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca de cerca al portador"],
+    ["Rivales", rivales.length + ": el más cercano marca de cerca, el otro cubre la línea de pase al compañero mejor ubicado; ambos interceptan pases en el aire (anticipan " + RIVAL_ANTICIPO + "s)"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
