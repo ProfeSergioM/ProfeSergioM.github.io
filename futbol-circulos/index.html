@@ -54,6 +54,15 @@ canvas { display:block; }
 #barra-carga-tiro.activa { opacity:1; }
 #barra-carga-tiro-cubierta { position:absolute; top:0; right:0; height:100%; width:100%; background:rgba(0,0,0,.6); }
 
+/* Barra de carga del pase: mismo mecanismo, pero sin penalidad de precisión (un solo color). */
+#barra-carga-pase {
+  position:fixed; right:118px; bottom:142px; width:76px; height:8px; border-radius:4px;
+  overflow:hidden; z-index:8; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#4FE0C0; border:1px solid rgba(0,0,0,.4);
+}
+#barra-carga-pase.activa { opacity:1; }
+#barra-carga-pase-cubierta { position:absolute; top:0; right:0; height:100%; width:100%; background:rgba(0,0,0,.6); }
+
 /* Una sola caja de stats, compartida por los 3 jugadores del equipo, lo más arriba posible */
 #panel-stats {
   position:fixed; top:56px; left:10px;
@@ -64,6 +73,11 @@ canvas { display:block; }
 /* Atributos fijos (no se gastan): solo nombre y valor, sin barra */
 .stat-fila-simple { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
 .stat-fila-simple .stat-valor { color:#fff; font-weight:bold; }
+/* Energía de sprint: del jugador que tiene la pelota (o el activo, si está suelta). Con barra. */
+.stat-fila { margin-top:8px; padding-top:7px; border-top:1px solid rgba(255,255,255,.15); }
+.stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
+.stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
+.stat-relleno { height:100%; background:#FFB454; }
 
 /* Panel con las variables/constantes del motor que estamos afinando */
 #panel-parametros {
@@ -79,11 +93,12 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S: pasar</div>
+<div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S (mantener): cargar pase</div>
 <div id="panel-parametros"></div>
 <div id="panel-stats"><h3>Stats del equipo</h3></div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
+<div id="barra-carga-pase"><div id="barra-carga-pase-cubierta"></div></div>
 <button id="btn-pasar" class="control" type="button">Pasar</button>
 <div id="barra-carga-tiro"><div id="barra-carga-tiro-cubierta"></div></div>
 <button id="btn-patear" class="control" type="button">Patear</button>
@@ -152,6 +167,28 @@ function actualizarPanelStats(){
   });
 }
 
+// Energía de sprint: a diferencia de los atributos de arriba, esta sí es individual y cambia
+// jugando, así que va con barra y se actualiza cada cuadro. Muestra la del jugador que tiene
+// la pelota (o la del jugador activo, si está suelta), ya que es a quien le importa en ese momento.
+function crearFilaRecurso(contenedor, etiqueta){
+  const fila = document.createElement("div"); fila.className = "stat-fila";
+  const nombre = document.createElement("div"); nombre.className = "stat-nombre";
+  nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
+  const barra = document.createElement("div"); barra.className = "stat-barra";
+  const relleno = document.createElement("div"); relleno.className = "stat-relleno";
+  barra.appendChild(relleno);
+  fila.appendChild(nombre); fila.appendChild(barra);
+  contenedor.appendChild(fila);
+  return { valor: nombre.querySelector(".stat-valor"), relleno };
+}
+const filaEnergiaSprint = crearFilaRecurso(document.getElementById("panel-stats"), "Energía sprint");
+function actualizarBarraEnergiaSprint(){
+  const jugador = players[conPelota !== null ? conPelota : activo];
+  const v = Math.max(0, Math.min(100, jugador.energiaSprint));
+  filaEnergiaSprint.valor.textContent = Math.round(v);
+  filaEnergiaSprint.relleno.style.width = v + "%";
+}
+
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
@@ -205,6 +242,9 @@ function posicionInicial(){
   cargandoTiro = false;
   tiempoCargaTiro = 0;
   barraCargaTiro.classList.remove("activa");
+  cargandoPase = false;
+  tiempoCargaPase = 0;
+  barraCargaPase.classList.remove("activa");
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -212,11 +252,12 @@ const teclas = Object.create(null);
 window.addEventListener("keydown", e => {
   teclas[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === "a" && !e.repeat) { e.preventDefault(); iniciarCargaTiro(); }
-  if (e.key.toLowerCase() === "s") { e.preventDefault(); pasar(); }
+  if (e.key.toLowerCase() === "s" && !e.repeat) { e.preventDefault(); iniciarCargaPase(); }
 });
 window.addEventListener("keyup", e => {
   teclas[e.key.toLowerCase()] = false;
   if (e.key.toLowerCase() === "a") soltarTiro();
+  if (e.key.toLowerCase() === "s") soltarPase();
 });
 
 function direccionTeclado(){
@@ -258,13 +299,13 @@ joyBase.addEventListener("pointercancel", joySoltar);
 
 // ── Botones ───────────────────────────────────────────────
 document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaTiro(); });
-window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); });
-document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); pasar(); });
+document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaPase(); });
+window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); if (cargandoPase) soltarPase(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
 
-// Potencia de tiro/pase: velocidad de la pelota cuando el atributo/carga correspondiente es 100%.
+// Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
 const TIRO_POTENCIA_DISENO_MAX = 620;
-const PASE_POTENCIA_DISENO_MAX = 480; // fija: el pase no tiene stat de potencia, solo de precisión
+const PASE_POTENCIA_DISENO_MAX = 480; // el pase no tiene stat de potencia: la maneja la carga
 // Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
 // cuando la precisión efectiva es 0. Con 100 no hay desvío.
 const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
@@ -295,6 +336,31 @@ function soltarTiro(){
   patear(tiempoCargaTiro / TIRO_CARGA_DURACION);
 }
 
+// Carga del pase: mismo mecanismo que el tiro, pero sin penalidad de precisión (la precisión
+// siempre depende del stat "precisionPase", cargues lo que cargues). Sirve para poder dosificar
+// la potencia y así habilitar pases cortos: una carga breve alcanza para un pase de cerca.
+const PASE_CARGA_DURACION = 1; // segundos para cargar al máximo
+let cargandoPase = false;
+let tiempoCargaPase = 0;
+
+const barraCargaPase = document.getElementById("barra-carga-pase");
+const barraCargaPaseCubierta = document.getElementById("barra-carga-pase-cubierta");
+
+function iniciarCargaPase(){
+  if (conPelota !== activo) return;
+  cargandoPase = true;
+  tiempoCargaPase = 0;
+  barraCargaPase.classList.add("activa");
+  barraCargaPaseCubierta.style.width = "100%";
+}
+
+function soltarPase(){
+  if (!cargandoPase) return;
+  cargandoPase = false;
+  barraCargaPase.classList.remove("activa");
+  pasar(tiempoCargaPase / PASE_CARGA_DURACION);
+}
+
 // Registra hacia dónde se movía quien soltó la pelota, para que los compañeros se acomoden un poco (ver actualizarIA).
 function registrarEnvio(p){
   direccionEnvio = { x: p.dirX, y: p.dirY };
@@ -318,14 +384,16 @@ function patear(carga){
   registrarEnvio(p);
 }
 
-// El pase no se carga: sale con potencia fija, y la precisión depende del stat "precisionPase".
-function pasar(){
+// Pasa con la carga [0,1] alcanzada: la potencia escala con la carga (una toquecita alcanza
+// para un pase corto); la precisión no cambia con la carga, siempre depende de "precisionPase".
+function pasar(carga){
   if (conPelota !== activo) return;
   const p = players[activo];
+  const potencia = PASE_POTENCIA_DISENO_MAX * carga;
   const error = (1 - statsComunes.precisionPase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
   const angulo = Math.atan2(p.dirY, p.dirX) + error;
-  ball.vx += Math.cos(angulo) * PASE_POTENCIA_DISENO_MAX;
-  ball.vy += Math.sin(angulo) * PASE_POTENCIA_DISENO_MAX;
+  ball.vx += Math.cos(angulo) * potencia;
+  ball.vy += Math.sin(angulo) * potencia;
   conPelota = null;
   registrarEnvio(p);
   ultimoPateador = activo;
@@ -737,6 +805,11 @@ function bucle(ahora){
     tiempoCargaTiro = Math.min(tiempoCargaTiro + dt, TIRO_CARGA_DURACION);
     barraCargaTiroCubierta.style.width = (100 - (tiempoCargaTiro / TIRO_CARGA_DURACION) * 100) + "%";
   }
+  if (cargandoPase) {
+    tiempoCargaPase = Math.min(tiempoCargaPase + dt, PASE_CARGA_DURACION);
+    barraCargaPaseCubierta.style.width = (100 - (tiempoCargaPase / PASE_CARGA_DURACION) * 100) + "%";
+  }
+  actualizarBarraEnergiaSprint(); // cambia en vivo según quién tiene la pelota
   dibujar();
 
   requestAnimationFrame(bucle);
@@ -751,7 +824,8 @@ function actualizarPanelParametros(){
     ["Potencia tiro máx.", TIRO_POTENCIA_DISENO_MAX],
     ["Error tiro máx.", Math.round(TIRO_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Carga tiro", TIRO_CARGA_DURACION + "s (50% = precisión plena, 100% = mitad)"],
-    ["Potencia pase (fija)", PASE_POTENCIA_DISENO_MAX],
+    ["Potencia pase máx.", PASE_POTENCIA_DISENO_MAX],
+    ["Carga pase", PASE_CARGA_DURACION + "s (precisión no cambia con la carga)"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
@@ -767,6 +841,7 @@ function actualizarPanelParametros(){
 
 posicionInicial();
 actualizarPanelStats();
+actualizarBarraEnergiaSprint();
 actualizarPanelParametros();
 requestAnimationFrame(bucle);
 
