@@ -775,6 +775,16 @@ function actualizarPelota(dt){
   }
 }
 
+// Dónde va a quedar quieta la pelota si nadie la toca: con roce constante la velocidad decae
+// exponencialmente (v(t) = v0 * e^(-ROCE_PELOTA*t)), así que su desplazamiento total hasta
+// pararse es exactamente v0/ROCE_PELOTA (la integral de esa velocidad en el tiempo, de 0 a
+// infinito). Se usa para que quien va a recibir un pase corra directo a ese punto fijo en vez
+// de perseguir la posición actual (en movimiento) de la pelota cuadro a cuadro, que traza una
+// curva de persecución en vez de un camino recto.
+function puntoDeLlegadaPelota(){
+  return { x: ball.x + ball.vx / ROCE_PELOTA, y: ball.y + ball.vy / ROCE_PELOTA };
+}
+
 // ── Arco (sin arquero, para probar los tiros) ────────────────
 // Un solo arco fijo en el mundo, lejos del punto de saque. Sin equipo rival: cualquier tiro
 // (o incluso llevarla adentro dominándola) que cruce la línea de gol dentro del ancho cuenta gol.
@@ -1142,10 +1152,22 @@ function atajarAtrapando(){
   }, ARQUERO_SOSTIENE_DURACION * 1000);
 }
 
+// Sin este tope, un rebote de un tiro a máxima potencia (hasta 1800, reflejado y luego
+// amortiguado ×0.6 = hasta ~1080) salía disparado bastante más rápido que cualquier otro envío
+// "a propósito" del juego (el despeje del propio arquero es 700, el pase más fuerte es 600) y,
+// como la cámara solo sigue al jugador activo y nunca a la pelota, ese rebote cruzaba la pantalla
+// y se perdía de vista casi de inmediato — daba la sensación de que la pelota "desaparecía".
+// Se lo empareja con la potencia del despeje: ningún rebote debería salir más rápido que un
+// despeje deliberado del arquero.
 function atajarConRebote(nx, ny){
   const vNormal = ball.vx * nx + ball.vy * ny;
   ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
   ball.vx *= 0.6; ball.vy *= 0.6; // pierde fuerza en el rebote
+  const vel = Math.hypot(ball.vx, ball.vy);
+  if (vel > ARQUERO_DESPEJE_POTENCIA) {
+    const f = ARQUERO_DESPEJE_POTENCIA / vel;
+    ball.vx *= f; ball.vy *= f;
+  }
 }
 
 function colisionArquero(prevX, prevY){
@@ -1584,7 +1606,8 @@ function bucle(ahora){
   if (autopilotRestante > 0) {
     autopilotRestante = Math.max(0, autopilotRestante - dt);
     const p = players[activo];
-    const dxBalon = ball.x - p.x, dyBalon = ball.y - p.y;
+    const objetivo = puntoDeLlegadaPelota();
+    const dxBalon = objetivo.x - p.x, dyBalon = objetivo.y - p.y;
     const distBalon = Math.hypot(dxBalon, dyBalon) || 1;
     dx = dxBalon / distBalon; dy = dyBalon / distBalon; pctMarcha = MARCHA_CORRER;
   }
