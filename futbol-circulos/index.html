@@ -329,7 +329,7 @@ const PASE_PRECISION_ERROR_MAX = Math.PI / 9;  // 20°
 // Carga del tiro: mantener presionado patear llena una barra en TIRO_CARGA_DURACION segundos.
 // Hasta la mitad de la carga, controla la potencia y la precisión queda intacta (100% del stat).
 // Pasada la mitad, se sigue ganando potencia, pero la precisión cae del 100% al 50% del stat.
-const TIRO_CARGA_DURACION = 1; // segundos para cargar al máximo
+const TIRO_CARGA_DURACION = 0.5; // segundos para cargar al máximo
 let cargandoTiro = false;
 let tiempoCargaTiro = 0;
 
@@ -354,7 +354,7 @@ function soltarTiro(){
 // Carga del pase: mismo mecanismo que el tiro, pero sin penalidad de precisión (la precisión
 // siempre depende del stat "precisionPase", cargues lo que cargues). Sirve para poder dosificar
 // la potencia y así habilitar pases cortos: una carga breve alcanza para un pase de cerca.
-const PASE_CARGA_DURACION = 1; // segundos para cargar al máximo
+const PASE_CARGA_DURACION = 0.5; // segundos para cargar al máximo
 let cargandoPase = false;
 let tiempoCargaPase = 0;
 
@@ -530,22 +530,40 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 
-// El jugador sin la pelota (modo práctica) sigue al que la lleva, manteniéndose a unos metros.
-const DISTANCIA_SEGUIMIENTO = 90;
+// Los jugadores sin la pelota (modo práctica) acompañan al que la lleva formando una especie de
+// triángulo equilátero con él, ofreciendo dos alternativas de pase (una a cada lado) en vez de
+// amontonarse los dos en el mismo punto. La distancia y el ángulo son fijos por ahora; más
+// adelante podrían depender de los stats del equipo.
+const DISTANCIA_TRIANGULO = 180; // el doble que antes (90)
+const ANGULO_TRIANGULO = 150 * Math.PI / 180; // desde hacia dónde mira el portador, a cada lado
+const TRIANGULO_DEADZONE = 20; // qué tan cerca del punto alcanza para considerarlo "en posición"
+
+// Punto del triángulo al lado indicado (1 = izquierda, -1 = derecha) del portador.
+function puntoTriangulo(portador, lado){
+  const angulo = Math.atan2(portador.dirY, portador.dirX) + lado * ANGULO_TRIANGULO;
+  return { x: portador.x + Math.cos(angulo) * DISTANCIA_TRIANGULO, y: portador.y + Math.sin(angulo) * DISTANCIA_TRIANGULO };
+}
+
 // Mientras la pelota va suelta camino a él, el receptor se acomoda un poco (como máximo dos
 // radios suyos) hacia donde se movía quien se la envió, para ayudar a recibirla.
 const RECEPCION_AJUSTE_MAX_FACTOR = 2;
 
 function actualizarIA(dt){
+  // De menor a mayor índice, para que la asignación de lado (izquierda/derecha) sea siempre la
+  // misma y no cambien de lugar solos cuando cambia quién está activo.
+  const noActivos = players.map((_, i) => i).filter(i => i !== activo).sort((a, b) => a - b);
+
   players.forEach((seguidor, i) => {
     if (i === activo) return; // este lo maneja el jugador (ver bucle principal)
 
     if (conPelota === activo) {
       const portador = players[activo];
-      const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
+      const lado = noActivos[0] === i ? 1 : -1;
+      const objetivo = puntoTriangulo(portador, lado);
+      const ddx = objetivo.x - seguidor.x, ddy = objetivo.y - seguidor.y;
       const dist = Math.hypot(ddx, ddy);
-      if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
-      const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
+      if (dist <= TRIANGULO_DEADZONE) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
+      const pct = dist > DISTANCIA_TRIANGULO ? MARCHA_CORRER : MARCHA_TROTAR;
       actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
       return;
     }
@@ -855,7 +873,7 @@ function actualizarPanelParametros(){
     ["Potencia pase máx.", PASE_POTENCIA_DISENO_MAX],
     ["Carga pase", PASE_CARGA_DURACION + "s (precisión no cambia con la carga)"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
-    ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
+    ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u, ±" + Math.round(ANGULO_TRIANGULO * 180/Math.PI) + "°"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
