@@ -319,6 +319,7 @@ function posicionInicial(){
   ultimoPateador = null;
   ultimoRivalDesviador = null;
   rivalAtascadoTiempo = 0;
+  rivalAtascadoX = 0; rivalAtascadoY = 0;
   pelotaQuietaTiempo = 0;
   direccionEnvio = null;
   baseReceptores = null;
@@ -581,7 +582,7 @@ function pasarLargo(carga){
 // motor lo mueve solo, directo hacia la pelota, ignorando el joystick/teclado; pasado ese
 // tiempo, el control vuelve a responder a lo que se esté apretando (ver bucle()).
 const CAMBIO_ASISTIDO_FACTOR = RADIO_RECEPCION_FACTOR * 2; // ×r
-const CAMBIO_ASISTIDO_AUTOPILOT = 1; // segundos que se mueve solo hacia la pelota tras el cambio
+const CAMBIO_ASISTIDO_AUTOPILOT = 0.5; // segundos que se mueve solo hacia la pelota tras el cambio
 let autopilotRestante = 0;
 
 function cambioDeJugadorAsistido(pasador, angulo){
@@ -788,26 +789,42 @@ const RIVAL_COBERTURA_DISTANCIA_MIN = 420;
 // Si el rival con la pelota queda empujando contra un obstáculo sólido (el arquero, un poste) sin
 // poder avanzar — "avanza en línea recta" no esquiva nada — se quedaría atascado ahí para
 // siempre: nadie más va a buscarlo, y sin arco propio no tiene otro objetivo al que apuntar en
-// cambio. Si lleva RIVAL_ATASCADO_TIEMPO_MAX segundos casi sin moverse, la despeja igual que el
-// arquero (mismo criterio del hueco más libre) y la suelta, para que la jugada pueda seguir.
-const RIVAL_ATASCADO_VEL_MIN = 30;
+// cambio. Si en RIVAL_ATASCADO_TIEMPO_MAX segundos no se alejó al menos RIVAL_ATASCADO_DIST_MIN de
+// donde estaba al empezar a medir, la despeja igual que el arquero (mismo criterio del hueco más
+// libre) y la suelta, para que la jugada pueda seguir. Mide DESPLAZAMIENTO NETO real en vez de
+// velocidad instantánea a propósito: este mismo bucle vuelve a acelerar a rConBalon hacia la
+// marcha máxima cada cuadro (actualizarJugador, sin noción del obstáculo) ANTES de que las
+// colisiones contra poste/arquero (más abajo en pasoCompleto) le frenen esa velocidad — un chequeo
+// de velocidad leería siempre el valor recién acelerado de este cuadro, nunca el que ya quedó
+// frenado por la colisión del cuadro anterior, y el temporizador nunca llegaba a acumularse (bug
+// real: un rival quedó pegado a un poste 720 cuadros seguidos sin que esto disparara).
+const RIVAL_ATASCADO_DIST_MIN = 12;
 const RIVAL_ATASCADO_TIEMPO_MAX = 0.4;
 let rivalAtascadoTiempo = 0;
+let rivalAtascadoX = 0, rivalAtascadoY = 0;
 
 function actualizarRivales(dt){
   if (conPelotaRivalIdx !== null) {
     const rConBalon = rivales[conPelotaRivalIdx];
+    if (rivalAtascadoTiempo === 0) { rivalAtascadoX = rConBalon.x; rivalAtascadoY = rConBalon.y; }
     rivales.forEach(r => {
       if (r === rConBalon) actualizarJugador(r, r.dirX, r.dirY, MARCHA_CORRER, dt);
       else actualizarJugador(r, 0, 0, 0, dt);
     });
-    const vel = Math.hypot(rConBalon.vx, rConBalon.vy);
-    rivalAtascadoTiempo = vel < RIVAL_ATASCADO_VEL_MIN ? rivalAtascadoTiempo + dt : 0;
-    if (rivalAtascadoTiempo > RIVAL_ATASCADO_TIEMPO_MAX) {
-      const angulo = direccionDespejeLibre(rConBalon.x, rConBalon.y);
-      ball.vx = Math.cos(angulo) * ARQUERO_DESPEJE_POTENCIA;
-      ball.vy = Math.sin(angulo) * ARQUERO_DESPEJE_POTENCIA;
-      conPelotaRivalIdx = null;
+    rivalAtascadoTiempo += dt;
+    if (rivalAtascadoTiempo >= RIVAL_ATASCADO_TIEMPO_MAX) {
+      const avanzo = Math.hypot(rConBalon.x - rivalAtascadoX, rConBalon.y - rivalAtascadoY) > RIVAL_ATASCADO_DIST_MIN;
+      if (!avanzo) {
+        const angulo = direccionDespejeLibre(rConBalon.x, rConBalon.y);
+        ball.vx = Math.cos(angulo) * ARQUERO_DESPEJE_POTENCIA;
+        ball.vy = Math.sin(angulo) * ARQUERO_DESPEJE_POTENCIA;
+        // Igual que en colisionRival: sin marcarlo, el mismo rival —todavía parado justo ahí,
+        // apuntando en la misma dirección que lo atascó— la vuelve a interceptar al toque
+        // siguiente y repite el ciclo (visto en pruebas: se "libera" y recupera en el mismo
+        // cuadro o el siguiente, indistinguible de seguir atascado desde afuera).
+        ultimoRivalDesviador = conPelotaRivalIdx;
+        conPelotaRivalIdx = null;
+      }
       rivalAtascadoTiempo = 0;
     }
     return;
@@ -1029,6 +1046,25 @@ function puntoDeLlegadaPelota(){
     return { x: xAlAterrizar + vxAlAterrizar / ROCE_PELOTA, y: yAlAterrizar + vyAlAterrizar / ROCE_PELOTA };
   }
   return { x: ball.x + ball.vx / ROCE_PELOTA, y: ball.y + ball.vy / ROCE_PELOTA };
+}
+
+// Punto (y) donde la pelota va a CRUZAR una línea vertical x=targetX, si nadie la toca antes —
+// misma familia de cálculo que puntoDeLlegadaPelota (roce constante), pero evaluado en el
+// instante en que cruza esa línea en vez de en el reposo final. null si no viene hacia esa línea
+// (vx<=0, no se acerca) o si el envión no le alcanza para llegar tan lejos bajo roce puro (se va
+// a parar antes de cruzarla, ya no es relevante anticiparla). Se usa para que el arquero se
+// ubique donde la pelota VA A LLEGAR a la altura de sus palos, no donde está ahora: perseguir la
+// posición actual (que en un tiro cruzado se sigue moviendo mientras el arquero reacciona) es el
+// mismo error de "curva de persecución" que ya se corrigió para el receptor de un pase — con la
+// diferencia de que acá alcanza con anticipar la coordenada y, no la posición completa.
+function puntoDeCrucePelota(targetX){
+  if (ball.vx <= 0) return null;
+  const distanciaFaltante = targetX - ball.x;
+  if (distanciaFaltante <= 0) return ball.y; // ya la cruzó o está encima: usar la posición actual
+  const alcanceMax = ball.vx / ROCE_PELOTA;
+  if (distanciaFaltante >= alcanceMax) return null; // el roce la para antes de llegar tan lejos
+  const t = -Math.log(1 - (ROCE_PELOTA * distanciaFaltante) / ball.vx) / ROCE_PELOTA;
+  return ball.y + (ball.vy / ROCE_PELOTA) * (1 - Math.exp(-ROCE_PELOTA * t));
 }
 
 // ── Arco (sin arquero, para probar los tiros) ────────────────
@@ -1333,8 +1369,13 @@ const ARQUERO_LLEGADA_TROTAR = 150; // por debajo de esto, al trote; más lejos,
 function actualizarArquero(dt){
   let tx, ty;
   if (dentroDelArea(ball.x, ball.y)) {
-    const yObjetivo = ball.y * (arqueroStats.colocacion / 100);
     tx = ARCO_X - POSTE_RADIO - arquero.r;
+    // Se ubica donde la pelota VA A CRUZAR sus palos, no donde está ahora (ver puntoDeCrucePelota):
+    // en un tiro cruzado, la posición actual se sigue moviendo mientras reacciona, así que
+    // perseguirla es siempre ir un paso atrás. Si no hay nada que anticipar (pelota parada o
+    // alejándose), usa la posición actual como antes.
+    const yCruce = puntoDeCrucePelota(tx);
+    const yObjetivo = (yCruce !== null ? yCruce : ball.y) * (arqueroStats.colocacion / 100);
     ty = Math.max(-ARCO_ANCHO/2 + arquero.r, Math.min(ARCO_ANCHO/2 - arquero.r, yObjetivo));
   } else {
     // Fuera de esa situación, espera cerca del centro del área, listo para reaccionar.
@@ -1667,6 +1708,25 @@ function actualizarPosesion(){
   }
 }
 
+// Mientras la pelota esté suelta (nadie la controla: ni el equipo, ni el rival, ni el arquero) y
+// no haya ya un piloto automático dirigiendo a un receptor puntual (ver autopilotRestante — ese
+// ya eligió a propósito a quién controlar, no conviene pisarlo con "el más cercano" cuadro a
+// cuadro), el control pasa solo al jugador propio más cercano a la pelota: para no tener que
+// cambiar manualmente ni quedarse manejando a alguien lejos mientras otro compañero está mejor
+// parado para ir a buscarla. Tampoco aplica mientras un pase largo sigue en el aire (ball.altura):
+// ahí ya hay una trayectoria clara hacia un punto de llegada, no tiene sentido saltar al que esté
+// más cerca de la posición ACTUAL (todavía en vuelo) de la pelota.
+function actualizarJugadorMasCercanoALaPelota(){
+  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return;
+  if (autopilotRestante > 0 || ball.altura > 0) return;
+  let masCercano = 0, menorDist = Math.hypot(players[0].x - ball.x, players[0].y - ball.y);
+  for (let i = 1; i < players.length; i++) {
+    const d = Math.hypot(players[i].x - ball.x, players[i].y - ball.y);
+    if (d < menorDist) { menorDist = d; masCercano = i; }
+  }
+  activo = masCercano;
+}
+
 // ── Cámara ────────────────────────────────────────────────
 function actualizarCamara(dt){
   const objetivo = players[activo];
@@ -1923,6 +1983,8 @@ function bucle(ahora){
   ultimo = ahora;
   dt = Math.min(dt, 1/30);
 
+  actualizarJugadorMasCercanoALaPelota();
+
   const t = direccionTeclado();
   const magJoy = Math.min(1, Math.hypot(joyVec.dx, joyVec.dy));
   let dx, dy, pctMarcha;
@@ -2016,10 +2078,11 @@ function actualizarPanelParametros(){
     ["Rivales", rivales.length + ": el más cercano siempre se encima al portador; el otro cubre la línea de pase más corta (fracción " + RIVAL_COBERTURA_FRACCION_CORTA + "), o la del compañero mejor ubicado si está a más de " + RIVAL_COBERTURA_DISTANCIA_MIN + "u (fracción " + RIVAL_COBERTURA_FRACCION_LARGA + "); un pase en vuelo lo persiguen los dos al punto de llegada"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
+    ["Pelota suelta sin dueño", "el control pasa solo al jugador propio más cercano (salvo con piloto automático activo, o un pase largo todavía en el aire)"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
     ["Límites de cancha", "x: " + Math.round(CANCHA_X_MIN) + " a " + CANCHA_X_MAX + ", y: ±" + Math.round(CANCHA_Y_LIMITE) + " (105×68m real), jugadores +" + Math.round(CANCHA_MARGEN_JUGADOR) + "u de margen"],
     ["Área grande (arquero)", "x: " + Math.round(AREA_X_MIN) + " a " + AREA_X_MAX + ", ancho " + Math.round(AREA_ANCHO) + "u"],
-    ["Arquero", "colocación " + arqueroStats.colocacion + ", control " + arqueroStats.control + ", llegada " + ARQUERO_LLEGADA_CAMINAR + "/" + ARQUERO_LLEGADA_TROTAR + "u (paso/trote)"],
+    ["Arquero", "colocación " + arqueroStats.colocacion + " (anticipa dónde cruza la pelota, no su posición actual), control " + arqueroStats.control + ", llegada " + ARQUERO_LLEGADA_CAMINAR + "/" + ARQUERO_LLEGADA_TROTAR + "u (paso/trote)"],
     ["Atajadas", "incertidumbre " + Math.round(ARQUERO_INCERTIDUMBRE*100) + "% (se le puede pasar igual), retiene " + ARQUERO_SOSTIENE_DURACION + "s y despeja por el hueco más libre"],
     ["Rebote del arquero", "atrapar limpio cae con la potencia del tiro (×" + ARQUERO_ATRAPE_FACTOR_MIN + " desde " + ARQUERO_ATRAPE_VEL_FUERTE + "u/s), desvío de hasta " + Math.round(ARQUERO_REBOTE_DESVIO_MAX*180/Math.PI) + "° sobre el reflejo perfecto"],
     ["Espacio del arquero", "sólido para jugadores; +" + ARQUERO_ESPACIO_PERSONAL + "u mientras retiene la pelota"],
