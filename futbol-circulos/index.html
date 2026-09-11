@@ -267,6 +267,7 @@ function posicionInicial(){
   cargandoPase = false;
   tiempoCargaPase = 0;
   barraCargaPase.classList.remove("activa");
+  ladoTriangulo = {};
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -560,21 +561,44 @@ function puntoTriangulo(portador, lado){
   return { x: portador.x + Math.cos(angulo) * DISTANCIA_TRIANGULO, y: portador.y + Math.sin(angulo) * DISTANCIA_TRIANGULO };
 }
 
+// A qué lado del triángulo va cada compañero. No es fijo por índice (eso hacía que a veces
+// tuvieran que cruzarse para llegar a "su" lado aunque ya estuvieran más cerca del otro): se
+// asigna el lado más cercano a cada uno, comparando el costo total de las dos formas posibles
+// de repartirlos. Con histéresis, para no estar cambiando de lado todo el tiempo cerca del medio.
+const TRIANGULO_LADO_HISTERESIS = 25; // unidades que tiene que convenir de más el otro lado para cambiar
+let ladoTriangulo = {}; // { [índice de jugador]: 1 | -1 }
+
+function actualizarLadosTriangulo(portador, a, b){
+  const pA = players[a], pB = players[b];
+  const pIzq = puntoTriangulo(portador, 1), pDer = puntoTriangulo(portador, -1);
+  const costoNormal = Math.hypot(pA.x - pIzq.x, pA.y - pIzq.y) + Math.hypot(pB.x - pDer.x, pB.y - pDer.y);
+  const costoCruzado = Math.hypot(pA.x - pDer.x, pA.y - pDer.y) + Math.hypot(pB.x - pIzq.x, pB.y - pIzq.y);
+
+  const usarCruzadoAhora = ladoTriangulo[a] === -1;
+  const usarCruzado = usarCruzadoAhora
+    ? !(costoNormal < costoCruzado - TRIANGULO_LADO_HISTERESIS)
+    : (costoCruzado < costoNormal - TRIANGULO_LADO_HISTERESIS);
+
+  ladoTriangulo[a] = usarCruzado ? -1 : 1;
+  ladoTriangulo[b] = usarCruzado ? 1 : -1;
+}
+
 // Mientras la pelota va suelta camino a él, el receptor se acomoda un poco (como máximo dos
 // radios suyos) hacia donde se movía quien se la envió, para ayudar a recibirla.
 const RECEPCION_AJUSTE_MAX_FACTOR = 2;
 
 function actualizarIA(dt){
-  // De menor a mayor índice, para que la asignación de lado (izquierda/derecha) sea siempre la
-  // misma y no cambien de lugar solos cuando cambia quién está activo.
-  const noActivos = players.map((_, i) => i).filter(i => i !== activo).sort((a, b) => a - b);
+  const noActivos = players.map((_, i) => i).filter(i => i !== activo);
+  if (conPelota === activo && noActivos.length === 2) {
+    actualizarLadosTriangulo(players[activo], noActivos[0], noActivos[1]);
+  }
 
   players.forEach((seguidor, i) => {
     if (i === activo) return; // este lo maneja el jugador (ver bucle principal)
 
     if (conPelota === activo) {
       const portador = players[activo];
-      const lado = noActivos[0] === i ? 1 : -1;
+      const lado = ladoTriangulo[i] || 1;
       const objetivo = puntoTriangulo(portador, lado);
       const ddx = objetivo.x - seguidor.x, ddy = objetivo.y - seguidor.y;
       const dist = Math.hypot(ddx, ddy);
