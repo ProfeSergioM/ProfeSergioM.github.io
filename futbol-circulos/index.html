@@ -41,6 +41,10 @@ canvas { display:block; }
   top:14px; right:14px; padding:9px 14px; border-radius:8px; border:2px solid rgba(255,255,255,.4);
   background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
 }
+#btn-parametros {
+  top:14px; right:100px; padding:9px 14px; border-radius:8px; border:2px solid rgba(255,255,255,.4);
+  background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
+}
 .control:active { filter:brightness(1.25); }
 
 /* Barra de carga del tiro: se llena mientras se mantiene presionado patear.
@@ -84,13 +88,15 @@ canvas { display:block; }
 .stat-relleno.aguante { background:#FFB454; }
 .stat-relleno.sprint { background:#5AD1FF; }
 
-/* Panel con las variables/constantes del motor que estamos afinando */
+/* Panel con las variables/constantes del motor que estamos afinando: arranca oculto,
+   el botón "Vars" lo muestra/oculta. */
 #panel-parametros {
   position:fixed; top:34px; left:50%; transform:translateX(-50%);
   max-width:min(92vw, 600px); background:rgba(0,0,0,.5); color:rgba(255,255,255,.85);
   border-radius:8px; padding:6px 10px; font-size:10px; z-index:5; pointer-events:none;
   display:flex; flex-wrap:wrap; gap:3px 12px; justify-content:center;
 }
+#panel-parametros[hidden] { display:none; }
 #panel-parametros b { color:#fff; }
 </style>
 </head>
@@ -99,8 +105,9 @@ canvas { display:block; }
 <canvas id="c"></canvas>
 
 <div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S (mantener): cargar pase</div>
-<div id="panel-parametros"></div>
+<div id="panel-parametros" hidden></div>
 <div id="panel-stats"><h3>Stats del equipo</h3></div>
+<button id="btn-parametros" class="control" type="button">Vars</button>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <div id="barra-carga-pase"><div id="barra-carga-pase-cubierta"></div></div>
@@ -317,6 +324,11 @@ document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.p
 document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaPase(); });
 window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); if (cargandoPase) soltarPase(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
+document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
+  e.preventDefault();
+  const panel = document.getElementById("panel-parametros");
+  panel.hidden = !panel.hidden;
+});
 
 // Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
 const TIRO_POTENCIA_DISENO_MAX = 620;
@@ -355,6 +367,9 @@ function soltarTiro(){
 // siempre depende del stat "precisionPase", cargues lo que cargues). Sirve para poder dosificar
 // la potencia y así habilitar pases cortos: una carga breve alcanza para un pase de cerca.
 const PASE_CARGA_DURACION = 0.5; // segundos para cargar al máximo
+// Aunque se suelte al instante (carga=0), el pase nunca sale con menos de este % de potencia:
+// evita que un toque brevísimo deje la pelota prácticamente sin moverse.
+const PASE_CARGA_MINIMA = 0.33;
 let cargandoPase = false;
 let tiempoCargaPase = 0;
 
@@ -399,12 +414,13 @@ function patear(carga){
   registrarEnvio(p);
 }
 
-// Pasa con la carga [0,1] alcanzada: la potencia escala con la carga (una toquecita alcanza
-// para un pase corto); la precisión no cambia con la carga, siempre depende de "precisionPase".
+// Pasa con la carga [0,1] alcanzada: la potencia escala con la carga, entre PASE_CARGA_MINIMA
+// (aunque se suelte al instante) y el máximo; la precisión no cambia con la carga, siempre
+// depende de "precisionPase".
 function pasar(carga){
   if (conPelota !== activo) return;
   const p = players[activo];
-  const potencia = PASE_POTENCIA_DISENO_MAX * carga;
+  const potencia = PASE_POTENCIA_DISENO_MAX * (PASE_CARGA_MINIMA + (1 - PASE_CARGA_MINIMA) * carga);
   const error = (1 - statsComunes.precisionPase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
   const angulo = Math.atan2(p.dirY, p.dirX) + error;
   ball.vx += Math.cos(angulo) * potencia;
@@ -534,7 +550,7 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 // triángulo equilátero con él, ofreciendo dos alternativas de pase (una a cada lado) en vez de
 // amontonarse los dos en el mismo punto. La distancia y el ángulo son fijos por ahora; más
 // adelante podrían depender de los stats del equipo.
-const DISTANCIA_TRIANGULO = 180; // el doble que antes (90)
+const DISTANCIA_TRIANGULO = 360; // el doble que antes (180)
 const ANGULO_TRIANGULO = 150 * Math.PI / 180; // desde hacia dónde mira el portador, a cada lado
 const TRIANGULO_DEADZONE = 20; // qué tan cerca del punto alcanza para considerarlo "en posición"
 
@@ -871,7 +887,7 @@ function actualizarPanelParametros(){
     ["Error tiro máx.", Math.round(TIRO_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Carga tiro", TIRO_CARGA_DURACION + "s (50% = precisión plena, 100% = mitad)"],
     ["Potencia pase máx.", PASE_POTENCIA_DISENO_MAX],
-    ["Carga pase", PASE_CARGA_DURACION + "s (precisión no cambia con la carga)"],
+    ["Carga pase", PASE_CARGA_DURACION + "s, mínimo " + Math.round(PASE_CARGA_MINIMA*100) + "% de potencia"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u, ±" + Math.round(ANGULO_TRIANGULO * 180/Math.PI) + "°"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
