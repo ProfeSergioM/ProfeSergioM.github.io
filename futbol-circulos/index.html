@@ -349,8 +349,8 @@ document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
 });
 
 // Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
-const TIRO_POTENCIA_DISENO_MAX = 620;
-const PASE_POTENCIA_DISENO_MAX = 600; // el pase no tiene stat de potencia: la maneja la carga
+const TIRO_POTENCIA_DISENO_MAX = 1240;
+const PASE_POTENCIA_DISENO_MAX = 1200; // el pase no tiene stat de potencia: la maneja la carga
 // Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
 // cuando la precisión efectiva es 0. Con 100 no hay desvío.
 const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
@@ -675,15 +675,38 @@ const POSTE_RADIO = 8;       // grosor de cada poste, para el rebote
 
 function dentroDelArco(y){ return Math.abs(y) < ARCO_ANCHO / 2; }
 
-// Los postes son sólidos: si la pelota los toca, rebota en vez de pasar de largo.
-function colisionPostes(){
+// Los postes son sólidos: si la pelota los toca, rebota en vez de pasar de largo. La colisión es
+// "continua" (contra el segmento recorrido en el cuadro, no solo la posición final): a alta
+// velocidad la pelota puede avanzar más que el ancho del poste en un solo cuadro, y comprobar
+// solo dónde terminó dejaba que lo saltara de largo sin nunca detectarse superpuesta.
+function colisionPostes(prevX, prevY){
   const postes = [ { x: ARCO_X, y: -ARCO_ANCHO/2 }, { x: ARCO_X, y: ARCO_ANCHO/2 } ];
+  const minDist = POSTE_RADIO + ball.r;
   for (const poste of postes) {
-    const dx = ball.x - poste.x, dy = ball.y - poste.y;
-    const dist = Math.hypot(dx, dy) || 0.001;
-    const minDist = POSTE_RADIO + ball.r;
-    if (dist >= minDist) continue;
-    const nx = dx / dist, ny = dy / dist;
+    const dx = ball.x - prevX, dy = ball.y - prevY; // recorrido de la pelota en este cuadro
+    const fx = prevX - poste.x, fy = prevY - poste.y;
+    const a = dx*dx + dy*dy;
+
+    let t = null; // instante [0,1] del recorrido en que toca al poste, si lo toca
+    if (a < 1e-9) {
+      // casi no se movió: usar la comprobación estática simple
+      if (Math.hypot(ball.x - poste.x, ball.y - poste.y) < minDist) t = 1;
+    } else {
+      const b = 2 * (fx*dx + fy*dy);
+      const c = fx*fx + fy*fy - minDist*minDist;
+      const disc = b*b - 4*a*c;
+      if (disc >= 0) {
+        const raiz = Math.sqrt(disc);
+        const t0 = (-b - raiz) / (2*a);
+        if (t0 >= 0 && t0 <= 1) t = t0; // primer cruce del círculo del poste
+        else if (Math.hypot(ball.x - poste.x, ball.y - poste.y) < minDist) t = 1; // ya termina adentro
+      }
+    }
+    if (t === null) continue;
+
+    const cx = prevX + dx*t, cy = prevY + dy*t; // punto de contacto sobre el poste
+    const dist = Math.hypot(cx - poste.x, cy - poste.y) || 0.001;
+    const nx = (cx - poste.x) / dist, ny = (cy - poste.y) / dist;
     ball.x = poste.x + nx * minDist; ball.y = poste.y + ny * minDist;
     const vNormal = ball.vx * nx + ball.vy * ny;
     ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
@@ -949,8 +972,9 @@ function bucle(ahora){
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
   colisionJugadores();
+  const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
-  colisionPostes();
+  colisionPostes(ballXAntes, ballYAntes);
   revisarGol();
   actualizarPosesion();
   actualizarCamara(dt);
