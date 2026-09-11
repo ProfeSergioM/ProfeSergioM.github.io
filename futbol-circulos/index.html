@@ -43,7 +43,7 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">WASD / flechas: moverse · Espacio: patear</div>
+<div id="ayuda">Flechas: moverse · Espacio: patear</div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <button id="btn-patear" class="control" type="button">Patear</button>
@@ -75,10 +75,10 @@ window.addEventListener("keyup", e => { teclas[e.key.toLowerCase()] = false; });
 
 function direccionTeclado(){
   let dx = 0, dy = 0;
-  if (teclas["a"] || teclas["arrowleft"]) dx -= 1;
-  if (teclas["d"] || teclas["arrowright"]) dx += 1;
-  if (teclas["w"] || teclas["arrowup"]) dy -= 1;
-  if (teclas["s"] || teclas["arrowdown"]) dy += 1;
+  if (teclas["arrowleft"]) dx -= 1;
+  if (teclas["arrowright"]) dx += 1;
+  if (teclas["arrowup"]) dy -= 1;
+  if (teclas["arrowdown"]) dy += 1;
   return { dx, dy };
 }
 
@@ -98,10 +98,12 @@ function joyDesdeEvento(e){
   dx = dx/dist*clamp; dy = dy/dist*clamp;
   joyStick.style.transform = `translate(${dx - 26}px, ${dy - 26}px)`;
   joyVec.dx = dx/max; joyVec.dy = dy/max;
+  joyStick.style.background = nivelDesdeMagnitud(dist/max).color;
 }
 function joySoltar(){
   joyPointerId = null; joyVec.dx = 0; joyVec.dy = 0;
   joyStick.style.transform = "translate(-50%,-50%)";
+  joyStick.style.background = "";
 }
 joyBase.addEventListener("pointerdown", e => { joyPointerId = e.pointerId; joyBase.setPointerCapture(e.pointerId); joyDesdeEvento(e); });
 joyBase.addEventListener("pointermove", e => { if (e.pointerId === joyPointerId) joyDesdeEvento(e); });
@@ -121,10 +123,21 @@ function patear(){
 }
 
 // ── Física ────────────────────────────────────────────────
-const ACEL = 1400, FRICCION_JUGADOR = 6, VEL_MAX = 260;
+const ACEL = 1400, FRICCION_JUGADOR = 6;
 const FRICCION_BALON = 1.1;
 
-function actualizarJugador(dx, dy, dt){
+// Niveles de desplazamiento del joystick: caminar / trotar / correr.
+// El teclado (flechas) siempre corre, porque es una entrada de todo o nada.
+const VEL_CAMINAR = 110, VEL_TROTAR = 185, VEL_CORRER = 260;
+const UMBRAL_TROTAR = 0.4, UMBRAL_CORRER = 0.75;
+
+function nivelDesdeMagnitud(m){
+  if (m < UMBRAL_TROTAR) return { nombre:"caminar", velMax:VEL_CAMINAR, color:"rgba(255,255,255,.55)" };
+  if (m < UMBRAL_CORRER) return { nombre:"trotar", velMax:VEL_TROTAR, color:"rgba(255,255,255,.85)" };
+  return { nombre:"correr", velMax:VEL_CORRER, color:"rgba(255,213,74,.9)" };
+}
+
+function actualizarJugador(dx, dy, velMax, dt){
   const len = Math.hypot(dx, dy);
   if (len > 0.05) {
     dx /= len; dy /= len;
@@ -136,7 +149,7 @@ function actualizarJugador(dx, dy, dt){
     player.vx *= f; player.vy *= f;
   }
   const vel = Math.hypot(player.vx, player.vy);
-  if (vel > VEL_MAX) { player.vx = player.vx/vel*VEL_MAX; player.vy = player.vy/vel*VEL_MAX; }
+  if (vel > velMax) { player.vx = player.vx/vel*velMax; player.vy = player.vy/vel*velMax; }
   player.x += player.vx * dt; player.y += player.vy * dt;
 }
 
@@ -257,9 +270,15 @@ function bucle(ahora){
   dt = Math.min(dt, 1/30);
 
   const t = direccionTeclado();
-  const dx = t.dx + joyVec.dx, dy = t.dy + joyVec.dy;
+  const magJoy = Math.min(1, Math.hypot(joyVec.dx, joyVec.dy));
+  let dx, dy, velMax;
+  if (Math.hypot(t.dx, t.dy) > 0.05) {
+    dx = t.dx; dy = t.dy; velMax = VEL_CORRER;
+  } else {
+    dx = joyVec.dx; dy = joyVec.dy; velMax = nivelDesdeMagnitud(magJoy).velMax;
+  }
 
-  actualizarJugador(dx, dy, dt);
+  actualizarJugador(dx, dy, velMax, dt);
   actualizarBalon(dt);
   colisionJugadorBalon();
   actualizarCamara(dt);
