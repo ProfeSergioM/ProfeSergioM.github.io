@@ -280,6 +280,7 @@ function posicionInicial(){
   activo = 0;
   conPelota = null;
   conPelotaRival = false;
+  autopilotRestante = 0;
   ultimoPateador = null;
   direccionEnvio = null;
   baseReceptores = null;
@@ -468,10 +469,17 @@ function pasar(carga){
 // "Cambio de jugador asistido": si el pase apunta a un compañero que queda más lejos que el
 // doble del radio de recepción (el mismo que ya usa actualizarPosesion para detectar que alguien
 // la recibió: RADIO_RECEPCION_FACTOR×r), el control salta de inmediato a ese compañero, en vez de
-// esperar a que la pelota le llegue físicamente. Así se puede empezar a acomodarlo para recibir
-// mientras la pelota todavía está en el aire. Para pases cortos (al doble de radio o menos) no
+// esperar a que la pelota le llegue físicamente. Para pases cortos (al doble de radio o menos) no
 // hace nada: seguís controlando a quien pateó.
+//
+// Apenas ocurre el cambio, el receptor todavía no está bajo control real: el humano puede estar
+// apretando cualquier cosa (lo que le servía para manejar al pasador un instante antes, que ya no
+// tiene por qué apuntar hacia la pelota). Por eso, durante CAMBIO_ASISTIDO_AUTOPILOT segundos el
+// motor lo mueve solo, directo hacia la pelota, ignorando el joystick/teclado; pasado ese
+// tiempo, el control vuelve a responder a lo que se esté apretando (ver bucle()).
 const CAMBIO_ASISTIDO_FACTOR = RADIO_RECEPCION_FACTOR * 2; // ×r
+const CAMBIO_ASISTIDO_AUTOPILOT = 1; // segundos que se mueve solo hacia la pelota tras el cambio
+let autopilotRestante = 0;
 
 function cambioDeJugadorAsistido(pasador, angulo){
   const dirX = Math.cos(angulo), dirY = Math.sin(angulo);
@@ -486,7 +494,10 @@ function cambioDeJugadorAsistido(pasador, angulo){
   if (receptor === null) return; // ningún compañero queda claramente en la dirección del pase
 
   const distancia = Math.hypot(players[receptor].x - pasador.x, players[receptor].y - pasador.y);
-  if (distancia > pasador.r * CAMBIO_ASISTIDO_FACTOR) activo = receptor;
+  if (distancia > pasador.r * CAMBIO_ASISTIDO_FACTOR) {
+    activo = receptor;
+    autopilotRestante = CAMBIO_ASISTIDO_AUTOPILOT;
+  }
 }
 
 // ── Física ────────────────────────────────────────────────
@@ -927,27 +938,37 @@ function colisionJugadores(){
 }
 
 // El rival también es sólido: si choca contra un jugador, ambos se separan igual que entre
-// compañeros. Si alguno de los dos tiene la pelota en ese choque, se disputa: queda al azar,
-// pero pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL).
-// A quien se la quitan se queda quieto en seco (pierde toda su velocidad); a quien se la queda
-// no se le toca la velocidad, sigue avanzando hacia donde iba (para el rival, ver
-// actualizarRival; para un jugador, lo que ya venía haciendo el humano o la IA).
-let chocandoRival = new Set(); // índices de jugadores actualmente superpuestos con el rival
+// compañeros (eso sí, recién al tocarse los cuerpos, con el radio real de cada uno). Pero
+// disputar la pelota es más generoso: alcanza con estar a RIVAL_ALCANCE de distancia además del
+// contacto físico, no hace falta llegar a superponerse. Sin este margen, alcanzar el cuerpo
+// entero de alguien que huye a la misma velocidad (sobre todo de espaldas o de costado, donde no
+// se puede cortar camino) es prácticamente imposible: nunca se termina de cerrar el último tramo.
+// Si alguno de los dos tiene la pelota dentro de ese alcance, se disputa: queda al azar, pero
+// pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL). A
+// quien se la quitan se queda quieto en seco (pierde toda su velocidad); a quien se la queda no
+// se le toca la velocidad, sigue avanzando hacia donde iba (para el rival, ver actualizarRival;
+// para un jugador, lo que ya venía haciendo el humano o la IA).
+const RIVAL_ALCANCE = 30; // unidades de más, sobre el contacto físico, para poder disputar la pelota
+let chocandoRival = new Set(); // índices de jugadores actualmente dentro del alcance de disputa del rival
 function colisionRivalJugadores(){
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
     const dx = p.x - rival.x, dy = p.y - rival.y;
     const dist = Math.hypot(dx, dy) || 0.001;
-    const minDist = p.r + rival.r;
-    if (dist >= minDist) { chocandoRival.delete(i); continue; }
+    const minDistFisico = p.r + rival.r;
+    const minDistDisputa = minDistFisico + RIVAL_ALCANCE;
 
-    const nx = dx / dist, ny = dy / dist;
-    const overlap = minDist - dist;
-    p.x += nx * overlap / 2; p.y += ny * overlap / 2;
-    rival.x -= nx * overlap / 2; rival.y -= ny * overlap / 2;
-    const empuje = 40;
-    p.vx += nx * empuje; p.vy += ny * empuje;
-    rival.vx -= nx * empuje; rival.vy -= ny * empuje;
+    if (dist < minDistFisico) {
+      const nx = dx / dist, ny = dy / dist;
+      const overlap = minDistFisico - dist;
+      p.x += nx * overlap / 2; p.y += ny * overlap / 2;
+      rival.x -= nx * overlap / 2; rival.y -= ny * overlap / 2;
+      const empuje = 40;
+      p.vx += nx * empuje; p.vy += ny * empuje;
+      rival.vx -= nx * empuje; rival.vy -= ny * empuje;
+    }
+
+    if (dist >= minDistDisputa) { chocandoRival.delete(i); continue; }
 
     if (!chocandoRival.has(i)) {
       const probEquipo = statsComunes.control / (statsComunes.control + RIVAL_CONTROL);
@@ -1203,6 +1224,17 @@ function bucle(ahora){
     dx = joyVec.dx; dy = joyVec.dy; pctMarcha = marchaDesdeMagnitud(magJoy).pct;
   }
 
+  // Recién cambiado al receptor de un pase largo (cambioDeJugadorAsistido): durante este ratito
+  // se ignora el joystick/teclado y se lo mueve directo hacia la pelota, para no depender de qué
+  // se esté apretando en ese instante (que un momento antes manejaba a otro jugador).
+  if (autopilotRestante > 0) {
+    autopilotRestante = Math.max(0, autopilotRestante - dt);
+    const p = players[activo];
+    const dxBalon = ball.x - p.x, dyBalon = ball.y - p.y;
+    const distBalon = Math.hypot(dxBalon, dyBalon) || 1;
+    dx = dxBalon / distBalon; dy = dyBalon / distBalon; pctMarcha = MARCHA_CORRER;
+  }
+
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
   actualizarRival(dt);
@@ -1246,8 +1278,8 @@ function actualizarPanelParametros(){
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca de cerca al portador"],
-    ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL],
-    ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción)"],
+    ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
+    ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
