@@ -273,7 +273,10 @@ function crearPatronPelota(){
   return puntos;
 }
 
-const ball = { x:-120, y:0, vx:0, vy:0, r:15*0.75, patron: crearPatronPelota() };
+// "altura"/"vuelo*" son para el arco del pase largo (ver pasarLargo y actualizarPelota): no es una
+// dimensión física real (el resto del juego es 2D puro), solo gatea qué tan "por el aire" está la
+// pelota — mientras vuela no colisiona con nadie, como un pase por arriba de la cancha.
+const ball = { x:-120, y:0, vx:0, vy:0, r:15*0.75, altura:0, vueloRestante:0, vueloTotal:0, patron: crearPatronPelota() };
 const camera = { x:0, y:0 };
 
 // Formación inicial de los 3 jugadores del equipo (en triángulo, alrededor del punto de saque).
@@ -306,6 +309,7 @@ function posicionInicial(){
   });
   camera.x = players[0].x; camera.y = players[0].y;
   ball.x = -120; ball.y = 0; ball.vx = ball.vy = 0;
+  ball.altura = 0; ball.vueloRestante = 0; ball.vueloTotal = 0;
   ball.patron = crearPatronPelota();
   activo = 0;
   conPelota = null;
@@ -313,6 +317,9 @@ function posicionInicial(){
   conPelotaArquero = false;
   autopilotRestante = 0;
   ultimoPateador = null;
+  ultimoRivalDesviador = null;
+  rivalAtascadoTiempo = 0;
+  pelotaQuietaTiempo = 0;
   direccionEnvio = null;
   baseReceptores = null;
   chocando = new Set();
@@ -524,7 +531,7 @@ function patear(carga){
 // potencia escala con la carga, entre la carga mínima (aunque se suelte al instante) y el máximo;
 // la precisión no cambia con la carga, siempre depende de "precisionPase".
 function pasarConConfig(carga, potenciaMax, cargaMinima, errorMax){
-  if (conPelota !== activo) return;
+  if (conPelota !== activo) return false;
   const p = players[activo];
   const potencia = potenciaMax * (cargaMinima + (1 - cargaMinima) * carga);
   const error = (1 - statsComunes.precisionPase / 100) * errorMax * (Math.random() * 2 - 1);
@@ -537,12 +544,29 @@ function pasarConConfig(carga, potenciaMax, cargaMinima, errorMax){
   // Si nadie recibe antes (p. ej. lo intercepta el rival), el foco vuelve a cambiar cuando la
   // pelota efectivamente llegue a otro jugador (ver actualizarPosesion).
   cambioDeJugadorAsistido(p, angulo);
+  return true;
 }
 function pasar(carga){
   pasarConConfig(carga, PASE_POTENCIA_DISENO_MAX, PASE_CARGA_MINIMA, PASE_PRECISION_ERROR_MAX);
 }
+// El pase largo, a diferencia del corto, va por arriba: mientras está "en el aire" (ball.altura>0)
+// no colisiona con nadie (ver actualizarPelota y los guards de altura en colisionPostes,
+// colisionArquero, colisionRival, revisarGol y actualizarPosesion), como un balón por encima de la
+// marca. La duración del vuelo escala con la carga (un pase largo bien cargado se queda más
+// tiempo arriba, como un envío más "levantado"); la altura en sí es solo lógica/visual, no una
+// dimensión física real del resto del juego.
+const PASE_LARGO_ALTURA_MAX = 90;
+const PASE_LARGO_DURACION_VUELO_MIN = 0.5;
+const PASE_LARGO_DURACION_VUELO_MAX = 1.0;
+// Cuánta velocidad conserva al aterrizar (ver actualizarPelota): el roce del aire durante medio
+// segundo o poco más casi no frena la pelota, así que sin esto llegaba al piso todavía a una
+// velocidad que nadie puede alcanzar corriendo.
+const PASE_LARGO_ATERRIZAJE_AMORTIGUACION = 0.55;
 function pasarLargo(carga){
-  pasarConConfig(carga, PASE_LARGO_POTENCIA_DISENO_MAX, PASE_LARGO_CARGA_MINIMA, PASE_LARGO_PRECISION_ERROR_MAX);
+  const ok = pasarConConfig(carga, PASE_LARGO_POTENCIA_DISENO_MAX, PASE_LARGO_CARGA_MINIMA, PASE_LARGO_PRECISION_ERROR_MAX);
+  if (!ok) return;
+  ball.vueloTotal = PASE_LARGO_DURACION_VUELO_MIN + (PASE_LARGO_DURACION_VUELO_MAX - PASE_LARGO_DURACION_VUELO_MIN) * carga;
+  ball.vueloRestante = ball.vueloTotal;
 }
 
 // "Cambio de jugador asistido": si el pase apunta a un compañero que queda más lejos que el
@@ -738,42 +762,62 @@ function actualizarIA(dt){
 // Los rivales hacen cuatro cosas nada más: si le ganaron la pelota a alguien, el que la tiene
 // avanza con ella (sigue de largo en la dirección hacia la que ya iba, sin apuntar a ningún lado
 // en particular: no tienen arco propio ni juegan en equipo con la pelota, solo avanzan); si nadie
-// la tiene pero un pase (o tiro) va en el aire, los dos corren a interceptarlo, apuntando un poco
-// adelantado a hacia dónde va la pelota; si el equipo la tiene, el rival más cercano al portador
-// siempre lo marca de cerca (corriendo directo hacia él, sin frenar antes de tiempo: la marca
-// solo es útil si realmente llega a disputarle la pelota, ver colisionRivalJugadores). El OTRO
-// rival, en cambio, depende de si hay una amenaza real de pase largo (ver
-// RIVAL_COBERTURA_DISTANCIA_MIN): si el compañero mejor ubicado del portador está lejos, se
-// adelanta a cubrir la línea de pase hacia él, parándose ya cerca de ESE compañero (no a mitad de
-// camino, que le quedaba demasiado lejos del punto de llegada para reaccionar a tiempo — un pase
-// cruza esa distancia en menos de un segundo; más cerca del receptor tiene más margen porque la
-// pelota ya perdió velocidad para cuando llega ahí). Si esa amenaza no es real (el compañero está
-// cerca, a distancia de formación normal), no vale la pena resignar presión sobre el portador
-// para cubrir una línea corta que ya cubre el radio de recepción: los dos marcan juntos, como
-// antes de agregar la cobertura. Sin nada de lo anterior (pelota suelta parada, o entre que se
-// corta un pase y alguien la recupera) se quedan quietos: no persiguen la
-// pelota suelta por su cuenta.
-const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apuntan al camino de la pelota
-// Punto de cobertura entre portador (0) y compañero cubierto (1); 0.5 sería la mitad de camino.
-const RIVAL_COBERTURA_FRACCION = 0.65;
-// Distancia mínima al compañero mejor ubicado para que valga la pena cubrirlo en vez de sumar el
-// segundo rival a presionar al portador (ver más abajo, "amenazaDePaseLargo").
+// la tiene pero un pase (o tiro) va en el aire, los dos corren al punto donde va a quedar (mismo
+// cálculo que usa el receptor, ver puntoDeLlegadaPelota: perseguir la posición ACTUAL en vez del
+// punto de llegada trazaría una curva de persecución en vez de cortar camino — el mismo error que
+// ya se corrigió para el receptor). Si el equipo tiene la pelota, SIEMPRE se dividen: uno se le
+// encima al portador (marca de cerca, corriendo directo hacia él sin frenar antes de tiempo — la
+// marca solo es útil si realmente llega a disputarle la pelota, ver colisionRivalJugadores) y el
+// otro cubre una línea de pase, nunca los dos al portador. Cuál línea cubre depende de si hay una
+// amenaza de pase largo real (ver RIVAL_COBERTURA_DISTANCIA_MIN): si el compañero mejor ubicado
+// del portador está lejos, cubre ESA línea (parándose cerca del compañero, no a mitad de camino:
+// a mitad de camino le quedaba demasiado lejos del punto de llegada para reaccionar a tiempo). Si
+// no hay una amenaza larga (el equipo está en triángulo, a distancia de formación normal), cubre
+// la línea de pase MÁS CORTA en cambio — el compañero más cercano al portador, la opción más
+// inmediata — parándose más pegado al portador (ahí importa más cortar la salida que llegar antes
+// que la pelota, que en un pase corto casi no da tiempo de reaccionar). Sin nada de lo anterior
+// (pelota suelta parada, o entre que se corta un pase y alguien la recupera) se quedan quietos:
+// no persiguen la pelota suelta por su cuenta.
+// Fracción del camino entre portador (0) y compañero cubierto (1) donde se para el que cubre.
+const RIVAL_COBERTURA_FRACCION_LARGA = 0.65;  // cerca del compañero: hay tiempo, importa llegar antes que la pelota
+const RIVAL_COBERTURA_FRACCION_CORTA = 0.4;   // cerca del portador: casi no hay tiempo, importa cortar la salida
+// Distancia al compañero mejor ubicado a partir de la cual se considera una amenaza de pase largo
+// (y se cubre esa línea en vez de la más corta).
 const RIVAL_COBERTURA_DISTANCIA_MIN = 420;
+
+// Si el rival con la pelota queda empujando contra un obstáculo sólido (el arquero, un poste) sin
+// poder avanzar — "avanza en línea recta" no esquiva nada — se quedaría atascado ahí para
+// siempre: nadie más va a buscarlo, y sin arco propio no tiene otro objetivo al que apuntar en
+// cambio. Si lleva RIVAL_ATASCADO_TIEMPO_MAX segundos casi sin moverse, la despeja igual que el
+// arquero (mismo criterio del hueco más libre) y la suelta, para que la jugada pueda seguir.
+const RIVAL_ATASCADO_VEL_MIN = 30;
+const RIVAL_ATASCADO_TIEMPO_MAX = 0.4;
+let rivalAtascadoTiempo = 0;
 
 function actualizarRivales(dt){
   if (conPelotaRivalIdx !== null) {
+    const rConBalon = rivales[conPelotaRivalIdx];
     rivales.forEach(r => {
-      if (r === rivales[conPelotaRivalIdx]) actualizarJugador(r, r.dirX, r.dirY, MARCHA_CORRER, dt);
+      if (r === rConBalon) actualizarJugador(r, r.dirX, r.dirY, MARCHA_CORRER, dt);
       else actualizarJugador(r, 0, 0, 0, dt);
     });
+    const vel = Math.hypot(rConBalon.vx, rConBalon.vy);
+    rivalAtascadoTiempo = vel < RIVAL_ATASCADO_VEL_MIN ? rivalAtascadoTiempo + dt : 0;
+    if (rivalAtascadoTiempo > RIVAL_ATASCADO_TIEMPO_MAX) {
+      const angulo = direccionDespejeLibre(rConBalon.x, rConBalon.y);
+      ball.vx = Math.cos(angulo) * ARQUERO_DESPEJE_POTENCIA;
+      ball.vy = Math.sin(angulo) * ARQUERO_DESPEJE_POTENCIA;
+      conPelotaRivalIdx = null;
+      rivalAtascadoTiempo = 0;
+    }
     return;
   }
 
   const paseEnVuelo = conPelota === null && direccionEnvio !== null;
   if (paseEnVuelo) {
-    const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
+    const objetivo = puntoDeLlegadaPelota();
     rivales.forEach(r => {
-      const dx = objX - r.x, dy = objY - r.y;
+      const dx = objetivo.x - r.x, dy = objetivo.y - r.y;
       const dist = Math.hypot(dx, dy) || 1;
       actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
     });
@@ -787,28 +831,29 @@ function actualizarRivales(dt){
       const dk = Math.hypot(portador.x-rivales[k].x, portador.y-rivales[k].y);
       if (dk < distMin) { distMin = dk; marcador = rivales[k]; }
     }
-    // El compañero del portador más cerca del arco: la opción de pase más peligrosa, y por eso la
-    // que conviene cubrir en vez de simplemente amontonarse a marcar al mismo portador. Pero solo
-    // vale la pena resignar un marcador para eso cuando ese compañero está realmente lejos (una
-    // amenaza de pase largo real): a distancia de formación normal, los dos rivales presionando
-    // juntos al portador (como antes de agregar la cobertura) generan más disputas que uno solo
-    // marcando y el otro cubriendo una línea que total ya cubre el radio de recepción.
-    let mejorCompanero = null, mejorDistGol = Infinity;
+    // Compañero del portador más cerca del arco (la opción de pase larga más peligrosa) y más
+    // cerca del portador (la línea de pase más corta, la opción más inmediata).
+    let companeroLejano = null, mejorDistGol = Infinity;
+    let companeroCercano = null, menorDistPase = Infinity;
     players.forEach((c, i) => {
       if (i === conPelota) return;
       const dGol = Math.hypot(ARCO_X - c.x, -c.y);
-      if (dGol < mejorDistGol) { mejorDistGol = dGol; mejorCompanero = c; }
+      if (dGol < mejorDistGol) { mejorDistGol = dGol; companeroLejano = c; }
+      const dPase = Math.hypot(c.x-portador.x, c.y-portador.y);
+      if (dPase < menorDistPase) { menorDistPase = dPase; companeroCercano = c; }
     });
-    const distAlCompanero = mejorCompanero ? Math.hypot(mejorCompanero.x-portador.x, mejorCompanero.y-portador.y) : 0;
-    const amenazaDePaseLargo = mejorCompanero && distAlCompanero > RIVAL_COBERTURA_DISTANCIA_MIN;
+    const distAlLejano = companeroLejano ? Math.hypot(companeroLejano.x-portador.x, companeroLejano.y-portador.y) : 0;
+    const amenazaDePaseLargo = companeroLejano && distAlLejano > RIVAL_COBERTURA_DISTANCIA_MIN;
+    const companeroACubrir = amenazaDePaseLargo ? companeroLejano : companeroCercano;
+    const fraccionCobertura = amenazaDePaseLargo ? RIVAL_COBERTURA_FRACCION_LARGA : RIVAL_COBERTURA_FRACCION_CORTA;
 
     rivales.forEach(r => {
-      if (r === marcador || !amenazaDePaseLargo) {
+      if (r === marcador) {
         const dx = portador.x-r.x, dy = portador.y-r.y, dist = Math.hypot(dx,dy) || 1;
         actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
-      } else if (mejorCompanero) {
-        const tx = portador.x + (mejorCompanero.x-portador.x)*RIVAL_COBERTURA_FRACCION;
-        const ty = portador.y + (mejorCompanero.y-portador.y)*RIVAL_COBERTURA_FRACCION;
+      } else if (companeroACubrir) {
+        const tx = portador.x + (companeroACubrir.x-portador.x)*fraccionCobertura;
+        const ty = portador.y + (companeroACubrir.y-portador.y)*fraccionCobertura;
         const dx = tx-r.x, dy = ty-r.y, dist = Math.hypot(dx,dy) || 1;
         actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
       } else {
@@ -821,27 +866,53 @@ function actualizarRivales(dt){
   rivales.forEach(r => actualizarJugador(r, 0, 0, 0, dt));
 }
 
-// Si algún rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
-// rebota lejos de él y se cancela el aviso de pase, así los compañeros dejan de acomodarse para
-// recibir algo que ya no va a llegar. A diferencia de la disputa cuerpo a cuerpo (colisionRivalJugadores,
-// que exige RIVAL_ALCANCE de margen sobre el contacto), acá también hay un margen — más chico —
-// porque interceptar una pelota en movimiento (un pase, no un rival parado) es estirar una pierna,
-// no necesita el cuerpo entero encima.
-const RIVAL_ALCANCE_INTERCEPCION = 18;
+// Si algún rival llega a tocar la pelota mientras va suelta (un pase interceptado, o cualquier
+// pelota suelta que le pasa cerca), puede pasar una de dos cosas — mismo "control" que ya usa
+// para disputarla cuerpo a cuerpo (ver colisionRivalJugadores): con esa probabilidad, la
+// intercepta limpio y se queda con ella; si no, solo la despeja (rebota lejos de él, sigue
+// suelta). En cualquier caso se cancela el aviso de pase, así los compañeros dejan de acomodarse
+// para recibir algo que ya no va a llegar. A diferencia de la disputa cuerpo a cuerpo (que exige
+// RIVAL_ALCANCE de margen sobre el contacto), acá también hay un margen — más chico — porque
+// interceptar una pelota en movimiento (un pase, no un rival parado) es estirar una pierna, no
+// necesita el cuerpo entero encima.
+//
+// Igual que "ultimoPateador" evita que quien pateó recupere la pelota antes de que realmente se
+// aleje, "ultimoRivalDesviador" evita que el MISMO rival que la acaba de despejar (sin quedarse
+// con ella) vuelva a intentarlo cuadro tras cuadro mientras sigue cerca: sin este freno, un 50%
+// por toque terminaba ganándola casi siempre solo por repetir la tirada muchas veces seguidas a
+// quemarropa, exagerando la intercepción mucho más allá de lo que sugiere ese 50%.
+const RIVAL_ALCANCE_INTERCEPCION = 12;
+let ultimoRivalDesviador = null;
 function colisionRival(){
-  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return; // ya la tiene alguien, no es una pelota suelta
-  for (const r of rivales) {
+  // Mientras el pase largo va "por el aire" nadie la puede tocar (ver ball.altura) — ni siquiera
+  // estirando la pierna: recién se disputa cuando cae, no antes.
+  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero || ball.altura > 0) return;
+  if (ultimoRivalDesviador !== null) {
+    const rd = rivales[ultimoRivalDesviador];
+    const dd = Math.hypot(ball.x - rd.x, ball.y - rd.y);
+    if (dd > rd.r * RADIO_RECEPCION_FACTOR) ultimoRivalDesviador = null;
+  }
+  for (let k = 0; k < rivales.length; k++) {
+    if (k === ultimoRivalDesviador) continue; // ya la desvió; no puede recuperarla hasta alejarse
+    const r = rivales[k];
     const dx = ball.x - r.x, dy = ball.y - r.y;
     const dist = Math.hypot(dx, dy) || 0.001;
     const minDistFisico = r.r + ball.r;
     if (dist >= minDistFisico + RIVAL_ALCANCE_INTERCEPCION) continue;
-    const nx = dx/dist, ny = dy/dist;
-    ball.x = r.x + nx*minDistFisico; ball.y = r.y + ny*minDistFisico;
-    const vel = Math.hypot(ball.vx, ball.vy);
-    ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
     ultimoPateador = null;
     direccionEnvio = null;
     baseReceptores = null;
+    if (Math.random() < RIVAL_CONTROL / 100) {
+      // Intercepta limpio: no hace falta tocar su posición ni velocidad, actualizarPelota ya se
+      // encarga de irla pegando a sus pies sola, igual que cuando el equipo gana una pelota suelta.
+      conPelotaRivalIdx = k;
+    } else {
+      ultimoRivalDesviador = k;
+      const nx = dx/dist, ny = dy/dist;
+      ball.x = r.x + nx*minDistFisico; ball.y = r.y + ny*minDistFisico;
+      const vel = Math.hypot(ball.vx, ball.vy);
+      ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
+    }
     return; // ya la tocó uno; no hace falta revisar al otro en el mismo cuadro
   }
 }
@@ -888,6 +959,22 @@ function rotarPatron(puntos, ejeX, ejeY, ejeZ, theta){
 }
 
 function actualizarPelota(dt){
+  if (ball.vueloRestante > 0) {
+    ball.vueloRestante = Math.max(0, ball.vueloRestante - dt);
+    const t = 1 - ball.vueloRestante / ball.vueloTotal; // progreso [0,1] del vuelo
+    ball.altura = PASE_LARGO_ALTURA_MAX * 4 * t * (1 - t); // parábola: 0 al patear, pico a mitad de camino, 0 al caer
+    if (ball.vueloRestante === 0) {
+      // Recién aterrizó este cuadro: el roce del aire durante el vuelo casi no le saca velocidad
+      // (friccion exponencial en menos de un segundo), así que sin esto caía todavía disparada,
+      // más rápido de lo que cualquiera puede correr — pierde fuerza al tocar el pasto, como
+      // cualquier pelota real que cae.
+      ball.vx *= PASE_LARGO_ATERRIZAJE_AMORTIGUACION;
+      ball.vy *= PASE_LARGO_ATERRIZAJE_AMORTIGUACION;
+    }
+  } else {
+    ball.altura = 0;
+  }
+
   if (conPelota !== null) {
     const p = players[conPelota];
     const n = nivelControl(statsComunes.control);
@@ -923,7 +1010,24 @@ function actualizarPelota(dt){
 // infinito). Se usa para que quien va a recibir un pase corra directo a ese punto fijo en vez
 // de perseguir la posición actual (en movimiento) de la pelota cuadro a cuadro, que traza una
 // curva de persecución en vez de un camino recto.
+//
+// Mientras un pase largo sigue "en el aire" (ball.vueloRestante>0), la fórmula de arriba
+// sobreestima mucho el punto de llegada: ignora que al aterrizar la velocidad se corta de golpe
+// (ver PASE_LARGO_ATERRIZAJE_AMORTIGUACION en actualizarPelota), no decae solo por roce continuo.
+// Sin este caso aparte, tanto el receptor como los rivales que persiguen un pase largo corrían de
+// más, se pasaban de largo del punto real y tenían que volver. Acá se proyecta la posición y
+// velocidad en el instante exacto del aterrizaje (mismas fórmulas de roce, evaluadas en
+// t=vueloRestante en vez de t=infinito), se les aplica el mismo recorte de aterrizaje, y recién
+// desde ahí se proyecta el roce de nuevo hasta el reposo.
 function puntoDeLlegadaPelota(){
+  if (ball.vueloRestante > 0) {
+    const decaimiento = Math.exp(-ROCE_PELOTA * ball.vueloRestante);
+    const xAlAterrizar = ball.x + (ball.vx / ROCE_PELOTA) * (1 - decaimiento);
+    const yAlAterrizar = ball.y + (ball.vy / ROCE_PELOTA) * (1 - decaimiento);
+    const vxAlAterrizar = ball.vx * decaimiento * PASE_LARGO_ATERRIZAJE_AMORTIGUACION;
+    const vyAlAterrizar = ball.vy * decaimiento * PASE_LARGO_ATERRIZAJE_AMORTIGUACION;
+    return { x: xAlAterrizar + vxAlAterrizar / ROCE_PELOTA, y: yAlAterrizar + vyAlAterrizar / ROCE_PELOTA };
+  }
   return { x: ball.x + ball.vx / ROCE_PELOTA, y: ball.y + ball.vy / ROCE_PELOTA };
 }
 
@@ -947,6 +1051,7 @@ function dentroDelArco(y){ return Math.abs(y) < ARCO_ANCHO / 2; }
 // velocidad la pelota puede avanzar más que el ancho del poste en un solo cuadro, y comprobar
 // solo dónde terminó dejaba que lo saltara de largo sin nunca detectarse superpuesta.
 function colisionPostes(prevX, prevY){
+  if (ball.altura > 0) return; // un pase largo pasa por arriba de todo, postes incluidos
   const postes = [ { x: ARCO_X, y: -ARCO_ANCHO/2 }, { x: ARCO_X, y: ARCO_ANCHO/2 } ];
   const minDist = POSTE_RADIO + ball.r;
   for (const poste of postes) {
@@ -1107,7 +1212,7 @@ function anotarGol(){
 }
 
 function revisarGol(){
-  if (mostrandoGol || conPelotaArquero) return;
+  if (mostrandoGol || conPelotaArquero || ball.altura > 0) return;
   if (ball.x > ARCO_X && dentroDelArco(ball.y)) anotarGol();
 }
 
@@ -1132,6 +1237,34 @@ function fueraDeLaCancha(x, y){
 function revisarLimites(){
   if (mostrandoGol || conPelotaArquero) return;
   if (fueraDeLaCancha(ball.x, ball.y)) posicionInicial();
+}
+
+// Red de seguridad general: cubre cualquier variante de "la jugada quedó trabada" más allá de
+// una causa puntual (un rival empujando contra un obstáculo sólido sin esquivarlo es una — ver
+// RIVAL_ATASCADO_* — pero no necesariamente la única): la jugada nunca debería colgarse del todo,
+// pase lo que pase con la física en una situación no prevista. Dos señales de "algo anda mal",
+// sostenidas por más de PELOTA_QUIETA_TIEMPO_MAX segundos seguidos, reinician la jugada:
+// - Suelta y casi sin velocidad (nadie la persigue ni la controla). Si el equipo la controla a
+//   propósito no cuenta (eso lo decide un jugador, no es un atasco); el arquero reteniéndola a
+//   propósito ya tiene su propio límite, ARQUERO_SOSTIENE_DURACION.
+// - En manos de un rival (conPelotaRivalIdx) pero lejos de él: debería quedar pegada a sus pies
+//   (ver actualizarPelota), así que una distancia grande sostenida significa que algo rompió ese
+//   seguimiento, no que el rival simplemente esté lejos un instante.
+const PELOTA_QUIETA_TIEMPO_MAX = 3;
+const PELOTA_QUIETA_VEL_MIN = 15;
+const PELOTA_LEJOS_DE_RIVAL_MAX = 150;
+let pelotaQuietaTiempo = 0;
+function revisarPelotaQuieta(dt){
+  if (mostrandoGol || conPelotaArquero || conPelota !== null) { pelotaQuietaTiempo = 0; return; }
+  let problema;
+  if (conPelotaRivalIdx !== null) {
+    const r = rivales[conPelotaRivalIdx];
+    problema = Math.hypot(ball.x - r.x, ball.y - r.y) > PELOTA_LEJOS_DE_RIVAL_MAX;
+  } else {
+    problema = Math.hypot(ball.vx, ball.vy) < PELOTA_QUIETA_VEL_MIN;
+  }
+  pelotaQuietaTiempo = problema ? pelotaQuietaTiempo + dt : 0;
+  if (pelotaQuietaTiempo > PELOTA_QUIETA_TIEMPO_MAX) posicionInicial();
 }
 
 // Los jugadores (de cualquier equipo, salvo el arquero, que ya tiene su propia área) pueden
@@ -1275,16 +1408,22 @@ const ARQUERO_DESPEJE_ABANICO = Math.PI / 2; // ±45° respecto de derecho hacia
 const ARQUERO_DESPEJE_CANDIDATOS = 9;
 const ARQUERO_DESPEJE_MARGEN_OBSTACULO = 20; // qué tan cerca del camino ya cuenta como bloqueo
 
-function direccionDespejeLibre(){
+// Generalizada a cualquier origen (no solo el arquero) para poder reutilizarla también cuando un
+// rival con la pelota queda atascado (ver RIVAL_ATASCADO_* más abajo) — mismo criterio de "hueco
+// más libre" sirve para cualquiera que necesite despejarla sin obstáculos. Al arquero se lo suma
+// como un obstáculo más (antes no hacía falta: como siempre era el propio origen, quedaba
+// filtrado solo al dar "adelante=0"; ahora que el origen puede ser otro punto, si no se lo
+// incluyera un rival atascado podría despejar derecho contra el propio arquero que lo atascó).
+function direccionDespejeLibre(origenX, origenY){
   let mejorAngulo = Math.PI, mejorDistancia = -Infinity, mejorCercania = Infinity;
-  const obstaculos = players.concat(rivales);
+  const obstaculos = players.concat(rivales, [arquero]);
   for (let i = 0; i < ARQUERO_DESPEJE_CANDIDATOS; i++) {
     const t = i / (ARQUERO_DESPEJE_CANDIDATOS - 1);
     const angulo = Math.PI + (t - 0.5) * ARQUERO_DESPEJE_ABANICO;
     const dirX = Math.cos(angulo), dirY = Math.sin(angulo);
     let distanciaLibre = Infinity;
     for (const o of obstaculos) {
-      const relX = o.x - arquero.x, relY = o.y - arquero.y;
+      const relX = o.x - origenX, relY = o.y - origenY;
       const adelante = relX * dirX + relY * dirY;
       if (adelante <= 0) continue; // queda atrás, no bloquea
       const perpendicular = Math.abs(relX * dirY - relY * dirX);
@@ -1303,7 +1442,7 @@ function direccionDespejeLibre(){
 }
 
 function despejarArquero(){
-  const angulo = direccionDespejeLibre();
+  const angulo = direccionDespejeLibre(arquero.x, arquero.y);
   ball.vx = Math.cos(angulo) * ARQUERO_DESPEJE_POTENCIA;
   ball.vy = Math.sin(angulo) * ARQUERO_DESPEJE_POTENCIA;
   ultimoPateador = null;
@@ -1347,7 +1486,7 @@ function atajarConRebote(nx, ny){
 }
 
 function colisionArquero(prevX, prevY){
-  if (mostrandoGol || conPelotaArquero) return;
+  if (mostrandoGol || conPelotaArquero || ball.altura > 0) return;
   if (conPelota !== null || conPelotaRivalIdx !== null) return; // ya la tiene alguien, no hay nada que atajar
 
   const minDist = arquero.r + ball.r;
@@ -1507,7 +1646,7 @@ function colisionRivalJugadores(){
 // Mientras la tiene el rival, esto no se aplica: solo se la pueden disputar chocando contra él
 // (ver colisionRivalJugadores), no por simple cercanía a la pelota.
 function actualizarPosesion(){
-  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return;
+  if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero || ball.altura > 0) return;
   if (ultimoPateador !== null) {
     const p = players[ultimoPateador];
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
@@ -1721,11 +1860,26 @@ function dibujarBalon(){
   ctx.save();
   ctx.translate(ball.x, ball.y);
 
+  // Un pase largo "en el aire" (ball.altura>0) se dibuja más grande y con una sombra en su
+  // posición real (más chica y tenue cuanto más alto) — como la vista es cenital pura (a
+  // diferencia de un juego isométrico, "arriba" en la cancha es un eje de juego real, no se
+  // puede correr el dibujo hacia allá para simular altura), el tamaño y la sombra son la única
+  // forma de leerla sin romper la lectura de la posición x,y real.
+  if (ball.altura > 0) {
+    const t = Math.min(1, ball.altura / PASE_LARGO_ALTURA_MAX);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ball.r * (1 - 0.35*t), ball.r * (0.5 - 0.2*t), 0, 0, Math.PI*2);
+    ctx.fillStyle = `rgba(0,0,0,${0.35 - 0.2*t})`;
+    ctx.fill();
+  }
+  const escala = 1 + (ball.altura / PASE_LARGO_ALTURA_MAX) * 0.6;
+  ctx.scale(escala, escala);
+
   ctx.beginPath();
   ctx.arc(0, 0, ball.r, 0, Math.PI*2);
   ctx.fillStyle = "#F5F5F0";
   ctx.fill();
-  ctx.strokeStyle = "#222"; ctx.lineWidth = 2;
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2 / escala;
   ctx.stroke();
   ctx.clip(); // recorta las pintas al contorno de la pelota
 
@@ -1818,6 +1972,7 @@ function bucle(ahora){
   revisarGol();
   colisionMalla(dt);
   revisarLimites();
+  revisarPelotaQuieta(dt);
   colisionRival();
   actualizarPosesion();
   actualizarCamara(dt);
@@ -1854,10 +2009,11 @@ function actualizarPanelParametros(){
     ["Potencia pase largo máx.", PASE_LARGO_POTENCIA_DISENO_MAX],
     ["Carga pase largo", PASE_LARGO_CARGA_DURACION + "s, mínimo " + Math.round(PASE_LARGO_CARGA_MINIMA*100) + "% de potencia"],
     ["Error pase largo máx.", Math.round(PASE_LARGO_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
+    ["Arco del pase largo", PASE_LARGO_DURACION_VUELO_MIN + "–" + PASE_LARGO_DURACION_VUELO_MAX + "s en el aire según la carga; no colisiona con nadie mientras vuela"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
-    ["Rivales", rivales.length + ": el más cercano siempre marca de cerca; el otro suma marca también salvo que el compañero mejor ubicado esté a más de " + RIVAL_COBERTURA_DISTANCIA_MIN + "u (ahí cubre esa línea de pase en vez); ambos interceptan pases en el aire (anticipan " + RIVAL_ANTICIPO + "s)"],
+    ["Rivales", rivales.length + ": el más cercano siempre se encima al portador; el otro cubre la línea de pase más corta (fracción " + RIVAL_COBERTURA_FRACCION_CORTA + "), o la del compañero mejor ubicado si está a más de " + RIVAL_COBERTURA_DISTANCIA_MIN + "u (fracción " + RIVAL_COBERTURA_FRACCION_LARGA + "); un pase en vuelo lo persiguen los dos al punto de llegada"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
