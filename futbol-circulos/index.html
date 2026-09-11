@@ -69,7 +69,9 @@ const GIRO_DISENO_MAX = 16;    // rad/seg cuando agilidad=100 (qué tan rápido 
 // Control: qué tan pegada al jugador queda la pelota al dominarla.
 const CONTROL_OFFSET_MIN = 42, CONTROL_OFFSET_MAX = 60;   // distancia pelota-jugador, en la dirección hacia la que mira
 const CONTROL_FIRMEZA_MIN = 3, CONTROL_FIRMEZA_MAX = 14;  // qué tan rápido "alcanza" esa posición (más alto = más pegada)
-const RADIO_CAPTURA = 16;      // margen extra (sobre el contacto físico) para tomar una pelota suelta
+// Radio de recepción: no hace falta que la pelota vaya directo al jugador para que la reciba,
+// alcanza con que pase a menos de esta cantidad de "radios suyos" de distancia.
+const RADIO_RECEPCION_FACTOR = 2;
 
 function crearJugador(color, oscuro, x, y){
   return {
@@ -86,13 +88,32 @@ const players = [
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
-const ball = { x:-80, y:0, vx:0, vy:0, r:15*0.75, angulo:0 };
+
+// Pintas de la pelota: puntos fijos sobre una esfera unitaria (marco propio de la pelota).
+// z>0 mira hacia la cámara (arriba); z<=0 queda del otro lado y no se dibuja.
+function crearPatronPelota(){
+  const lat = 0.67; // colatitud de los anillos, en radianes
+  const puntos = [
+    { x:0, y:0, z:1, tam:0.30 },   // polo "norte"
+    { x:0, y:0, z:-1, tam:0.30 }   // polo "sur"
+  ];
+  for (let i = 0; i < 5; i++) {
+    const az = i * (Math.PI*2/5);
+    puntos.push({ x: Math.sin(lat)*Math.cos(az), y: Math.sin(lat)*Math.sin(az), z: Math.cos(lat), tam:0.20 });
+    const az2 = az + Math.PI/5; // anillo sur desfasado, como un balón clásico de 12 pentágonos
+    puntos.push({ x: Math.sin(lat)*Math.cos(az2), y: Math.sin(lat)*Math.sin(az2), z: -Math.cos(lat), tam:0.20 });
+  }
+  return puntos;
+}
+
+const ball = { x:-80, y:0, vx:0, vy:0, r:15*0.75, patron: crearPatronPelota() };
 const camera = { x:players[0].x, y:players[0].y };
 
 function posicionInicial(){
   players[0].x = -160; players[0].y = 0; players[0].vx = players[0].vy = 0; players[0].dirX = 1; players[0].dirY = 0;
   players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
   ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
+  ball.patron = crearPatronPelota();
   activo = 0;
   conPelota = null;
   ultimoPateador = null;
@@ -239,6 +260,21 @@ function nivelControl(control){
   };
 }
 
+// Gira el patrón de la pelota alrededor del eje (ejeX,ejeY,ejeZ) un ángulo theta (Rodrigues).
+// Ese eje es horizontal y perpendicular a la velocidad: así el patrón "rueda" hacia donde se mueve
+// la pelota en vez de girar plano como una moneda.
+function rotarPatron(puntos, ejeX, ejeY, ejeZ, theta){
+  const c = Math.cos(theta), s = Math.sin(theta);
+  for (const p of puntos) {
+    const dot = p.x*ejeX + p.y*ejeY + p.z*ejeZ;
+    const kx = ejeY*p.z - ejeZ*p.y, ky = ejeZ*p.x - ejeX*p.z, kz = ejeX*p.y - ejeY*p.x;
+    const nx = p.x*c + kx*s + ejeX*dot*(1-c);
+    const ny = p.y*c + ky*s + ejeY*dot*(1-c);
+    const nz = p.z*c + kz*s + ejeZ*dot*(1-c);
+    p.x = nx; p.y = ny; p.z = nz;
+  }
+}
+
 function actualizarPelota(dt){
   if (conPelota !== null) {
     const p = players[conPelota];
@@ -253,8 +289,12 @@ function actualizarPelota(dt){
     ball.vx *= f; ball.vy *= f;
     ball.x += ball.vx * dt; ball.y += ball.vy * dt;
   }
-  // Efecto de rodado: gira proporcional a la velocidad, como si rodara sobre el piso.
-  ball.angulo = (ball.angulo + (Math.hypot(ball.vx, ball.vy) / ball.r) * dt) % (Math.PI * 2);
+
+  const vel = Math.hypot(ball.vx, ball.vy);
+  if (vel > 0.5) {
+    const ejeX = -ball.vy/vel, ejeY = ball.vx/vel; // horizontal, perpendicular a la velocidad
+    rotarPatron(ball.patron, ejeX, ejeY, 0, (vel/ball.r) * dt);
+  }
 }
 
 // Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan.
@@ -290,13 +330,13 @@ function actualizarPosesion(){
   if (ultimoPateador !== null) {
     const p = players[ultimoPateador];
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-    if (d > p.r + ball.r + RADIO_CAPTURA) ultimoPateador = null;
+    if (d > p.r * RADIO_RECEPCION_FACTOR) ultimoPateador = null;
   }
   for (let i = 0; i < players.length; i++) {
     if (i === ultimoPateador) continue;
     const p = players[i];
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-    if (d < p.r + ball.r + RADIO_CAPTURA) {
+    if (d < p.r * RADIO_RECEPCION_FACTOR) {
       conPelota = i;
       activo = i;
       ultimoPateador = null;
@@ -396,7 +436,6 @@ function trazarPentagono(cx, cy, radio, rotacion){
 function dibujarBalon(){
   ctx.save();
   ctx.translate(ball.x, ball.y);
-  ctx.rotate(ball.angulo);
 
   ctx.beginPath();
   ctx.arc(0, 0, ball.r, 0, Math.PI*2);
@@ -406,15 +445,13 @@ function dibujarBalon(){
   ctx.stroke();
   ctx.clip(); // recorta las pintas al contorno de la pelota
 
-  // pintas pentagonales simples, como un balón clásico, que giran con el rodado
+  // Pintas pentagonales proyectadas desde el patrón 3D: solo se ven las que están del lado
+  // de arriba (z>0), y se achican cerca del borde para simular la curva de la pelota.
   ctx.fillStyle = "#222";
-  trazarPentagono(0, 0, ball.r*0.42, 0);
-  ctx.fill();
-  for (let i = 0; i < 5; i++) {
-    const ang = i * (Math.PI*2/5);
-    const cx = Math.cos(ang - Math.PI/2) * ball.r*0.62;
-    const cy = Math.sin(ang - Math.PI/2) * ball.r*0.62;
-    trazarPentagono(cx, cy, ball.r*0.34, ang);
+  for (const p of ball.patron) {
+    if (p.z <= 0) continue;
+    const tam = ball.r * p.tam * (0.45 + 0.55 * p.z);
+    trazarPentagono(p.x * ball.r, p.y * ball.r, tam, 0);
     ctx.fill();
   }
 
