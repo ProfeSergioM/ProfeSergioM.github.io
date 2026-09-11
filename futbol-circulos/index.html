@@ -73,11 +73,16 @@ canvas { display:block; }
 /* Atributos fijos (no se gastan): solo nombre y valor, sin barra */
 .stat-fila-simple { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
 .stat-fila-simple .stat-valor { color:#fff; font-weight:bold; }
-/* Energía de sprint: del jugador que tiene la pelota (o el activo, si está suelta). Con barra. */
+/* Aguante y energía de sprint: del jugador que tiene la pelota (o el activo, si está suelta).
+   Comparten una sola barra: el aguante es la capa de base y la energía de sprint (que nunca
+   puede superarlo) se dibuja encima, de otro color. */
 .stat-fila { margin-top:8px; padding-top:7px; border-top:1px solid rgba(255,255,255,.15); }
 .stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
-.stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
-.stat-relleno { height:100%; background:#FFB454; }
+.stat-fila .stat-nombre.chica { font-size:9px; opacity:.7; margin-top:4px; margin-bottom:0; }
+.stat-barra { position:relative; height:7px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
+.stat-relleno { position:absolute; left:0; top:0; height:100%; }
+.stat-relleno.aguante { background:#FFB454; }
+.stat-relleno.sprint { background:#5AD1FF; }
 
 /* Panel con las variables/constantes del motor que estamos afinando */
 #panel-parametros {
@@ -167,26 +172,36 @@ function actualizarPanelStats(){
   });
 }
 
-// Energía de sprint: a diferencia de los atributos de arriba, esta sí es individual y cambia
-// jugando, así que va con barra y se actualiza cada cuadro. Muestra la del jugador que tiene
-// la pelota (o la del jugador activo, si está suelta), ya que es a quien le importa en ese momento.
-function crearFilaRecurso(contenedor, etiqueta){
+// Aguante y energía de sprint: a diferencia de los atributos de arriba, estos sí son
+// individuales y cambian jugando, así que van con barra y se actualizan cada cuadro. Muestran
+// los del jugador que tiene la pelota (o el activo, si está suelta). Comparten una sola barra:
+// el aguante es la base, y la energía de sprint (que nunca la supera) se dibuja encima.
+function crearFilaFatiga(contenedor){
   const fila = document.createElement("div"); fila.className = "stat-fila";
-  const nombre = document.createElement("div"); nombre.className = "stat-nombre";
-  nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
+  const nombreAguante = document.createElement("div"); nombreAguante.className = "stat-nombre";
+  nombreAguante.innerHTML = `<span>Aguante</span><span class="stat-valor"></span>`;
   const barra = document.createElement("div"); barra.className = "stat-barra";
-  const relleno = document.createElement("div"); relleno.className = "stat-relleno";
-  barra.appendChild(relleno);
-  fila.appendChild(nombre); fila.appendChild(barra);
+  const rellenoAguante = document.createElement("div"); rellenoAguante.className = "stat-relleno aguante";
+  const rellenoSprint = document.createElement("div"); rellenoSprint.className = "stat-relleno sprint";
+  barra.appendChild(rellenoAguante); barra.appendChild(rellenoSprint);
+  const nombreSprint = document.createElement("div"); nombreSprint.className = "stat-nombre chica";
+  nombreSprint.innerHTML = `<span>Energía sprint</span><span class="stat-valor"></span>`;
+  fila.appendChild(nombreAguante); fila.appendChild(barra); fila.appendChild(nombreSprint);
   contenedor.appendChild(fila);
-  return { valor: nombre.querySelector(".stat-valor"), relleno };
+  return {
+    valorAguante: nombreAguante.querySelector(".stat-valor"), rellenoAguante,
+    valorSprint: nombreSprint.querySelector(".stat-valor"), rellenoSprint
+  };
 }
-const filaEnergiaSprint = crearFilaRecurso(document.getElementById("panel-stats"), "Energía sprint");
-function actualizarBarraEnergiaSprint(){
+const filaFatiga = crearFilaFatiga(document.getElementById("panel-stats"));
+function actualizarBarraFatiga(){
   const jugador = players[conPelota !== null ? conPelota : activo];
-  const v = Math.max(0, Math.min(100, jugador.energiaSprint));
-  filaEnergiaSprint.valor.textContent = Math.round(v);
-  filaEnergiaSprint.relleno.style.width = v + "%";
+  const aguante = Math.max(0, Math.min(100, jugador.aguante));
+  const sprint = Math.max(0, Math.min(100, jugador.energiaSprint));
+  filaFatiga.valorAguante.textContent = Math.round(aguante);
+  filaFatiga.rellenoAguante.style.width = aguante + "%";
+  filaFatiga.valorSprint.textContent = Math.round(sprint);
+  filaFatiga.rellenoSprint.style.width = sprint + "%";
 }
 
 let activo = 0;
@@ -417,6 +432,15 @@ function marchaDesdeMagnitud(m){
   return { nombre:"correr", pct:MARCHA_CORRER, color:"rgba(255,213,74,.9)" };
 }
 
+// Cuánto de la agilidad se aplica según la marcha: cambiar de dirección cuesta más cuanto más
+// rápido se va. Caminando, el 100% del stat; trotando, dos tercios; corriendo, un tercio.
+const AGILIDAD_FACTOR_CAMINAR = 1, AGILIDAD_FACTOR_TROTAR = 0.66, AGILIDAD_FACTOR_CORRER = 0.33;
+function factorAgilidadPorMarcha(marcha){
+  if (marcha === MARCHA_CAMINAR) return AGILIDAD_FACTOR_CAMINAR;
+  if (marcha === MARCHA_TROTAR) return AGILIDAD_FACTOR_TROTAR;
+  return AGILIDAD_FACTOR_CORRER; // correr
+}
+
 // ── Fatiga ────────────────────────────────────────────────
 // Energía de sprint: de corto plazo, se agota rápido corriendo a fondo. Cuánto depende del
 // atributo "sprint" del jugador (100 = se agota más lento). Se recupera en cuanto deja de esprintar.
@@ -462,6 +486,10 @@ function actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt){
     else efecto = RESISTENCIA_EFECTO_CAMINAR;
   }
   p.aguante = Math.max(0, Math.min(100, p.aguante - tasaAguante(statsComunes.resistencia, efecto) * dt));
+
+  // El techo de la energía de sprint es el aguante actual: con poco aguante en el tanque,
+  // quedan ráfagas de sprint más cortas (y en 0 de aguante, directamente no se puede esprintar).
+  p.energiaSprint = Math.min(p.energiaSprint, p.aguante);
 }
 
 // Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
@@ -486,7 +514,7 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
   if (moviendo) {
     dx /= len; dy /= len;
-    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (statsComunes.agilidad / 100), dt);
+    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (statsComunes.agilidad / 100) * factorAgilidadPorMarcha(marchaResultante), dt);
     const acel = ACEL_DISENO_MAX * (statsComunes.aceleracion / 100);
     p.vx += p.dirX * acel * dt;
     p.vy += p.dirY * acel * dt;
@@ -809,7 +837,7 @@ function bucle(ahora){
     tiempoCargaPase = Math.min(tiempoCargaPase + dt, PASE_CARGA_DURACION);
     barraCargaPaseCubierta.style.width = (100 - (tiempoCargaPase / PASE_CARGA_DURACION) * 100) + "%";
   }
-  actualizarBarraEnergiaSprint(); // cambia en vivo según quién tiene la pelota
+  actualizarBarraFatiga(); // cambia en vivo según quién tiene la pelota
   dibujar();
 
   requestAnimationFrame(bucle);
@@ -828,8 +856,9 @@ function actualizarPanelParametros(){
     ["Carga pase", PASE_CARGA_DURACION + "s (precisión no cambia con la carga)"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
+    ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
-    ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s"],
+    ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
     ["Aguante ref. (resistencia=50)", "35/44/1.5min camin./trote/sprint = partido"],
     ["Aguante @50 camin.", tasaAguante(50, RESISTENCIA_EFECTO_CAMINAR).toFixed(3) + "%/s"],
     ["Aguante @50 trote", Math.abs(tasaAguante(50, RESISTENCIA_EFECTO_TROTAR)).toFixed(3) + "%/s (recup.)"],
@@ -841,7 +870,7 @@ function actualizarPanelParametros(){
 
 posicionInicial();
 actualizarPanelStats();
-actualizarBarraEnergiaSprint();
+actualizarBarraFatiga();
 actualizarPanelParametros();
 requestAnimationFrame(bucle);
 
