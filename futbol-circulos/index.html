@@ -262,6 +262,10 @@ const FORMACION_INICIAL = [
 // ── Rival (intercepta pases y marca de cerca al portador, nada más: no presiona, no ataca) ──
 const rival = crearJugador("#E64A4A", "#B23030");
 const RIVAL_INICIAL = { x:180, y:70, dirX:-1, dirY:0 };
+// "Control" del rival para disputar la pelota al chocar con el portador (ver colisionRivalJugadores):
+// el equipo usa su stat compartido "control", el rival usa este valor fijo. Con el default de
+// ambos (100 y 50) el equipo se queda con la pelota 2 de cada 3 disputas.
+const RIVAL_CONTROL = 50;
 
 function posicionInicial(){
   players.forEach((p, i) => {
@@ -278,6 +282,7 @@ function posicionInicial(){
   direccionEnvio = null;
   baseReceptores = null;
   chocando = new Set();
+  chocandoRival = new Set();
   cargandoTiro = false;
   tiempoCargaTiro = 0;
   barraCargaTiro.classList.remove("activa");
@@ -391,7 +396,7 @@ function soltarTiro(){
 // Carga del pase: mismo mecanismo que el tiro, pero sin penalidad de precisión (la precisión
 // siempre depende del stat "precisionPase", cargues lo que cargues). Sirve para poder dosificar
 // la potencia y así habilitar pases cortos: una carga breve alcanza para un pase de cerca.
-const PASE_CARGA_DURACION = 0.5; // segundos para cargar al máximo
+const PASE_CARGA_DURACION = 0.25; // segundos para cargar al máximo
 // Aunque se suelte al instante (carga=0), el pase nunca sale con menos de este % de potencia:
 // evita que un toque brevísimo deje la pelota prácticamente sin moverse.
 const PASE_CARGA_MINIMA = 0.33;
@@ -882,6 +887,43 @@ function colisionJugadores(){
   }
 }
 
+// El rival también es sólido: si choca contra un jugador, ambos se separan igual que entre
+// compañeros. Si el jugador con el que choca tiene la pelota, se disputa: queda al azar, pero
+// pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL). Si
+// gana el equipo, no cambia nada (sigue con la pelota); si gana el rival, la despeja: la pelota
+// queda suelta y sale disparada lejos de la disputa.
+const RIVAL_DESPEJE = 150; // velocidad con la que sale la pelota cuando el rival gana la disputa
+let chocandoRival = new Set(); // índices de jugadores actualmente superpuestos con el rival
+function colisionRivalJugadores(){
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    const dx = p.x - rival.x, dy = p.y - rival.y;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    const minDist = p.r + rival.r;
+    if (dist >= minDist) { chocandoRival.delete(i); continue; }
+
+    const nx = dx / dist, ny = dy / dist;
+    const overlap = minDist - dist;
+    p.x += nx * overlap / 2; p.y += ny * overlap / 2;
+    rival.x -= nx * overlap / 2; rival.y -= ny * overlap / 2;
+    const empuje = 40;
+    p.vx += nx * empuje; p.vy += ny * empuje;
+    rival.vx -= nx * empuje; rival.vy -= ny * empuje;
+
+    if (!chocandoRival.has(i) && conPelota === i) {
+      const probEquipo = statsComunes.control / (statsComunes.control + RIVAL_CONTROL);
+      if (Math.random() >= probEquipo) {
+        conPelota = null;
+        ball.vx = nx * RIVAL_DESPEJE; ball.vy = ny * RIVAL_DESPEJE;
+        ultimoPateador = null;
+        direccionEnvio = null;
+        baseReceptores = null;
+      }
+    }
+    chocandoRival.add(i);
+  }
+}
+
 // Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
 // Quien la pateó/pasó no puede recuperarla hasta que la pelota salga al menos una vez de su radio.
 function actualizarPosesion(){
@@ -1113,6 +1155,7 @@ function bucle(ahora){
   actualizarIA(dt);
   actualizarRival(dt);
   colisionJugadores();
+  colisionRivalJugadores();
   const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
   colisionPostes(ballXAntes, ballYAntes);
@@ -1151,6 +1194,7 @@ function actualizarPanelParametros(){
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca al portador a " + RIVAL_MARCA_DISTANCIA + "u"],
+    ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
