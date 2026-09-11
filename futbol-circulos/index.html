@@ -49,6 +49,11 @@ canvas { display:block; }
   background:rgba(79,224,192,.85); border:2px solid rgba(0,0,0,.3);
   color:#0a2a22; font-weight:bold; font-size:13px;
 }
+#btn-pase-largo {
+  right:196px; bottom:88px; width:64px; height:64px; border-radius:50%;
+  background:rgba(122,162,255,.85); border:2px solid rgba(0,0,0,.3);
+  color:#0a1a3a; font-weight:bold; font-size:11px;
+}
 #btn-reiniciar {
   top:14px; right:14px; padding:9px 14px; border-radius:8px; border:2px solid rgba(255,255,255,.4);
   background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
@@ -78,6 +83,15 @@ canvas { display:block; }
 }
 #barra-carga-pase.activa { opacity:1; }
 #barra-carga-pase-cubierta { position:absolute; top:0; right:0; height:100%; width:100%; background:rgba(0,0,0,.6); }
+
+/* Barra de carga del pase largo: mismo mecanismo, propio color para distinguirla. */
+#barra-carga-pase-largo {
+  position:fixed; right:196px; bottom:154px; width:64px; height:8px; border-radius:4px;
+  overflow:hidden; z-index:8; pointer-events:none; opacity:0; transition:opacity .1s;
+  background:#7AA2FF; border:1px solid rgba(0,0,0,.4);
+}
+#barra-carga-pase-largo.activa { opacity:1; }
+#barra-carga-pase-largo-cubierta { position:absolute; top:0; right:0; height:100%; width:100%; background:rgba(0,0,0,.6); }
 
 /* Una sola caja de stats, compartida por los 3 jugadores del equipo, lo más arriba posible */
 #panel-stats {
@@ -116,7 +130,7 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">Flechas: moverse (Shift: correr) · A (mantener): cargar tiro · S (mantener): cargar pase · Goles: <span id="goles">0</span></div>
+<div id="ayuda">Flechas: moverse (Shift: correr) · A (mantener): cargar tiro · S (mantener): cargar pase · D (mantener): cargar pase largo · Goles: <span id="goles">0</span></div>
 <div id="gol"><span>¡GOL!</span></div>
 <div id="panel-parametros" hidden></div>
 <div id="panel-stats"><h3>Stats del equipo</h3></div>
@@ -125,6 +139,8 @@ canvas { display:block; }
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <div id="barra-carga-pase"><div id="barra-carga-pase-cubierta"></div></div>
 <button id="btn-pasar" class="control" type="button">Pasar</button>
+<div id="barra-carga-pase-largo"><div id="barra-carga-pase-largo-cubierta"></div></div>
+<button id="btn-pase-largo" class="control" type="button">Pase largo</button>
 <div id="barra-carga-tiro"><div id="barra-carga-tiro-cubierta"></div></div>
 <button id="btn-patear" class="control" type="button">Patear</button>
 
@@ -307,13 +323,18 @@ function posicionInicial(){
   cargandoPase = false;
   tiempoCargaPase = 0;
   barraCargaPase.classList.remove("activa");
+  cargandoPaseLargo = false;
+  tiempoCargaPaseLargo = 0;
+  barraCargaPaseLargo.classList.remove("activa");
   mallaAbultamiento = null;
   rivales.forEach((r, i) => {
     const f = RIVALES_FORMACION_INICIAL[i];
     r.x = f.x; r.y = f.y; r.vx = 0; r.vy = 0; r.dirX = f.dirX; r.dirY = f.dirY;
+    r.energiaSprint = 100; r.aguante = 100;
   });
   arquero.x = ARQUERO_INICIAL.x; arquero.y = ARQUERO_INICIAL.y; arquero.vx = 0; arquero.vy = 0;
   arquero.dirX = ARQUERO_INICIAL.dirX; arquero.dirY = ARQUERO_INICIAL.dirY;
+  arquero.energiaSprint = 100; arquero.aguante = 100;
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -322,11 +343,13 @@ window.addEventListener("keydown", e => {
   teclas[e.key.toLowerCase()] = true;
   if (e.key.toLowerCase() === "a" && !e.repeat) { e.preventDefault(); iniciarCargaTiro(); }
   if (e.key.toLowerCase() === "s" && !e.repeat) { e.preventDefault(); iniciarCargaPase(); }
+  if (e.key.toLowerCase() === "d" && !e.repeat) { e.preventDefault(); iniciarCargaPaseLargo(); }
 });
 window.addEventListener("keyup", e => {
   teclas[e.key.toLowerCase()] = false;
   if (e.key.toLowerCase() === "a") soltarTiro();
   if (e.key.toLowerCase() === "s") soltarPase();
+  if (e.key.toLowerCase() === "d") soltarPaseLargo();
 });
 
 function direccionTeclado(){
@@ -369,7 +392,8 @@ joyBase.addEventListener("pointercancel", joySoltar);
 // ── Botones ───────────────────────────────────────────────
 document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaTiro(); });
 document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaPase(); });
-window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); if (cargandoPase) soltarPase(); });
+document.getElementById("btn-pase-largo").addEventListener("pointerdown", e => { e.preventDefault(); iniciarCargaPaseLargo(); });
+window.addEventListener("pointerup", () => { if (cargandoTiro) soltarTiro(); if (cargandoPase) soltarPase(); if (cargandoPaseLargo) soltarPaseLargo(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => {
   e.preventDefault();
   posicionInicial();
@@ -443,6 +467,35 @@ function soltarPase(){
   pasar(tiempoCargaPase / PASE_CARGA_DURACION);
 }
 
+// Pase largo: mismo mecanismo de carga que el pase corto, pero con más potencia (cruza más
+// cancha, para un cambio de frente o un pase al hueco por encima de la marca), carga más lenta
+// (un balón largo no sale de un toque instantáneo, hay que "levantar la cabeza" un momento) y
+// más imprecisión (un balón largo es más difícil de ubicar con exactitud que uno corto).
+const PASE_LARGO_POTENCIA_DISENO_MAX = 1000;
+const PASE_LARGO_CARGA_DURACION = 0.6; // segundos para cargar al máximo
+const PASE_LARGO_CARGA_MINIMA = 0.5;
+const PASE_LARGO_PRECISION_ERROR_MAX = Math.PI / 5; // 36°, más que los 20° del pase corto
+let cargandoPaseLargo = false;
+let tiempoCargaPaseLargo = 0;
+
+const barraCargaPaseLargo = document.getElementById("barra-carga-pase-largo");
+const barraCargaPaseLargoCubierta = document.getElementById("barra-carga-pase-largo-cubierta");
+
+function iniciarCargaPaseLargo(){
+  if (conPelota !== activo) return;
+  cargandoPaseLargo = true;
+  tiempoCargaPaseLargo = 0;
+  barraCargaPaseLargo.classList.add("activa");
+  barraCargaPaseLargoCubierta.style.width = "100%";
+}
+
+function soltarPaseLargo(){
+  if (!cargandoPaseLargo) return;
+  cargandoPaseLargo = false;
+  barraCargaPaseLargo.classList.remove("activa");
+  pasarLargo(tiempoCargaPaseLargo / PASE_LARGO_CARGA_DURACION);
+}
+
 // Registra hacia dónde se movía quien soltó la pelota, para que los compañeros se acomoden un poco (ver actualizarIA).
 function registrarEnvio(p){
   direccionEnvio = { x: p.dirX, y: p.dirY };
@@ -466,14 +519,15 @@ function patear(carga){
   registrarEnvio(p);
 }
 
-// Pasa con la carga [0,1] alcanzada: la potencia escala con la carga, entre PASE_CARGA_MINIMA
-// (aunque se suelte al instante) y el máximo; la precisión no cambia con la carga, siempre
-// depende de "precisionPase".
-function pasar(carga){
+// Pasa con la carga [0,1] alcanzada, con la potencia/carga mínima/error de precisión que le
+// pasen (pase corto o pase largo comparten toda esta lógica, solo cambian esos tres números): la
+// potencia escala con la carga, entre la carga mínima (aunque se suelte al instante) y el máximo;
+// la precisión no cambia con la carga, siempre depende de "precisionPase".
+function pasarConConfig(carga, potenciaMax, cargaMinima, errorMax){
   if (conPelota !== activo) return;
   const p = players[activo];
-  const potencia = PASE_POTENCIA_DISENO_MAX * (PASE_CARGA_MINIMA + (1 - PASE_CARGA_MINIMA) * carga);
-  const error = (1 - statsComunes.precisionPase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
+  const potencia = potenciaMax * (cargaMinima + (1 - cargaMinima) * carga);
+  const error = (1 - statsComunes.precisionPase / 100) * errorMax * (Math.random() * 2 - 1);
   const angulo = Math.atan2(p.dirY, p.dirX) + error;
   ball.vx += Math.cos(angulo) * potencia;
   ball.vy += Math.sin(angulo) * potencia;
@@ -483,6 +537,12 @@ function pasar(carga){
   // Si nadie recibe antes (p. ej. lo intercepta el rival), el foco vuelve a cambiar cuando la
   // pelota efectivamente llegue a otro jugador (ver actualizarPosesion).
   cambioDeJugadorAsistido(p, angulo);
+}
+function pasar(carga){
+  pasarConConfig(carga, PASE_POTENCIA_DISENO_MAX, PASE_CARGA_MINIMA, PASE_PRECISION_ERROR_MAX);
+}
+function pasarLargo(carga){
+  pasarConConfig(carga, PASE_LARGO_POTENCIA_DISENO_MAX, PASE_LARGO_CARGA_MINIMA, PASE_LARGO_PRECISION_ERROR_MAX);
 }
 
 // "Cambio de jugador asistido": si el pase apunta a un compañero que queda más lejos que el
@@ -680,14 +740,25 @@ function actualizarIA(dt){
 // en particular: no tienen arco propio ni juegan en equipo con la pelota, solo avanzan); si nadie
 // la tiene pero un pase (o tiro) va en el aire, los dos corren a interceptarlo, apuntando un poco
 // adelantado a hacia dónde va la pelota; si el equipo la tiene, el rival más cercano al portador
-// lo marca de cerca (corriendo directo hacia él, sin frenar antes de tiempo: la marca solo es
-// útil si realmente llega a disputarle la pelota, ver colisionRivalJugadores) mientras el OTRO no
-// se amontona sobre el mismo jugador — se adelanta a cubrir la línea de pase hacia el compañero
-// del portador mejor ubicado (el más cercano al arco), parándose a mitad de camino entre los dos,
-// para ya estar en el camino si el pase sale en vez de arrancar a perseguirlo recién cuando se
-// suelta. Sin nada de lo anterior (pelota suelta parada, o entre que se corta un pase y alguien
-// la recupera) se quedan quietos: no persiguen la pelota suelta por su cuenta.
+// siempre lo marca de cerca (corriendo directo hacia él, sin frenar antes de tiempo: la marca
+// solo es útil si realmente llega a disputarle la pelota, ver colisionRivalJugadores). El OTRO
+// rival, en cambio, depende de si hay una amenaza real de pase largo (ver
+// RIVAL_COBERTURA_DISTANCIA_MIN): si el compañero mejor ubicado del portador está lejos, se
+// adelanta a cubrir la línea de pase hacia él, parándose ya cerca de ESE compañero (no a mitad de
+// camino, que le quedaba demasiado lejos del punto de llegada para reaccionar a tiempo — un pase
+// cruza esa distancia en menos de un segundo; más cerca del receptor tiene más margen porque la
+// pelota ya perdió velocidad para cuando llega ahí). Si esa amenaza no es real (el compañero está
+// cerca, a distancia de formación normal), no vale la pena resignar presión sobre el portador
+// para cubrir una línea corta que ya cubre el radio de recepción: los dos marcan juntos, como
+// antes de agregar la cobertura. Sin nada de lo anterior (pelota suelta parada, o entre que se
+// corta un pase y alguien la recupera) se quedan quietos: no persiguen la
+// pelota suelta por su cuenta.
 const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apuntan al camino de la pelota
+// Punto de cobertura entre portador (0) y compañero cubierto (1); 0.5 sería la mitad de camino.
+const RIVAL_COBERTURA_FRACCION = 0.65;
+// Distancia mínima al compañero mejor ubicado para que valga la pena cubrirlo en vez de sumar el
+// segundo rival a presionar al portador (ver más abajo, "amenazaDePaseLargo").
+const RIVAL_COBERTURA_DISTANCIA_MIN = 420;
 
 function actualizarRivales(dt){
   if (conPelotaRivalIdx !== null) {
@@ -717,20 +788,27 @@ function actualizarRivales(dt){
       if (dk < distMin) { distMin = dk; marcador = rivales[k]; }
     }
     // El compañero del portador más cerca del arco: la opción de pase más peligrosa, y por eso la
-    // que conviene cubrir en vez de simplemente amontonarse a marcar al mismo portador.
+    // que conviene cubrir en vez de simplemente amontonarse a marcar al mismo portador. Pero solo
+    // vale la pena resignar un marcador para eso cuando ese compañero está realmente lejos (una
+    // amenaza de pase largo real): a distancia de formación normal, los dos rivales presionando
+    // juntos al portador (como antes de agregar la cobertura) generan más disputas que uno solo
+    // marcando y el otro cubriendo una línea que total ya cubre el radio de recepción.
     let mejorCompanero = null, mejorDistGol = Infinity;
     players.forEach((c, i) => {
       if (i === conPelota) return;
       const dGol = Math.hypot(ARCO_X - c.x, -c.y);
       if (dGol < mejorDistGol) { mejorDistGol = dGol; mejorCompanero = c; }
     });
+    const distAlCompanero = mejorCompanero ? Math.hypot(mejorCompanero.x-portador.x, mejorCompanero.y-portador.y) : 0;
+    const amenazaDePaseLargo = mejorCompanero && distAlCompanero > RIVAL_COBERTURA_DISTANCIA_MIN;
 
     rivales.forEach(r => {
-      if (r === marcador) {
+      if (r === marcador || !amenazaDePaseLargo) {
         const dx = portador.x-r.x, dy = portador.y-r.y, dist = Math.hypot(dx,dy) || 1;
         actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
       } else if (mejorCompanero) {
-        const tx = (portador.x+mejorCompanero.x)/2, ty = (portador.y+mejorCompanero.y)/2;
+        const tx = portador.x + (mejorCompanero.x-portador.x)*RIVAL_COBERTURA_FRACCION;
+        const ty = portador.y + (mejorCompanero.y-portador.y)*RIVAL_COBERTURA_FRACCION;
         const dx = tx-r.x, dy = ty-r.y, dist = Math.hypot(dx,dy) || 1;
         actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
       } else {
@@ -745,16 +823,20 @@ function actualizarRivales(dt){
 
 // Si algún rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
 // rebota lejos de él y se cancela el aviso de pase, así los compañeros dejan de acomodarse para
-// recibir algo que ya no va a llegar.
+// recibir algo que ya no va a llegar. A diferencia de la disputa cuerpo a cuerpo (colisionRivalJugadores,
+// que exige RIVAL_ALCANCE de margen sobre el contacto), acá también hay un margen — más chico —
+// porque interceptar una pelota en movimiento (un pase, no un rival parado) es estirar una pierna,
+// no necesita el cuerpo entero encima.
+const RIVAL_ALCANCE_INTERCEPCION = 18;
 function colisionRival(){
   if (conPelota !== null || conPelotaRivalIdx !== null || conPelotaArquero) return; // ya la tiene alguien, no es una pelota suelta
   for (const r of rivales) {
     const dx = ball.x - r.x, dy = ball.y - r.y;
     const dist = Math.hypot(dx, dy) || 0.001;
-    const minDist = r.r + ball.r;
-    if (dist >= minDist) continue;
+    const minDistFisico = r.r + ball.r;
+    if (dist >= minDistFisico + RIVAL_ALCANCE_INTERCEPCION) continue;
     const nx = dx/dist, ny = dy/dist;
-    ball.x = r.x + nx*minDist; ball.y = r.y + ny*minDist;
+    ball.x = r.x + nx*minDistFisico; ball.y = r.y + ny*minDistFisico;
     const vel = Math.hypot(ball.vx, ball.vy);
     ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
     ultimoPateador = null;
@@ -1158,6 +1240,12 @@ function actualizarArquero(dt){
 const ARQUERO_INCERTIDUMBRE = 0.2; // hasta con control perfecto (100), esta fracción de las veces se le escapa
 const ARQUERO_SOSTIENE_DURACION = 2; // segundos que retiene la pelota atrapada antes de despejarla
 const ARQUERO_DESPEJE_POTENCIA = 700; // velocidad con la que sale disparada al despejar
+// Cuánto se desvía un rebote (ver atajarConRebote) del reflejo perfecto: a diferencia del
+// despeje (deliberado, el arquero elige dirección), el rebote no lo controla nadie — sale para
+// donde pega, no siempre cómodo para el que está más cerca. Sin este desvío, el rebote era
+// perfectamente predecible (reflejo especular exacto) y casi siempre quedaba servido para el
+// delantero más próximo al arco: una pelota suelta demasiado fácil de aprovechar.
+const ARQUERO_REBOTE_DESVIO_MAX = Math.PI / 5; // 36°
 
 // Atrapar limpio vs. solo dar rebote no depende nada más que del "control": un remate muy fuerte
 // es más difícil de sostener incluso para un arquero con control perfecto (en la realidad, los
@@ -1242,6 +1330,15 @@ function atajarConRebote(nx, ny){
   const vNormal = ball.vx * nx + ball.vy * ny;
   ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
   ball.vx *= 0.6; ball.vy *= 0.6; // pierde fuerza en el rebote
+
+  // Desvío al azar sobre el reflejo perfecto (ver ARQUERO_REBOTE_DESVIO_MAX): un rebote real no
+  // sale en un ángulo prolijo, calculado.
+  const desvio = (Math.random() * 2 - 1) * ARQUERO_REBOTE_DESVIO_MAX;
+  const cosD = Math.cos(desvio), sinD = Math.sin(desvio);
+  const vxDesviado = ball.vx * cosD - ball.vy * sinD;
+  const vyDesviado = ball.vx * sinD + ball.vy * cosD;
+  ball.vx = vxDesviado; ball.vy = vyDesviado;
+
   const vel = Math.hypot(ball.vx, ball.vy);
   if (vel > ARQUERO_DESPEJE_POTENCIA) {
     const f = ARQUERO_DESPEJE_POTENCIA / vel;
@@ -1732,6 +1829,10 @@ function bucle(ahora){
     tiempoCargaPase = Math.min(tiempoCargaPase + dt, PASE_CARGA_DURACION);
     barraCargaPaseCubierta.style.width = (100 - (tiempoCargaPase / PASE_CARGA_DURACION) * 100) + "%";
   }
+  if (cargandoPaseLargo) {
+    tiempoCargaPaseLargo = Math.min(tiempoCargaPaseLargo + dt, PASE_LARGO_CARGA_DURACION);
+    barraCargaPaseLargoCubierta.style.width = (100 - (tiempoCargaPaseLargo / PASE_LARGO_CARGA_DURACION) * 100) + "%";
+  }
   actualizarBarraFatiga(); // cambia en vivo según quién tiene la pelota
   dibujar();
 
@@ -1750,10 +1851,13 @@ function actualizarPanelParametros(){
     ["Potencia pase máx.", PASE_POTENCIA_DISENO_MAX],
     ["Carga pase", PASE_CARGA_DURACION + "s, mínimo " + Math.round(PASE_CARGA_MINIMA*100) + "% de potencia"],
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
+    ["Potencia pase largo máx.", PASE_LARGO_POTENCIA_DISENO_MAX],
+    ["Carga pase largo", PASE_LARGO_CARGA_DURACION + "s, mínimo " + Math.round(PASE_LARGO_CARGA_MINIMA*100) + "% de potencia"],
+    ["Error pase largo máx.", Math.round(PASE_LARGO_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
-    ["Rivales", rivales.length + ": el más cercano marca de cerca, el otro cubre la línea de pase al compañero mejor ubicado; ambos interceptan pases en el aire (anticipan " + RIVAL_ANTICIPO + "s)"],
+    ["Rivales", rivales.length + ": el más cercano siempre marca de cerca; el otro suma marca también salvo que el compañero mejor ubicado esté a más de " + RIVAL_COBERTURA_DISTANCIA_MIN + "u (ahí cubre esa línea de pase en vez); ambos interceptan pases en el aire (anticipan " + RIVAL_ANTICIPO + "s)"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
@@ -1761,6 +1865,7 @@ function actualizarPanelParametros(){
     ["Área grande (arquero)", "x: " + Math.round(AREA_X_MIN) + " a " + AREA_X_MAX + ", ancho " + Math.round(AREA_ANCHO) + "u"],
     ["Arquero", "colocación " + arqueroStats.colocacion + ", control " + arqueroStats.control + ", llegada " + ARQUERO_LLEGADA_CAMINAR + "/" + ARQUERO_LLEGADA_TROTAR + "u (paso/trote)"],
     ["Atajadas", "incertidumbre " + Math.round(ARQUERO_INCERTIDUMBRE*100) + "% (se le puede pasar igual), retiene " + ARQUERO_SOSTIENE_DURACION + "s y despeja por el hueco más libre"],
+    ["Rebote del arquero", "atrapar limpio cae con la potencia del tiro (×" + ARQUERO_ATRAPE_FACTOR_MIN + " desde " + ARQUERO_ATRAPE_VEL_FUERTE + "u/s), desvío de hasta " + Math.round(ARQUERO_REBOTE_DESVIO_MAX*180/Math.PI) + "° sobre el reflejo perfecto"],
     ["Espacio del arquero", "sólido para jugadores; +" + ARQUERO_ESPACIO_PERSONAL + "u mientras retiene la pelota"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
