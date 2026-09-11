@@ -88,21 +88,33 @@ const players = [
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
+// Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
+// quien se la envió, para ayudar a recibirla (ver actualizarIA).
+let direccionEnvio = null;   // {x,y} dirección de quien pateó/pasó, al momento de soltar la pelota
+let baseReceptor = null;     // posición del receptor al momento del envío, para no alejarlo más de un radio
 
 // Pintas de la pelota: puntos fijos sobre una esfera unitaria (marco propio de la pelota).
 // z>0 mira hacia la cámara (arriba); z<=0 queda del otro lado y no se dibuja.
+// Cuatro anillos (desfasados entre sí) más los dos polos, para que la cobertura sea continua
+// y en cualquier orientación se vea la pelota llena de pintas, sin huecos.
 function crearPatronPelota(){
-  const lat = 0.67; // colatitud de los anillos, en radianes
   const puntos = [
-    { x:0, y:0, z:1, tam:0.30 },   // polo "norte"
-    { x:0, y:0, z:-1, tam:0.30 }   // polo "sur"
+    { x:0, y:0, z:1, tam:0.22 },
+    { x:0, y:0, z:-1, tam:0.22 }
   ];
-  for (let i = 0; i < 5; i++) {
-    const az = i * (Math.PI*2/5);
-    puntos.push({ x: Math.sin(lat)*Math.cos(az), y: Math.sin(lat)*Math.sin(az), z: Math.cos(lat), tam:0.20 });
-    const az2 = az + Math.PI/5; // anillo sur desfasado, como un balón clásico de 12 pentágonos
-    puntos.push({ x: Math.sin(lat)*Math.cos(az2), y: Math.sin(lat)*Math.sin(az2), z: -Math.cos(lat), tam:0.20 });
-  }
+  const anillos = [
+    { lat: Math.PI/5, tam:0.17 },
+    { lat: Math.PI*2/5, tam:0.17 },
+    { lat: Math.PI - Math.PI*2/5, tam:0.17 },
+    { lat: Math.PI - Math.PI/5, tam:0.17 }
+  ];
+  anillos.forEach((anillo, fila) => {
+    const desfase = (fila % 2) * (Math.PI/5);
+    for (let i = 0; i < 5; i++) {
+      const az = i * (Math.PI*2/5) + desfase;
+      puntos.push({ x: Math.sin(anillo.lat)*Math.cos(az), y: Math.sin(anillo.lat)*Math.sin(az), z: Math.cos(anillo.lat), tam: anillo.tam });
+    }
+  });
   return puntos;
 }
 
@@ -117,6 +129,8 @@ function posicionInicial(){
   activo = 0;
   conPelota = null;
   ultimoPateador = null;
+  direccionEnvio = null;
+  baseReceptor = null;
   chocando = false;
 }
 
@@ -173,6 +187,13 @@ document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { 
 
 const VELOCIDAD_TIRO = 620, VELOCIDAD_PASE = 480;
 
+// Registra hacia dónde se movía quien soltó la pelota, para que el compañero se acomode un poco (ver actualizarIA).
+function registrarEnvio(p){
+  direccionEnvio = { x: p.dirX, y: p.dirY };
+  const receptor = players[1 - activo];
+  baseReceptor = { x: receptor.x, y: receptor.y };
+}
+
 // Patear y pasar solo funcionan si el jugador activo domina la pelota en ese momento.
 function patear(){
   if (conPelota !== activo) return;
@@ -181,6 +202,7 @@ function patear(){
   ball.vy += p.dirY * VELOCIDAD_TIRO;
   conPelota = null;
   ultimoPateador = activo;
+  registrarEnvio(p);
 }
 
 function pasar(){
@@ -189,6 +211,7 @@ function pasar(){
   ball.vx += p.dirX * VELOCIDAD_PASE;
   ball.vy += p.dirY * VELOCIDAD_PASE;
   conPelota = null;
+  registrarEnvio(p);
   ultimoPateador = activo;
   // El foco cambia de jugador cuando el compañero efectivamente la recibe (ver actualizarPosesion).
 }
@@ -240,15 +263,31 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
 // El jugador sin la pelota (modo práctica) sigue al que la lleva, manteniéndose a unos metros.
 const DISTANCIA_SEGUIMIENTO = 90;
+// Mientras la pelota va suelta camino a él, el receptor se acomoda un poco (como máximo un radio
+// suyo) hacia donde se movía quien se la envió, para ayudar a recibirla.
+const RECEPCION_AJUSTE_MAX_FACTOR = 1;
+
 function actualizarIA(dt){
   const seguidor = players[1 - activo];
-  if (conPelota !== activo) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
-  const portador = players[activo];
-  const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
-  const dist = Math.hypot(ddx, ddy);
-  if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
-  const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
-  actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
+
+  if (conPelota === activo) {
+    const portador = players[activo];
+    const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
+    const dist = Math.hypot(ddx, ddy);
+    if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
+    const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
+    actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
+    return;
+  }
+
+  if (direccionEnvio && baseReceptor) {
+    const movido = Math.hypot(seguidor.x - baseReceptor.x, seguidor.y - baseReceptor.y);
+    if (movido < seguidor.r * RECEPCION_AJUSTE_MAX_FACTOR) {
+      actualizarJugador(seguidor, direccionEnvio.x, direccionEnvio.y, MARCHA_CAMINAR, dt);
+      return;
+    }
+  }
+  actualizarJugador(seguidor, 0, 0, 0, dt);
 }
 
 // Qué tan pegada queda la pelota al jugador que la domina, según su atributo "control".
@@ -319,6 +358,8 @@ function colisionJugadores(){
     conPelota = Math.random() < 0.5 ? 0 : 1;
     activo = conPelota;
     ultimoPateador = null;
+    direccionEnvio = null;
+    baseReceptor = null;
   }
   chocando = true;
 }
@@ -340,6 +381,8 @@ function actualizarPosesion(){
       conPelota = i;
       activo = i;
       ultimoPateador = null;
+      direccionEnvio = null;
+      baseReceptor = null;
       break;
     }
   }
