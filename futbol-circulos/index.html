@@ -48,7 +48,7 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">Flechas: moverse · Espacio: patear · P: pasar</div>
+<div id="ayuda">Flechas: moverse · A: patear · S: pasar</div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
 <button id="btn-pasar" class="control" type="button">Pasar</button>
@@ -86,7 +86,7 @@ const players = [
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
-const ball = { x:-80, y:0, vx:0, vy:0, r:15 };
+const ball = { x:-80, y:0, vx:0, vy:0, r:15*0.75, angulo:0 };
 const camera = { x:players[0].x, y:players[0].y };
 
 function posicionInicial(){
@@ -96,14 +96,15 @@ function posicionInicial(){
   activo = 0;
   conPelota = null;
   ultimoPateador = null;
+  chocando = false;
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
 const teclas = Object.create(null);
 window.addEventListener("keydown", e => {
   teclas[e.key.toLowerCase()] = true;
-  if (e.key === " ") { e.preventDefault(); patear(); }
-  if (e.key.toLowerCase() === "p") { e.preventDefault(); pasar(); }
+  if (e.key.toLowerCase() === "a") { e.preventDefault(); patear(); }
+  if (e.key.toLowerCase() === "s") { e.preventDefault(); pasar(); }
 });
 window.addEventListener("keyup", e => { teclas[e.key.toLowerCase()] = false; });
 
@@ -172,7 +173,10 @@ function pasar(){
 }
 
 // ── Física ────────────────────────────────────────────────
-const FRICCION_JUGADOR = 6, FRICCION_BALON = 1.1;
+const FRICCION_JUGADOR = 6;
+// Coeficiente de roce entre la pelota y el piso (por ahora fijo; en el futuro podría
+// variar según el terreno). Cuanto más alto, más rápido frena una pelota suelta.
+const ROCE_PELOTA = 1.1;
 
 // Marchas del joystick: caminar / trotar / correr, como % del tope de velocidad del jugador.
 // El teclado (flechas) siempre corre, porque es una entrada de todo o nada.
@@ -245,10 +249,38 @@ function actualizarPelota(dt){
     ball.y += (ty - ball.y) * s;
     ball.vx = p.vx; ball.vy = p.vy;
   } else {
-    const f = Math.max(0, 1 - FRICCION_BALON * dt);
+    const f = Math.max(0, 1 - ROCE_PELOTA * dt);
     ball.vx *= f; ball.vy *= f;
     ball.x += ball.vx * dt; ball.y += ball.vy * dt;
   }
+  // Efecto de rodado: gira proporcional a la velocidad, como si rodara sobre el piso.
+  ball.angulo = (ball.angulo + (Math.hypot(ball.vx, ball.vy) / ball.r) * dt) % (Math.PI * 2);
+}
+
+// Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan.
+// Como son compañeros, si chocan mientras alguno domina la pelota, esta queda al azar en uno de los dos.
+let chocando = false;
+function colisionJugadores(){
+  const a = players[0], b = players[1];
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const dist = Math.hypot(dx, dy) || 0.001;
+  const minDist = a.r + b.r;
+  if (dist >= minDist) { chocando = false; return; }
+
+  const nx = dx / dist, ny = dy / dist;
+  const overlap = minDist - dist;
+  a.x -= nx * overlap / 2; a.y -= ny * overlap / 2;
+  b.x += nx * overlap / 2; b.y += ny * overlap / 2;
+  const empuje = 40;
+  a.vx -= nx * empuje; a.vy -= ny * empuje;
+  b.vx += nx * empuje; b.vy += ny * empuje;
+
+  if (!chocando && conPelota !== null) {
+    conPelota = Math.random() < 0.5 ? 0 : 1;
+    activo = conPelota;
+    ultimoPateador = null;
+  }
+  chocando = true;
 }
 
 // Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
@@ -350,13 +382,43 @@ function dibujarJugador(p, esActivo){
   }
 }
 
-function dibujarBalon(){
+// Traza un pentágono regular centrado en (cx,cy), con el radio y la rotación dados.
+function trazarPentagono(cx, cy, radio, rotacion){
   ctx.beginPath();
-  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  for (let i = 0; i < 5; i++) {
+    const ang = rotacion + i * (Math.PI*2/5) - Math.PI/2;
+    const x = cx + Math.cos(ang) * radio, y = cy + Math.sin(ang) * radio;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function dibujarBalon(){
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+  ctx.rotate(ball.angulo);
+
+  ctx.beginPath();
+  ctx.arc(0, 0, ball.r, 0, Math.PI*2);
   ctx.fillStyle = "#F5F5F0";
   ctx.fill();
   ctx.strokeStyle = "#222"; ctx.lineWidth = 2;
   ctx.stroke();
+  ctx.clip(); // recorta las pintas al contorno de la pelota
+
+  // pintas pentagonales simples, como un balón clásico, que giran con el rodado
+  ctx.fillStyle = "#222";
+  trazarPentagono(0, 0, ball.r*0.42, 0);
+  ctx.fill();
+  for (let i = 0; i < 5; i++) {
+    const ang = i * (Math.PI*2/5);
+    const cx = Math.cos(ang - Math.PI/2) * ball.r*0.62;
+    const cy = Math.sin(ang - Math.PI/2) * ball.r*0.62;
+    trazarPentagono(cx, cy, ball.r*0.34, ang);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 function dibujar(){
@@ -392,6 +454,7 @@ function bucle(ahora){
 
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
+  colisionJugadores();
   actualizarPelota(dt);
   actualizarPosesion();
   actualizarCamara(dt);
