@@ -61,24 +61,31 @@ canvas { display:block; }
 // ── Cámara: cuánto del mundo se ve horizontalmente ───────────
 const VIEW_W = 950;
 
-// ── Atributos de jugador (escala 0-100: 0 quieto/nulo, 100 el máximo de diseño) ──
-const VEL_DISENO_MAX = 260;   // unidades/seg cuando velocidad=100
-const ACEL_DISENO_MAX = 1400; // unidades/seg² cuando aceleración=100
-const GIRO_DISENO_MAX = 16;   // rad/seg cuando agilidad=100 (qué tan rápido gira para cambiar de dirección)
+// ── Atributos de jugador (escala 0-100: 0 nulo, 100 el máximo de diseño) ──
+const VEL_DISENO_MAX = 260;    // unidades/seg cuando velocidad=100
+const ACEL_DISENO_MAX = 1400;  // unidades/seg² cuando aceleración=100
+const GIRO_DISENO_MAX = 16;    // rad/seg cuando agilidad=100 (qué tan rápido gira para cambiar de dirección)
+
+// Control: qué tan pegada al jugador queda la pelota al dominarla.
+const CONTROL_OFFSET_MIN = 42, CONTROL_OFFSET_MAX = 60;   // distancia pelota-jugador, en la dirección hacia la que mira
+const CONTROL_FIRMEZA_MIN = 3, CONTROL_FIRMEZA_MAX = 14;  // qué tan rápido "alcanza" esa posición (más alto = más pegada)
+const RADIO_CAPTURA = 16;      // margen extra (sobre el contacto físico) para tomar una pelota suelta
 
 function crearJugador(color, oscuro, x, y){
   return {
     color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
-    velocidad:100, agilidad:100, aceleracion:100
+    velocidad:100, agilidad:100, aceleracion:100, control:100
   };
 }
 
 // ── Estado ──────────────────────────────────────────────────
 const players = [
   crearJugador("#4FA3FF", "#1E62B0", -160, 0),
-  crearJugador("#4FE0C0", "#1B8F73", 160, 0)
+  crearJugador("#4FA3FF", "#1E62B0", 160, 0)
 ];
 let activo = 0;
+let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
+let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 const ball = { x:-80, y:0, vx:0, vy:0, r:15 };
 const camera = { x:players[0].x, y:players[0].y };
 
@@ -87,6 +94,8 @@ function posicionInicial(){
   players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
   ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
   activo = 0;
+  conPelota = null;
+  ultimoPateador = null;
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -140,26 +149,26 @@ document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.p
 document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); pasar(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
 
+const VELOCIDAD_TIRO = 620, VELOCIDAD_PASE = 480;
+
+// Patear y pasar solo funcionan si el jugador activo domina la pelota en ese momento.
 function patear(){
+  if (conPelota !== activo) return;
   const p = players[activo];
-  const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-  if (d < p.r + ball.r + 18) {
-    ball.vx += p.dirX * 620;
-    ball.vy += p.dirY * 620;
-  }
+  ball.vx += p.dirX * VELOCIDAD_TIRO;
+  ball.vy += p.dirY * VELOCIDAD_TIRO;
+  conPelota = null;
+  ultimoPateador = activo;
 }
 
 function pasar(){
+  if (conPelota !== activo) return;
   const p = players[activo];
-  const compañero = players[1 - activo];
-  const d = Math.hypot(ball.x - p.x, ball.y - p.y);
-  if (d < p.r + ball.r + 18) {
-    const dx = compañero.x - p.x, dy = compañero.y - p.y;
-    const dist = Math.hypot(dx, dy) || 1;
-    ball.vx += dx/dist * 480;
-    ball.vy += dy/dist * 480;
-    activo = 1 - activo;
-  }
+  ball.vx += p.dirX * VELOCIDAD_PASE;
+  ball.vy += p.dirY * VELOCIDAD_PASE;
+  conPelota = null;
+  ultimoPateador = activo;
+  // El foco cambia de jugador cuando el compañero efectivamente la recibe (ver actualizarPosesion).
 }
 
 // ── Física ────────────────────────────────────────────────
@@ -204,22 +213,63 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
   p.x += p.vx * dt; p.y += p.vy * dt;
 }
 
-function actualizarBalon(dt){
-  const f = Math.max(0, 1 - FRICCION_BALON * dt);
-  ball.vx *= f; ball.vy *= f;
-  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+// El jugador sin la pelota (modo práctica) sigue al que la lleva, manteniéndose a unos metros.
+const DISTANCIA_SEGUIMIENTO = 90;
+function actualizarIA(dt){
+  const seguidor = players[1 - activo];
+  if (conPelota !== activo) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
+  const portador = players[activo];
+  const ddx = portador.x - seguidor.x, ddy = portador.y - seguidor.y;
+  const dist = Math.hypot(ddx, ddy);
+  if (dist <= DISTANCIA_SEGUIMIENTO) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
+  const pct = dist > 300 ? MARCHA_CORRER : MARCHA_TROTAR;
+  actualizarJugador(seguidor, ddx/dist, ddy/dist, pct, dt);
 }
 
-function colisionJugadorBalon(p){
-  const dx = ball.x - p.x, dy = ball.y - p.y;
-  const dist = Math.hypot(dx, dy) || 0.001;
-  const minDist = p.r + ball.r;
-  if (dist < minDist) {
-    const nx = dx/dist, ny = dy/dist;
-    const overlap = minDist - dist;
-    ball.x += nx * overlap; ball.y += ny * overlap;
-    ball.vx += nx * 90 + p.vx * 0.6;
-    ball.vy += ny * 90 + p.vy * 0.6;
+// Qué tan pegada queda la pelota al jugador que la domina, según su atributo "control".
+function nivelControl(control){
+  const t = control / 100;
+  return {
+    offset: CONTROL_OFFSET_MAX + (CONTROL_OFFSET_MIN - CONTROL_OFFSET_MAX) * t,
+    firmeza: CONTROL_FIRMEZA_MIN + (CONTROL_FIRMEZA_MAX - CONTROL_FIRMEZA_MIN) * t
+  };
+}
+
+function actualizarPelota(dt){
+  if (conPelota !== null) {
+    const p = players[conPelota];
+    const n = nivelControl(p.control);
+    const tx = p.x + p.dirX * n.offset, ty = p.y + p.dirY * n.offset;
+    const s = Math.min(1, n.firmeza * dt);
+    ball.x += (tx - ball.x) * s;
+    ball.y += (ty - ball.y) * s;
+    ball.vx = p.vx; ball.vy = p.vy;
+  } else {
+    const f = Math.max(0, 1 - FRICCION_BALON * dt);
+    ball.vx *= f; ball.vy *= f;
+    ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+  }
+}
+
+// Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
+// Quien la pateó/pasó no puede recuperarla hasta que la pelota salga al menos una vez de su radio.
+function actualizarPosesion(){
+  if (conPelota !== null) return;
+  if (ultimoPateador !== null) {
+    const p = players[ultimoPateador];
+    const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+    if (d > p.r + ball.r + RADIO_CAPTURA) ultimoPateador = null;
+  }
+  for (let i = 0; i < players.length; i++) {
+    if (i === ultimoPateador) continue;
+    const p = players[i];
+    const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+    if (d < p.r + ball.r + RADIO_CAPTURA) {
+      conPelota = i;
+      activo = i;
+      ultimoPateador = null;
+      break;
+    }
   }
 }
 
@@ -340,12 +390,10 @@ function bucle(ahora){
     dx = joyVec.dx; dy = joyVec.dy; pctMarcha = marchaDesdeMagnitud(magJoy).pct;
   }
 
-  players.forEach((p, i) => {
-    if (i === activo) actualizarJugador(p, dx, dy, pctMarcha, dt);
-    else actualizarJugador(p, 0, 0, 0, dt);
-  });
-  actualizarBalon(dt);
-  players.forEach(colisionJugadorBalon);
+  actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
+  actualizarIA(dt);
+  actualizarPelota(dt);
+  actualizarPosesion();
   actualizarCamara(dt);
   dibujar();
 
