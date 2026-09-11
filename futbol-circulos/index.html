@@ -606,10 +606,15 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
   if (moviendo) {
     dx /= len; dy /= len;
+    // La mirada (dirX/dirY) gira gradualmente según la agilidad — se usa para patear/pasar y
+    // para dónde queda la pelota al dominarla — pero el movimiento en sí NO la sigue: si la
+    // siguiera, al pedir la dirección contraria el jugador aceleraría siempre "hacia adelante"
+    // mientras la mirada gira, trazando un arco (como un auto dando la vuelta) en vez de frenar
+    // y salir para el otro lado. La aceleración apunta directo hacia donde se pide ir.
     girarHacia(p, dx, dy, GIRO_DISENO_MAX * (statsComunes.agilidad / 100) * factorAgilidadPorMarcha(marchaResultante), dt);
     const acel = ACEL_DISENO_MAX * (statsComunes.aceleracion / 100);
-    p.vx += p.dirX * acel * dt;
-    p.vy += p.dirY * acel * dt;
+    p.vx += dx * acel * dt;
+    p.vy += dy * acel * dt;
   } else {
     const f = Math.max(0, 1 - FRICCION_JUGADOR * dt);
     p.vx *= f; p.vy *= f;
