@@ -32,6 +32,11 @@ canvas { display:block; }
   background:rgba(255,213,74,.85); border:2px solid rgba(0,0,0,.3);
   color:#1a1a1a; font-weight:bold; font-size:14px;
 }
+#btn-pasar {
+  right:118px; bottom:58px; width:76px; height:76px; border-radius:50%;
+  background:rgba(79,224,192,.85); border:2px solid rgba(0,0,0,.3);
+  color:#0a2a22; font-weight:bold; font-size:13px;
+}
 #btn-reiniciar {
   top:14px; right:14px; padding:9px 14px; border-radius:8px; border:2px solid rgba(255,255,255,.4);
   background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
@@ -43,9 +48,10 @@ canvas { display:block; }
 
 <canvas id="c"></canvas>
 
-<div id="ayuda">Flechas: moverse · Espacio: patear</div>
+<div id="ayuda">Flechas: moverse · Espacio: patear · P: pasar</div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
 <div id="joystick" class="control"><div id="joystick-stick"></div></div>
+<button id="btn-pasar" class="control" type="button">Pasar</button>
 <button id="btn-patear" class="control" type="button">Patear</button>
 
 <script>
@@ -55,14 +61,32 @@ canvas { display:block; }
 // ── Cámara: cuánto del mundo se ve horizontalmente ───────────
 const VIEW_W = 950;
 
+// ── Atributos de jugador (escala 0-100: 0 quieto/nulo, 100 el máximo de diseño) ──
+const VEL_DISENO_MAX = 260;   // unidades/seg cuando velocidad=100
+const ACEL_DISENO_MAX = 1400; // unidades/seg² cuando aceleración=100
+const GIRO_DISENO_MAX = 16;   // rad/seg cuando agilidad=100 (qué tan rápido gira para cambiar de dirección)
+
+function crearJugador(color, oscuro, x, y){
+  return {
+    color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
+    velocidad:100, agilidad:100, aceleracion:100
+  };
+}
+
 // ── Estado ──────────────────────────────────────────────────
-const player = { color:"#4FA3FF", oscuro:"#1E62B0", x:-80, y:0, vx:0, vy:0, dirX:1, dirY:0, r:26 };
-const ball = { x:80, y:0, vx:0, vy:0, r:15 };
-const camera = { x:player.x, y:player.y };
+const players = [
+  crearJugador("#4FA3FF", "#1E62B0", -160, 0),
+  crearJugador("#4FE0C0", "#1B8F73", 160, 0)
+];
+let activo = 0;
+const ball = { x:-80, y:0, vx:0, vy:0, r:15 };
+const camera = { x:players[0].x, y:players[0].y };
 
 function posicionInicial(){
-  player.x = -80; player.y = 0; player.vx = player.vy = 0; player.dirX = 1; player.dirY = 0;
-  ball.x = 80; ball.y = 0; ball.vx = ball.vy = 0;
+  players[0].x = -160; players[0].y = 0; players[0].vx = players[0].vy = 0; players[0].dirX = 1; players[0].dirY = 0;
+  players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
+  ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
+  activo = 0;
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -70,6 +94,7 @@ const teclas = Object.create(null);
 window.addEventListener("keydown", e => {
   teclas[e.key.toLowerCase()] = true;
   if (e.key === " ") { e.preventDefault(); patear(); }
+  if (e.key.toLowerCase() === "p") { e.preventDefault(); pasar(); }
 });
 window.addEventListener("keyup", e => { teclas[e.key.toLowerCase()] = false; });
 
@@ -98,7 +123,7 @@ function joyDesdeEvento(e){
   dx = dx/dist*clamp; dy = dy/dist*clamp;
   joyStick.style.transform = `translate(${dx - 26}px, ${dy - 26}px)`;
   joyVec.dx = dx/max; joyVec.dy = dy/max;
-  joyStick.style.background = nivelDesdeMagnitud(dist/max).color;
+  joyStick.style.background = marchaDesdeMagnitud(dist/max).color;
 }
 function joySoltar(){
   joyPointerId = null; joyVec.dx = 0; joyVec.dy = 0;
@@ -112,45 +137,71 @@ joyBase.addEventListener("pointercancel", joySoltar);
 
 // ── Botones ───────────────────────────────────────────────
 document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.preventDefault(); patear(); });
+document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); pasar(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
 
 function patear(){
-  const d = Math.hypot(ball.x - player.x, ball.y - player.y);
-  if (d < player.r + ball.r + 18) {
-    ball.vx += player.dirX * 620;
-    ball.vy += player.dirY * 620;
+  const p = players[activo];
+  const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+  if (d < p.r + ball.r + 18) {
+    ball.vx += p.dirX * 620;
+    ball.vy += p.dirY * 620;
+  }
+}
+
+function pasar(){
+  const p = players[activo];
+  const compañero = players[1 - activo];
+  const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+  if (d < p.r + ball.r + 18) {
+    const dx = compañero.x - p.x, dy = compañero.y - p.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    ball.vx += dx/dist * 480;
+    ball.vy += dy/dist * 480;
+    activo = 1 - activo;
   }
 }
 
 // ── Física ────────────────────────────────────────────────
-const ACEL = 1400, FRICCION_JUGADOR = 6;
-const FRICCION_BALON = 1.1;
+const FRICCION_JUGADOR = 6, FRICCION_BALON = 1.1;
 
-// Niveles de desplazamiento del joystick: caminar / trotar / correr.
+// Marchas del joystick: caminar / trotar / correr, como % del tope de velocidad del jugador.
 // El teclado (flechas) siempre corre, porque es una entrada de todo o nada.
-const VEL_CAMINAR = 110, VEL_TROTAR = 185, VEL_CORRER = 260;
+const MARCHA_CAMINAR = 42, MARCHA_TROTAR = 71, MARCHA_CORRER = 100;
 const UMBRAL_TROTAR = 0.4, UMBRAL_CORRER = 0.75;
 
-function nivelDesdeMagnitud(m){
-  if (m < UMBRAL_TROTAR) return { nombre:"caminar", velMax:VEL_CAMINAR, color:"rgba(255,255,255,.55)" };
-  if (m < UMBRAL_CORRER) return { nombre:"trotar", velMax:VEL_TROTAR, color:"rgba(255,255,255,.85)" };
-  return { nombre:"correr", velMax:VEL_CORRER, color:"rgba(255,213,74,.9)" };
+function marchaDesdeMagnitud(m){
+  if (m < UMBRAL_TROTAR) return { nombre:"caminar", pct:MARCHA_CAMINAR, color:"rgba(255,255,255,.55)" };
+  if (m < UMBRAL_CORRER) return { nombre:"trotar", pct:MARCHA_TROTAR, color:"rgba(255,255,255,.85)" };
+  return { nombre:"correr", pct:MARCHA_CORRER, color:"rgba(255,213,74,.9)" };
 }
 
-function actualizarJugador(dx, dy, velMax, dt){
+// Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
+function girarHacia(p, dx, dy, giroMax, dt){
+  const anguloActual = Math.atan2(p.dirY, p.dirX);
+  const anguloObjetivo = Math.atan2(dy, dx);
+  let diff = Math.atan2(Math.sin(anguloObjetivo - anguloActual), Math.cos(anguloObjetivo - anguloActual));
+  const paso = Math.max(-giroMax * dt, Math.min(giroMax * dt, diff));
+  const nuevo = anguloActual + paso;
+  p.dirX = Math.cos(nuevo); p.dirY = Math.sin(nuevo);
+}
+
+function actualizarJugador(p, dx, dy, pctMarcha, dt){
   const len = Math.hypot(dx, dy);
   if (len > 0.05) {
     dx /= len; dy /= len;
-    player.dirX = dx; player.dirY = dy;
-    player.vx += dx * ACEL * dt;
-    player.vy += dy * ACEL * dt;
+    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (p.agilidad / 100), dt);
+    const acel = ACEL_DISENO_MAX * (p.aceleracion / 100);
+    p.vx += p.dirX * acel * dt;
+    p.vy += p.dirY * acel * dt;
   } else {
     const f = Math.max(0, 1 - FRICCION_JUGADOR * dt);
-    player.vx *= f; player.vy *= f;
+    p.vx *= f; p.vy *= f;
   }
-  const vel = Math.hypot(player.vx, player.vy);
-  if (vel > velMax) { player.vx = player.vx/vel*velMax; player.vy = player.vy/vel*velMax; }
-  player.x += player.vx * dt; player.y += player.vy * dt;
+  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (pctMarcha / 100);
+  const vel = Math.hypot(p.vx, p.vy);
+  if (vel > velTope) { p.vx = p.vx/vel*velTope; p.vy = p.vy/vel*velTope; }
+  p.x += p.vx * dt; p.y += p.vy * dt;
 }
 
 function actualizarBalon(dt){
@@ -159,24 +210,25 @@ function actualizarBalon(dt){
   ball.x += ball.vx * dt; ball.y += ball.vy * dt;
 }
 
-function colisionJugadorBalon(){
-  const dx = ball.x - player.x, dy = ball.y - player.y;
+function colisionJugadorBalon(p){
+  const dx = ball.x - p.x, dy = ball.y - p.y;
   const dist = Math.hypot(dx, dy) || 0.001;
-  const minDist = player.r + ball.r;
+  const minDist = p.r + ball.r;
   if (dist < minDist) {
     const nx = dx/dist, ny = dy/dist;
     const overlap = minDist - dist;
     ball.x += nx * overlap; ball.y += ny * overlap;
-    ball.vx += nx * 90 + player.vx * 0.6;
-    ball.vy += ny * 90 + player.vy * 0.6;
+    ball.vx += nx * 90 + p.vx * 0.6;
+    ball.vy += ny * 90 + p.vy * 0.6;
   }
 }
 
 // ── Cámara ────────────────────────────────────────────────
 function actualizarCamara(dt){
+  const objetivo = players[activo];
   const suavizado = 1 - Math.pow(0.001, dt);
-  camera.x += (player.x - camera.x) * suavizado;
-  camera.y += (player.y - camera.y) * suavizado;
+  camera.x += (objetivo.x - camera.x) * suavizado;
+  camera.y += (objetivo.y - camera.y) * suavizado;
 }
 
 // ── Dibujo ────────────────────────────────────────────────
@@ -220,22 +272,32 @@ function dibujarCancha(){
   ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
 }
 
-function dibujarJugador(){
+function dibujarJugador(p, esActivo){
   ctx.beginPath();
-  ctx.arc(player.x, player.y, player.r, 0, Math.PI*2);
-  ctx.fillStyle = player.color;
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+  ctx.fillStyle = p.color;
   ctx.fill();
   ctx.lineWidth = 4;
-  ctx.strokeStyle = player.oscuro;
+  ctx.strokeStyle = p.oscuro;
   ctx.stroke();
 
-  // indicador de hacia dónde mira (para entender el pateo)
+  // indicador de hacia dónde mira (para entender el pateo/pase)
   ctx.beginPath();
-  ctx.moveTo(player.x, player.y);
-  ctx.lineTo(player.x + player.dirX * (player.r + 10), player.y + player.dirY * (player.r + 10));
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(p.x + p.dirX * (p.r + 10), p.y + p.dirY * (p.r + 10));
   ctx.strokeStyle = "rgba(255,255,255,.9)";
   ctx.lineWidth = 3;
   ctx.stroke();
+
+  if (esActivo) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r + 8, 0, Math.PI*2);
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5,4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }
 
 function dibujarBalon(){
@@ -256,7 +318,7 @@ function dibujar(){
   ctx.translate(VIEW_W/2 - camera.x, viewH/2 - camera.y);
 
   dibujarCancha();
-  dibujarJugador();
+  players.forEach((p, i) => dibujarJugador(p, i === activo));
   dibujarBalon();
 
   ctx.restore();
@@ -271,16 +333,19 @@ function bucle(ahora){
 
   const t = direccionTeclado();
   const magJoy = Math.min(1, Math.hypot(joyVec.dx, joyVec.dy));
-  let dx, dy, velMax;
+  let dx, dy, pctMarcha;
   if (Math.hypot(t.dx, t.dy) > 0.05) {
-    dx = t.dx; dy = t.dy; velMax = VEL_CORRER;
+    dx = t.dx; dy = t.dy; pctMarcha = MARCHA_CORRER;
   } else {
-    dx = joyVec.dx; dy = joyVec.dy; velMax = nivelDesdeMagnitud(magJoy).velMax;
+    dx = joyVec.dx; dy = joyVec.dy; pctMarcha = marchaDesdeMagnitud(magJoy).pct;
   }
 
-  actualizarJugador(dx, dy, velMax, dt);
+  players.forEach((p, i) => {
+    if (i === activo) actualizarJugador(p, dx, dy, pctMarcha, dt);
+    else actualizarJugador(p, 0, 0, 0, dt);
+  });
   actualizarBalon(dt);
-  colisionJugadorBalon();
+  players.forEach(colisionJugadorBalon);
   actualizarCamara(dt);
   dibujar();
 
