@@ -29,6 +29,18 @@ canvas { display:block; }
 }
 #gol.mostrar { opacity:1; }
 
+/* Cartel de "¡ATAJADA!" cuando el arquero atrapa la pelota (mismo mecanismo que #gol) */
+#atajada {
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; z-index:6; opacity:0; transition:opacity .15s;
+}
+#atajada span {
+  font-size:clamp(40px,12vw,90px); font-weight:900; color:#5AD1FF;
+  text-shadow:0 0 14px rgba(0,0,0,.8), 0 0 30px rgba(90,209,255,.6);
+  letter-spacing:.04em; transform:rotate(-6deg);
+}
+#atajada.mostrar { opacity:1; }
+
 /* Controles en pantalla */
 .control { position:fixed; z-index:8; }
 #joystick {
@@ -118,6 +130,7 @@ canvas { display:block; }
 
 <div id="ayuda">Flechas: moverse · A (mantener): cargar tiro · S (mantener): cargar pase · Goles: <span id="goles">0</span></div>
 <div id="gol"><span>¡GOL!</span></div>
+<div id="atajada"><span>¡ATAJADA!</span></div>
 <div id="panel-parametros" hidden></div>
 <div id="panel-stats"><h3>Stats del equipo</h3></div>
 <button id="btn-parametros" class="control" type="button">Vars</button>
@@ -921,7 +934,7 @@ function anotarGol(){
 }
 
 function revisarGol(){
-  if (mostrandoGol) return;
+  if (mostrandoGol || mostrandoAtajada) return;
   if (ball.x > ARCO_X && dentroDelArco(ball.y)) anotarGol();
 }
 
@@ -939,7 +952,7 @@ function fueraDeLaCancha(x, y){
 }
 
 function revisarLimites(){
-  if (mostrandoGol) return;
+  if (mostrandoGol || mostrandoAtajada) return;
   if (fueraDeLaCancha(ball.x, ball.y)) posicionInicial();
 }
 
@@ -955,8 +968,9 @@ const ARQUERO_INICIAL = { x: ARCO_X - 20, y: 0, dirX: -1, dirY: 0 };
 // Stats propios del arquero: no comparte los del equipo de campo (statsComunes). "Colocación"
 // define qué tan de cerca sigue el ángulo de la pelota bajo los palos (100 = pegado a la pelota;
 // menos, se queda más centrado y cubre peor los palos); "reflejos" define qué tan rápido
-// reacciona y se mueve dentro del área.
-const arqueroStats = { colocacion: 100, reflejos: 100 };
+// reacciona y se mueve dentro del área; "control" define qué tan seguido ataja atrapando la
+// pelota en vez de solo darle rebote (ver colisionArquero).
+const arqueroStats = { colocacion: 100, reflejos: 100, control: 100 };
 
 function dentroDelArea(x, y){
   return x >= AREA_X_MIN && x <= AREA_X_MAX && Math.abs(y) <= AREA_ANCHO / 2;
@@ -998,6 +1012,67 @@ function actualizarArquero(dt){
   // Nunca se sale de su área, pase lo que pase con el movimiento de arriba.
   arquero.x = Math.max(AREA_X_MIN, Math.min(AREA_X_MAX, arquero.x));
   arquero.y = Math.max(-AREA_ANCHO/2, Math.min(AREA_ANCHO/2, arquero.y));
+}
+
+// ── Atajadas ──────────────────────────────────────────────────
+// Si la pelota (suelta, sin dueño) toca al arquero, ataja: según su "control", la atrapa (termina
+// la jugada; como un gol al revés, se reinicia sin sumar nada) o solo le da rebote (sigue suelta,
+// en juego, para una eventual segunda jugada). La colisión es continua (contra el segmento
+// recorrido en el cuadro, igual que colisionPostes): a la potencia de los tiros, comprobar solo
+// la posición final dejaría pasar de largo tiros que el arquero nunca llegaría a tocar.
+let mostrandoAtajada = false;
+const divAtajada = document.getElementById("atajada");
+
+function atajarAtrapando(){
+  if (mostrandoGol || mostrandoAtajada) return; // no volver a atajar mientras se muestra el cartel
+  mostrandoAtajada = true;
+  ball.vx = 0; ball.vy = 0;
+  divAtajada.classList.add("mostrar");
+  setTimeout(() => {
+    divAtajada.classList.remove("mostrar");
+    posicionInicial();
+    mostrandoAtajada = false;
+  }, 1200);
+}
+
+function atajarConRebote(nx, ny){
+  const vNormal = ball.vx * nx + ball.vy * ny;
+  ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
+  ball.vx *= 0.6; ball.vy *= 0.6; // pierde fuerza en el rebote
+}
+
+function colisionArquero(prevX, prevY){
+  if (mostrandoGol || mostrandoAtajada) return;
+  if (conPelota !== null || conPelotaRival) return; // ya la tiene alguien, no hay nada que atajar
+
+  const minDist = arquero.r + ball.r;
+  const dx = ball.x - prevX, dy = ball.y - prevY; // recorrido de la pelota en este cuadro
+  const fx = prevX - arquero.x, fy = prevY - arquero.y;
+  const a = dx*dx + dy*dy;
+
+  let t = null; // instante [0,1] del recorrido en que toca al arquero, si lo toca
+  if (a < 1e-9) {
+    if (Math.hypot(ball.x - arquero.x, ball.y - arquero.y) < minDist) t = 1;
+  } else {
+    const b = 2 * (fx*dx + fy*dy);
+    const c = fx*fx + fy*fy - minDist*minDist;
+    const disc = b*b - 4*a*c;
+    if (disc >= 0) {
+      const raiz = Math.sqrt(disc);
+      const t0 = (-b - raiz) / (2*a);
+      if (t0 >= 0 && t0 <= 1) t = t0; // primer cruce del círculo del arquero
+      else if (Math.hypot(ball.x - arquero.x, ball.y - arquero.y) < minDist) t = 1; // ya termina adentro
+    }
+  }
+  if (t === null) return;
+
+  const cx = prevX + dx*t, cy = prevY + dy*t; // punto de contacto sobre el arquero
+  const dist = Math.hypot(cx - arquero.x, cy - arquero.y) || 0.001;
+  const nx = (cx - arquero.x) / dist, ny = (cy - arquero.y) / dist;
+  ball.x = arquero.x + nx * minDist; ball.y = arquero.y + ny * minDist;
+
+  if (Math.random() < arqueroStats.control / 100) atajarAtrapando();
+  else atajarConRebote(nx, ny);
 }
 
 // Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan (revisa cada par).
@@ -1353,6 +1428,7 @@ function bucle(ahora){
   const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
   colisionPostes(ballXAntes, ballYAntes);
+  colisionArquero(ballXAntes, ballYAntes);
   colisionMalla(dt);
   revisarGol();
   revisarLimites();
@@ -1393,7 +1469,7 @@ function actualizarPanelParametros(){
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Límites de cancha", "x: " + CANCHA_X_MIN + " a " + CANCHA_X_MAX + ", y: ±" + CANCHA_Y_LIMITE],
     ["Área del arquero", "x: " + AREA_X_MIN + " a " + AREA_X_MAX + ", ancho " + AREA_ANCHO + "u"],
-    ["Arquero", "colocación " + arqueroStats.colocacion + ", reflejos " + arqueroStats.reflejos],
+    ["Arquero", "colocación " + arqueroStats.colocacion + ", reflejos " + arqueroStats.reflejos + ", control " + arqueroStats.control],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
