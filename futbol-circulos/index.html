@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Prototipo de fútbol</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+html, body {
+  width:100%; height:100%; overflow:hidden; background:#0a0a0a;
+  touch-action:none; font-family:Arial,Helvetica,sans-serif;
+}
+canvas { display:block; }
+
+#hud {
+  position:fixed; top:0; left:0; right:0; display:flex; justify-content:center;
+  padding:10px 0; pointer-events:none; z-index:5;
+}
+#marcador {
+  background:rgba(0,0,0,.55); color:#fff; padding:8px 22px; border-radius:10px;
+  font-weight:bold; font-size:clamp(16px,4vw,22px); letter-spacing:.03em;
+  display:flex; gap:10px; align-items:center;
+}
+#marcador .azul { color:#4FA3FF; }
+#marcador .rojo { color:#FF6B6B; }
+
+#ayuda {
+  position:fixed; top:56px; left:0; right:0; text-align:center; pointer-events:none;
+  color:rgba(255,255,255,.75); font-size:12px; z-index:5; padding:0 10px;
+}
+
+#gol {
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; z-index:6; opacity:0; transition:opacity .15s;
+}
+#gol span {
+  font-size:clamp(40px,12vw,90px); font-weight:900; color:#FFD54A;
+  text-shadow:0 0 14px rgba(0,0,0,.8), 0 0 30px rgba(255,213,74,.6);
+  letter-spacing:.04em; transform:rotate(-6deg);
+}
+#gol.show { opacity:1; }
+
+/* Controles en pantalla */
+.control { position:fixed; z-index:8; }
+#joystick {
+  left:22px; bottom:22px; width:120px; height:120px; border-radius:50%;
+  background:rgba(255,255,255,.10); border:2px solid rgba(255,255,255,.35);
+}
+#joystick-stick {
+  position:absolute; left:50%; top:50%; width:52px; height:52px; border-radius:50%;
+  background:rgba(255,255,255,.55); transform:translate(-50%,-50%);
+}
+#btn-patear {
+  right:26px; bottom:34px; width:92px; height:92px; border-radius:50%;
+  background:rgba(255,213,74,.85); border:2px solid rgba(0,0,0,.3);
+  color:#1a1a1a; font-weight:bold; font-size:14px;
+}
+#btn-cambiar, #btn-reiniciar {
+  top:14px; padding:9px 14px; border-radius:8px; border:2px solid rgba(255,255,255,.4);
+  background:rgba(0,0,0,.5); color:#fff; font-weight:bold; font-size:12px;
+}
+#btn-cambiar { right:14px; }
+#btn-reiniciar { left:14px; }
+.control:active { filter:brightness(1.25); }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud"><div id="marcador"><span class="azul">Azul 0</span><span>—</span><span class="rojo">0 Rojo</span></div></div>
+<div id="ayuda">WASD / flechas: moverse · Espacio: patear · Tab: cambiar de jugador</div>
+<div id="gol"><span>¡GOL!</span></div>
+
+<button id="btn-cambiar" class="control" type="button">Cambiar jugador</button>
+<button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
+<div id="joystick" class="control"><div id="joystick-stick"></div></div>
+<button id="btn-patear" class="control" type="button">Patear</button>
+
+<script>
+(function(){
+"use strict";
+
+// ── Cancha (en unidades de mundo) ──────────────────────────
+const FIELD_W = 1700, FIELD_H = 1000;
+const GOAL_W = 220, GOAL_DEPTH = 60;
+const VIEW_W = 950; // cuánto del mundo se ve horizontalmente: fuerza a que la cámara tenga que moverse
+
+// ── Estado ──────────────────────────────────────────────────
+const players = [
+  { nombre:"azul", color:"#4FA3FF", oscuro:"#1E62B0", x:FIELD_W*0.35, y:FIELD_H/2, vx:0, vy:0, dirX:1, dirY:0, r:26 },
+  { nombre:"rojo", color:"#FF6B6B", oscuro:"#B03030", x:FIELD_W*0.65, y:FIELD_H/2, vx:0, vy:0, dirX:-1, dirY:0, r:26 }
+];
+let activo = 0;
+const ball = { x:FIELD_W/2, y:FIELD_H/2, vx:0, vy:0, r:15 };
+const marcador = { azul:0, rojo:0 };
+const camera = { x:FIELD_W/2, y:FIELD_H/2 };
+
+function posicionesDeSaque(){
+  players[0].x = FIELD_W*0.35; players[0].y = FIELD_H/2; players[0].vx = players[0].vy = 0;
+  players[1].x = FIELD_W*0.65; players[1].y = FIELD_H/2; players[1].vx = players[1].vy = 0;
+  ball.x = FIELD_W/2; ball.y = FIELD_H/2; ball.vx = ball.vy = 0;
+}
+
+// ── Entradas: teclado ───────────────────────────────────────
+const teclas = Object.create(null);
+window.addEventListener("keydown", e => {
+  teclas[e.key.toLowerCase()] = true;
+  if (e.key === "Tab") { e.preventDefault(); cambiarJugador(); }
+  if (e.key === " ") { e.preventDefault(); patear(); }
+});
+window.addEventListener("keyup", e => { teclas[e.key.toLowerCase()] = false; });
+
+function direccionTeclado(){
+  let dx = 0, dy = 0;
+  if (teclas["a"] || teclas["arrowleft"]) dx -= 1;
+  if (teclas["d"] || teclas["arrowright"]) dx += 1;
+  if (teclas["w"] || teclas["arrowup"]) dy -= 1;
+  if (teclas["s"] || teclas["arrowdown"]) dy += 1;
+  return { dx, dy };
+}
+
+// ── Entradas: joystick táctil ────────────────────────────────
+const joyBase = document.getElementById("joystick");
+const joyStick = document.getElementById("joystick-stick");
+let joyVec = { dx:0, dy:0 };
+let joyPointerId = null;
+
+function joyDesdeEvento(e){
+  const rect = joyBase.getBoundingClientRect();
+  const cx = rect.left + rect.width/2, cy = rect.top + rect.height/2;
+  const max = rect.width/2;
+  let dx = e.clientX - cx, dy = e.clientY - cy;
+  const dist = Math.hypot(dx, dy) || 1;
+  const clamp = Math.min(dist, max);
+  dx = dx/dist*clamp; dy = dy/dist*clamp;
+  joyStick.style.transform = `translate(${dx - 26}px, ${dy - 26}px)`;
+  joyVec.dx = dx/max; joyVec.dy = dy/max;
+}
+function joySoltar(){
+  joyPointerId = null; joyVec.dx = 0; joyVec.dy = 0;
+  joyStick.style.transform = "translate(-50%,-50%)";
+}
+joyBase.addEventListener("pointerdown", e => { joyPointerId = e.pointerId; joyBase.setPointerCapture(e.pointerId); joyDesdeEvento(e); });
+joyBase.addEventListener("pointermove", e => { if (e.pointerId === joyPointerId) joyDesdeEvento(e); });
+joyBase.addEventListener("pointerup", joySoltar);
+joyBase.addEventListener("pointercancel", joySoltar);
+
+// ── Botones ───────────────────────────────────────────────
+document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.preventDefault(); patear(); });
+document.getElementById("btn-cambiar").addEventListener("pointerdown", e => { e.preventDefault(); cambiarJugador(); });
+document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionesDeSaque(); });
+
+function cambiarJugador(){ activo = 1 - activo; }
+
+function patear(){
+  const p = players[activo];
+  const d = Math.hypot(ball.x - p.x, ball.y - p.y);
+  if (d < p.r + ball.r + 18) {
+    ball.vx += p.dirX * 620;
+    ball.vy += p.dirY * 620;
+  }
+}
+
+// ── Física ────────────────────────────────────────────────
+const ACEL = 1400, FRICCION_JUGADOR = 6, VEL_MAX = 260;
+const FRICCION_BALON = 1.1, REBOTE = 0.55;
+
+function actualizarJugador(p, dx, dy, dt){
+  const len = Math.hypot(dx, dy);
+  if (len > 0.05) {
+    dx /= len; dy /= len;
+    p.dirX = dx; p.dirY = dy;
+    p.vx += dx * ACEL * dt;
+    p.vy += dy * ACEL * dt;
+  } else {
+    const f = Math.max(0, 1 - FRICCION_JUGADOR * dt);
+    p.vx *= f; p.vy *= f;
+  }
+  const vel = Math.hypot(p.vx, p.vy);
+  if (vel > VEL_MAX) { p.vx = p.vx/vel*VEL_MAX; p.vy = p.vy/vel*VEL_MAX; }
+  p.x += p.vx * dt; p.y += p.vy * dt;
+  p.x = Math.max(p.r, Math.min(FIELD_W - p.r, p.x));
+  p.y = Math.max(p.r, Math.min(FIELD_H - p.r, p.y));
+}
+
+function dentroDelArco(y){ return Math.abs(y - FIELD_H/2) < GOAL_W/2; }
+
+function actualizarBalon(dt){
+  const f = Math.max(0, 1 - FRICCION_BALON * dt);
+  ball.vx *= f; ball.vy *= f;
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt;
+
+  if (dentroDelArco(ball.y)) {
+    if (ball.x < -GOAL_DEPTH + ball.r) { ball.x = -GOAL_DEPTH + ball.r; ball.vx *= -REBOTE; }
+    if (ball.x > FIELD_W + GOAL_DEPTH - ball.r) { ball.x = FIELD_W + GOAL_DEPTH - ball.r; ball.vx *= -REBOTE; }
+    if (ball.x < 0 && ball.x - ball.r < -GOAL_DEPTH + 4) anotarGol("rojo");
+    if (ball.x > FIELD_W && ball.x + ball.r > FIELD_W + GOAL_DEPTH - 4) anotarGol("azul");
+  } else {
+    if (ball.x < ball.r) { ball.x = ball.r; ball.vx *= -REBOTE; }
+    if (ball.x > FIELD_W - ball.r) { ball.x = FIELD_W - ball.r; ball.vx *= -REBOTE; }
+  }
+  if (ball.y < ball.r) { ball.y = ball.r; ball.vy *= -REBOTE; }
+  if (ball.y > FIELD_H - ball.r) { ball.y = FIELD_H - ball.r; ball.vy *= -REBOTE; }
+}
+
+let bloqueoGol = false;
+function anotarGol(equipo){
+  if (bloqueoGol) return;
+  bloqueoGol = true;
+  marcador[equipo]++;
+  document.querySelector("#marcador .azul").textContent = "Azul " + marcador.azul;
+  document.querySelector("#marcador .rojo").textContent = marcador.rojo + " Rojo";
+  const golDiv = document.getElementById("gol");
+  golDiv.classList.add("show");
+  setTimeout(() => {
+    golDiv.classList.remove("show");
+    posicionesDeSaque();
+    bloqueoGol = false;
+  }, 1100);
+}
+
+function colisionJugadorBalon(p){
+  const dx = ball.x - p.x, dy = ball.y - p.y;
+  const dist = Math.hypot(dx, dy) || 0.001;
+  const minDist = p.r + ball.r;
+  if (dist < minDist) {
+    const nx = dx/dist, ny = dy/dist;
+    const overlap = minDist - dist;
+    ball.x += nx * overlap; ball.y += ny * overlap;
+    ball.vx += nx * 90 + p.vx * 0.6;
+    ball.vy += ny * 90 + p.vy * 0.6;
+  }
+}
+
+// ── Cámara ────────────────────────────────────────────────
+function actualizarCamara(dt){
+  const objetivoX = ball.x, objetivoY = ball.y;
+  const suavizado = 1 - Math.pow(0.001, dt);
+  camera.x += (objetivoX - camera.x) * suavizado;
+  camera.y += (objetivoY - camera.y) * suavizado;
+}
+
+// ── Dibujo ────────────────────────────────────────────────
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+let scale = 1, viewH = 600;
+
+function ajustarTamano(){
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  scale = canvas.width / VIEW_W;
+  viewH = canvas.height / scale;
+}
+window.addEventListener("resize", ajustarTamano);
+ajustarTamano();
+
+function dibujarCancha(){
+  const franjaAncho = 100;
+  for (let x = -GOAL_DEPTH; x < FIELD_W + GOAL_DEPTH; x += franjaAncho) {
+    ctx.fillStyle = (Math.floor((x + GOAL_DEPTH) / franjaAncho) % 2 === 0) ? "#2E7D32" : "#33862F";
+    ctx.fillRect(x, 0, franjaAncho, FIELD_H);
+  }
+
+  ctx.strokeStyle = "rgba(255,255,255,.85)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, FIELD_W, FIELD_H);
+
+  ctx.beginPath();
+  ctx.moveTo(FIELD_W/2, 0); ctx.lineTo(FIELD_W/2, FIELD_H);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(FIELD_W/2, FIELD_H/2, 95, 0, Math.PI*2);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,.85)";
+  ctx.beginPath(); ctx.arc(FIELD_W/2, FIELD_H/2, 4, 0, Math.PI*2); ctx.fill();
+
+  // áreas
+  ctx.strokeRect(0, FIELD_H/2 - 260, 200, 520);
+  ctx.strokeRect(FIELD_W - 200, FIELD_H/2 - 260, 200, 520);
+
+  // arcos (postes + red)
+  ctx.fillStyle = "rgba(255,255,255,.18)";
+  ctx.fillRect(-GOAL_DEPTH, FIELD_H/2 - GOAL_W/2, GOAL_DEPTH, GOAL_W);
+  ctx.fillRect(FIELD_W, FIELD_H/2 - GOAL_W/2, GOAL_DEPTH, GOAL_W);
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 6;
+  ctx.strokeRect(-GOAL_DEPTH, FIELD_H/2 - GOAL_W/2, GOAL_DEPTH, GOAL_W);
+  ctx.strokeRect(FIELD_W, FIELD_H/2 - GOAL_W/2, GOAL_DEPTH, GOAL_W);
+}
+
+function dibujarJugador(p, esActivo){
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+  ctx.fillStyle = p.color;
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = p.oscuro;
+  ctx.stroke();
+
+  // indicador de hacia dónde mira (para entender el pateo)
+  ctx.beginPath();
+  ctx.moveTo(p.x, p.y);
+  ctx.lineTo(p.x + p.dirX * (p.r + 10), p.y + p.dirY * (p.r + 10));
+  ctx.strokeStyle = "rgba(255,255,255,.9)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  if (esActivo) {
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r + 8, 0, Math.PI*2);
+    ctx.strokeStyle = "rgba(255,255,255,.9)";
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([5,4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function dibujarBalon(){
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+  ctx.fillStyle = "#F5F5F0";
+  ctx.fill();
+  ctx.strokeStyle = "#222"; ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function dibujar(){
+  ctx.fillStyle = "#0a0a0a";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.translate(VIEW_W/2 - camera.x, viewH/2 - camera.y);
+
+  dibujarCancha();
+  players.forEach((p, i) => dibujarJugador(p, i === activo));
+  dibujarBalon();
+
+  ctx.restore();
+}
+
+// ── Bucle principal ─────────────────────────────────────────
+let ultimo = performance.now();
+function bucle(ahora){
+  let dt = (ahora - ultimo) / 1000;
+  ultimo = ahora;
+  dt = Math.min(dt, 1/30);
+
+  const t = direccionTeclado();
+  const dx = t.dx + joyVec.dx, dy = t.dy + joyVec.dy;
+
+  players.forEach((p, i) => {
+    if (i === activo) actualizarJugador(p, dx, dy, dt);
+    else actualizarJugador(p, 0, 0, dt);
+  });
+  actualizarBalon(dt);
+  players.forEach(colisionJugadorBalon);
+  actualizarCamara(dt);
+  dibujar();
+
+  requestAnimationFrame(bucle);
+}
+posicionesDeSaque();
+requestAnimationFrame(bucle);
+
+})();
+</script>
+</body>
+</html>
