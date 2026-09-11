@@ -259,7 +259,7 @@ const FORMACION_INICIAL = [
   { x:200, y:0, dirX:-1, dirY:0 }
 ];
 
-// ── Rival (solo intercepta pases, nada más: no marca, no presiona, no ataca) ──────────────
+// ── Rival (intercepta pases y marca de cerca al portador, nada más: no presiona, no ataca) ──
 const rival = crearJugador("#E64A4A", "#B23030");
 const RIVAL_INICIAL = { x:180, y:70, dirX:-1, dirY:0 };
 
@@ -356,8 +356,8 @@ document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
 });
 
 // Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
-const TIRO_POTENCIA_DISENO_MAX = 620;
 const PASE_POTENCIA_DISENO_MAX = 600; // el pase no tiene stat de potencia: la maneja la carga
+const TIRO_POTENCIA_DISENO_MAX = PASE_POTENCIA_DISENO_MAX * 3; // el tiro debe ser bastante más fuerte que el pase
 // Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
 // cuando la precisión efectiva es 0. Con 100 no hay desvío.
 const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
@@ -626,19 +626,38 @@ function actualizarIA(dt){
   });
 }
 
-// El rival solo hace una cosa: mientras un pase (o tiro) va en el aire, corre a interceptarlo,
-// apuntando un poco adelantado a hacia dónde va la pelota. El resto del tiempo se queda quieto:
-// no marca, no presiona a quien tiene la pelota, no ataca.
-const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apunta al camino de la pelota
+// El rival hace dos cosas nada más: mientras un pase (o tiro) va en el aire, corre a
+// interceptarlo, apuntando un poco adelantado a hacia dónde va la pelota; y si no hay ningún
+// pase en vuelo, sigue de cerca a quien tiene la pelota (marca), sin acercarse tanto como para
+// quedar pegado (no hay quite todavía, solo achica el espacio). Sin pase en vuelo y sin nadie
+// en posesión (pelota suelta parada, o entre que se corta un pase y alguien la recupera) se
+// queda quieto: no persigue la pelota suelta por su cuenta.
+const RIVAL_ANTICIPO = 0.25;     // segundos de adelanto con que apunta al camino de la pelota
+const RIVAL_MARCA_DISTANCIA = 60; // qué tan cerca se deja estar del portador antes de frenar
 
 function actualizarRival(dt){
   const paseEnVuelo = conPelota === null && direccionEnvio !== null;
-  if (!paseEnVuelo) { actualizarJugador(rival, 0, 0, 0, dt); return; }
+  if (paseEnVuelo) {
+    const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
+    const dx = objX - rival.x, dy = objY - rival.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+    return;
+  }
 
-  const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
-  const dx = objX - rival.x, dy = objY - rival.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+  if (conPelota !== null) {
+    const portador = players[conPelota];
+    const dx = portador.x - rival.x, dy = portador.y - rival.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    if (dist > RIVAL_MARCA_DISTANCIA) {
+      actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+    } else {
+      actualizarJugador(rival, 0, 0, 0, dt);
+    }
+    return;
+  }
+
+  actualizarJugador(rival, 0, 0, 0, dt);
 }
 
 // Si el rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
@@ -1131,7 +1150,7 @@ function actualizarPanelParametros(){
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
-    ["Rival", "solo intercepta pases, anticipa " + RIVAL_ANTICIPO + "s"],
+    ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca al portador a " + RIVAL_MARCA_DISTANCIA + "u"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
