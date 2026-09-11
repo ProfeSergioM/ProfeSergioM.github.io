@@ -57,11 +57,15 @@ canvas { display:block; }
   width:18px; height:18px; border-radius:50%; background:#4FA3FF; color:#08243f;
   font-weight:bold; font-size:11px; flex:none;
 }
-.stat-fila { margin-bottom:5px; }
+/* Atributos fijos (no se gastan): solo nombre y valor, sin barra */
+.stat-fila-simple { display:flex; justify-content:space-between; opacity:.85; margin-bottom:3px; }
+.stat-fila-simple .stat-valor { color:#fff; font-weight:bold; }
+
+/* Recursos que se gastan y se recuperan jugando: con barra */
+.stat-fila { margin-top:8px; margin-bottom:5px; }
 .stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:2px; }
 .stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
-.stat-relleno { height:100%; background:#4FE0C0; }
-.stat-fila.recurso .stat-relleno { background:#FFB454; }
+.stat-relleno { height:100%; background:#FFB454; }
 
 /* Panel con las variables/constantes del motor que estamos afinando */
 #panel-parametros {
@@ -109,6 +113,7 @@ function crearJugador(color, oscuro, x, y){
   return {
     color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
     velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100, resistencia:100,
+    potenciaTiro:100, precisionTiro:100, pase:100,
     // Recursos de fatiga (no son atributos fijos: se consumen y se recuperan jugando).
     energiaSprint:100, aguante:100
   };
@@ -120,11 +125,23 @@ const players = [
   crearJugador("#4FA3FF", "#1E62B0", 160, 0)
 ];
 // ── Panel de stats por jugador (jugador 1 a la izquierda, jugador 2 a la derecha) ──
-// Atributos fijos (0-100, no cambian solos) y recursos de fatiga (cambian jugando).
-const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"], ["sprint","Sprint"], ["resistencia","Resistencia"] ];
+// Atributos fijos (0-100, no se gastan solos: se muestran como número, sin barra).
+const STATS_MOSTRADAS = [
+  ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"],
+  ["sprint","Sprint"], ["resistencia","Resistencia"],
+  ["potenciaTiro","Potencia tiro"], ["precisionTiro","Precisión tiro"], ["pase","Pase"]
+];
+// Recursos de fatiga: se consumen y se recuperan jugando, por ahora los únicos con barra.
 const RECURSOS_MOSTRADOS = [ ["energiaSprint","Energía sprint"], ["aguante","Aguante"] ];
-function crearFilaStat(contenedor, etiqueta, esRecurso){
-  const fila = document.createElement("div"); fila.className = "stat-fila" + (esRecurso ? " recurso" : "");
+
+function crearFilaSimple(contenedor, etiqueta){
+  const fila = document.createElement("div"); fila.className = "stat-fila-simple";
+  fila.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
+  contenedor.appendChild(fila);
+  return { valor: fila.querySelector(".stat-valor") };
+}
+function crearFilaRecurso(contenedor, etiqueta){
+  const fila = document.createElement("div"); fila.className = "stat-fila";
   const nombre = document.createElement("div"); nombre.className = "stat-nombre";
   nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
   const barra = document.createElement("div"); barra.className = "stat-barra";
@@ -136,8 +153,8 @@ function crearFilaStat(contenedor, etiqueta, esRecurso){
 }
 function crearFilasStats(contenedor){
   const filas = {};
-  STATS_MOSTRADAS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaStat(contenedor, etiqueta, false); });
-  RECURSOS_MOSTRADOS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaStat(contenedor, etiqueta, true); });
+  STATS_MOSTRADAS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaSimple(contenedor, etiqueta); });
+  RECURSOS_MOSTRADOS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaRecurso(contenedor, etiqueta); });
   return filas;
 }
 const panelesStats = [
@@ -147,7 +164,10 @@ const panelesStats = [
 function actualizarPanelesStats(){
   players.forEach((p, i) => {
     const filas = panelesStats[i];
-    [...STATS_MOSTRADAS, ...RECURSOS_MOSTRADOS].forEach(([clave]) => {
+    STATS_MOSTRADAS.forEach(([clave]) => {
+      filas[clave].valor.textContent = Math.round(p[clave]);
+    });
+    RECURSOS_MOSTRADOS.forEach(([clave]) => {
       const v = Math.max(0, Math.min(100, p[clave]));
       filas[clave].valor.textContent = Math.round(v);
       filas[clave].relleno.style.width = v + "%";
@@ -248,7 +268,13 @@ document.getElementById("btn-patear").addEventListener("pointerdown", e => { e.p
 document.getElementById("btn-pasar").addEventListener("pointerdown", e => { e.preventDefault(); pasar(); });
 document.getElementById("btn-reiniciar").addEventListener("pointerdown", e => { e.preventDefault(); posicionInicial(); });
 
-const VELOCIDAD_TIRO = 620, VELOCIDAD_PASE = 480;
+// Potencia de tiro/pase: velocidad de la pelota cuando el atributo correspondiente es 100.
+const TIRO_POTENCIA_DISENO_MAX = 620;
+const PASE_POTENCIA_DISENO_MAX = 480;
+// Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
+// cuando el atributo de precisión es 0. Con 100 no hay desvío.
+const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
+const PASE_PRECISION_ERROR_MAX = Math.PI / 9;  // 20° (el pase, al ser un solo stat, es algo más generoso)
 
 // Registra hacia dónde se movía quien soltó la pelota, para que el compañero se acomode un poco (ver actualizarIA).
 function registrarEnvio(p){
@@ -258,11 +284,16 @@ function registrarEnvio(p){
 }
 
 // Patear y pasar solo funcionan si el jugador activo domina la pelota en ese momento.
+// La potencia define qué tan fuerte sale la pelota; la precisión, cuánto puede desviarse
+// (al azar, dentro de un máximo) del rumbo hacia el que mira el jugador.
 function patear(){
   if (conPelota !== activo) return;
   const p = players[activo];
-  ball.vx += p.dirX * VELOCIDAD_TIRO;
-  ball.vy += p.dirY * VELOCIDAD_TIRO;
+  const velocidad = TIRO_POTENCIA_DISENO_MAX * (p.potenciaTiro / 100);
+  const error = (1 - p.precisionTiro / 100) * TIRO_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
+  const angulo = Math.atan2(p.dirY, p.dirX) + error;
+  ball.vx += Math.cos(angulo) * velocidad;
+  ball.vy += Math.sin(angulo) * velocidad;
   conPelota = null;
   ultimoPateador = activo;
   registrarEnvio(p);
@@ -271,8 +302,11 @@ function patear(){
 function pasar(){
   if (conPelota !== activo) return;
   const p = players[activo];
-  ball.vx += p.dirX * VELOCIDAD_PASE;
-  ball.vy += p.dirY * VELOCIDAD_PASE;
+  const velocidad = PASE_POTENCIA_DISENO_MAX * (p.pase / 100);
+  const error = (1 - p.pase / 100) * PASE_PRECISION_ERROR_MAX * (Math.random() * 2 - 1);
+  const angulo = Math.atan2(p.dirY, p.dirX) + error;
+  ball.vx += Math.cos(angulo) * velocidad;
+  ball.vy += Math.sin(angulo) * velocidad;
   conPelota = null;
   registrarEnvio(p);
   ultimoPateador = activo;
@@ -677,8 +711,10 @@ function actualizarPanelParametros(){
     ["Roce pelota", ROCE_PELOTA],
     ["Radio recepción", RADIO_RECEPCION_FACTOR + "×r"],
     ["Ajuste receptor", RECEPCION_AJUSTE_MAX_FACTOR + "×r"],
-    ["Vel. tiro", VELOCIDAD_TIRO],
-    ["Vel. pase", VELOCIDAD_PASE],
+    ["Potencia tiro máx.", TIRO_POTENCIA_DISENO_MAX],
+    ["Error tiro máx.", Math.round(TIRO_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
+    ["Potencia pase máx.", PASE_POTENCIA_DISENO_MAX],
+    ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s"],
