@@ -226,6 +226,7 @@ function actualizarBarraFatiga(){
 
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
+let conPelotaRival = false; // true si quien la domina es el rival (ver colisionRivalJugadores)
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 // Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
 // quien se la envió, para ayudar a recibirla (ver actualizarIA).
@@ -278,6 +279,7 @@ function posicionInicial(){
   ball.patron = crearPatronPelota();
   activo = 0;
   conPelota = null;
+  conPelotaRival = false;
   ultimoPateador = null;
   direccionEnvio = null;
   baseReceptores = null;
@@ -657,18 +659,24 @@ function actualizarIA(dt){
   });
 }
 
-// El rival hace dos cosas nada más: mientras un pase (o tiro) va en el aire, corre a
-// interceptarlo, apuntando un poco adelantado a hacia dónde va la pelota; y si no hay ningún
-// pase en vuelo, sigue de cerca a quien tiene la pelota (marca), corriendo directo hacia
-// él sin frenar antes de tiempo: la marca solo es útil si el rival realmente llega a
-// disputarle la pelota (ver colisionRivalJugadores), así que no hay una distancia de
-// "quedarse cerca pero sin tocar" — el choque entre los dos ya se encarga de no dejarlos
-// superponerse. Sin pase en vuelo y sin nadie en posesión (pelota suelta parada, o entre que
-// se corta un pase y alguien la recupera) se queda quieto: no persigue la pelota suelta por
-// su cuenta.
+// El rival hace tres cosas nada más: si le ganó la pelota a alguien, avanza con ella (sigue de
+// largo en la dirección hacia la que ya iba, sin apuntar a ningún lado en particular: no tiene
+// arco propio ni juega en equipo, solo avanza); si no la tiene pero un pase (o tiro) va en el
+// aire, corre a interceptarlo, apuntando un poco adelantado a hacia dónde va la pelota; y si no
+// pasa ninguna de las dos, sigue de cerca a quien tiene la pelota (marca), corriendo directo
+// hacia él sin frenar antes de tiempo: la marca solo es útil si el rival realmente llega a
+// disputarle la pelota (ver colisionRivalJugadores), así que no hay una distancia de "quedarse
+// cerca pero sin tocar" — el choque entre los dos ya se encarga de no dejarlos superponerse. Sin
+// nada de lo anterior (pelota suelta parada, o entre que se corta un pase y alguien la recupera)
+// se queda quieto: no persigue la pelota suelta por su cuenta.
 const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apunta al camino de la pelota
 
 function actualizarRival(dt){
+  if (conPelotaRival) {
+    actualizarJugador(rival, rival.dirX, rival.dirY, MARCHA_CORRER, dt);
+    return;
+  }
+
   const paseEnVuelo = conPelota === null && direccionEnvio !== null;
   if (paseEnVuelo) {
     const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
@@ -693,7 +701,7 @@ function actualizarRival(dt){
 // rebota lejos de él y se cancela el aviso de pase, así los compañeros dejan de acomodarse para
 // recibir algo que ya no va a llegar.
 function colisionRival(){
-  if (conPelota !== null) return;
+  if (conPelota !== null || conPelotaRival) return; // ya la tiene alguien, no es una pelota suelta
   const dx = ball.x - rival.x, dy = ball.y - rival.y;
   const dist = Math.hypot(dx, dy) || 0.001;
   const minDist = rival.r + ball.r;
@@ -740,6 +748,13 @@ function actualizarPelota(dt){
     ball.x += (tx - ball.x) * s;
     ball.y += (ty - ball.y) * s;
     ball.vx = p.vx; ball.vy = p.vy;
+  } else if (conPelotaRival) {
+    const n = nivelControl(RIVAL_CONTROL); // mismo "control" que usa para disputar la pelota
+    const tx = rival.x + rival.dirX * n.offset, ty = rival.y + rival.dirY * n.offset;
+    const s = Math.min(1, n.firmeza * dt);
+    ball.x += (tx - ball.x) * s;
+    ball.y += (ty - ball.y) * s;
+    ball.vx = rival.vx; ball.vy = rival.vy;
   } else {
     const f = Math.max(0, 1 - ROCE_PELOTA * dt);
     ball.vx *= f; ball.vy *= f;
@@ -912,11 +927,11 @@ function colisionJugadores(){
 }
 
 // El rival también es sólido: si choca contra un jugador, ambos se separan igual que entre
-// compañeros. Si el jugador con el que choca tiene la pelota, se disputa: queda al azar, pero
-// pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL). Si
-// gana el equipo, no cambia nada (sigue con la pelota); si gana el rival, la despeja: la pelota
-// queda suelta y sale disparada lejos de la disputa.
-const RIVAL_DESPEJE = 150; // velocidad con la que sale la pelota cuando el rival gana la disputa
+// compañeros. Si alguno de los dos tiene la pelota en ese choque, se disputa: queda al azar,
+// pero pesado según el "control" de cada lado (el del equipo, compartido, contra RIVAL_CONTROL).
+// A quien se la quitan se queda quieto en seco (pierde toda su velocidad); a quien se la queda
+// no se le toca la velocidad, sigue avanzando hacia donde iba (para el rival, ver
+// actualizarRival; para un jugador, lo que ya venía haciendo el humano o la IA).
 let chocandoRival = new Set(); // índices de jugadores actualmente superpuestos con el rival
 function colisionRivalJugadores(){
   for (let i = 0; i < players.length; i++) {
@@ -934,11 +949,22 @@ function colisionRivalJugadores(){
     p.vx += nx * empuje; p.vy += ny * empuje;
     rival.vx -= nx * empuje; rival.vy -= ny * empuje;
 
-    if (!chocandoRival.has(i) && conPelota === i) {
+    if (!chocandoRival.has(i)) {
       const probEquipo = statsComunes.control / (statsComunes.control + RIVAL_CONTROL);
-      if (Math.random() >= probEquipo) {
+      if (conPelota === i && Math.random() >= probEquipo) {
+        // el rival le gana la disputa: se la queda él, y el jugador se frena en seco
         conPelota = null;
-        ball.vx = nx * RIVAL_DESPEJE; ball.vy = ny * RIVAL_DESPEJE;
+        conPelotaRival = true;
+        p.vx = 0; p.vy = 0;
+        ultimoPateador = null;
+        direccionEnvio = null;
+        baseReceptores = null;
+      } else if (conPelotaRival && Math.random() < probEquipo) {
+        // el equipo recupera la disputa: pasa a controlarla ese jugador, y el rival se frena en seco
+        conPelotaRival = false;
+        conPelota = i;
+        activo = i;
+        rival.vx = 0; rival.vy = 0;
         ultimoPateador = null;
         direccionEnvio = null;
         baseReceptores = null;
@@ -950,8 +976,10 @@ function colisionRivalJugadores(){
 
 // Si la pelota está suelta y algún jugador la toca, la domina (y si no era el activo, pasa a serlo).
 // Quien la pateó/pasó no puede recuperarla hasta que la pelota salga al menos una vez de su radio.
+// Mientras la tiene el rival, esto no se aplica: solo se la pueden disputar chocando contra él
+// (ver colisionRivalJugadores), no por simple cercanía a la pelota.
 function actualizarPosesion(){
-  if (conPelota !== null) return;
+  if (conPelota !== null || conPelotaRival) return;
   if (ultimoPateador !== null) {
     const p = players[ultimoPateador];
     const d = Math.hypot(ball.x - p.x, ball.y - p.y);
