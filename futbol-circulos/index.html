@@ -43,9 +43,9 @@ canvas { display:block; }
 }
 .control:active { filter:brightness(1.25); }
 
-/* Paneles de stats de cada jugador */
+/* Paneles de stats de cada jugador, lo más arriba posible en cada esquina */
 .panel-stats {
-  position:fixed; top:50%; transform:translateY(-50%);
+  position:fixed; top:56px;
   width:112px; background:rgba(0,0,0,.55); color:#fff; border-radius:10px;
   padding:9px 10px; font-size:11px; z-index:5; pointer-events:none;
 }
@@ -61,6 +61,16 @@ canvas { display:block; }
 .stat-fila .stat-nombre { display:flex; justify-content:space-between; opacity:.85; margin-bottom:2px; }
 .stat-barra { height:5px; border-radius:3px; background:rgba(255,255,255,.18); overflow:hidden; }
 .stat-relleno { height:100%; background:#4FE0C0; }
+.stat-fila.recurso .stat-relleno { background:#FFB454; }
+
+/* Panel con las variables/constantes del motor que estamos afinando */
+#panel-parametros {
+  position:fixed; top:34px; left:50%; transform:translateX(-50%);
+  max-width:min(92vw, 600px); background:rgba(0,0,0,.5); color:rgba(255,255,255,.85);
+  border-radius:8px; padding:6px 10px; font-size:10px; z-index:5; pointer-events:none;
+  display:flex; flex-wrap:wrap; gap:3px 12px; justify-content:center;
+}
+#panel-parametros b { color:#fff; }
 </style>
 </head>
 <body>
@@ -68,6 +78,7 @@ canvas { display:block; }
 <canvas id="c"></canvas>
 
 <div id="ayuda">Flechas: moverse · A: patear · S: pasar</div>
+<div id="panel-parametros"></div>
 <div id="panel-izq" class="panel-stats izq"><h3><span class="numero">1</span>Jugador</h3></div>
 <div id="panel-der" class="panel-stats der"><h3><span class="numero">2</span>Jugador</h3></div>
 <button id="btn-reiniciar" class="control" type="button">Reiniciar</button>
@@ -97,7 +108,9 @@ const RADIO_RECEPCION_FACTOR = 2;
 function crearJugador(color, oscuro, x, y){
   return {
     color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
-    velocidad:100, agilidad:100, aceleracion:100, control:100
+    velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100,
+    // Recursos de fatiga (no son atributos fijos: se consumen y se recuperan jugando).
+    energiaSprint:100, resistencia:100
   };
 }
 
@@ -107,20 +120,24 @@ const players = [
   crearJugador("#4FA3FF", "#1E62B0", 160, 0)
 ];
 // ── Panel de stats por jugador (jugador 1 a la izquierda, jugador 2 a la derecha) ──
-const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"] ];
+// Atributos fijos (0-100, no cambian solos) y recursos de fatiga (cambian jugando).
+const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"], ["sprint","Sprint"] ];
+const RECURSOS_MOSTRADOS = [ ["energiaSprint","Energía sprint"], ["resistencia","Resistencia"] ];
+function crearFilaStat(contenedor, etiqueta, esRecurso){
+  const fila = document.createElement("div"); fila.className = "stat-fila" + (esRecurso ? " recurso" : "");
+  const nombre = document.createElement("div"); nombre.className = "stat-nombre";
+  nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
+  const barra = document.createElement("div"); barra.className = "stat-barra";
+  const relleno = document.createElement("div"); relleno.className = "stat-relleno";
+  barra.appendChild(relleno);
+  fila.appendChild(nombre); fila.appendChild(barra);
+  contenedor.appendChild(fila);
+  return { valor: nombre.querySelector(".stat-valor"), relleno };
+}
 function crearFilasStats(contenedor){
   const filas = {};
-  STATS_MOSTRADAS.forEach(([clave, etiqueta]) => {
-    const fila = document.createElement("div"); fila.className = "stat-fila";
-    const nombre = document.createElement("div"); nombre.className = "stat-nombre";
-    nombre.innerHTML = `<span>${etiqueta}</span><span class="stat-valor"></span>`;
-    const barra = document.createElement("div"); barra.className = "stat-barra";
-    const relleno = document.createElement("div"); relleno.className = "stat-relleno";
-    barra.appendChild(relleno);
-    fila.appendChild(nombre); fila.appendChild(barra);
-    contenedor.appendChild(fila);
-    filas[clave] = { valor: nombre.querySelector(".stat-valor"), relleno };
-  });
+  STATS_MOSTRADAS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaStat(contenedor, etiqueta, false); });
+  RECURSOS_MOSTRADOS.forEach(([clave, etiqueta]) => { filas[clave] = crearFilaStat(contenedor, etiqueta, true); });
   return filas;
 }
 const panelesStats = [
@@ -130,9 +147,10 @@ const panelesStats = [
 function actualizarPanelesStats(){
   players.forEach((p, i) => {
     const filas = panelesStats[i];
-    STATS_MOSTRADAS.forEach(([clave]) => {
-      filas[clave].valor.textContent = Math.round(p[clave]);
-      filas[clave].relleno.style.width = p[clave] + "%";
+    [...STATS_MOSTRADAS, ...RECURSOS_MOSTRADOS].forEach(([clave]) => {
+      const v = Math.max(0, Math.min(100, p[clave]));
+      filas[clave].valor.textContent = Math.round(v);
+      filas[clave].relleno.style.width = v + "%";
     });
   });
 }
@@ -149,7 +167,7 @@ let baseReceptor = null;     // posición del receptor al momento del envío, pa
 // z>0 mira hacia la cámara (arriba); z<=0 queda del otro lado y no se dibuja.
 // Se reparten con una espiral de Fibonacci: es la forma más simple de distribuir puntos
 // de manera pareja sobre una esfera, así la cobertura de pintas queda regular y sin huecos.
-const PINTAS_CANTIDAD = 34, PINTAS_TAM = 0.145;
+const PINTAS_CANTIDAD = 34, PINTAS_TAM = 0.26;
 const ANGULO_DORADO = Math.PI * (3 - Math.sqrt(5));
 function crearPatronPelota(){
   const puntos = [];
@@ -168,6 +186,7 @@ const camera = { x:players[0].x, y:players[0].y };
 function posicionInicial(){
   players[0].x = -160; players[0].y = 0; players[0].vx = players[0].vy = 0; players[0].dirX = 1; players[0].dirY = 0;
   players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
+  players.forEach(p => { p.energiaSprint = 100; p.resistencia = 100; });
   ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
   ball.patron = crearPatronPelota();
   activo = 0;
@@ -277,6 +296,30 @@ function marchaDesdeMagnitud(m){
   return { nombre:"correr", pct:MARCHA_CORRER, color:"rgba(255,213,74,.9)" };
 }
 
+// ── Fatiga ────────────────────────────────────────────────
+// Energía de sprint: de corto plazo, se agota rápido corriendo a fondo. Cuánto depende del
+// atributo "sprint" del jugador (100 = se agota más lento). Se recupera en cuanto deja de esprintar.
+const ENERGIA_SPRINT_TASA_MAX = 40, ENERGIA_SPRINT_TASA_MIN = 12; // %/seg, según el atributo sprint
+const ENERGIA_SPRINT_RECUPERACION = 25; // %/seg, mientras no esprinta
+
+// Resistencia general: de largo plazo (100 alcanza para todo un partido). Se agota de a poco
+// (más si el jugador esprinta) y solo se recupera trotando, a un tercio de esa tasa base.
+const RESISTENCIA_TASA_BASE = 100 / 480;      // %/seg
+const RESISTENCIA_TASA_SPRINT_EXTRA = 0.6;    // %/seg adicional mientras esprinta
+const RESISTENCIA_RECUPERACION = RESISTENCIA_TASA_BASE / 3; // %/seg, solo trotando
+
+function actualizarFatiga(p, sprintando, marchaResultante, dt){
+  if (sprintando) {
+    const tasa = ENERGIA_SPRINT_TASA_MAX + (ENERGIA_SPRINT_TASA_MIN - ENERGIA_SPRINT_TASA_MAX) * (p.sprint / 100);
+    p.energiaSprint = Math.max(0, p.energiaSprint - tasa * dt);
+    p.resistencia = Math.max(0, p.resistencia - (RESISTENCIA_TASA_BASE + RESISTENCIA_TASA_SPRINT_EXTRA) * dt);
+  } else {
+    p.energiaSprint = Math.min(100, p.energiaSprint + ENERGIA_SPRINT_RECUPERACION * dt);
+    if (marchaResultante === MARCHA_TROTAR) p.resistencia = Math.min(100, p.resistencia + RESISTENCIA_RECUPERACION * dt);
+    else p.resistencia = Math.max(0, p.resistencia - RESISTENCIA_TASA_BASE * dt);
+  }
+}
+
 // Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
 function girarHacia(p, dx, dy, giroMax, dt){
   const anguloActual = Math.atan2(p.dirY, p.dirX);
@@ -289,7 +332,15 @@ function girarHacia(p, dx, dy, giroMax, dt){
 
 function actualizarJugador(p, dx, dy, pctMarcha, dt){
   const len = Math.hypot(dx, dy);
-  if (len > 0.05) {
+  const moviendo = len > 0.05;
+
+  // Si se pide correr pero no queda energía de sprint, se cae a trote hasta recuperar un poco.
+  let marchaResultante = pctMarcha;
+  const sprintando = moviendo && pctMarcha === MARCHA_CORRER && p.energiaSprint > 0;
+  if (moviendo && pctMarcha === MARCHA_CORRER && p.energiaSprint <= 0) marchaResultante = MARCHA_TROTAR;
+  actualizarFatiga(p, sprintando, marchaResultante, dt);
+
+  if (moviendo) {
     dx /= len; dy /= len;
     girarHacia(p, dx, dy, GIRO_DISENO_MAX * (p.agilidad / 100), dt);
     const acel = ACEL_DISENO_MAX * (p.aceleracion / 100);
@@ -299,7 +350,9 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
     const f = Math.max(0, 1 - FRICCION_JUGADOR * dt);
     p.vx *= f; p.vy *= f;
   }
-  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (pctMarcha / 100);
+  // La resistencia agotada también resta un poco de tope de velocidad en general.
+  const factorResistencia = 0.5 + 0.5 * (p.resistencia / 100);
+  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (marchaResultante / 100) * factorResistencia;
   const vel = Math.hypot(p.vx, p.vy);
   if (vel > velTope) { p.vx = p.vx/vel*velTope; p.vy = p.vy/vel*velTope; }
   p.x += p.vx * dt; p.y += p.vy * dt;
@@ -590,11 +643,32 @@ function bucle(ahora){
   actualizarPosesion();
   actualizarCamara(dt);
   dibujar();
+  actualizarPanelesStats(); // la fatiga cambia en vivo, así que el panel se refresca cada cuadro
 
   requestAnimationFrame(bucle);
 }
+
+// Panel con las variables/constantes del motor que estamos afinando (se arma una sola vez: son fijas).
+function actualizarPanelParametros(){
+  const items = [
+    ["Roce pelota", ROCE_PELOTA],
+    ["Radio recepción", RADIO_RECEPCION_FACTOR + "×r"],
+    ["Ajuste receptor", RECEPCION_AJUSTE_MAX_FACTOR + "×r"],
+    ["Vel. tiro", VELOCIDAD_TIRO],
+    ["Vel. pase", VELOCIDAD_PASE],
+    ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
+    ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
+    ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s"],
+    ["Resistencia base", RESISTENCIA_TASA_BASE.toFixed(2) + "%/s"],
+    ["Resistencia extra sprint", RESISTENCIA_TASA_SPRINT_EXTRA + "%/s"]
+  ];
+  document.getElementById("panel-parametros").innerHTML =
+    items.map(([nombre, valor]) => `<span>${nombre}: <b>${valor}</b></span>`).join("");
+}
+
 posicionInicial();
 actualizarPanelesStats();
+actualizarPanelParametros();
 requestAnimationFrame(bucle);
 
 })();
