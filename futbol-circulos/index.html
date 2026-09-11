@@ -259,6 +259,10 @@ const FORMACION_INICIAL = [
   { x:200, y:0, dirX:-1, dirY:0 }
 ];
 
+// ── Rival (solo intercepta pases, nada más: no marca, no presiona, no ataca) ──────────────
+const rival = crearJugador("#E64A4A", "#B23030");
+const RIVAL_INICIAL = { x:180, y:70, dirX:-1, dirY:0 };
+
 function posicionInicial(){
   players.forEach((p, i) => {
     const f = FORMACION_INICIAL[i];
@@ -280,6 +284,9 @@ function posicionInicial(){
   cargandoPase = false;
   tiempoCargaPase = 0;
   barraCargaPase.classList.remove("activa");
+  mallaAbultamiento = null;
+  rival.x = RIVAL_INICIAL.x; rival.y = RIVAL_INICIAL.y; rival.vx = 0; rival.vy = 0;
+  rival.dirX = RIVAL_INICIAL.dirX; rival.dirY = RIVAL_INICIAL.dirY;
 }
 
 // ── Entradas: teclado ───────────────────────────────────────
@@ -349,8 +356,8 @@ document.getElementById("btn-parametros").addEventListener("pointerdown", e => {
 });
 
 // Potencia de tiro/pase: velocidad de la pelota cuando la carga llega al 100%.
-const TIRO_POTENCIA_DISENO_MAX = 1240;
-const PASE_POTENCIA_DISENO_MAX = 1200; // el pase no tiene stat de potencia: la maneja la carga
+const TIRO_POTENCIA_DISENO_MAX = 620;
+const PASE_POTENCIA_DISENO_MAX = 600; // el pase no tiene stat de potencia: la maneja la carga
 // Precisión: cuánto puede desviarse (en radianes) la patada de hacia donde mira el jugador,
 // cuando la precisión efectiva es 0. Con 100 no hay desvío.
 const TIRO_PRECISION_ERROR_MAX = Math.PI / 6;  // 30°
@@ -619,6 +626,39 @@ function actualizarIA(dt){
   });
 }
 
+// El rival solo hace una cosa: mientras un pase (o tiro) va en el aire, corre a interceptarlo,
+// apuntando un poco adelantado a hacia dónde va la pelota. El resto del tiempo se queda quieto:
+// no marca, no presiona a quien tiene la pelota, no ataca.
+const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apunta al camino de la pelota
+
+function actualizarRival(dt){
+  const paseEnVuelo = conPelota === null && direccionEnvio !== null;
+  if (!paseEnVuelo) { actualizarJugador(rival, 0, 0, 0, dt); return; }
+
+  const objX = ball.x + ball.vx * RIVAL_ANTICIPO, objY = ball.y + ball.vy * RIVAL_ANTICIPO;
+  const dx = objX - rival.x, dy = objY - rival.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
+}
+
+// Si el rival llega a tocar la pelota mientras va suelta, la despeja (intercepción): la pelota
+// rebota lejos de él y se cancela el aviso de pase, así los compañeros dejan de acomodarse para
+// recibir algo que ya no va a llegar.
+function colisionRival(){
+  if (conPelota !== null) return;
+  const dx = ball.x - rival.x, dy = ball.y - rival.y;
+  const dist = Math.hypot(dx, dy) || 0.001;
+  const minDist = rival.r + ball.r;
+  if (dist >= minDist) return;
+  const nx = dx/dist, ny = dy/dist;
+  ball.x = rival.x + nx*minDist; ball.y = rival.y + ny*minDist;
+  const vel = Math.hypot(ball.vx, ball.vy);
+  ball.vx = nx * vel * 0.6; ball.vy = ny * vel * 0.6; // la despeja hacia donde venía parado
+  ultimoPateador = null;
+  direccionEnvio = null;
+  baseReceptores = null;
+}
+
 // Qué tan pegada queda la pelota al jugador que la domina, según su atributo "control".
 function nivelControl(control){
   const t = control / 100;
@@ -711,6 +751,59 @@ function colisionPostes(prevX, prevY){
     const vNormal = ball.vx * nx + ball.vy * ny;
     ball.vx -= 2 * vNormal * nx; ball.vy -= 2 * vNormal * ny; // rebote
     ball.vx *= 0.6; ball.vy *= 0.6; // pierde energía en el palo
+  }
+}
+
+// La red (fondo y costados del arco, todo menos la boca) es sólida y "flexible": frena la
+// pelota en vez de dejarla pasar de largo, y se abomba un poco en el punto de contacto (como
+// una red real) para luego volver a su forma. Es un simple clamp de posición por pared (no
+// colisión continua): como las paredes son medio-planos y no un círculo angosto como los
+// postes, cualquier "salto" de la pelota en un cuadro igual queda del lado de adentro y se
+// detecta sin problema, sin necesitar barrido.
+const MALLA_REBOTE = 0.15;     // qué tan elástica es: rebote mínimo, se siente que atrapa la pelota
+const MALLA_FRICCION = 0.5;    // cuánto frena la velocidad paralela a la pared al tocarla
+const MALLA_ABULTAMIENTO_INICIAL = 26; // profundidad visual del abombado al momento del golpe
+const MALLA_ABULTAMIENTO_TASA = 6;     // 1/seg: qué tan rápido vuelve a su forma plana
+
+let mallaAbultamiento = null; // {pared:'sup'|'fondo'|'inf', x, y, monto} o null si está en reposo
+
+function golpearMalla(pared, x, y){
+  mallaAbultamiento = { pared, x, y, monto: MALLA_ABULTAMIENTO_INICIAL };
+}
+
+function colisionMalla(dt){
+  const supY = -ARCO_ANCHO/2, infY = ARCO_ANCHO/2, fondoX = ARCO_X + ARCO_PROFUNDIDAD;
+
+  // Fondo de la red: no deja que la pelota siga de largo más allá del arco.
+  const limiteFondo = fondoX - ball.r;
+  if (ball.x > limiteFondo && dentroDelArco(ball.y)) {
+    ball.x = limiteFondo;
+    if (ball.vx > 0) ball.vx *= -MALLA_REBOTE;
+    ball.vy *= MALLA_FRICCION;
+    golpearMalla('fondo', fondoX, Math.max(supY, Math.min(infY, ball.y)));
+  }
+
+  // Costados de la red: una vez que la pelota ya entró por la boca del arco, no puede salirse
+  // por los lados (solo puede volver a salir por donde entró).
+  const dentroProfundidad = ball.x > ARCO_X && ball.x < fondoX;
+  if (dentroProfundidad) {
+    const limiteSup = supY + ball.r, limiteInf = infY - ball.r;
+    if (ball.y < limiteSup) {
+      ball.y = limiteSup;
+      if (ball.vy < 0) ball.vy *= -MALLA_REBOTE;
+      ball.vx *= MALLA_FRICCION;
+      golpearMalla('sup', Math.max(ARCO_X, Math.min(fondoX, ball.x)), supY);
+    } else if (ball.y > limiteInf) {
+      ball.y = limiteInf;
+      if (ball.vy > 0) ball.vy *= -MALLA_REBOTE;
+      ball.vx *= MALLA_FRICCION;
+      golpearMalla('inf', Math.max(ARCO_X, Math.min(fondoX, ball.x)), infY);
+    }
+  }
+
+  if (mallaAbultamiento) {
+    mallaAbultamiento.monto *= Math.max(0, 1 - MALLA_ABULTAMIENTO_TASA * dt);
+    if (mallaAbultamiento.monto < 0.5) mallaAbultamiento = null;
   }
 }
 
@@ -850,12 +943,39 @@ function dibujarCancha(){
   ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
 }
 
+// Dibuja la red (fondo y costados, la boca queda abierta) como una sola línea continua desde
+// el poste superior hasta el inferior. Cuando hay un golpe reciente (mallaAbultamiento), la
+// pared golpeada se curva hacia afuera con una curva cuadrática; el resto queda recta (el punto
+// de control cae justo en la mitad del tramo, así la curva "recta" da una línea derecha).
+function dibujarMalla(){
+  const supY = -ARCO_ANCHO/2, infY = ARCO_ANCHO/2, fondoX = ARCO_X + ARCO_PROFUNDIDAD;
+  const m = mallaAbultamiento;
+
+  ctx.beginPath();
+  ctx.moveTo(ARCO_X, supY);
+
+  if (m && m.pared === 'sup') ctx.quadraticCurveTo(m.x, supY - m.monto, fondoX, supY);
+  else ctx.lineTo(fondoX, supY);
+
+  if (m && m.pared === 'fondo') ctx.quadraticCurveTo(fondoX + m.monto, m.y, fondoX, infY);
+  else ctx.lineTo(fondoX, infY);
+
+  if (m && m.pared === 'inf') ctx.quadraticCurveTo(m.x, infY + m.monto, ARCO_X, infY);
+  else ctx.lineTo(ARCO_X, infY);
+
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 3;
+  ctx.stroke();
+
+  ctx.lineTo(ARCO_X, supY); // cierra el contorno de vuelta hacia la boca, para poder rellenar
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255,255,255,.15)";
+  ctx.fill();
+}
+
 function dibujarArco(){
-  // red
-  ctx.fillStyle = "rgba(255,255,255,.18)";
-  ctx.fillRect(ARCO_X, -ARCO_ANCHO/2, ARCO_PROFUNDIDAD, ARCO_ANCHO);
-  // marco
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 6;
+  dibujarMalla();
+  // marco (línea recta de referencia del arco original, detrás de la red)
+  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 2;
   ctx.strokeRect(ARCO_X, -ARCO_ANCHO/2, ARCO_PROFUNDIDAD, ARCO_ANCHO);
   // postes, más marcados
   ctx.fillStyle = "#fff";
@@ -947,6 +1067,7 @@ function dibujar(){
 
   dibujarCancha();
   dibujarArco();
+  dibujarJugador(rival, false, "R");
   players.forEach((p, i) => dibujarJugador(p, i === activo, i + 1));
   dibujarBalon();
 
@@ -971,11 +1092,14 @@ function bucle(ahora){
 
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
+  actualizarRival(dt);
   colisionJugadores();
   const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
   colisionPostes(ballXAntes, ballYAntes);
+  colisionMalla(dt);
   revisarGol();
+  colisionRival();
   actualizarPosesion();
   actualizarCamara(dt);
   if (cargandoTiro) {
@@ -1006,6 +1130,8 @@ function actualizarPanelParametros(){
     ["Error pase máx.", Math.round(PASE_PRECISION_ERROR_MAX * 180/Math.PI) + "°"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
+    ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
+    ["Rival", "solo intercepta pases, anticipa " + RIVAL_ANTICIPO + "s"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
