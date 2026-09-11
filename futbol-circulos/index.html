@@ -831,17 +831,41 @@ function colisionPostes(prevX, prevY){
 
 // Los postes también son sólidos para los jugadores (de cualquier equipo): no se puede caminar
 // a través de ellos. A diferencia de la pelota, un jugador no "rebota" al tocarlos, simplemente
-// no puede seguir de largo (se cancela la parte de la velocidad que apuntaba hacia el poste). Los
-// jugadores se mueven mucho más lento que la pelota, así que un chequeo simple de la posición
-// final alcanza, sin necesitar la colisión continua que sí hace falta para la pelota.
-function colisionPostesJugador(jugador){
+// no puede seguir de largo (se cancela la parte de la velocidad que apuntaba hacia el poste).
+//
+// La colisión es continua (contra el segmento recorrido en el cuadro, igual que colisionPostes
+// para la pelota), no solo la posición final: un chequeo simple alcanza para el movimiento propio
+// de un jugador (mucho más lento que la pelota), pero en el mismo cuadro un empujón de otra
+// colisión (dos jugadores muy encimados, o el rival disputando la pelota) puede correr a alguien
+// una buena distancia de una sola vez — lo suficiente como para saltar de un lado al otro de un
+// poste (que es angosto) sin que una comprobación solo-posición-final llegue a notarlo.
+function colisionPostesJugador(jugador, prevX, prevY){
   const postes = [ { x: ARCO_X, y: -ARCO_ANCHO/2 }, { x: ARCO_X, y: ARCO_ANCHO/2 } ];
   const minDist = POSTE_RADIO + jugador.r;
   for (const poste of postes) {
-    const dx = jugador.x - poste.x, dy = jugador.y - poste.y;
-    const dist = Math.hypot(dx, dy) || 0.001;
-    if (dist >= minDist) continue;
-    const nx = dx / dist, ny = dy / dist;
+    const dx = jugador.x - prevX, dy = jugador.y - prevY; // recorrido en este cuadro (movimiento + empujones)
+    const fx = prevX - poste.x, fy = prevY - poste.y;
+    const a = dx*dx + dy*dy;
+
+    let t = null; // instante [0,1] del recorrido en que toca al poste, si lo toca
+    if (a < 1e-9) {
+      if (Math.hypot(jugador.x - poste.x, jugador.y - poste.y) < minDist) t = 1;
+    } else {
+      const b = 2 * (fx*dx + fy*dy);
+      const c = fx*fx + fy*fy - minDist*minDist;
+      const disc = b*b - 4*a*c;
+      if (disc >= 0) {
+        const raiz = Math.sqrt(disc);
+        const t0 = (-b - raiz) / (2*a);
+        if (t0 >= 0 && t0 <= 1) t = t0; // primer cruce del círculo del poste
+        else if (Math.hypot(jugador.x - poste.x, jugador.y - poste.y) < minDist) t = 1; // ya termina adentro
+      }
+    }
+    if (t === null) continue;
+
+    const cx = prevX + dx*t, cy = prevY + dy*t; // punto de contacto sobre el poste
+    const dist = Math.hypot(cx - poste.x, cy - poste.y) || 0.001;
+    const nx = (cx - poste.x) / dist, ny = (cy - poste.y) / dist;
     jugador.x = poste.x + nx * minDist; jugador.y = poste.y + ny * minDist;
     const vNormal = jugador.vx * nx + jugador.vy * ny;
     if (vNormal < 0) { jugador.vx -= vNormal * nx; jugador.vy -= vNormal * ny; }
@@ -958,6 +982,19 @@ function revisarLimites(){
   if (fueraDeLaCancha(ball.x, ball.y)) posicionInicial();
 }
 
+// Los jugadores (de cualquier equipo, salvo el arquero, que ya tiene su propia área) pueden
+// salirse un poco de la cancha corriendo — no tiene sentido una pared invisible justo en la
+// línea — pero no alejarse en serio: más allá de unos metros, se los frena ahí.
+const CANCHA_MARGEN_JUGADOR = 5 * UNIDADES_POR_METRO; // ~5m de margen más allá de cada línea
+function limitarJugadorACancha(jugador){
+  const xMin = CANCHA_X_MIN - CANCHA_MARGEN_JUGADOR, xMax = CANCHA_X_MAX + CANCHA_MARGEN_JUGADOR;
+  const yLimite = CANCHA_Y_LIMITE + CANCHA_MARGEN_JUGADOR;
+  if (jugador.x < xMin) { jugador.x = xMin; if (jugador.vx < 0) jugador.vx = 0; }
+  else if (jugador.x > xMax) { jugador.x = xMax; if (jugador.vx > 0) jugador.vx = 0; }
+  if (jugador.y < -yLimite) { jugador.y = -yLimite; if (jugador.vy < 0) jugador.vy = 0; }
+  else if (jugador.y > yLimite) { jugador.y = yLimite; if (jugador.vy > 0) jugador.vy = 0; }
+}
+
 // ── Arquero rival (primera versión: se mueve dentro de su área; en cuanto el ataque entra en
 // ella, se ubica bajo los tres palos siguiendo el ángulo de la pelota) ──────────────────────
 const arquero = crearJugador("#FFD54A", "#B8860B"); // amarillo, como suele vestir un arquero
@@ -988,12 +1025,23 @@ function dentroDelArea(x, y){
   return x >= AREA_X_MIN && x <= AREA_X_MAX && Math.abs(y) <= AREA_ANCHO / 2;
 }
 
-// El arquero se mueve exactamente igual que un jugador de campo (misma actualizarJugador, mismos
-// stats compartidos del equipo): acelera hacia el objetivo y frena con la física normal, en vez
-// de "teletransportarse" hacia él. Un primer intento lo movía con un suavizado exponencial
-// (saltaba una fracción de la distancia restante cada cuadro), pero eso lo hacía moverse a
-// velocidades absurdas cuando el objetivo quedaba lejos — nada que ver con la velocidad real de
-// un jugador.
+// El arquero se mueve con la misma físical que un jugador de campo (misma actualizarJugador,
+// mismos stats compartidos del equipo): acelera hacia el objetivo y frena con la física normal,
+// en vez de "teletransportarse" hacia él como hacía un primer intento con suavizado exponencial.
+//
+// Pero actualizarJugador por sí sola solo "persigue" (seek): empuja siempre a fondo hacia el
+// objetivo, sin frenar antes de llegar. Eso le sirve a un jugador manejado por una persona (que
+// naturalmente suelta el joystick al acercarse) o a un rival persiguiendo algo que se mueve, pero
+// para el arquero — que reapunta al objetivo todos los cuadros, incluso con la pelota parada —
+// eso significa pasarse de largo, girar para volver, pasarse de nuevo, y así para siempre: nunca
+// se asienta. Achicar el radio de "llegada" no alcanza si con el envión ya se pasó bien afuera de
+// ese radio. La solución es "llegar" de verdad (arrive, no solo seek): bajar la marcha a medida
+// que se acerca, para que el frenado (fricción, al pedir dirección 0,0) tenga tiempo de actuar
+// antes de volver a acelerar a fondo.
+const ARQUERO_LLEGADA_QUIETO = 15;  // por debajo de esto, frena del todo
+const ARQUERO_LLEGADA_CAMINAR = 60; // por debajo de esto, al paso
+const ARQUERO_LLEGADA_TROTAR = 150; // por debajo de esto, al trote; más lejos, corriendo
+
 function actualizarArquero(dt){
   let tx, ty;
   if (dentroDelArea(ball.x, ball.y)) {
@@ -1008,8 +1056,13 @@ function actualizarArquero(dt){
 
   const dx = tx - arquero.x, dy = ty - arquero.y;
   const dist = Math.hypot(dx, dy);
-  if (dist < 2) actualizarJugador(arquero, 0, 0, 0, dt);
-  else actualizarJugador(arquero, dx, dy, MARCHA_CORRER, dt);
+  if (dist < ARQUERO_LLEGADA_QUIETO) actualizarJugador(arquero, 0, 0, 0, dt);
+  else {
+    const pct = dist < ARQUERO_LLEGADA_CAMINAR ? MARCHA_CAMINAR
+      : dist < ARQUERO_LLEGADA_TROTAR ? MARCHA_TROTAR
+      : MARCHA_CORRER;
+    actualizarJugador(arquero, dx, dy, pct, dt);
+  }
 
   // Nunca se sale de su área, pase lo que pase con el movimiento de arriba. Tampoco cruza su
   // propia línea de gol: un arquero no se para detrás del arco.
@@ -1032,13 +1085,48 @@ function actualizarArquero(dt){
 const ARQUERO_INCERTIDUMBRE = 0.2; // hasta con control perfecto (100), esta fracción de las veces se le escapa
 const ARQUERO_SOSTIENE_DURACION = 2; // segundos que retiene la pelota atrapada antes de despejarla
 const ARQUERO_DESPEJE_POTENCIA = 700; // velocidad con la que sale disparada al despejar
-const ARQUERO_DESPEJE_DISPERSION = Math.PI / 6; // ±30°, para que el despeje no salga siempre igual
 
 let conPelotaArquero = false; // true mientras retiene la pelota atrapada, antes de despejarla
 
+// Al despejar, en vez de tirar siempre hacia adelante con dispersión al azar, el arquero elige
+// entre varias direcciones candidatas (un abanico hacia el campo) la que tiene más línea de
+// vista limpia: menos jugadores, de cualquier equipo, parados en el camino. Para cada candidata
+// mide, de los jugadores que quedan "adelante" de esa dirección, qué tan cerca está el primero
+// que el camino rozaría (su radio más un margen); la candidata con ese primer obstáculo más
+// lejos (o ninguno) gana.
+const ARQUERO_DESPEJE_ABANICO = Math.PI / 2; // ±45° respecto de derecho hacia el campo (-x)
+const ARQUERO_DESPEJE_CANDIDATOS = 9;
+const ARQUERO_DESPEJE_MARGEN_OBSTACULO = 20; // qué tan cerca del camino ya cuenta como bloqueo
+
+function direccionDespejeLibre(){
+  let mejorAngulo = Math.PI, mejorDistancia = -Infinity, mejorCercania = Infinity;
+  const obstaculos = players.concat([rival]);
+  for (let i = 0; i < ARQUERO_DESPEJE_CANDIDATOS; i++) {
+    const t = i / (ARQUERO_DESPEJE_CANDIDATOS - 1);
+    const angulo = Math.PI + (t - 0.5) * ARQUERO_DESPEJE_ABANICO;
+    const dirX = Math.cos(angulo), dirY = Math.sin(angulo);
+    let distanciaLibre = Infinity;
+    for (const o of obstaculos) {
+      const relX = o.x - arquero.x, relY = o.y - arquero.y;
+      const adelante = relX * dirX + relY * dirY;
+      if (adelante <= 0) continue; // queda atrás, no bloquea
+      const perpendicular = Math.abs(relX * dirY - relY * dirX);
+      if (perpendicular < o.r + ARQUERO_DESPEJE_MARGEN_OBSTACULO) {
+        distanciaLibre = Math.min(distanciaLibre, adelante);
+      }
+    }
+    // Ante un empate en despeje (p. ej. ningún candidato tiene nada en el camino), gana el que
+    // queda más derecho hacia el campo, no el primero que se evaluó.
+    const cercaniaAlCentro = Math.abs(t - 0.5);
+    if (distanciaLibre > mejorDistancia || (distanciaLibre === mejorDistancia && cercaniaAlCentro < mejorCercania)) {
+      mejorDistancia = distanciaLibre; mejorAngulo = angulo; mejorCercania = cercaniaAlCentro;
+    }
+  }
+  return mejorAngulo;
+}
+
 function despejarArquero(){
-  // Despeja lejos del propio arco (dirección -x), con algo de dispersión lateral al azar.
-  const angulo = Math.PI + (Math.random() * 2 - 1) * ARQUERO_DESPEJE_DISPERSION;
+  const angulo = direccionDespejeLibre();
   ball.vx = Math.cos(angulo) * ARQUERO_DESPEJE_POTENCIA;
   ball.vy = Math.sin(angulo) * ARQUERO_DESPEJE_POTENCIA;
   ultimoPateador = null;
@@ -1097,6 +1185,27 @@ function colisionArquero(prevX, prevY){
 
   if (Math.random() < arqueroStats.control / 100) atajarAtrapando();
   else atajarConRebote(nx, ny);
+}
+
+// El arquero también es sólido para los jugadores (de cualquier equipo): antes se podía pasar
+// "flotando" encima suyo (y, de paso, de la pelota que tuviera en brazos, que va pegada a él).
+// Al arquero se lo trata como fijo en este choque (no lo empuja a él, solo aleja al jugador),
+// para no desarmarle la posición mientras está reaccionando a una jugada. Mientras retiene la
+// pelota atrapada (conPelotaArquero) hay que guardar un poco más de distancia — un cuerpo extra —
+// para no amontonarse encima suyo en ese momento.
+const ARQUERO_ESPACIO_PERSONAL = 52; // unidades extra (≈ un cuerpo) mientras retiene la pelota
+function colisionArqueroJugadores(){
+  const jugadores = players.concat([rival]);
+  for (const j of jugadores) {
+    const dx = j.x - arquero.x, dy = j.y - arquero.y;
+    const dist = Math.hypot(dx, dy) || 0.001;
+    const minDist = j.r + arquero.r + (conPelotaArquero ? ARQUERO_ESPACIO_PERSONAL : 0);
+    if (dist >= minDist) continue;
+    const nx = dx / dist, ny = dy / dist;
+    j.x = arquero.x + nx * minDist; j.y = arquero.y + ny * minDist;
+    const vNormal = j.vx * nx + j.vy * ny;
+    if (vNormal < 0) { j.vx -= vNormal * nx; j.vy -= vNormal * ny; }
+  }
 }
 
 // Los jugadores no pueden atravesarse: si se encuentran, chocan y se separan (revisa cada par).
@@ -1480,15 +1589,24 @@ function bucle(ahora){
     dx = dxBalon / distBalon; dy = dyBalon / distBalon; pctMarcha = MARCHA_CORRER;
   }
 
+  // Posición de cada uno antes de moverse este cuadro, para la colisión continua con los postes
+  // (ver colisionPostesJugador): tiene que ser de antes de CUALQUIER cosa que pueda correrlos
+  // este cuadro, movimiento propio o empujones de otras colisiones.
+  const prevJugadores = players.map(p => ({ x: p.x, y: p.y }));
+  const prevRival = { x: rival.x, y: rival.y };
+  const prevArquero = { x: arquero.x, y: arquero.y };
+
   actualizarJugador(players[activo], dx, dy, pctMarcha, dt);
   actualizarIA(dt);
   actualizarRival(dt);
   actualizarArquero(dt);
   colisionJugadores();
   colisionRivalJugadores();
-  players.forEach(colisionPostesJugador);
-  colisionPostesJugador(rival);
-  colisionPostesJugador(arquero);
+  colisionArqueroJugadores();
+  players.forEach((p, i) => { colisionPostesJugador(p, prevJugadores[i].x, prevJugadores[i].y); limitarJugadorACancha(p); });
+  colisionPostesJugador(rival, prevRival.x, prevRival.y);
+  limitarJugadorACancha(rival);
+  colisionPostesJugador(arquero, prevArquero.x, prevArquero.y);
   const ballXAntes = ball.x, ballYAntes = ball.y;
   actualizarPelota(dt);
   colisionPostes(ballXAntes, ballYAntes);
@@ -1532,10 +1650,11 @@ function actualizarPanelParametros(){
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
-    ["Límites de cancha", "x: " + Math.round(CANCHA_X_MIN) + " a " + CANCHA_X_MAX + ", y: ±" + Math.round(CANCHA_Y_LIMITE) + " (105×68m real)"],
+    ["Límites de cancha", "x: " + Math.round(CANCHA_X_MIN) + " a " + CANCHA_X_MAX + ", y: ±" + Math.round(CANCHA_Y_LIMITE) + " (105×68m real), jugadores +" + Math.round(CANCHA_MARGEN_JUGADOR) + "u de margen"],
     ["Área grande (arquero)", "x: " + Math.round(AREA_X_MIN) + " a " + AREA_X_MAX + ", ancho " + Math.round(AREA_ANCHO) + "u"],
-    ["Arquero", "colocación " + arqueroStats.colocacion + ", control " + arqueroStats.control + " (se mueve como un jugador de campo)"],
-    ["Atajadas", "incertidumbre " + Math.round(ARQUERO_INCERTIDUMBRE*100) + "% (se le puede pasar igual), retiene " + ARQUERO_SOSTIENE_DURACION + "s y despeja"],
+    ["Arquero", "colocación " + arqueroStats.colocacion + ", control " + arqueroStats.control + ", llegada " + ARQUERO_LLEGADA_CAMINAR + "/" + ARQUERO_LLEGADA_TROTAR + "u (paso/trote)"],
+    ["Atajadas", "incertidumbre " + Math.round(ARQUERO_INCERTIDUMBRE*100) + "% (se le puede pasar igual), retiene " + ARQUERO_SOSTIENE_DURACION + "s y despeja por el hueco más libre"],
+    ["Espacio del arquero", "sólido para jugadores; +" + ARQUERO_ESPACIO_PERSONAL + "u mientras retiene la pelota"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
     ["Aguante ref. (resistencia=50)", "35/44/1.5min camin./trote/sprint = partido"],
