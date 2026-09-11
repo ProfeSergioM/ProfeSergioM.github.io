@@ -458,7 +458,33 @@ function pasar(carga){
   conPelota = null;
   registrarEnvio(p);
   ultimoPateador = activo;
-  // El foco cambia de jugador cuando el compañero efectivamente la recibe (ver actualizarPosesion).
+  // Si nadie recibe antes (p. ej. lo intercepta el rival), el foco vuelve a cambiar cuando la
+  // pelota efectivamente llegue a otro jugador (ver actualizarPosesion).
+  cambioDeJugadorAsistido(p, angulo);
+}
+
+// "Cambio de jugador asistido": si el pase apunta a un compañero que queda más lejos que el
+// doble del radio de recepción (el mismo que ya usa actualizarPosesion para detectar que alguien
+// la recibió: RADIO_RECEPCION_FACTOR×r), el control salta de inmediato a ese compañero, en vez de
+// esperar a que la pelota le llegue físicamente. Así se puede empezar a acomodarlo para recibir
+// mientras la pelota todavía está en el aire. Para pases cortos (al doble de radio o menos) no
+// hace nada: seguís controlando a quien pateó.
+const CAMBIO_ASISTIDO_FACTOR = RADIO_RECEPCION_FACTOR * 2; // ×r
+
+function cambioDeJugadorAsistido(pasador, angulo){
+  const dirX = Math.cos(angulo), dirY = Math.sin(angulo);
+  let receptor = null, mejorAlineacion = 0; // >0: exige que quede al menos algo adelante del pase
+  players.forEach((candidato, i) => {
+    if (i === activo) return;
+    const dx = candidato.x - pasador.x, dy = candidato.y - pasador.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const alineacion = (dx / dist) * dirX + (dy / dist) * dirY;
+    if (alineacion > mejorAlineacion) { mejorAlineacion = alineacion; receptor = i; }
+  });
+  if (receptor === null) return; // ningún compañero queda claramente en la dirección del pase
+
+  const distancia = Math.hypot(players[receptor].x - pasador.x, players[receptor].y - pasador.y);
+  if (distancia > pasador.r * CAMBIO_ASISTIDO_FACTOR) activo = receptor;
 }
 
 // ── Física ────────────────────────────────────────────────
@@ -633,12 +659,14 @@ function actualizarIA(dt){
 
 // El rival hace dos cosas nada más: mientras un pase (o tiro) va en el aire, corre a
 // interceptarlo, apuntando un poco adelantado a hacia dónde va la pelota; y si no hay ningún
-// pase en vuelo, sigue de cerca a quien tiene la pelota (marca), sin acercarse tanto como para
-// quedar pegado (no hay quite todavía, solo achica el espacio). Sin pase en vuelo y sin nadie
-// en posesión (pelota suelta parada, o entre que se corta un pase y alguien la recupera) se
-// queda quieto: no persigue la pelota suelta por su cuenta.
-const RIVAL_ANTICIPO = 0.25;     // segundos de adelanto con que apunta al camino de la pelota
-const RIVAL_MARCA_DISTANCIA = 60; // qué tan cerca se deja estar del portador antes de frenar
+// pase en vuelo, sigue de cerca a quien tiene la pelota (marca), corriendo directo hacia
+// él sin frenar antes de tiempo: la marca solo es útil si el rival realmente llega a
+// disputarle la pelota (ver colisionRivalJugadores), así que no hay una distancia de
+// "quedarse cerca pero sin tocar" — el choque entre los dos ya se encarga de no dejarlos
+// superponerse. Sin pase en vuelo y sin nadie en posesión (pelota suelta parada, o entre que
+// se corta un pase y alguien la recupera) se queda quieto: no persigue la pelota suelta por
+// su cuenta.
+const RIVAL_ANTICIPO = 0.25; // segundos de adelanto con que apunta al camino de la pelota
 
 function actualizarRival(dt){
   const paseEnVuelo = conPelota === null && direccionEnvio !== null;
@@ -654,11 +682,7 @@ function actualizarRival(dt){
     const portador = players[conPelota];
     const dx = portador.x - rival.x, dy = portador.y - rival.y;
     const dist = Math.hypot(dx, dy) || 1;
-    if (dist > RIVAL_MARCA_DISTANCIA) {
-      actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
-    } else {
-      actualizarJugador(rival, 0, 0, 0, dt);
-    }
+    actualizarJugador(rival, dx/dist, dy/dist, MARCHA_CORRER, dt);
     return;
   }
 
@@ -1193,8 +1217,9 @@ function actualizarPanelParametros(){
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arco", "x=" + ARCO_X + ", ancho " + ARCO_ANCHO + "u"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
-    ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca al portador a " + RIVAL_MARCA_DISTANCIA + "u"],
+    ["Rival", "intercepta pases (anticipa " + RIVAL_ANTICIPO + "s) y marca de cerca al portador"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL],
+    ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción)"],
     ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
