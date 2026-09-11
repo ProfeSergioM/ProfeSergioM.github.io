@@ -142,7 +142,10 @@ const VIEW_W_ESCRITORIO = 1400; // PC
 // ── Atributos de jugador (escala 0-100: 0 nulo, 100 el máximo de diseño) ──
 const VEL_DISENO_MAX = 260;    // unidades/seg cuando velocidad=100
 const ACEL_DISENO_MAX = 1400;  // unidades/seg² cuando aceleración=100
-const GIRO_DISENO_MAX = 16;    // rad/seg cuando agilidad=100 (qué tan rápido gira para cambiar de dirección)
+// "Agilidad" (statsComunes.agilidad) por ahora no maneja nada: manejaba qué tan rápido giraba la
+// mirada del jugador, pero eso ahora es instantáneo (ver actualizarJugador) para no dejar un
+// arco incómodo en cómo la pelota sigue al jugador al dominarla. Se deja el stat en el equipo por
+// si más adelante se le encuentra otro uso.
 
 // Control: qué tan pegada al jugador queda la pelota al dominarla.
 const CONTROL_OFFSET_MIN = 42, CONTROL_OFFSET_MAX = 60;   // distancia pelota-jugador, en la dirección hacia la que mira
@@ -524,15 +527,6 @@ function marchaDesdeMagnitud(m){
   return { nombre:"correr", pct:MARCHA_CORRER, color:"rgba(255,213,74,.9)" };
 }
 
-// Cuánto de la agilidad se aplica según la marcha: cambiar de dirección cuesta más cuanto más
-// rápido se va. Caminando, el 100% del stat; trotando, dos tercios; corriendo, un tercio.
-const AGILIDAD_FACTOR_CAMINAR = 1, AGILIDAD_FACTOR_TROTAR = 0.66, AGILIDAD_FACTOR_CORRER = 0.33;
-function factorAgilidadPorMarcha(marcha){
-  if (marcha === MARCHA_CAMINAR) return AGILIDAD_FACTOR_CAMINAR;
-  if (marcha === MARCHA_TROTAR) return AGILIDAD_FACTOR_TROTAR;
-  return AGILIDAD_FACTOR_CORRER; // correr
-}
-
 // ── Fatiga ────────────────────────────────────────────────
 // Energía de sprint: de corto plazo, se agota rápido corriendo a fondo. Cuánto depende del
 // atributo "sprint" del jugador (100 = se agota más lento). Se recupera en cuanto deja de esprintar.
@@ -584,16 +578,6 @@ function actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt){
   p.energiaSprint = Math.min(p.energiaSprint, p.aguante);
 }
 
-// Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
-function girarHacia(p, dx, dy, giroMax, dt){
-  const anguloActual = Math.atan2(p.dirY, p.dirX);
-  const anguloObjetivo = Math.atan2(dy, dx);
-  let diff = Math.atan2(Math.sin(anguloObjetivo - anguloActual), Math.cos(anguloObjetivo - anguloActual));
-  const paso = Math.max(-giroMax * dt, Math.min(giroMax * dt, diff));
-  const nuevo = anguloActual + paso;
-  p.dirX = Math.cos(nuevo); p.dirY = Math.sin(nuevo);
-}
-
 function actualizarJugador(p, dx, dy, pctMarcha, dt){
   const len = Math.hypot(dx, dy);
   const moviendo = len > 0.05;
@@ -606,12 +590,12 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
 
   if (moviendo) {
     dx /= len; dy /= len;
-    // La mirada (dirX/dirY) gira gradualmente según la agilidad — se usa para patear/pasar y
-    // para dónde queda la pelota al dominarla — pero el movimiento en sí NO la sigue: si la
-    // siguiera, al pedir la dirección contraria el jugador aceleraría siempre "hacia adelante"
-    // mientras la mirada gira, trazando un arco (como un auto dando la vuelta) en vez de frenar
-    // y salir para el otro lado. La aceleración apunta directo hacia donde se pide ir.
-    girarHacia(p, dx, dy, GIRO_DISENO_MAX * (statsComunes.agilidad / 100) * factorAgilidadPorMarcha(marchaResultante), dt);
+    // La mirada (dirX/dirY) apunta directo hacia donde se pide ir, igual que la aceleración: si
+    // girara gradualmente (como hacía antes, según la agilidad), quedaba un arco incómodo en
+    // cómo la pelota "sigue" al jugador al dominarla (su posición depende de la mirada) cada vez
+    // que cambiaba de dirección de golpe, por ejemplo al salir corriendo a buscarla — aunque el
+    // movimiento en sí ya fuera directo desde el arreglo anterior.
+    p.dirX = dx; p.dirY = dy;
     const acel = ACEL_DISENO_MAX * (statsComunes.aceleracion / 100);
     p.vx += dx * acel * dt;
     p.vy += dy * acel * dt;
@@ -959,7 +943,10 @@ function revisarGol(){
 // nada, claro). Los jugadores no están acotados todavía, solo la pelota: es lo que hace falta
 // para poder terminar una jugada.
 const CANCHA_X_MIN = ARCO_X - 52.5 * UNIDADES_POR_METRO; // línea de mitad de cancha
-const CANCHA_X_MAX = ARCO_X + ARCO_PROFUNDIDAD + 40;     // un poco más allá del fondo de la red
+// La línea de gol ES la línea de fondo: no hay un colchón extra de cancha detrás del arco (la
+// red sí se sigue dibujando por detrás, como corresponde, pero ya es zona "afuera" a efectos de
+// la cancha: si la pelota cruza la línea de gol y no es gol, ya salió).
+const CANCHA_X_MAX = ARCO_X;
 const CANCHA_Y_LIMITE = 34 * UNIDADES_POR_METRO;         // líneas laterales (68m de ancho total)
 
 function fueraDeLaCancha(x, y){
@@ -983,12 +970,14 @@ const AREA_X_MAX = ARCO_X + ARCO_PROFUNDIDAD;  // hasta el fondo de la red, por 
 const ARQUERO_INICIAL = { x: ARCO_X - 20, y: 0, dirX: -1, dirY: 0 };
 
 // Marcas puramente visuales (no afectan al arquero ni a nada más, son solo referencia en la
-// cancha): el área chica (6 yardas/5.5m), el punto penal (11m) y el radio de la media
-// luna/círculo central (9.15m/10 yardas, el mismo radio en las dos).
+// cancha): el área chica (6 yardas/5.5m), el punto penal (11m), el radio de la media
+// luna/círculo central (9.15m/10 yardas, el mismo radio en las dos) y el de los cuartos de
+// círculo de las esquinas junto al arco (1 yarda).
 const AREA_CHICA_PROFUNDIDAD = 5.5 * UNIDADES_POR_METRO;
 const AREA_CHICA_ANCHO = 18.32 * UNIDADES_POR_METRO;
 const PUNTO_PENAL_DISTANCIA = 11 * UNIDADES_POR_METRO;
 const RADIO_CIRCULO_CENTRAL = 9.15 * UNIDADES_POR_METRO;
+const RADIO_CORNER = 0.9144 * UNIDADES_POR_METRO;
 // Stats propios del arquero: no comparte los del equipo de campo (statsComunes). "Colocación"
 // define qué tan de cerca sigue el ángulo de la pelota bajo los palos (100 = pegado a la pelota;
 // menos, se queda más centrado y cubre peor los palos); "control" define qué tan seguido ataja
@@ -1022,8 +1011,9 @@ function actualizarArquero(dt){
   if (dist < 2) actualizarJugador(arquero, 0, 0, 0, dt);
   else actualizarJugador(arquero, dx, dy, MARCHA_CORRER, dt);
 
-  // Nunca se sale de su área, pase lo que pase con el movimiento de arriba.
-  arquero.x = Math.max(AREA_X_MIN, Math.min(AREA_X_MAX, arquero.x));
+  // Nunca se sale de su área, pase lo que pase con el movimiento de arriba. Tampoco cruza su
+  // propia línea de gol: un arquero no se para detrás del arco.
+  arquero.x = Math.max(AREA_X_MIN, Math.min(ARCO_X, arquero.x));
   arquero.y = Math.max(-AREA_ANCHO/2, Math.min(AREA_ANCHO/2, arquero.y));
 }
 
@@ -1286,8 +1276,11 @@ function dibujarLimites(){
 
 // Marcas de cancha en proporciones reales: área grande, área chica, punto penal, la media luna
 // (el arco de círculo alrededor del punto penal, recortado a la parte que queda fuera del área
-// grande) y el semicírculo central sobre la línea de mitad de cancha (solo se ve la mitad del
-// círculo central porque el mundo del juego solo tiene esta mitad de la cancha).
+// grande), el semicírculo central sobre la línea de mitad de cancha (solo se ve la mitad del
+// círculo central porque el mundo del juego solo tiene esta mitad de la cancha) y los dos
+// cuartos de círculo de las esquinas junto al arco (donde la línea de gol se junta con cada
+// línea lateral; del otro lado, en la línea de mitad de cancha, no hay esquinas reales que
+// marcar, esa línea no es un borde de cancha de verdad).
 function dibujarMarcasCancha(){
   ctx.strokeStyle = "rgba(255,255,255,.55)";
   ctx.lineWidth = 3;
@@ -1315,6 +1308,14 @@ function dibujarMarcasCancha(){
   // Semicírculo central, sobre la línea de mitad de cancha, abierto hacia este lado de la cancha.
   ctx.beginPath();
   ctx.arc(CANCHA_X_MIN, 0, RADIO_CIRCULO_CENTRAL, -Math.PI/2, Math.PI/2);
+  ctx.stroke();
+
+  // Cuartos de círculo en las dos esquinas junto al arco (línea de gol × línea lateral).
+  ctx.beginPath();
+  ctx.arc(ARCO_X, -CANCHA_Y_LIMITE, RADIO_CORNER, Math.PI/2, Math.PI);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(ARCO_X, CANCHA_Y_LIMITE, RADIO_CORNER, Math.PI, Math.PI*1.5);
   ctx.stroke();
 }
 
@@ -1349,9 +1350,6 @@ function dibujarMalla(){
 
 function dibujarArco(){
   dibujarMalla();
-  // marco (línea recta de referencia del arco original, detrás de la red)
-  ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 2;
-  ctx.strokeRect(ARCO_X, -ARCO_ANCHO/2, ARCO_PROFUNDIDAD, ARCO_ANCHO);
   // postes, más marcados
   ctx.fillStyle = "#fff";
   ctx.beginPath(); ctx.arc(ARCO_X, -ARCO_ANCHO/2, POSTE_RADIO, 0, Math.PI*2); ctx.fill();
@@ -1538,7 +1536,6 @@ function actualizarPanelParametros(){
     ["Área grande (arquero)", "x: " + Math.round(AREA_X_MIN) + " a " + AREA_X_MAX + ", ancho " + Math.round(AREA_ANCHO) + "u"],
     ["Arquero", "colocación " + arqueroStats.colocacion + ", control " + arqueroStats.control + " (se mueve como un jugador de campo)"],
     ["Atajadas", "incertidumbre " + Math.round(ARQUERO_INCERTIDUMBRE*100) + "% (se le puede pasar igual), retiene " + ARQUERO_SOSTIENE_DURACION + "s y despeja"],
-    ["Agilidad camin./trote/correr", Math.round(AGILIDAD_FACTOR_CAMINAR*100) + "/" + Math.round(AGILIDAD_FACTOR_TROTAR*100) + "/" + Math.round(AGILIDAD_FACTOR_CORRER*100) + "%"],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s (techo = aguante actual)"],
     ["Aguante ref. (resistencia=50)", "35/44/1.5min camin./trote/sprint = partido"],
