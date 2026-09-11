@@ -108,9 +108,9 @@ const RADIO_RECEPCION_FACTOR = 2;
 function crearJugador(color, oscuro, x, y){
   return {
     color, oscuro, x, y, vx:0, vy:0, dirX:1, dirY:0, r:26,
-    velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100,
+    velocidad:100, agilidad:100, aceleracion:100, control:100, sprint:100, resistencia:100,
     // Recursos de fatiga (no son atributos fijos: se consumen y se recuperan jugando).
-    energiaSprint:100, resistencia:100
+    energiaSprint:100, aguante:100
   };
 }
 
@@ -121,8 +121,8 @@ const players = [
 ];
 // ── Panel de stats por jugador (jugador 1 a la izquierda, jugador 2 a la derecha) ──
 // Atributos fijos (0-100, no cambian solos) y recursos de fatiga (cambian jugando).
-const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"], ["sprint","Sprint"] ];
-const RECURSOS_MOSTRADOS = [ ["energiaSprint","Energía sprint"], ["resistencia","Resistencia"] ];
+const STATS_MOSTRADAS = [ ["velocidad","Velocidad"], ["agilidad","Agilidad"], ["aceleracion","Aceleración"], ["control","Control"], ["sprint","Sprint"], ["resistencia","Resistencia"] ];
+const RECURSOS_MOSTRADOS = [ ["energiaSprint","Energía sprint"], ["aguante","Aguante"] ];
 function crearFilaStat(contenedor, etiqueta, esRecurso){
   const fila = document.createElement("div"); fila.className = "stat-fila" + (esRecurso ? " recurso" : "");
   const nombre = document.createElement("div"); nombre.className = "stat-nombre";
@@ -186,7 +186,7 @@ const camera = { x:players[0].x, y:players[0].y };
 function posicionInicial(){
   players[0].x = -160; players[0].y = 0; players[0].vx = players[0].vy = 0; players[0].dirX = 1; players[0].dirY = 0;
   players[1].x = 160; players[1].y = 0; players[1].vx = players[1].vy = 0; players[1].dirX = -1; players[1].dirY = 0;
-  players.forEach(p => { p.energiaSprint = 100; p.resistencia = 100; });
+  players.forEach(p => { p.energiaSprint = 100; p.aguante = 100; });
   ball.x = -80; ball.y = 0; ball.vx = ball.vy = 0;
   ball.patron = crearPatronPelota();
   activo = 0;
@@ -302,22 +302,45 @@ function marchaDesdeMagnitud(m){
 const ENERGIA_SPRINT_TASA_MAX = 40, ENERGIA_SPRINT_TASA_MIN = 12; // %/seg, según el atributo sprint
 const ENERGIA_SPRINT_RECUPERACION = 25; // %/seg, mientras no esprinta
 
-// Resistencia general: de largo plazo (100 alcanza para todo un partido). Se agota de a poco
-// (más si el jugador esprinta) y solo se recupera trotando, a un tercio de esa tasa base.
-const RESISTENCIA_TASA_BASE = 100 / 480;      // %/seg
-const RESISTENCIA_TASA_SPRINT_EXTRA = 0.6;    // %/seg adicional mientras esprinta
-const RESISTENCIA_RECUPERACION = RESISTENCIA_TASA_BASE / 3; // %/seg, solo trotando
+// Aguante (resistencia general): de largo plazo. Lo que gasta o recupera cada segundo depende
+// del atributo "resistencia" del jugador, calibrado con la distribución real de movimiento de
+// un futbolista profesional en 90 minutos: ~35min caminando, ~44min trotando, ~1.5min
+// esprintando, y el resto (~9.5min) parado en pausas del juego (eso no gasta ni recupera).
+// Un jugador con resistencia=50 (el "promedio") agota sus 100 puntos de aguante haciendo
+// justo esa distribución en todo el partido; con resistencia=100 le rinde el doble.
+const RESISTENCIA_EFECTO_CAMINAR = 1;     // unidades de esfuerzo/seg caminando (referencia)
+const RESISTENCIA_EFECTO_SPRINT = 8;      // unidades de esfuerzo/seg esprintando (relativo a caminar)
+const RESISTENCIA_EFECTO_TROTAR = -1/3;   // trotando se recupera, a un tercio de la tasa de caminar
 
-function actualizarFatiga(p, sprintando, marchaResultante, dt){
+const RESISTENCIA_MIN_CAMINAR = 35 * 60, RESISTENCIA_MIN_TROTAR = 44 * 60, RESISTENCIA_MIN_SPRINT = 1.5 * 60;
+const RESISTENCIA_UNIDADES_REFERENCIA =
+  RESISTENCIA_MIN_CAMINAR * RESISTENCIA_EFECTO_CAMINAR +
+  RESISTENCIA_MIN_TROTAR * RESISTENCIA_EFECTO_TROTAR +
+  RESISTENCIA_MIN_SPRINT * RESISTENCIA_EFECTO_SPRINT; // las pausas no gastan ni recuperan
+const RESISTENCIA_STAT_REFERENCIA = 50; // el stat "promedio" que agota los 100 puntos justo con lo de arriba
+const RESISTENCIA_CAPACIDAD_POR_STAT = RESISTENCIA_UNIDADES_REFERENCIA / RESISTENCIA_STAT_REFERENCIA;
+
+// %/seg de aguante que gana (efecto<0) o pierde (efecto>0) un jugador con este stat de resistencia.
+function tasaAguante(stat, efecto){
+  const capacidad = RESISTENCIA_CAPACIDAD_POR_STAT * Math.max(stat, 1);
+  return (100 / capacidad) * efecto;
+}
+
+function actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt){
   if (sprintando) {
     const tasa = ENERGIA_SPRINT_TASA_MAX + (ENERGIA_SPRINT_TASA_MIN - ENERGIA_SPRINT_TASA_MAX) * (p.sprint / 100);
     p.energiaSprint = Math.max(0, p.energiaSprint - tasa * dt);
-    p.resistencia = Math.max(0, p.resistencia - (RESISTENCIA_TASA_BASE + RESISTENCIA_TASA_SPRINT_EXTRA) * dt);
   } else {
     p.energiaSprint = Math.min(100, p.energiaSprint + ENERGIA_SPRINT_RECUPERACION * dt);
-    if (marchaResultante === MARCHA_TROTAR) p.resistencia = Math.min(100, p.resistencia + RESISTENCIA_RECUPERACION * dt);
-    else p.resistencia = Math.max(0, p.resistencia - RESISTENCIA_TASA_BASE * dt);
   }
+
+  let efecto = 0; // parado (sin moverse): no gasta ni recupera aguante
+  if (moviendo) {
+    if (sprintando) efecto = RESISTENCIA_EFECTO_SPRINT;
+    else if (marchaResultante === MARCHA_TROTAR) efecto = RESISTENCIA_EFECTO_TROTAR;
+    else efecto = RESISTENCIA_EFECTO_CAMINAR;
+  }
+  p.aguante = Math.max(0, Math.min(100, p.aguante - tasaAguante(p.resistencia, efecto) * dt));
 }
 
 // Gira dirX/dirY hacia (dx,dy) sin superar giroMax radianes/seg (limita qué tan rápido cambia de dirección).
@@ -338,7 +361,7 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
   let marchaResultante = pctMarcha;
   const sprintando = moviendo && pctMarcha === MARCHA_CORRER && p.energiaSprint > 0;
   if (moviendo && pctMarcha === MARCHA_CORRER && p.energiaSprint <= 0) marchaResultante = MARCHA_TROTAR;
-  actualizarFatiga(p, sprintando, marchaResultante, dt);
+  actualizarFatiga(p, moviendo, sprintando, marchaResultante, dt);
 
   if (moviendo) {
     dx /= len; dy /= len;
@@ -350,9 +373,9 @@ function actualizarJugador(p, dx, dy, pctMarcha, dt){
     const f = Math.max(0, 1 - FRICCION_JUGADOR * dt);
     p.vx *= f; p.vy *= f;
   }
-  // La resistencia agotada también resta un poco de tope de velocidad en general.
-  const factorResistencia = 0.5 + 0.5 * (p.resistencia / 100);
-  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (marchaResultante / 100) * factorResistencia;
+  // El aguante agotado también resta un poco de tope de velocidad en general.
+  const factorAguante = 0.5 + 0.5 * (p.aguante / 100);
+  const velTope = VEL_DISENO_MAX * (p.velocidad / 100) * (marchaResultante / 100) * factorAguante;
   const vel = Math.hypot(p.vx, p.vy);
   if (vel > velTope) { p.vx = p.vx/vel*velTope; p.vy = p.vy/vel*velTope; }
   p.x += p.vx * dt; p.y += p.vy * dt;
@@ -659,8 +682,10 @@ function actualizarPanelParametros(){
     ["Seguimiento IA", DISTANCIA_SEGUIMIENTO],
     ["Agot. sprint", ENERGIA_SPRINT_TASA_MIN + "–" + ENERGIA_SPRINT_TASA_MAX + "%/s"],
     ["Recup. sprint", ENERGIA_SPRINT_RECUPERACION + "%/s"],
-    ["Resistencia base", RESISTENCIA_TASA_BASE.toFixed(2) + "%/s"],
-    ["Resistencia extra sprint", RESISTENCIA_TASA_SPRINT_EXTRA + "%/s"]
+    ["Aguante ref. (resistencia=50)", "35/44/1.5min camin./trote/sprint = partido"],
+    ["Aguante @50 camin.", tasaAguante(50, RESISTENCIA_EFECTO_CAMINAR).toFixed(3) + "%/s"],
+    ["Aguante @50 trote", Math.abs(tasaAguante(50, RESISTENCIA_EFECTO_TROTAR)).toFixed(3) + "%/s (recup.)"],
+    ["Aguante @50 sprint", tasaAguante(50, RESISTENCIA_EFECTO_SPRINT).toFixed(3) + "%/s"]
   ];
   document.getElementById("panel-parametros").innerHTML =
     items.map(([nombre, valor]) => `<span>${nombre}: <b>${valor}</b></span>`).join("");
