@@ -301,10 +301,18 @@ const camera = { x:0, y:0 };
 // (no un número cualquiera): así la pelota, al "engancharse" a sus pies según nivelControl (ver
 // actualizarPelota), queda exactamente en el punto de saque en vez de dar un salto de entrada — si
 // no, ese salto por sí solo ya movía la pelota más que el margen de esperandoSaque, liberando a los
-// rivales antes de que el pateador hiciera nada.
+// rivales antes de que el pateador hiciera nada. El receptor queda exactamente en la línea de
+// medio campo (x del punto de saque, offset x=0) en vez de a un lado: el pateador, a su vez,
+// arranca mirándolo derecho (dirX/dirY calculados hacia él, no un (1,0) fijo) — ver
+// pasarDirectoAlReceptor/iniciarCargaPase, que usan esta misma geometría para el primer pase.
+const SAQUE_RECEPTOR_OFFSET = { x: 0, y: 150 }; // en el círculo, sobre la línea de medio campo
+const SAQUE_PATEADOR_OFFSET = { x: -CONTROL_OFFSET_MIN, y: 0 };
+const SAQUE_DX = SAQUE_RECEPTOR_OFFSET.x - SAQUE_PATEADOR_OFFSET.x;
+const SAQUE_DY = SAQUE_RECEPTOR_OFFSET.y - SAQUE_PATEADOR_OFFSET.y;
+const SAQUE_DIST = Math.hypot(SAQUE_DX, SAQUE_DY);
 const FORMACION_INICIAL_OFFSET = [
-  { x:-CONTROL_OFFSET_MIN, y:0, dirX:1, dirY:0 },
-  { x:-170, y:120, dirX:1, dirY:0 },
+  { x: SAQUE_PATEADOR_OFFSET.x, y: SAQUE_PATEADOR_OFFSET.y, dirX: SAQUE_DX/SAQUE_DIST, dirY: SAQUE_DY/SAQUE_DIST },
+  { x: SAQUE_RECEPTOR_OFFSET.x, y: SAQUE_RECEPTOR_OFFSET.y, dirX: 1, dirY: 0 },
   { x:-480, y:-280, dirX:1, dirY:0 },
   { x:-680, y:-480, dirX:1, dirY:0 },
   { x:-680, y:480,  dirX:1, dirY:0 }
@@ -511,6 +519,9 @@ const barraCargaPaseCubierta = document.getElementById("barra-carga-pase-cubiert
 
 function iniciarCargaPase(){
   if (conPelota !== activo) return;
+  // El saque inicial no se carga: un solo toque del botón de pase la manda directo al receptor
+  // (ver pasarDirectoAlReceptor) — ni barra de potencia ni margen de error, es un pase scripted.
+  if (esperandoSaque) { pasarDirectoAlReceptor(); return; }
   cargandoPase = true;
   tiempoCargaPase = 0;
   barraCargaPase.classList.add("activa");
@@ -605,6 +616,23 @@ function pasarConConfig(carga, potenciaMax, cargaMinima, errorMax){
 }
 function pasar(carga){
   pasarConConfig(carga, PASE_POTENCIA_DISENO_MAX, PASE_CARGA_MINIMA, PASE_PRECISION_ERROR_MAX);
+}
+
+// Pase del saque inicial (ver iniciarCargaPase/esperandoSaque): no pasa por la carga ni el error
+// al azar de pasarConConfig — apunta exacto a la posición ACTUAL del receptor (jugador 1, ver
+// FORMACION_INICIAL_OFFSET/SAQUE_RECEPTOR_OFFSET), con potencia fija (la misma "carga mínima" que
+// ya usa cualquier pase corto suave). El pateador arranca mirándolo, así que en la práctica esto
+// casi nunca cambia el ángulo — pero apuntar a la posición real, no solo a hacia dónde mira, es
+// más robusto si algo llegó a moverlo un poco durante la espera del saque.
+function pasarDirectoAlReceptor(){
+  const p = players[activo];
+  const receptor = players[1];
+  const dx = receptor.x - p.x, dy = receptor.y - p.y, len = Math.hypot(dx, dy) || 1;
+  const angulo = impulsarPelota(dx/len, dy/len, PASE_POTENCIA_DISENO_MAX * PASE_CARGA_MINIMA, 100, 0);
+  conPelota = null;
+  registrarEnvio(p);
+  ultimoPateador = activo;
+  cambioDeJugadorAsistido(p, angulo);
 }
 // El pase largo, a diferencia del corto, va por arriba: mientras está "en el aire" (ball.altura>0)
 // no colisiona con nadie (ver actualizarPelota y los guards de altura en colisionPostes,
@@ -2439,7 +2467,7 @@ function actualizarPanelParametros(){
     ["Arco del pase largo", PASE_LARGO_DURACION_VUELO_MIN + "–" + PASE_LARGO_DURACION_VUELO_MAX + "s en el aire según la carga; no colisiona con nadie mientras vuela"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arcos", "propio x=" + ARCO_X + ", rival x=" + Math.round(ARCO_X2) + ", ancho " + ARCO_ANCHO + "u cada uno"],
-    ["Saque inicial", "obligatorio pasarla: el pateador no puede moverse hasta soltarla (tiro o pase), y los rivales no se mueven a marcar hasta que se mueva del punto de saque"],
+    ["Saque inicial", "obligatorio pasarla: el pateador no puede moverse (mirando derecho al receptor, en la línea de medio campo) y el botón de pase la manda directo a él sin carga ni error; los rivales no se mueven a marcar hasta que se mueva del punto de saque"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Defensa (marca y cobertura)", "el más cercano al portador siempre se le encima, anticipando " + DEFENSA_MARCA_ANTICIPACION + "s de su velocidad actual (si no, con la misma marcha tope nunca cierra la distancia); cada uno de los demás cubre a UN compañero del portador, a los más peligrosos primero si no alcanzan para todos (fracción " + DEFENSA_COBERTURA_FRACCION_LARGA + " cerca del receptor si la línea supera " + DEFENSA_COBERTURA_DISTANCIA_MIN + "u, si no " + DEFENSA_COBERTURA_FRACCION_CORTA + " cerca del portador); un pase en vuelo lo persiguen todos al punto de llegada. Aplica a los dos lados, según quién ataque"],
     ["Ataque rival", "arranca a driblar hacia el arco propio esquivando al marcador más cercano si está a menos de " + RIVAL_ATAQUE_EVASION_DISTANCIA + "u; tira desde " + Math.round(RIVAL_ATAQUE_DISTANCIA_TIRO) + "u si está centrado (" + Math.round(RIVAL_ATAQUE_ANCHO_TIRO) + "u de ancho), " + Math.round(RIVAL_ATAQUE_PROB_TIRO*100) + "%/cuadro en rango; si no, pasa " + Math.round(RIVAL_ATAQUE_PROB_PASE*100) + "%/cuadro al compañero MÁS ADELANTADO Y LIBRE de marca (nunca hacia atrás); precisión fija " + RIVAL_ATAQUE_PRECISION + " (no usa statsComunes)"],
