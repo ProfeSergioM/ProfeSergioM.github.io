@@ -297,21 +297,21 @@ const camera = { x:0, y:0 };
 // NEGATIVA respecto del saque. Acá siempre saca el equipo propio: el primero (pateador) queda
 // pegado a la pelota (y arranca con posesión, ver posicionInicial) y el segundo (receptor del
 // primer pase) también adentro del círculo pero a distancia de pase corto; los otros 3 quedan
-// afuera del círculo, como en cualquier reinicio. El offset del pateador es -CONTROL_OFFSET_MIN
-// (no un número cualquiera): así la pelota, al "engancharse" a sus pies según nivelControl (ver
-// actualizarPelota), queda exactamente en el punto de saque en vez de dar un salto de entrada — si
-// no, ese salto por sí solo ya movía la pelota más que el margen de esperandoSaque, liberando a los
-// rivales antes de que el pateador hiciera nada. El receptor queda exactamente en la línea de
-// medio campo (x del punto de saque, offset x=0) en vez de a un lado: el pateador, a su vez,
-// arranca mirándolo derecho (dirX/dirY calculados hacia él, no un (1,0) fijo) — ver
-// pasarDirectoAlReceptor/iniciarCargaPase, que usan esta misma geometría para el primer pase.
+// afuera del círculo, como en cualquier reinicio. El receptor queda exactamente en la línea de
+// medio campo (x del punto de saque, offset x=0), dentro del círculo. El pateador, a su vez, queda
+// SOBRE LA MISMA RECTA que va del punto de saque al receptor, a CONTROL_OFFSET_MIN detrás de él
+// (no en un punto cualquiera con una dirección de mirada calculada aparte): así, mirando derecho
+// al receptor, la pelota "enganchada a sus pies" (ver nivelControl/actualizarPelota, que la ubica
+// en pateador.pos + pateador.dir*offsetDeControl) cae EXACTO en el punto de saque, sin ningún
+// salto de entrada — con cualquier otra combinación de posición+mirada que no sea colineal con el
+// receptor, ese salto por sí solo ya mueve la pelota más que el margen de esperandoSaque, liberando
+// a los rivales (y a la IA de apoyo del resto del equipo) antes de que el pateador hiciera nada.
 const SAQUE_RECEPTOR_OFFSET = { x: 0, y: 150 }; // en el círculo, sobre la línea de medio campo
-const SAQUE_PATEADOR_OFFSET = { x: -CONTROL_OFFSET_MIN, y: 0 };
-const SAQUE_DX = SAQUE_RECEPTOR_OFFSET.x - SAQUE_PATEADOR_OFFSET.x;
-const SAQUE_DY = SAQUE_RECEPTOR_OFFSET.y - SAQUE_PATEADOR_OFFSET.y;
-const SAQUE_DIST = Math.hypot(SAQUE_DX, SAQUE_DY);
+const SAQUE_RECEPTOR_DIST = Math.hypot(SAQUE_RECEPTOR_OFFSET.x, SAQUE_RECEPTOR_OFFSET.y);
+const SAQUE_DIR = { x: SAQUE_RECEPTOR_OFFSET.x / SAQUE_RECEPTOR_DIST, y: SAQUE_RECEPTOR_OFFSET.y / SAQUE_RECEPTOR_DIST };
+const SAQUE_PATEADOR_OFFSET = { x: -SAQUE_DIR.x * CONTROL_OFFSET_MIN, y: -SAQUE_DIR.y * CONTROL_OFFSET_MIN };
 const FORMACION_INICIAL_OFFSET = [
-  { x: SAQUE_PATEADOR_OFFSET.x, y: SAQUE_PATEADOR_OFFSET.y, dirX: SAQUE_DX/SAQUE_DIST, dirY: SAQUE_DY/SAQUE_DIST },
+  { x: SAQUE_PATEADOR_OFFSET.x, y: SAQUE_PATEADOR_OFFSET.y, dirX: SAQUE_DIR.x, dirY: SAQUE_DIR.y },
   { x: SAQUE_RECEPTOR_OFFSET.x, y: SAQUE_RECEPTOR_OFFSET.y, dirX: 1, dirY: 0 },
   { x:-480, y:-280, dirX:1, dirY:0 },
   { x:-680, y:-480, dirX:1, dirY:0 },
@@ -843,6 +843,16 @@ function apoyoConEspacio(seguidor, companeros, oponentes){
 const RECEPCION_AJUSTE_MAX_FACTOR = 2;
 
 function actualizarIA(dt){
+  if (esperandoSaque) {
+    // Mientras se espera el saque (ver esperandoSaque/actualizarRivales), nadie arma apoyo en
+    // triángulo: el tirón de tironApoyo busca equidistancia con TODOS los demás compañeros, algo
+    // que no tiene ningún sentido para la formación de saque (el receptor recién ubicado a
+    // propósito en la línea de medio campo, por ejemplo, se iba de ahí de entrada) — sin este
+    // freeze se los veía corregir posición de golpe, en cualquier dirección, apenas arrancaba la
+    // jugada. Se quedan quietos en su formación, igual que ya hacen los rivales.
+    players.forEach((p, i) => { if (i !== activo) actualizarJugador(p, 0, 0, 0, dt); });
+    return;
+  }
   if (conPelotaRivalIdx !== null) {
     // El rival ataca: los compañeros que no maneja el humano arman marca+cobertura, igual que
     // hacen los rivales cuando el equipo propio ataca (ver actualizarDefensa) — el humano (activo)
