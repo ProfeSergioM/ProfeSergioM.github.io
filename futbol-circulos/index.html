@@ -285,15 +285,18 @@ const camera = { x:0, y:0 };
 
 // Formación inicial de los 5 jugadores del equipo, como desplazamiento fijo respecto del punto de
 // saque (ver MITAD_CANCHA_X/posicionInicial más abajo) — no en coordenadas absolutas, así funciona
-// sea cual sea el punto de saque. Reglamentario: al dar el saque, todo el equipo (de los dos lados)
-// tiene que estar en SU PROPIO campo y fuera del círculo central (ver RADIO_CIRCULO_CENTRAL, más
-// abajo, ≈275u) — acá el propio ataca hacia +x (ARCO_X) pero defiende del lado de ARCO_X2, o sea
-// que su campo propio es el de x NEGATIVA respecto del saque; todo offset de acá tiene |x|≥300,
-// ya de sobra afuera del círculo central sin importar la y.
+// sea cual sea el punto de saque. Reglamentario: solo el equipo que saca puede tener jugadores
+// DENTRO del círculo central (ver RADIO_CIRCULO_CENTRAL, más abajo, ≈275u) — el resto de la cancha
+// (afuera del círculo) sí queda repartida en el propio campo, igual que antes. El equipo propio
+// ataca hacia +x (ARCO_X) pero defiende del lado de ARCO_X2, o sea que su campo propio es el de x
+// NEGATIVA respecto del saque. Acá siempre saca el equipo propio: el primero (pateador) queda
+// pegado a la pelota (y arranca con posesión, ver posicionInicial) y el segundo (receptor del
+// primer pase) también adentro del círculo pero a distancia de pase corto; los otros 3 quedan
+// afuera del círculo, como en cualquier reinicio.
 const FORMACION_INICIAL_OFFSET = [
-  { x:-300, y:0,    dirX:1, dirY:0 },
+  { x:-35,  y:0,   dirX:1, dirY:0 },
+  { x:-170, y:120, dirX:1, dirY:0 },
   { x:-480, y:-280, dirX:1, dirY:0 },
-  { x:-480, y:280,  dirX:1, dirY:0 },
   { x:-680, y:-480, dirX:1, dirY:0 },
   { x:-680, y:480,  dirX:1, dirY:0 }
 ];
@@ -307,12 +310,19 @@ const rivales = [
   crearJugador("#E64A4A", "#B23030"),
   crearJugador("#E64A4A", "#B23030")
 ];
-// Espejo exacto de FORMACION_INICIAL_OFFSET respecto del punto de saque (mismo desplazamiento en
-// x con el signo dado vuelta, y sin cambios, dirX dado vuelta): a la misma distancia de su propio
-// arco que el equipo propio de su arco, ningún lado arranca en ventaja.
-const RIVALES_FORMACION_INICIAL = FORMACION_INICIAL_OFFSET.map(f => ({
-  x: -f.x, y: f.y, dirX: -f.dirX, dirY: f.dirY
-}));
+// A diferencia de FORMACION_INICIAL_OFFSET, esta NO es un espejo: el equipo rival nunca saca (ver
+// posicionInicial), así que el reglamento exige que sus 5 jugadores queden SIEMPRE fuera del
+// círculo central (a la misma distancia de su arco que antes tenía el equipo propio en su propia
+// formación pre-saque-con-posesión). Todo offset de acá tiene |x|≥300, de sobra afuera del círculo
+// central sin importar la y; el signo es positivo porque el campo propio del rival es el lado de
+// x POSITIVA respecto del saque (defiende ARCO_X, el equipo propio ataca ese lado).
+const RIVALES_FORMACION_INICIAL = [
+  { x:300,  y:0,    dirX:-1, dirY:0 },
+  { x:480,  y:-280, dirX:-1, dirY:0 },
+  { x:480,  y:280,  dirX:-1, dirY:0 },
+  { x:680,  y:-480, dirX:-1, dirY:0 },
+  { x:680,  y:480,  dirX:-1, dirY:0 }
+];
 // "Control" de cada rival para disputar la pelota al chocar con el portador (ver colisionRivalJugadores):
 // el equipo usa su stat compartido "control", los rivales usan este valor fijo. Con el default de
 // ambos (100 y 50) el equipo se queda con la pelota 2 de cada 3 disputas.
@@ -332,7 +342,11 @@ function posicionInicial(){
   ball.altura = 0; ball.vueloRestante = 0; ball.vueloTotal = 0;
   ball.patron = crearPatronPelota();
   activo = 0;
-  conPelota = null;
+  // El saque siempre lo da el equipo propio: el pateador (jugador 0, ver FORMACION_INICIAL_OFFSET)
+  // arranca CON la pelota, no solo cerca — así el puntapié inicial se ve como corresponde (un
+  // jugador parado sobre la pelota, no esperando a que la física se la "enganche" un cuadro más
+  // tarde) y el otro jugador dentro del círculo queda claramente esperando el primer pase.
+  conPelota = 0;
   conPelotaRivalIdx = null;
   conPelotaArquero = false;
   conPelotaArquero2 = false;
@@ -1054,7 +1068,21 @@ function actualizarRivales(dt){
     return;
   }
 
-  rivales.forEach(r => actualizarJugador(r, 0, 0, 0, dt));
+  // Pelota suelta, sin dueño de nadie y sin ningún pase en vuelo (p. ej. tras un rebote o una
+  // disputa): antes se quedaban los 5 quietos esperando a que el equipo propio se la acerque. El
+  // más cercano ahora sale a buscarla — mismo criterio que actualizarJugadorMasCercanoALaPelota ya
+  // usa para el equipo propio (que sí puede reaccionar porque el humano maneja al que se reasigna);
+  // los demás mantienen posición en vez de ir los 5 en tropel.
+  let masCercano = rivales[0], menorDist = Math.hypot(ball.x-rivales[0].x, ball.y-rivales[0].y);
+  for (let k = 1; k < rivales.length; k++) {
+    const dk = Math.hypot(ball.x-rivales[k].x, ball.y-rivales[k].y);
+    if (dk < menorDist) { menorDist = dk; masCercano = rivales[k]; }
+  }
+  rivales.forEach(r => {
+    if (r !== masCercano) { actualizarJugador(r, 0, 0, 0, dt); return; }
+    const dx = ball.x-r.x, dy = ball.y-r.y, dist = Math.hypot(dx,dy) || 1;
+    actualizarJugador(r, dx/dist, dy/dist, MARCHA_CORRER, dt);
+  });
 }
 
 // Si algún rival llega a tocar la pelota mientras va suelta (un pase interceptado, o cualquier
@@ -2388,6 +2416,7 @@ function actualizarPanelParametros(){
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
     ["Cambio asistido", "salta al receptor si el pase supera " + CAMBIO_ASISTIDO_FACTOR + "×r (" + RADIO_RECEPCION_FACTOR + "×r es la recepción), " + CAMBIO_ASISTIDO_AUTOPILOT + "s de piloto automático hacia la pelota"],
     ["Pelota sin dueño propio", "el control pasa solo al jugador propio más cercano — tanto si está suelta como si la tiene un rival, para poder salir a presionar (salvo con piloto automático activo, o un pase largo todavía en el aire)"],
+    ["Pelota sin dueño rival", "el rival más cercano sale a buscarla a marcha máxima, los demás mantienen posición (no van los 5 en tropel)"],
     ["Escala real", Math.round(UNIDADES_POR_METRO) + "u/metro (a partir del ancho del arco, 7.32m)"],
     ["Límites de cancha", "x: " + Math.round(CANCHA_X_MIN) + " a " + CANCHA_X_MAX + ", y: ±" + Math.round(CANCHA_Y_LIMITE) + " (105×68m real, cancha completa), jugadores +" + Math.round(CANCHA_MARGEN_JUGADOR) + "u de margen"],
     ["Área grande (arqueros)", "x: " + Math.round(limitesArea(ARCOS[0]).min) + " a " + Math.round(limitesArea(ARCOS[0]).max) + ", ancho " + Math.round(AREA_ANCHO) + "u (igual, espejada, para el arco rival)"],
