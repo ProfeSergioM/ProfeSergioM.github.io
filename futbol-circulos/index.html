@@ -252,6 +252,11 @@ function actualizarBarraFatiga(){
 let activo = 0;
 let conPelota = null; // índice del jugador que domina la pelota, o null si está suelta
 let conPelotaRivalIdx = null; // índice (en rivales) de quién la domina, o null (ver colisionRivalJugadores)
+// Reglamentario: el equipo que NO saca no puede acercarse a disputar la pelota hasta que el que
+// saca la ponga en juego (la pase o la patee) — ver posicionInicial/actualizarRivales. Sin esto,
+// la marca de actualizarDefensa mandaba al rival más cercano derecho contra el pateador desde el
+// primer cuadro, cruzando el círculo central antes de que la jugada siquiera arrancara.
+let esperandoSaque = true;
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 // Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
 // quien se la envió, para ayudar a recibirla (ver actualizarIA).
@@ -292,9 +297,13 @@ const camera = { x:0, y:0 };
 // NEGATIVA respecto del saque. Acá siempre saca el equipo propio: el primero (pateador) queda
 // pegado a la pelota (y arranca con posesión, ver posicionInicial) y el segundo (receptor del
 // primer pase) también adentro del círculo pero a distancia de pase corto; los otros 3 quedan
-// afuera del círculo, como en cualquier reinicio.
+// afuera del círculo, como en cualquier reinicio. El offset del pateador es -CONTROL_OFFSET_MIN
+// (no un número cualquiera): así la pelota, al "engancharse" a sus pies según nivelControl (ver
+// actualizarPelota), queda exactamente en el punto de saque en vez de dar un salto de entrada — si
+// no, ese salto por sí solo ya movía la pelota más que el margen de esperandoSaque, liberando a los
+// rivales antes de que el pateador hiciera nada.
 const FORMACION_INICIAL_OFFSET = [
-  { x:-35,  y:0,   dirX:1, dirY:0 },
+  { x:-CONTROL_OFFSET_MIN, y:0, dirX:1, dirY:0 },
   { x:-170, y:120, dirX:1, dirY:0 },
   { x:-480, y:-280, dirX:1, dirY:0 },
   { x:-680, y:-480, dirX:1, dirY:0 },
@@ -347,6 +356,7 @@ function posicionInicial(){
   // jugador parado sobre la pelota, no esperando a que la física se la "enganche" un cuadro más
   // tarde) y el otro jugador dentro del círculo queda claramente esperando el primer pase.
   conPelota = 0;
+  esperandoSaque = true; // los rivales no presionan hasta que el pateador la ponga en juego
   conPelotaRivalIdx = null;
   conPelotaArquero = false;
   conPelotaArquero2 = false;
@@ -1013,6 +1023,19 @@ function decidirAtaqueRival(dt){
 }
 
 function actualizarRivales(dt){
+  if (esperandoSaque) {
+    // El pateador todavía no puso la pelota en juego (sigue exactamente en el punto de saque): los
+    // rivales se quedan quietos en su formación en vez de salir a marcar — si no, el más cercano
+    // cruzaba derecho el círculo central a buscarlo desde el primer cuadro. Mide que la PELOTA se
+    // haya movido (no que el pateador ya no la tenga): un pase o un tiro la mueven de inmediato,
+    // pero también alcanza con que la seleccione y arranque a driblar él mismo sin pasarla — en
+    // cualquier caso, apenas se mueve queda en juego y esta misma llamada sigue de largo.
+    if (Math.hypot(ball.x - MITAD_CANCHA_X, ball.y) < 5) {
+      rivales.forEach(r => actualizarJugador(r, 0, 0, 0, dt));
+      return;
+    }
+    esperandoSaque = false;
+  }
   if (conPelotaRivalIdx !== null) {
     const rConBalon = rivales[conPelotaRivalIdx];
     if (rivalAtascadoTiempo === 0) { rivalAtascadoX = rConBalon.x; rivalAtascadoY = rConBalon.y; }
@@ -2409,6 +2432,7 @@ function actualizarPanelParametros(){
     ["Arco del pase largo", PASE_LARGO_DURACION_VUELO_MIN + "–" + PASE_LARGO_DURACION_VUELO_MAX + "s en el aire según la carga; no colisiona con nadie mientras vuela"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arcos", "propio x=" + ARCO_X + ", rival x=" + Math.round(ARCO_X2) + ", ancho " + ARCO_ANCHO + "u cada uno"],
+    ["Saque inicial", "los rivales no se mueven a marcar hasta que la pelota se mueva del punto de saque (pase, tiro, o el pateador arranca a driblar)"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Defensa (marca y cobertura)", "el más cercano al portador siempre se le encima, anticipando " + DEFENSA_MARCA_ANTICIPACION + "s de su velocidad actual (si no, con la misma marcha tope nunca cierra la distancia); cada uno de los demás cubre a UN compañero del portador, a los más peligrosos primero si no alcanzan para todos (fracción " + DEFENSA_COBERTURA_FRACCION_LARGA + " cerca del receptor si la línea supera " + DEFENSA_COBERTURA_DISTANCIA_MIN + "u, si no " + DEFENSA_COBERTURA_FRACCION_CORTA + " cerca del portador); un pase en vuelo lo persiguen todos al punto de llegada. Aplica a los dos lados, según quién ataque"],
     ["Ataque rival", "arranca a driblar hacia el arco propio esquivando al marcador más cercano si está a menos de " + RIVAL_ATAQUE_EVASION_DISTANCIA + "u; tira desde " + Math.round(RIVAL_ATAQUE_DISTANCIA_TIRO) + "u si está centrado (" + Math.round(RIVAL_ATAQUE_ANCHO_TIRO) + "u de ancho), " + Math.round(RIVAL_ATAQUE_PROB_TIRO*100) + "%/cuadro en rango; si no, pasa " + Math.round(RIVAL_ATAQUE_PROB_PASE*100) + "%/cuadro al compañero MÁS ADELANTADO Y LIBRE de marca (nunca hacia atrás); precisión fija " + RIVAL_ATAQUE_PRECISION + " (no usa statsComunes)"],
