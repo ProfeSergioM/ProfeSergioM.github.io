@@ -2362,6 +2362,13 @@ function bucle(ahora){
     dx = dxBalon / distBalon; dy = dyBalon / distBalon; pctMarcha = MARCHA_CORRER;
   }
 
+  // Reglamentario: el saque inicial es obligatoriamente un PASE, no se puede arrancar driblando
+  // (en las reglas reales, el pateador ni siquiera puede volver a tocarla hasta que la toque otro
+  // jugador — en la práctica, eso fuerza a que el primer toque sea un pase de verdad). Mientras
+  // dure esto (ver esperandoSaque) se ignora el movimiento del pateador, pero no cargar/soltar
+  // tiro o pase — solo puede quedarse quieto y patearla, no correr con ella.
+  if (esperandoSaque && conPelota === activo) { dx = 0; dy = 0; pctMarcha = 0; }
+
   // Posición de cada uno antes de moverse este cuadro, para la colisión continua con los postes
   // (ver colisionPostesJugador): tiene que ser de antes de CUALQUIER cosa que pueda correrlos
   // este cuadro, movimiento propio o empujones de otras colisiones.
@@ -2432,7 +2439,7 @@ function actualizarPanelParametros(){
     ["Arco del pase largo", PASE_LARGO_DURACION_VUELO_MIN + "–" + PASE_LARGO_DURACION_VUELO_MAX + "s en el aire según la carga; no colisiona con nadie mientras vuela"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arcos", "propio x=" + ARCO_X + ", rival x=" + Math.round(ARCO_X2) + ", ancho " + ARCO_ANCHO + "u cada uno"],
-    ["Saque inicial", "los rivales no se mueven a marcar hasta que la pelota se mueva del punto de saque (pase, tiro, o el pateador arranca a driblar)"],
+    ["Saque inicial", "obligatorio pasarla: el pateador no puede moverse hasta soltarla (tiro o pase), y los rivales no se mueven a marcar hasta que se mueva del punto de saque"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Defensa (marca y cobertura)", "el más cercano al portador siempre se le encima, anticipando " + DEFENSA_MARCA_ANTICIPACION + "s de su velocidad actual (si no, con la misma marcha tope nunca cierra la distancia); cada uno de los demás cubre a UN compañero del portador, a los más peligrosos primero si no alcanzan para todos (fracción " + DEFENSA_COBERTURA_FRACCION_LARGA + " cerca del receptor si la línea supera " + DEFENSA_COBERTURA_DISTANCIA_MIN + "u, si no " + DEFENSA_COBERTURA_FRACCION_CORTA + " cerca del portador); un pase en vuelo lo persiguen todos al punto de llegada. Aplica a los dos lados, según quién ataque"],
     ["Ataque rival", "arranca a driblar hacia el arco propio esquivando al marcador más cercano si está a menos de " + RIVAL_ATAQUE_EVASION_DISTANCIA + "u; tira desde " + Math.round(RIVAL_ATAQUE_DISTANCIA_TIRO) + "u si está centrado (" + Math.round(RIVAL_ATAQUE_ANCHO_TIRO) + "u de ancho), " + Math.round(RIVAL_ATAQUE_PROB_TIRO*100) + "%/cuadro en rango; si no, pasa " + Math.round(RIVAL_ATAQUE_PROB_PASE*100) + "%/cuadro al compañero MÁS ADELANTADO Y LIBRE de marca (nunca hacia atrás); precisión fija " + RIVAL_ATAQUE_PRECISION + " (no usa statsComunes)"],
