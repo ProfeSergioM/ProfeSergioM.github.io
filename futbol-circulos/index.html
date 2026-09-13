@@ -257,6 +257,11 @@ let conPelotaRivalIdx = null; // índice (en rivales) de quién la domina, o nul
 // la marca de actualizarDefensa mandaba al rival más cercano derecho contra el pateador desde el
 // primer cuadro, cruzando el círculo central antes de que la jugada siquiera arrancara.
 let esperandoSaque = true;
+// El receptor del saque (jugador 1, ver pasarDirectoAlReceptor) se queda quieto esperándola en vez
+// de correr a buscarla como en un pase cualquiera — se apaga solo apenas la recibe (ver
+// actualizarIA). Independiente de esperandoSaque: ese ya se apagó para entonces (se apaga apenas
+// la pelota se mueve, para que los rivales puedan reaccionar), pero el receptor todavía no la tiene.
+let receptorEnEspera = false;
 let ultimoPateador = null; // evita que quien la pateó/pasó la recupere antes de que realmente se aleje
 // Mientras la pelota va camino a un compañero, este se acomoda un poco hacia donde se movía
 // quien se la envió, para ayudar a recibirla (ver actualizarIA).
@@ -370,6 +375,7 @@ function posicionInicial(){
   // tarde) y el otro jugador dentro del círculo queda claramente esperando el primer pase.
   conPelota = 0;
   esperandoSaque = true; // los rivales no presionan hasta que el pateador la ponga en juego
+  receptorEnEspera = false;
   conPelotaRivalIdx = null;
   conPelotaArquero = false;
   conPelotaArquero2 = false;
@@ -637,11 +643,17 @@ function pasarDirectoAlReceptor(){
   const receptor = players[1];
   const dx = receptor.x - p.x, dy = receptor.y - p.y, len = Math.hypot(dx, dy) || 1;
   const potencia = (len + SAQUE_PASE_MARGEN) * ROCE_PELOTA;
-  const angulo = impulsarPelota(dx/len, dy/len, potencia, 100, 0);
+  impulsarPelota(dx/len, dy/len, potencia, 100, 0);
   conPelota = null;
   registrarEnvio(p);
   ultimoPateador = activo;
-  cambioDeJugadorAsistido(p, angulo);
+  // A diferencia de un pase cualquiera (que sí usa cambioDeJugadorAsistido: salta el control al
+  // receptor con piloto automático corriendo a buscarla), el receptor del saque se queda quieto
+  // esperándola — no hace falta que corra a buscarla, ya le llega con margen de sobra (ver
+  // SAQUE_PASE_MARGEN) — y no tendría sentido verlo "salir corriendo" antes de que se la toque.
+  // El control sigue en el pateador (activo no cambia) hasta que actualizarPosesion se la dé al
+  // receptor por la cercanía real, como cualquier recepción.
+  receptorEnEspera = true;
 }
 // El pase largo, a diferencia del corto, va por arriba: mientras está "en el aire" (ball.altura>0)
 // no colisiona con nadie (ver actualizarPelota y los guards de altura en colisionPostes,
@@ -898,6 +910,11 @@ function actualizarApoyoAtaque(equipo, portador, oponentes, golPropio, dt){
 }
 
 function actualizarIA(dt){
+  // El receptor del saque (ver pasarDirectoAlReceptor) deja de esperar apenas alguien propio tiene
+  // la pelota de nuevo — normalmente él mismo, al recibirla, pero también vale si pasó cualquier
+  // otra cosa (p. ej. la intercepta un rival: ahí ya no aplica ningún freeze, entra por la rama de
+  // defensa más abajo, así que da igual apagar el flag ya mismo).
+  if (receptorEnEspera && conPelota !== null) receptorEnEspera = false;
   if (esperandoSaque) {
     // Mientras se espera el saque (ver esperandoSaque/actualizarRivales), nadie arma apoyo en
     // triángulo: el tirón de tironApoyo busca equidistancia con TODOS los demás compañeros, algo
@@ -925,6 +942,7 @@ function actualizarIA(dt){
   }
   players.forEach((seguidor, i) => {
     if (i === activo) return; // este lo maneja el jugador (ver bucle principal)
+    if (receptorEnEspera && i === 1) { actualizarJugador(seguidor, 0, 0, 0, dt); return; }
 
     if (direccionEnvio && baseReceptores) {
       const base = baseReceptores[i];
@@ -1084,7 +1102,12 @@ function decidirAtaqueRival(dt){
   const probTiro = RIVAL_ATAQUE_PROB_TIRO + (RIVAL_ATAQUE_PROB_TIRO_CERCA - RIVAL_ATAQUE_PROB_TIRO) * cercaniaAlArco;
   if (distArco < RIVAL_ATAQUE_DISTANCIA_TIRO && Math.abs(r.y) < RIVAL_ATAQUE_ANCHO_TIRO/2
       && Math.random() < probTiro) {
-    const dx = ARCO_X2 - r.x, dy = 0 - r.y, len = Math.hypot(dx,dy) || 1;
+    // Apunta al costado del arco que el arquero deja más libre, no siempre al medio (ver
+    // arquero2) — con el arquero centrado (o casi, dentro de un margen chico) el lado se sortea,
+    // para no tirar siempre al mismo costado en esa situación.
+    const ladoTiro = Math.abs(arquero2.y) < 10 ? (Math.random() < 0.5 ? 1 : -1) : Math.sign(-arquero2.y);
+    const objetivoY = ladoTiro * ARCO_ANCHO/2 * 0.7;
+    const dx = ARCO_X2 - r.x, dy = objetivoY - r.y, len = Math.hypot(dx,dy) || 1;
     impulsarPelota(dx/len, dy/len, TIRO_POTENCIA_DISENO_MAX * 0.8, RIVAL_ATAQUE_PRECISION, TIRO_PRECISION_ERROR_MAX);
     ultimoPateadorRival = conPelotaRivalIdx;
     conPelotaRivalIdx = null;
@@ -2531,10 +2554,10 @@ function actualizarPanelParametros(){
     ["Arco del pase largo", PASE_LARGO_DURACION_VUELO_MIN + "–" + PASE_LARGO_DURACION_VUELO_MAX + "s en el aire según la carga; no colisiona con nadie mientras vuela"],
     ["Triángulo de apoyo", DISTANCIA_TRIANGULO + "u (equidistante de portador y compañero)"],
     ["Arcos", "propio x=" + ARCO_X + ", rival x=" + Math.round(ARCO_X2) + ", ancho " + ARCO_ANCHO + "u cada uno"],
-    ["Saque inicial", "obligatorio pasarla: el pateador no puede moverse (mirando derecho al receptor, en la línea de medio campo) y el botón de pase la manda directo a él sin carga ni error, con potencia de sobra para llegar (margen +" + SAQUE_PASE_MARGEN + "u sobre la distancia real); los rivales no se mueven a marcar hasta que se mueva del punto de saque"],
+    ["Saque inicial", "obligatorio pasarla: el pateador no puede moverse (mirando derecho al receptor, en la línea de medio campo) y el botón de pase la manda directo a él sin carga ni error, con potencia de sobra para llegar (margen +" + SAQUE_PASE_MARGEN + "u sobre la distancia real); el receptor no se mueve ni un poco hasta tenerla (no corre a buscarla, ya le llega); los rivales no se mueven a marcar hasta que se mueva del punto de saque"],
     ["Malla", "rebote " + Math.round(MALLA_REBOTE*100) + "%, abultado vuelve en ~" + (1/MALLA_ABULTAMIENTO_TASA).toFixed(2) + "s"],
     ["Defensa (marca y cobertura)", "el más cercano al portador siempre se le encima, anticipando " + DEFENSA_MARCA_ANTICIPACION + "s de su velocidad actual (si no, con la misma marcha tope nunca cierra la distancia); cada uno de los demás cubre a UN compañero del portador, a los más peligrosos primero si no alcanzan para todos (fracción " + DEFENSA_COBERTURA_FRACCION_LARGA + " cerca del receptor si la línea supera " + DEFENSA_COBERTURA_DISTANCIA_MIN + "u, si no " + DEFENSA_COBERTURA_FRACCION_CORTA + " cerca del portador); un pase en vuelo lo persiguen todos al punto de llegada. Aplica a los dos lados, según quién ataque"],
-    ["Ataque rival", "arranca a driblar hacia el arco propio esquivando al marcador más cercano si está a menos de " + RIVAL_ATAQUE_EVASION_DISTANCIA + "u; tira desde " + Math.round(RIVAL_ATAQUE_DISTANCIA_TIRO) + "u si está centrado (" + Math.round(RIVAL_ATAQUE_ANCHO_TIRO) + "u de ancho), " + Math.round(RIVAL_ATAQUE_PROB_TIRO*100) + "%/cuadro en el borde del rango subiendo hasta " + Math.round(RIVAL_ATAQUE_PROB_TIRO_CERCA*100) + "%/cuadro pegado al arco; si no, pasa " + Math.round(RIVAL_ATAQUE_PROB_PASE*100) + "%/cuadro al compañero MÁS ADELANTADO Y LIBRE de marca (nunca hacia atrás); precisión fija " + RIVAL_ATAQUE_PRECISION + " (no usa statsComunes)"],
+    ["Ataque rival", "arranca a driblar hacia el arco propio esquivando al marcador más cercano si está a menos de " + RIVAL_ATAQUE_EVASION_DISTANCIA + "u; tira desde " + Math.round(RIVAL_ATAQUE_DISTANCIA_TIRO) + "u si está centrado (" + Math.round(RIVAL_ATAQUE_ANCHO_TIRO) + "u de ancho) buscando el costado del arco más lejos del arquero (sorteado si está centrado), " + Math.round(RIVAL_ATAQUE_PROB_TIRO*100) + "%/cuadro en el borde del rango subiendo hasta " + Math.round(RIVAL_ATAQUE_PROB_TIRO_CERCA*100) + "%/cuadro pegado al arco; si no, pasa " + Math.round(RIVAL_ATAQUE_PROB_PASE*100) + "%/cuadro al compañero MÁS ADELANTADO Y LIBRE de marca (nunca hacia atrás); precisión fija " + RIVAL_ATAQUE_PRECISION + " (no usa statsComunes)"],
     ["Apoyo con espacio", "el que no tiene la pelota (y no es defensor, ver fila siguiente), además del tirón de formación en triángulo, se aleja del oponente propio más cercano si está a menos de " + APOYO_ESPACIO_DISTANCIA + "u (peso " + APOYO_ESPACIO_PESO + "×). Aplica a los dos lados"],
     ["Forma defensiva", "de los 5 de campo, los 2 primeros son defensores: mientras su equipo ataca no se suman, mantienen resguardo a " + DEFENSOR_CASA_PROFUNDIDAD + "u de su propio arco (uno a cada banda, ±" + Math.abs(DEFENSOR_CASA_ANCHO[0]) + "u). Aplica a los dos lados — antes los 5 se sumaban al ataque sin excepción"],
     ["Disputa por la pelota", "control equipo " + statsComunes.control + " vs. rival " + RIVAL_CONTROL + ", alcance +" + RIVAL_ALCANCE + "u sobre el contacto"],
