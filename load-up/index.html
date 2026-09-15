@@ -691,6 +691,13 @@ function pasoSuelo(a, dt) {
     var co = Math.cos(a.ang), si = Math.sin(a.ang);
     marcas.push({ x: a.x - co * 13 + si * 9, y: a.y - si * 13 - co * 9, t: 3.2 });
     marcas.push({ x: a.x - co * 13 - si * 9, y: a.y - si * 13 + co * 9, t: 3.2 });
+    if (chispas.length < 260) {           // tierra que levantan las gomas
+      chispas.push({ x: a.x - co * 16, y: a.y - si * 16,
+                     vx: -co * 60 + (Math.random() - .5) * 70,
+                     vy: -si * 60 + (Math.random() - .5) * 70,
+                     t: 0.3 + Math.random() * 0.3, r: 2 + Math.random() * 2,
+                     c: "74,58,44" });
+    }
   }
 
   /* muros de la pista */
@@ -1355,6 +1362,18 @@ var TRIBUNA = (function () {
   return g;
 })();
 
+/* charcos de la lluvia de ayer, repartidos por toda la pista */
+var CHARCOS = (function () {
+  var c = [];
+  for (var i = 0; i < 70; i++) {
+    var sc = Math.random() * L_TOTAL;
+    var p = puntoPista(sc, (Math.random() * 2 - 1) * (HW - 16));
+    c.push({ x: p.x, y: p.y, rx: 9 + Math.random() * 22, ry: 5 + Math.random() * 11,
+             a: anguloPista(sc) });
+  }
+  return c;
+})();
+
 /* torres de luz, también alrededor de todo */
 var TORRES = (function () {
   var t = [];
@@ -1366,26 +1385,38 @@ var TINTA = "#2b1d14";
 
 function dibujarPista() {
   ctx.fillStyle = "#6f8f4b"; ctx.fill(OV_MURO_EXT);      // pasto de afuera
-  ctx.fillStyle = "#b9a77f"; ctx.fill(caminoOval(R + HW + 14));
-  ctx.fillStyle = "#6e6a63"; ctx.fill(OV_ASF_EXT);       // asfalto
-  ctx.fillStyle = "#b9a77f"; ctx.fill(caminoOval(R - HW - 14));
+  ctx.fillStyle = "#9a8560"; ctx.fill(caminoOval(R + HW + 14));
+  ctx.fillStyle = "#4a3a2c"; ctx.fill(OV_ASF_EXT);       // barro
+  ctx.fillStyle = "#9a8560"; ctx.fill(caminoOval(R - HW - 14));
   ctx.fillStyle = "#7ea653"; ctx.fill(OV_ASF_INT);       // pasto de adentro
 
-  /* dos anillos apenas distintos, para que el asfalto no sea una plancha */
+  /* La huella por donde pasan todos queda más seca y clara; lo de afuera y
+     lo de adentro, más mojado. Eso es lo que hace que se lea como tierra. */
   ctx.save();
-  ctx.globalAlpha = 0.55;
-  ctx.strokeStyle = "#757169"; ctx.lineWidth = 34;
-  ctx.stroke(caminoOval(R + HW * 0.55));
-  ctx.strokeStyle = "#67635c"; ctx.stroke(caminoOval(R - HW * 0.55));
+  ctx.globalAlpha = 0.6;
+  ctx.strokeStyle = "#5d4833"; ctx.lineWidth = 52;
+  ctx.stroke(caminoOval(R + HW * 0.12));
+  ctx.strokeStyle = "#3b2e23"; ctx.lineWidth = 38;
+  ctx.stroke(caminoOval(R + HW * 0.78));
+  ctx.stroke(caminoOval(R - HW * 0.78));
   ctx.restore();
 
-  ctx.strokeStyle = "#fff3d6"; ctx.lineWidth = 4;
+  /* charcos */
+  for (var ch = 0; ch < CHARCOS.length; ch++) {
+    var cc = CHARCOS[ch];
+    if (cc.x < visX0 || cc.x > visX1 || cc.y < visY0 || cc.y > visY1) continue;
+    ctx.save();
+    ctx.translate(cc.x, cc.y); ctx.rotate(cc.a);
+    ctx.beginPath(); ctx.ellipse(0, 0, cc.rx, cc.ry, 0, 0, 7);
+    ctx.fillStyle = "#2f271f"; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-cc.rx * 0.2, -cc.ry * 0.25, cc.rx * 0.5, cc.ry * 0.4, 0, 0, 7);
+    ctx.fillStyle = "rgba(143,211,232,.18)"; ctx.fill();
+    ctx.restore();
+  }
+
+  /* bordes de tierra amontonada, en vez de líneas pintadas */
+  ctx.strokeStyle = "#8a7550"; ctx.lineWidth = 9;
   ctx.stroke(OV_BORDE_EXT); ctx.stroke(OV_BORDE_INT);
-
-  ctx.save();
-  ctx.setLineDash([26, 30]); ctx.strokeStyle = "rgba(255,243,214,.35)"; ctx.lineWidth = 3;
-  ctx.stroke(OV_EJE);
-  ctx.restore();
 
   /* muros de cemento con franjas, y su línea de tinta */
   ctx.strokeStyle = "#fff3d6"; ctx.lineWidth = 11;
@@ -1398,13 +1429,15 @@ function dibujarPista() {
   ctx.stroke(caminoOval(R + HW + 31.5)); ctx.stroke(caminoOval(R + HW + 20.5));
   ctx.stroke(caminoOval(R - HW - 31.5)); ctx.stroke(caminoOval(R - HW - 20.5));
 
-  /* largada: cuadros sobre la recta de abajo */
+  /* largada: cuadros pintados sobre la tierra */
+  ctx.globalAlpha = 0.85;
   for (var i = 0; i < 12; i++) {
-    ctx.fillStyle = i % 2 ? "#fff3d6" : TINTA;
+    ctx.fillStyle = i % 2 ? "#e6d9b8" : "#2b2119";
     ctx.fillRect(-16, R - HW + i * (2 * HW / 12), 16, 2 * HW / 12);
-    ctx.fillStyle = i % 2 ? TINTA : "#fff3d6";
+    ctx.fillStyle = i % 2 ? "#2b2119" : "#e6d9b8";
     ctx.fillRect(0, R - HW + i * (2 * HW / 12), 16, 2 * HW / 12);
   }
+  ctx.globalAlpha = 1;
 
   /* tribunas: un anillo de madera con gente alrededor de toda la pista */
   var medio = (TRIB_DESDE + TRIB_HASTA) / 2;
@@ -1710,11 +1743,11 @@ function dibujar() {
 
   dibujarPista();
 
-  ctx.fillStyle = "rgba(43,29,20,.5)";
+  ctx.fillStyle = "rgba(30,23,17,.55)";
   for (var m = 0; m < marcas.length; m++) {
     var mk = marcas[m];
     ctx.globalAlpha = Math.min(0.45, mk.t / 3.2) * 0.9;
-    ctx.fillRect(mk.x - 2, mk.y - 2, 4, 4);
+    ctx.fillRect(mk.x - 2.5, mk.y - 2.5, 5, 5);
   }
   ctx.globalAlpha = 1;
 
