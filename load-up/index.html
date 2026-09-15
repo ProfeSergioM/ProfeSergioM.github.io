@@ -407,9 +407,9 @@ var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.05, demora: 9, aguante: 2.0, vaiven: 14, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.68, exito: 0.15, demora: 8, aguante: 2.8, vaiven: 26, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, demora: 4, aguante: 3.5, vaiven: 34, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.50, exito: 0.10, demora: 6, aguante: 2.0, vaiven: 14, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.74, exito: 0.26, demora: 5, aguante: 2.8, vaiven: 26, minutos: 2.5 },
+  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.95, exito: 0.58, demora: 2.5, aguante: 3.5, vaiven: 34, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -439,7 +439,7 @@ function redimensionar() {
   W = lienzo.clientWidth; H = lienzo.clientHeight;
   lienzo.width = Math.round(W * dpr); lienzo.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  escala = lim(Math.min(W / 720, H / 620), 0.38, 1.1);
+  escala = lim(Math.min(W / 580, H / 500), 0.46, 1.35);
 }
 window.addEventListener("resize", redimensionar);
 redimensionar();
@@ -519,7 +519,9 @@ function nuevoAuto(i, esJugador, s, n) {
     lx: 0, ly: 0, lang: 0, lvx: 0, lvy: 0,
     ctrl: { acel: 0, giro: 0, mano: false },
     ia: { desvio: 0, duda: 0, intento: 0, nervio: 0, vaiven: 0, marcha: 1, reloj: 0, entrando: false },
-    ruedas: 0, humoHasta: 0, golpe: 0
+    ruedas: 0, humoHasta: 0, golpe: 0, explota: 0,
+    /* una abolladura por tramo del contorno: crecen con los golpes */
+    dientes: [0, 0, 0, 0, 0, 0, 0, 0]
   };
 }
 
@@ -585,18 +587,48 @@ function circulosLocales(a) {
           { x: a.lx - co * d, y: a.ly - si * d, r: 12.5 }];
 }
 
-function abollar(a, fuerza) {
+/* Un golpe hace tres cosas: frena el auto, le marca la chapa donde pegó y
+   suma daño. El último golpe lo hace explotar. */
+function abollar(a, fuerza, nx, ny) {
   if (fuerza <= 0) return;
   a.dano = Math.min(100, a.dano + fuerza);
   a.golpe = 1;
+
+  /* la abolladura va en el tramo del contorno que recibió el golpe */
+  if (nx !== undefined) {
+    var rel = normAng(Math.atan2(ny, nx) - a.ang);
+    var idx = Math.round((rel + Math.PI) / (Math.PI / 4)) % 8;
+    a.dientes[(idx + 8) % 8] = Math.min(1, a.dientes[(idx + 8) % 8] + fuerza * 0.06);
+  }
+
+  /* el choque cuesta velocidad, no solo chapa */
+  var freno = Math.min(0.55, fuerza * 0.022);
+  a.vx *= 1 - freno; a.vy *= 1 - freno;
+  if (a.arriba) { a.lvx *= 1 - freno; a.lvy *= 1 - freno; }
+
   for (var i = 0; i < Math.min(9, 2 + fuerza | 0); i++) {
-    chispas.push({ x: a.x, y: a.y, vx: (Math.random() - .5) * 190, vy: (Math.random() - .5) * 190, t: 0.34 });
+    chispas.push({ x: a.x, y: a.y, vx: (Math.random() - .5) * 190,
+                   vy: (Math.random() - .5) * 190, t: 0.34, r: 2, c: "226,163,59" });
   }
-  if (a.dano >= 100 && !a.fuera) {
-    a.fuera = true; a.arriba = false; a.prog = 0;
-    if (a.jugador) terminar(null, "chatarra");
-    else flash(a.nombre + " is out\nof the running");
+  if (a.dano >= 100 && !a.fuera) explotar(a);
+}
+
+function explotar(a) {
+  a.fuera = true; a.arriba = false; a.prog = 0; a.explota = 0.8;
+  a.humoHasta = tiempo + 6;
+  a.vx *= 0.25; a.vy *= 0.25;
+  for (var i = 0; i < 34; i++) {
+    var ang = Math.random() * 7, vel = 60 + Math.random() * 320;
+    chispas.push({
+      x: a.x + (Math.random() - .5) * 14, y: a.y + (Math.random() - .5) * 14,
+      vx: Math.cos(ang) * vel, vy: Math.sin(ang) * vel,
+      t: 0.5 + Math.random() * 0.7, r: 2 + Math.random() * 4,
+      c: i % 3 === 0 ? "43,29,20" : i % 3 === 1 ? "226,163,59" : "201,79,42"
+    });
   }
+  sonar("explosion");
+  if (a.jugador) { flash("BOOM"); terminar(null, "chatarra"); }
+  else flash(a.nombre + " blew up");
 }
 
 function rotar(x, y, a) {
@@ -651,7 +683,7 @@ function pasoSuelo(a, dt) {
     var vn = a.vx * nx * lado + a.vy * ny * lado;
     if (vn > 0) {
       a.vx -= nx * lado * vn * 1.35; a.vy -= ny * lado * vn * 1.35;
-      abollar(a, Math.max(0, vn - 95) * 0.12);
+      abollar(a, Math.max(0, vn - 95) * 0.12, nx * lado, ny * lado);
     }
   }
 }
@@ -680,10 +712,13 @@ function verAcoplado(a, tr, dt) {
     a.x = p.x; a.y = p.y;
     var nv = rotar(Math.min(rl.x, -25 * RAPIDEZ), rl.y * 0.4, tr.ang);
     a.vx = tr.vx + nv.x; a.vy = tr.vy + nv.y;
-    abollar(a, 6 + Math.abs(rl.x) * 0.03);
+    abollar(a, 6 + Math.abs(rl.x) * 0.03, Math.cos(tr.ang), Math.sin(tr.ang));
     sonar("golpe");
     if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "Crooked!" : "Too fast!");
-    else { a.ia.nervio = nivel.demora * (0.7 + 0.6 * Math.random()); cortarIntento(a); }
+    else {
+      a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.35 : 1) * (0.7 + 0.6 * Math.random());
+      cortarIntento(a);
+    }
     return;
   }
 
@@ -714,7 +749,7 @@ function chocarConjunto(a, tr) {
     var vn = (a.vx - tr.vx) * nm.x + (a.vy - tr.vy) * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 75) * 0.13);
+      abollar(a, Math.max(0, -vn - 75) * 0.13, nm.x, nm.y);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -734,7 +769,7 @@ function chocarRect(a, obj, hx, hy) {
     var vn = rvx * nm.x + rvy * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 60) * 0.15);
+      abollar(a, Math.max(0, -vn - 60) * 0.15, nm.x, nm.y);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -766,17 +801,18 @@ function pasoCama(a, tr, dt) {
 
   colocarDesdeCama(a, tr);
 
-  /* ¿está adentro, completo y quieto? */
+  /* Basta con estar arriba y quieto: la tarima entera es la zona buena, y
+     el castigo por acomodarse mal ya lo pone el borde, que no tiene baranda. */
   var vrel = Math.hypot(a.lvx, a.lvy);
-  if (entroCompleto(a) && vrel < QUIETO) a.prog += dt;
+  if (vrel < QUIETO) a.prog += dt;
   else a.prog = Math.max(0, a.prog - dt * 1.4);
 
   if (a.prog >= nivel.aguante && estado === "corre") terminar(a, "estaciono");
 }
 
-/* El auto cuenta como estacionado cuando sus cuatro puntas entran en la
-   cama. Lo usa el juego para dar por ganada la prueba y la IA para saber
-   cuándo dejar de maniobrar y clavar el freno. */
+/* Las cuatro puntas del auto sobre la tarima. La IA lo usa para saber
+   cuándo dejar de maniobrar y clavar el freno, así no se queda colgando de
+   un borde esperando la próxima curva. */
 function entroCompleto(a) {
   var co = Math.abs(Math.cos(a.lang)), si = Math.abs(Math.sin(a.lang));
   var ex = (AUTO_L / 2) * co + (AUTO_W / 2) * si;
@@ -800,7 +836,10 @@ function caerse(a, tr) {
   abollar(a, 8);
   a.humoHasta = tiempo + 1.4;
   if (a.jugador) flash("You fell off!");
-  else { a.ia.nervio = nivel.demora * (0.6 + 0.5 * Math.random()); cortarIntento(a); }
+  else {
+    a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.3 : 1) * (0.6 + 0.5 * Math.random());
+    cortarIntento(a);
+  }
 }
 
 /* choques entre autos (mismo marco: los dos en el piso o los dos arriba) */
@@ -827,7 +866,8 @@ function chocarAutos(a, b, local) {
       a.vx -= nx * imp; a.vy -= ny * imp; b.vx += nx * imp; b.vy += ny * imp;
     }
     var d2 = Math.max(0, -vn - 55) * 0.09;
-    abollar(a, d2); abollar(b, d2);
+    var gol = rotar(nx, ny, local ? camion.tr.ang : 0);
+    abollar(a, d2, gol.x, gol.y); abollar(b, d2, -gol.x, -gol.y);
     if (-vn > 110) sonar("golpe");
     a.prog = Math.max(0, a.prog - 0.35); b.prog = Math.max(0, b.prog - 0.35);
   }
@@ -862,15 +902,18 @@ function pensarIA(a, dt) {
 
   /* Solo encara el que tiene el turno; los demás esperan corridos a un lado,
      como en la fila de verdad. */
-  var miTurno = (turnoDe === a) && a.ia.nervio <= 0;
+  var ocupada = hayAlguienArriba(a) !== null;
+  var miTurno = (turnoDe === a) && (a.ia.nervio <= 0 || ocupada);
   if (!miTurno) { a.ia.duda = 0.5 + Math.random() * 1.4; cortarIntento(a); }
 
   var sTr = proyectar(tr.x, tr.y).s;
   var enCurva = (sTr > L_RECTA - 80 && sTr < L_RECTA + L_CURVA) || (sTr > 2 * L_RECTA + L_CURVA - 80);
 
   if (miTurno && a.ia.duda <= 0 && a.ia.intento === 0) {
-    if (enCurva && Math.random() > nivel.pericia * 0.5) {
+    if (enCurva && !ocupada && Math.random() > nivel.pericia * 0.5) {
       a.ia.duda = 0.5;                                  // mejor esperar la recta
+    } else if (ocupada) {
+      a.ia.intento = 4; a.ia.desvio = 0; a.ia.reloj = 0;           // 4 es embestida
     } else {
       var falla = Math.random() > nivel.exito;
       a.ia.intento = falla ? (Math.random() < 0.5 ? 2 : 3) : 1;   // 1 bien, 2 torcido, 3 pasado
@@ -881,10 +924,12 @@ function pensarIA(a, dt) {
   var listo = miTurno && a.ia.intento !== 0;
   if (listo) {
     a.ia.reloj += dt;
-    var raspando = loc.x > -70 && Math.abs(loc.y) > 26;
+    var raspando = loc.x > -70 && Math.abs(loc.y) > 26 && a.ia.intento !== 4;
     if (a.ia.reloj > 10 || raspando) {
       /* intento abandonado: se va al fondo de la fila y le toca a otro */
-      cortarIntento(a); a.ia.nervio = nivel.demora * (0.7 + 0.6 * Math.random()); listo = false;
+      cortarIntento(a);
+      a.ia.nervio = nivel.demora * (ocupada ? 0.35 : 1) * (0.7 + 0.6 * Math.random());
+      listo = false;
     }
   }
   if (listo && !lejos && Math.abs(errLat) < 13 &&
@@ -899,7 +944,9 @@ function pensarIA(a, dt) {
   var nObj = tr.n, sesgo = 0, vObj;
   if (a.ia.entrando) {
     if (a.ia.intento === 2) sesgo = a.ia.desvio * 0.032;      // el que sube cruzado
-    vObj = vTr + (a.ia.intento === 3 ? V_SUBIDA + 55 : RAPIDEZ * (46 + 22 * nivel.pericia));
+    vObj = vTr + (a.ia.intento === 3 ? V_SUBIDA + 55
+                : a.ia.intento === 4 ? V_SUBIDA - 25            // entra fuerte, a sacarlo
+                : RAPIDEZ * (46 + 22 * nivel.pericia));
   } else if (!listo) {
     nObj = tr.n + lateralEspera;
     vObj = brecha > 190 ? VMAX * (0.80 + 0.18 * nivel.pericia)
@@ -930,6 +977,17 @@ function pensarIA(a, dt) {
 function arribaIA(a, dt) {
   var c = a.ctrl;
   var vf = a.lvx * Math.cos(a.lang) + a.lvy * Math.sin(a.lang);
+
+  /* si hay otro arriba, acomodarse puede esperar: primero se lo saca */
+  var intruso = hayAlguienArriba(a);
+  if (intruso) {
+    var e = normAng(Math.atan2(intruso.ly - a.ly, intruso.lx - a.lx) - a.lang);
+    c.giro = lim(e * 2.6, -1, 1);
+    c.acel = Math.abs(e) < 0.9 ? 1 : 0.45;
+    c.mano = false;
+    return;
+  }
+
   if (entroCompleto(a)) {
     c.acel = 0; c.giro = 0; c.mano = true;      // ya entró: solo falta no moverse
     return;
@@ -953,6 +1011,15 @@ function arribaIA(a, dt) {
 
 function cortarIntento(a) { a.ia.intento = 0; a.ia.entrando = false; a.ia.reloj = 0; }
 
+/* Mientras haya alguien arriba, los rivales dejan de esperar su momento:
+   suben igual, a sacarlo a los empujones. */
+function hayAlguienArriba(salvo) {
+  for (var i = 0; i < autos.length; i++) {
+    if (autos[i] !== salvo && autos[i].arriba && !autos[i].fuera) return autos[i];
+  }
+  return null;
+}
+
 /* el turno es del rival mejor parado detrás de la rampa */
 var turnoDe = null;
 function repartirTurno() {
@@ -960,7 +1027,7 @@ function repartirTurno() {
   for (var i = 0; i < autos.length; i++) {
     var a = autos[i];
     if (a.jugador || a.fuera || a.arriba) continue;
-    if (a.ia.nervio > 0) continue;
+    if (a.ia.nervio > 0 && !hayAlguienArriba(a)) continue;
     var loc = aLocal(camion.tr, a.x, a.y);
     var d = Math.abs(-loc.x - CAMA_L / 2 - RAMPA_L - 60) + Math.abs(loc.y) * 0.8;
     if (d < mejorD) { mejorD = d; mejor = a; }
@@ -999,7 +1066,7 @@ function terminar(quien, motivo) {
   estado = "fin";
   ganador = quien; motivoFin = motivo;
   sonar(quien && quien.jugador ? "gana" : "pierde");
-  setTimeout(mostrarFin, 900);
+  setTimeout(mostrarFin, motivo === "chatarra" ? 1500 : 900);
 }
 
 var restante = 0;
@@ -1014,6 +1081,7 @@ function pasoCarrera(dt) {
   if (estado !== "corre") {
     moverCamion(camion, dt);
     for (var f = 0; f < autos.length; f++) if (autos[f].arriba) colocarDesdeCama(autos[f], camion.tr);
+    pasoEfectos(dt);
     return;
   }
 
@@ -1046,11 +1114,20 @@ function pasoCarrera(dt) {
     if (autos[z].arriba && Math.abs(autos[z].ly) > CAMA_W / 2 + 4) caerse(autos[z], tr);
   }
 
+  pasoEfectos(dt);
+}
+
+/* humo, chispas, gomas quemadas y la bola de fuego: corren siempre, incluso
+   con la carrera ya terminada, así se ve el final. */
+function pasoEfectos(dt) {
   for (var m = marcas.length - 1; m >= 0; m--) { marcas[m].t -= dt; if (marcas[m].t <= 0) marcas.splice(m, 1); }
   for (var c2 = chispas.length - 1; c2 >= 0; c2--) {
     var ch = chispas[c2];
     ch.x += ch.vx * dt; ch.y += ch.vy * dt; ch.vx *= 0.92; ch.vy *= 0.92; ch.t -= dt;
     if (ch.t <= 0) chispas.splice(c2, 1);
+  }
+  for (var e = 0; e < autos.length; e++) {
+    if (autos[e].explota > 0) autos[e].explota = Math.max(0, autos[e].explota - dt);
   }
 }
 
@@ -1125,6 +1202,26 @@ document.addEventListener("pointerdown", arrancarAudio, { once: false });
 function sonar(tipo) {
   if (!audio || !sonidoSi) return;
   var t = audio.currentTime;
+  if (tipo === "explosion") {
+    var buf2 = audio.createBuffer(1, audio.sampleRate * 0.9, audio.sampleRate);
+    var d2 = buf2.getChannelData(0);
+    for (var j = 0; j < d2.length; j++) {
+      var caida = 1 - j / d2.length;
+      d2[j] = (Math.random() * 2 - 1) * caida * caida;
+    }
+    var src2 = audio.createBufferSource(); src2.buffer = buf2;
+    var f2 = audio.createBiquadFilter(); f2.type = "lowpass";
+    f2.frequency.setValueAtTime(1800, t); f2.frequency.exponentialRampToValueAtTime(120, t + 0.8);
+    var g2 = audio.createGain();
+    g2.gain.setValueAtTime(0.55, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.9);
+    src2.connect(f2); f2.connect(g2); g2.connect(audio.destination); src2.start();
+    var bum = audio.createOscillator(); bum.type = "sine";
+    bum.frequency.setValueAtTime(110, t); bum.frequency.exponentialRampToValueAtTime(28, t + 0.5);
+    var gb = audio.createGain();
+    gb.gain.setValueAtTime(0.5, t); gb.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    bum.connect(gb); gb.connect(audio.destination); bum.start(t); bum.stop(t + 0.65);
+    return;
+  }
   if (tipo === "golpe") {
     var buf = audio.createBuffer(1, 2400, audio.sampleRate);
     var d = buf.getChannelData(0);
@@ -1282,6 +1379,24 @@ function rectRedondo(x, y, w, h, r) {
   ctx.closePath();
 }
 
+/* Contorno de la carrocería: un cuadrado redondeado al que cada golpe le
+   hunde el borde por donde pegó. Con la chapa entera es un auto prolijo;
+   con media chapa perdida, una lata. */
+function caminoCarroceria(a) {
+  var hl = AUTO_L / 2, hw = AUTO_W / 2, n = 24, e = 0.42;
+  ctx.beginPath();
+  for (var i = 0; i < n; i++) {
+    var t = i / n * Math.PI * 2, co = Math.cos(t), si = Math.sin(t);
+    var px = (co < 0 ? -1 : 1) * Math.pow(Math.abs(co), e) * hl;
+    var py = (si < 0 ? -1 : 1) * Math.pow(Math.abs(si), e) * hw;
+    var d = a.dientes[Math.floor(i / n * 8) % 8] * 4.5;
+    var m = Math.hypot(px, py) || 1;
+    if (i === 0) ctx.moveTo(px - px / m * d, py - py / m * d);
+    else ctx.lineTo(px - px / m * d, py - py / m * d);
+  }
+  ctx.closePath();
+}
+
 function dibujarAuto(a) {
   ctx.save();
   ctx.translate(a.x, a.y);
@@ -1306,12 +1421,14 @@ function dibujarAuto(a) {
   }
 
   /* carrocería con línea de tinta */
-  ctx.fillStyle = a.fuera ? "#8a8078" : a.color;
-  rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 7); ctx.fill();
+  ctx.fillStyle = a.fuera ? "#3a332c" : a.color;
+  caminoCarroceria(a); ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
-  /* brillo de arriba */
-  ctx.fillStyle = "rgba(255,255,255,.22)";
-  rectRedondo(-AUTO_L / 2 + 3, -AUTO_W / 2 + 3, AUTO_L - 6, 6, 3); ctx.fill();
+  /* brillo de arriba, que se apaga a medida que se abolla */
+  if (!a.fuera) {
+    ctx.fillStyle = "rgba(255,255,255," + (0.22 * (1 - a.dano / 100)) + ")";
+    rectRedondo(-AUTO_L / 2 + 3, -AUTO_W / 2 + 3, AUTO_L - 6, 6, 3); ctx.fill();
+  }
 
   /* techo y parabrisas */
   ctx.fillStyle = "#3d4a52";
@@ -1328,10 +1445,10 @@ function dibujarAuto(a) {
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.save(); ctx.rotate(Math.PI / 2); ctx.fillText(a.jugador ? "1" : String(a.id + 1), 0, 0); ctx.restore();
 
-  /* abolladuras y el golpe recién pegado */
-  if (a.dano > 25) {
-    ctx.fillStyle = "rgba(43,29,20," + Math.min(0.45, a.dano / 220) + ")";
-    rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 7); ctx.fill();
+  /* tizne de los golpes y el destello del último */
+  if (a.dano > 20) {
+    ctx.fillStyle = "rgba(43,29,20," + Math.min(0.5, a.dano / 200) + ")";
+    caminoCarroceria(a); ctx.fill();
   }
   if (a.golpe > 0) {
     ctx.strokeStyle = "rgba(255,243,214," + a.golpe * 0.9 + ")"; ctx.lineWidth = 3;
@@ -1340,14 +1457,21 @@ function dibujarAuto(a) {
   ctx.restore();
 
   if (a.fuera || a.dano > 70) {
-    var n = a.fuera ? 3 : 1;
+    var n = a.fuera ? 4 : 1;
     for (var h = 0; h < n; h++) {
-      var r2 = 8 + Math.sin(tiempo * 3 + h * 2 + a.id) * 4 + h * 6;
-      ctx.fillStyle = "rgba(60,50,45," + (0.22 - h * 0.05) + ")";
+      var r2 = 9 + Math.sin(tiempo * 3 + h * 2 + a.id) * 4 + h * 7;
+      ctx.fillStyle = "rgba(60,50,45," + (0.24 - h * 0.05) + ")";
       ctx.beginPath();
-      ctx.arc(a.x - Math.cos(a.ang) * 14, a.y - Math.sin(a.ang) * 14 - h * 6, r2, 0, 7);
+      ctx.arc(a.x - Math.cos(a.ang) * 14, a.y - Math.sin(a.ang) * 14 - h * 7, r2, 0, 7);
       ctx.fill();
     }
+  }
+  /* la bola de fuego del final */
+  if (a.explota > 0) {
+    var q = 1 - a.explota / 0.8;
+    ctx.beginPath(); ctx.arc(a.x, a.y, 12 + q * 78, 0, 7);
+    ctx.fillStyle = "rgba(226,163,59," + (1 - q) * 0.45 + ")"; ctx.fill();
+    ctx.lineWidth = 8 * (1 - q); ctx.strokeStyle = "rgba(201,79,42," + (1 - q) + ")"; ctx.stroke();
   }
 }
 
@@ -1390,11 +1514,6 @@ function dibujarConjunto(c) {
   for (var tb = -CAMA_L / 2 + 8; tb < CAMA_L / 2; tb += 8) {
     ctx.beginPath(); ctx.moveTo(tb, -CAMA_W / 2); ctx.lineTo(tb, CAMA_W / 2); ctx.stroke();
   }
-  /* marca del lugar donde hay que quedar */
-  ctx.strokeStyle = "rgba(201,79,42,.75)"; ctx.lineWidth = 3; ctx.setLineDash([7, 6]);
-  ctx.strokeRect(-AUTO_L / 2 - 3, -AUTO_W / 2 - 3, AUTO_L + 6, AUTO_W + 6);
-  ctx.setLineDash([]);
-
   /* No hay barandas ni pared: es una tarima pelada. El borde va pintado con
      franjas de peligro, que avisan sin sujetar nada. */
   for (var fr = -ACOP_L / 2; fr < ACOP_L / 2; fr += 14) {
@@ -1511,8 +1630,9 @@ function dibujar() {
 
   for (var c = 0; c < chispas.length; c++) {
     var ch = chispas[c];
-    ctx.fillStyle = "rgba(226,163,59," + Math.max(0, ch.t * 2.4) + ")";
-    ctx.fillRect(ch.x - 2, ch.y - 2, 4, 4);
+    var rr = ch.r || 2;
+    ctx.fillStyle = "rgba(" + (ch.c || "226,163,59") + "," + Math.max(0, Math.min(1, ch.t * 2)) + ")";
+    ctx.fillRect(ch.x - rr, ch.y - rr, rr * 2, rr * 2);
   }
 
   ctx.restore();
