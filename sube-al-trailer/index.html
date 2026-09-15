@@ -9,150 +9,176 @@
 <meta property="og:description" content="Chase the pickup, drive up the ramp and park inside the trailer before anyone else does.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0a0710">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Bangers&display=swap" rel="stylesheet">
 <style>
-  :root{--noche:#000;--humo:#141018;--hueso:#F3ECE6;--sangre:#FF2350;--ambar:#FFC400;
-    --cian:#00E5FF;--magenta:#FF2BD1;--verde:#43E06B;--ceniza:#8A7E92}
+  /* Mismo lenguaje visual que Formula 600: papel crema, borde de tinta
+     grueso, sombra dura y tipografías de historieta. */
+  :root{--crema:#fff3d6;--papel:#f9e7c2;--tinta:#2b1d14;--ladrillo:#c94f2a;
+    --ocre:#e2a33b;--oliva:#6f8f4b;--cielo:#8fd3e8;--verde:#8bc34a;
+    --sombra:0 6px 0 var(--tinta);--sombrita:0 4px 0 rgba(43,29,20,.9)}
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;
     user-select:none;-webkit-user-select:none}
-  html,body{width:100%;height:100%;overflow:hidden;background:#0a0710;touch-action:none;
-    font-family:Helvetica,Arial,sans-serif;color:var(--hueso)}
+  html,body{width:100%;height:100%;overflow:hidden;background:#8fd3e8;touch-action:none;
+    font-family:'Fredoka','Trebuchet MS',Helvetica,Arial,sans-serif;color:var(--tinta)}
   #lienzo{display:block;position:fixed;inset:0;width:100%;height:100%}
-  .impact{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-weight:400;
-    text-transform:uppercase;line-height:.85;letter-spacing:-.01em}
+  .rotulo-grande{font-family:'Bangers',Impact,Haettenschweiler,'Arial Black',sans-serif;
+    font-weight:400;letter-spacing:2px;line-height:.95}
 
-  /* ---------- capa de interfaz sobre el canvas ---------- */
-  #hud{position:fixed;inset:0;pointer-events:none;z-index:5;
-    padding:calc(env(safe-area-inset-top,0px) + 8px) calc(env(safe-area-inset-right,0px) + 8px)
-            calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 8px)}
+  /* ---------- capa de interfaz sobre el lienzo ---------- */
+  #hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+  .caja{background:rgba(255,243,214,.93);border:3px solid var(--tinta);border-radius:14px;
+    padding:6px 12px;font-weight:700;box-shadow:var(--sombrita)}
 
-  #reloj{position:absolute;top:calc(env(safe-area-inset-top,0px) + 8px);left:50%;transform:translateX(-50%);
-    text-align:center;line-height:1}
-  #reloj b{display:block;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-weight:400;
-    font-size:30px;letter-spacing:.02em;text-shadow:0 2px 10px rgba(0,0,0,.9)}
-  #reloj small{display:block;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--ceniza);margin-top:3px}
-  #reloj.apura b{color:var(--sangre)}
+  #reloj{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;
+    transform:translateX(-50%);display:flex;gap:10px;align-items:stretch}
+  #reloj b{font-size:30px;line-height:1;font-variant-numeric:tabular-nums;display:block}
+  #reloj .vuelta{display:flex;align-items:center;font-size:17px}
+  #reloj.apura b{color:var(--ladrillo)}
 
-  #panel-der{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);
-    right:calc(env(safe-area-inset-right,0px) + 8px);width:112px;text-align:right}
-  #mapa{width:112px;height:66px;display:block;position:static;background:rgba(8,5,12,.85);
-    border:1px solid rgba(243,236,230,.18);border-radius:4px}
-  .barra{height:7px;margin-top:6px;background:rgba(243,236,230,.14);border:1px solid rgba(243,236,230,.2);
-    overflow:hidden}
-  .barra i{display:block;height:100%;width:0;background:var(--verde);transition:width .12s linear}
-  .barra.alerta i{background:var(--sangre)}
-  #rotulo-dano{font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--ceniza);margin-top:3px}
+  #mapa{position:static;display:block;width:120px;height:72px;
+    background:rgba(255,243,214,.9);border:3px solid var(--tinta);border-radius:16px;
+    box-shadow:var(--sombrita)}
+  #panel-der{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);
+    right:calc(env(safe-area-inset-right,0px) + 12px)}
 
-  #rivales{position:absolute;left:calc(env(safe-area-inset-left,0px) + 8px);top:calc(env(safe-area-inset-top,0px) + 80px);
-    display:flex;flex-direction:column;gap:4px}
-  .chip{display:flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
-    background:rgba(10,7,16,.6);border:1px solid rgba(243,236,230,.14);padding:3px 7px 3px 5px;
-    border-radius:3px;color:rgba(243,236,230,.75)}
-  .chip u{width:9px;height:9px;border-radius:2px;display:inline-block}
-  .chip em{font-style:normal;color:var(--ceniza);font-size:9px}
-  .chip.fuera{opacity:.4;text-decoration:line-through}
-  .chip.arriba{border-color:rgba(255,196,0,.6);color:var(--ambar)}
+  #rivales{position:absolute;left:calc(env(safe-area-inset-left,0px) + 12px);
+    top:calc(env(safe-area-inset-top,0px) + 92px);min-width:168px}
+  #rivales .caja{padding:7px 10px}
+  .fila{display:flex;gap:8px;align-items:center;font-size:14px;padding:1px 0;line-height:1.25}
+  .fila u{width:14px;height:14px;border-radius:4px;border:2px solid var(--tinta);
+    display:inline-block;flex:none}
+  .fila em{font-style:normal;margin-left:auto;font-weight:600;opacity:.75;font-size:12.5px}
+  .fila.fuera{opacity:.45}
+  .fila.arriba{color:var(--ladrillo)}
+  .fila.arriba em{color:var(--ladrillo);opacity:1}
 
-  #estacionando{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 172px);
-    transform:translateX(-50%);width:min(280px,72vw);text-align:center;opacity:0;transition:opacity .15s}
+  #tablero{position:absolute;right:calc(env(safe-area-inset-right,0px) + 12px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+    width:min(300px,52vw);filter:drop-shadow(0 4px 0 rgba(43,29,20,.9))}
+  #tablero canvas{display:block;width:100%;height:auto}
+
+  #estacionando{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 168px);
+    transform:translateX(-50%);width:min(320px,74vw);text-align:center;opacity:0;transition:opacity .15s}
   #estacionando.ver{opacity:1}
-  #estacionando .rot{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--ambar);margin-bottom:5px;
-    text-shadow:0 2px 8px #000}
-  #estacionando .caja{height:13px;background:rgba(10,7,16,.72);border:1px solid rgba(255,196,0,.55)}
-  #estacionando .caja i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ambar),var(--verde))}
+  #estacionando .rot{font-family:'Bangers',Impact,sans-serif;font-size:22px;letter-spacing:2px;
+    color:var(--crema);text-shadow:3px 3px 0 var(--tinta);margin-bottom:4px}
+  #estacionando .caja2{height:18px;background:var(--crema);border:3px solid var(--tinta);
+    border-radius:10px;overflow:hidden;box-shadow:var(--sombrita)}
+  #estacionando .caja2 i{display:block;height:100%;width:0;background:var(--ocre)}
+  #estacionando.lleno .caja2 i{background:var(--verde)}
 
-  #aviso{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);text-align:center;
-    font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;text-transform:uppercase;
-    font-size:clamp(26px,8vw,54px);line-height:.9;color:var(--hueso);opacity:0;
-    text-shadow:0 0 18px rgba(0,0,0,.9),4px 4px 0 var(--sangre);white-space:pre-line;
-    transition:opacity .18s;width:90%}
-  #aviso.ver{opacity:1}
+  #dif{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 128px);
+    transform:translateX(-50%);max-width:76vw;text-align:center;font-size:14px;line-height:1.35;
+    background:var(--tinta);color:var(--crema);border:3px solid var(--crema);border-radius:12px;
+    padding:5px 14px;box-shadow:0 4px 0 rgba(0,0,0,.35);font-weight:600}
+  #dif b{color:var(--ocre)}
 
-  #velocimetro{position:absolute;left:calc(env(safe-area-inset-left,0px) + 12px);
-    bottom:calc(env(safe-area-inset-bottom,0px) + 128px);text-align:left;line-height:1}
-  #velocimetro b{font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-weight:400;font-size:34px;
-    text-shadow:0 2px 10px rgba(0,0,0,.9)}
-  #velocimetro small{display:block;font-size:9px;letter-spacing:.2em;color:var(--ceniza)}
-  #dif{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 238px);transform:translateX(-50%);
-    font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ceniza);text-align:center;
-    background:rgba(10,7,16,.6);padding:3px 9px;border-radius:3px;max-width:74vw;line-height:1.5}
-  #dif b{color:var(--hueso)}
+  #aviso{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);text-align:center;
+    font-family:'Bangers',Impact,sans-serif;font-size:clamp(30px,8vw,58px);letter-spacing:3px;
+    color:var(--crema);background:var(--ladrillo);border:4px solid var(--tinta);
+    border-radius:16px;padding:4px 30px;box-shadow:var(--sombra);white-space:pre-line;
+    opacity:0;transition:opacity .15s}
+  #aviso.ver{opacity:1;animation:pop .25s ease-out}
+  @keyframes pop{from{transform:translate(-50%,-50%) scale(.6);opacity:0}
+    to{transform:translate(-50%,-50%) scale(1);opacity:1}}
 
   /* ---------- controles táctiles ---------- */
   #mandos{position:fixed;inset:0;z-index:6;pointer-events:none}
   #mandos.ver .tecla{display:flex}
   .tecla{display:none;position:absolute;pointer-events:auto;align-items:center;justify-content:center;
-    border:2px solid rgba(243,236,230,.3);background:rgba(20,16,24,.5);color:var(--hueso);
-    font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;font-size:22px;border-radius:50%;
-    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
-  .tecla.on{background:rgba(255,196,0,.4);border-color:var(--ambar)}
-  #t-izq{left:calc(env(safe-area-inset-left,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:74px;height:74px}
-  #t-der{left:calc(env(safe-area-inset-left,0px) + 98px);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:74px;height:74px}
-  #t-gas{right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 34px);width:86px;height:86px;
-    background:rgba(67,224,107,.28);border-color:rgba(67,224,107,.6)}
-  #t-fre{right:calc(env(safe-area-inset-right,0px) + 106px);bottom:calc(env(safe-area-inset-bottom,0px) + 22px);width:70px;height:70px;
-    background:rgba(255,35,80,.26);border-color:rgba(255,35,80,.6)}
-  #t-mano{right:calc(env(safe-area-inset-right,0px) + 20px);bottom:calc(env(safe-area-inset-bottom,0px) + 132px);width:56px;height:56px;
-    font-size:11px;letter-spacing:.06em}
+    border:3px solid var(--tinta);background:var(--papel);color:var(--tinta);
+    font-family:'Bangers',Impact,sans-serif;font-size:24px;letter-spacing:1px;border-radius:50%;
+    box-shadow:0 5px 0 var(--tinta)}
+  .tecla.on{transform:translateY(4px);box-shadow:0 1px 0 var(--tinta);background:var(--ocre)}
+  #t-izq{left:calc(env(safe-area-inset-left,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:76px;height:76px}
+  #t-der{left:calc(env(safe-area-inset-left,0px) + 100px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:76px;height:76px}
+  #t-gas{right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 116px);width:86px;height:86px;background:var(--verde)}
+  #t-fre{right:calc(env(safe-area-inset-right,0px) + 106px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:72px;height:72px;background:var(--ladrillo);color:var(--crema)}
+  #t-mano{right:calc(env(safe-area-inset-right,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:72px;height:72px;background:var(--ocre);font-size:17px}
 
   /* ---------- pantallas ---------- */
   .pantalla{position:fixed;inset:0;z-index:20;display:none;overflow-y:auto;
-    background:radial-gradient(120% 45% at 8% -8%,rgba(255,43,209,.24),transparent 58%),
-      radial-gradient(110% 42% at 94% -6%,rgba(0,229,255,.18),transparent 60%),
-      radial-gradient(95% 50% at 50% 112%,rgba(255,35,80,.16),transparent 62%),rgba(6,4,10,.97)}
+    background:rgba(43,29,20,.5)}
   .pantalla.ver{display:block}
-  .caja-pant{max-width:560px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 88px) 20px 60px}
-  h1{font-size:clamp(42px,13vw,82px);transform:skewX(-7deg);margin-bottom:6px;
-    background:linear-gradient(180deg,#FFF 0%,#DCE6F0 38%,#5C6675 50%,#F2F7FF 58%,#FFF 78%,#9AA6B4 100%);
-    -webkit-background-clip:text;background-clip:text;color:transparent;
-    filter:drop-shadow(4px 4px 0 var(--sangre)) drop-shadow(0 0 26px rgba(255,43,209,.4))}
-  h2{font-size:clamp(30px,9vw,46px);transform:skewX(-7deg);text-shadow:3px 3px 0 var(--sangre);margin-bottom:10px}
-  .bajada{font-size:13.5px;color:rgba(243,236,230,.82);line-height:1.6;max-width:46ch;margin-bottom:18px;
-    border-left:2px solid rgba(243,236,230,.2);padding-left:10px}
-  .bajada b{color:var(--ambar);font-weight:normal}
-  .rotulo{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--cian);margin:20px 0 8px}
-  .opciones{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
-  .opciones button{font-family:inherit;color:var(--hueso);background:rgba(243,236,230,.06);
-    border:1px solid rgba(243,236,230,.22);padding:10px 4px;cursor:pointer;transition:.15s;
-    font-size:12px;letter-spacing:.08em;text-transform:uppercase}
-  .opciones button small{display:block;font-size:9px;color:var(--ceniza);letter-spacing:.04em;
-    text-transform:none;margin-top:3px}
-  .opciones button.sel{background:rgba(255,196,0,.16);border-color:var(--ambar);color:var(--ambar)}
-  .opciones button.sel small{color:rgba(255,196,0,.7)}
-  .grande{width:100%;margin-top:22px;font-family:Impact,Haettenschweiler,"Arial Black",sans-serif;
-    text-transform:uppercase;font-size:30px;letter-spacing:.02em;padding:14px;cursor:pointer;
-    color:#0a0710;background:linear-gradient(180deg,var(--ambar),#E09400);border:none;
-    clip-path:polygon(0 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%);
-    box-shadow:0 10px 26px rgba(0,0,0,.6)}
-  .grande:active{transform:translateY(2px)}
-  .grande.flojo{background:linear-gradient(180deg,#2a2430,#1a1520);color:var(--hueso);
-    box-shadow:none;border:1px solid rgba(243,236,230,.2);font-size:22px;margin-top:10px}
-  .ayuda{margin-top:22px;font-size:11.5px;color:var(--ceniza);line-height:1.8}
-  .ayuda b{color:rgba(243,236,230,.85);font-weight:normal}
-  .ayuda kbd{font-family:inherit;background:rgba(243,236,230,.1);border:1px solid rgba(243,236,230,.2);
-    padding:1px 5px;border-radius:3px;font-size:10.5px}
-  .pasos{counter-reset:p;list-style:none;margin:10px 0 0}
-  .pasos li{position:relative;padding-left:30px;margin-bottom:9px;font-size:13px;line-height:1.5;
-    color:rgba(243,236,230,.82)}
-  .pasos li::before{counter-increment:p;content:counter(p);position:absolute;left:0;top:0;
-    width:20px;height:20px;display:flex;align-items:center;justify-content:center;
-    background:var(--sangre);color:#fff;font-size:11px;font-weight:bold}
-  .marcador{margin-top:16px;border-top:1px solid rgba(243,236,230,.16)}
-  .marcador div{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
-    padding:8px 2px;border-bottom:1px solid rgba(243,236,230,.09);font-size:13px}
-  .marcador div span:last-child{color:var(--ceniza);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-  .marcador div.yo{color:var(--ambar)}
-  #sonido{position:fixed;top:calc(env(safe-area-inset-top,0px) + 44px);
-    left:calc(env(safe-area-inset-left,0px) + 10px);z-index:21;pointer-events:auto;
-    font-family:inherit;font-size:10px;letter-spacing:.1em;text-transform:uppercase;padding:6px 9px;
-    color:var(--hueso);background:rgba(10,7,16,.7);border:1px solid rgba(243,236,230,.25);
-    border-radius:999px;cursor:pointer;opacity:.6}
-  #sonido:hover{opacity:1}
-  @media (max-width:430px){
-    #mapa{width:86px;height:52px}#panel-der{width:86px}
-    #reloj b{font-size:24px}#velocimetro b{font-size:26px}
-    .opciones{grid-template-columns:1fr}
+  .caja-pant{width:min(620px,94vw);margin:0 auto;
+    padding:calc(env(safe-area-inset-top,0px) + 68px) 0 44px}
+  .panel{background:var(--crema);border:4px solid var(--tinta);border-radius:22px;
+    padding:22px 26px;box-shadow:var(--sombra),0 18px 40px rgba(0,0,0,.3)}
+  .logo{background:var(--crema);border:4px solid var(--tinta);border-radius:22px;
+    padding:12px 22px 14px;box-shadow:var(--sombra);transform:rotate(-2deg);
+    width:fit-content;margin:0 auto 20px}
+  .logo .arriba{font-weight:700;letter-spacing:3px;color:var(--oliva);font-size:13px}
+  h1{font-family:'Bangers',Impact,sans-serif;font-weight:400;letter-spacing:3px;
+    font-size:clamp(50px,13vw,88px);line-height:.95;color:var(--ladrillo);
+    text-shadow:4px 4px 0 var(--tinta)}
+  .logo .abajo{font-weight:600;font-size:15px;opacity:.8;margin-top:2px}
+  h2{font-family:'Bangers',Impact,sans-serif;font-weight:400;letter-spacing:2px;
+    font-size:clamp(32px,9vw,46px);color:var(--ladrillo);text-shadow:3px 3px 0 var(--tinta);
+    margin-bottom:12px}
+  .bajada{font-size:15px;line-height:1.55;margin-bottom:14px}
+  .bajada b{color:var(--ladrillo)}
+  .rotulo{font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--ladrillo);
+    font-weight:700;margin:18px 0 8px}
+  .opciones{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .opciones button{font:inherit;font-weight:700;font-size:17px;padding:10px 6px;
+    border:3px solid var(--tinta);border-radius:14px;background:var(--papel);color:var(--tinta);
+    cursor:pointer;box-shadow:0 4px 0 var(--tinta);transition:transform .08s,box-shadow .08s}
+  .opciones button small{display:block;font-size:12px;font-weight:600;opacity:.75;margin-top:2px}
+  .opciones button.sel{background:var(--ocre)}
+  .opciones button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--tinta)}
+  .grande{width:100%;margin-top:16px;font-family:'Bangers',Impact,sans-serif;font-weight:400;
+    font-size:30px;letter-spacing:2px;padding:10px;cursor:pointer;color:var(--tinta);
+    background:var(--ocre);border:4px solid var(--tinta);border-radius:16px;
+    box-shadow:0 6px 0 var(--tinta);transition:transform .08s,box-shadow .08s}
+  .grande:active{transform:translateY(4px);box-shadow:0 2px 0 var(--tinta)}
+  .grande.flojo{background:var(--papel);font-size:24px;box-shadow:0 5px 0 var(--tinta)}
+  .ayuda{margin-top:18px;font-size:13.5px;line-height:1.8}
+  .ayuda kbd{font-family:inherit;background:#fff;border:2px solid var(--tinta);
+    border-radius:7px;padding:1px 7px;font-size:12.5px;font-weight:700;box-shadow:0 2px 0 var(--tinta)}
+  .pasos{counter-reset:p;list-style:none;margin:6px 0 0}
+  .pasos li{position:relative;padding-left:34px;margin-bottom:10px;font-size:14.5px;line-height:1.5}
+  .pasos li::before{counter-increment:p;content:counter(p);position:absolute;left:0;top:-1px;
+    width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+    background:var(--ladrillo);color:var(--crema);font-weight:700;font-size:13px;
+    border:2px solid var(--tinta);border-radius:8px}
+  .marcador{margin-top:14px;border:3px solid var(--tinta);border-radius:12px;overflow:hidden;background:#fff}
+  .marcador div{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:7px 12px;font-size:15px;font-weight:600}
+  .marcador div:nth-child(even){background:#fbf3e2}
+  .marcador div.yo{background:#ffe08a;font-weight:700}
+  .marcador div span:last-child{font-size:13px;text-transform:uppercase;letter-spacing:1px;opacity:.75}
+  #sonido{position:fixed;top:calc(env(safe-area-inset-top,0px) + 50px);
+    left:calc(env(safe-area-inset-left,0px) + 12px);z-index:21;pointer-events:auto;
+    font:inherit;font-weight:700;font-size:12px;letter-spacing:1px;padding:5px 12px;
+    color:var(--tinta);background:var(--papel);border:3px solid var(--tinta);
+    border-radius:999px;cursor:pointer;box-shadow:0 3px 0 var(--tinta)}
+  #sonido:active{transform:translateY(2px);box-shadow:0 1px 0 var(--tinta)}
+  /* Con controles en pantalla el tablero no puede ir abajo a la derecha,
+     porque ahí están los botones. En vertical sube arriba de ellos y en
+     horizontal se va al centro, que es la única franja libre. */
+  @media (pointer:coarse) and (orientation:portrait){
+    #tablero{left:50%;right:auto;transform:translateX(-50%);
+      bottom:calc(env(safe-area-inset-bottom,0px) + 206px);width:min(300px,80vw)}
+    #dif{bottom:calc(env(safe-area-inset-bottom,0px) + 366px)}
+    #estacionando{bottom:calc(env(safe-area-inset-bottom,0px) + 404px)}
   }
-  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+  @media (pointer:coarse) and (orientation:landscape){
+    #tablero{left:50%;right:auto;transform:translateX(-50%);
+      bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:min(250px,32vw)}
+    #dif{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
+    #estacionando{bottom:calc(env(safe-area-inset-bottom,0px) + 188px);width:min(280px,50vw)}
+  }
+  @media (max-width:460px){
+    #mapa{width:92px;height:56px}
+    #reloj b{font-size:24px}#reloj .vuelta{font-size:14px}
+    .opciones{grid-template-columns:1fr}
+    #rivales{top:calc(env(safe-area-inset-top,0px) + 86px);min-width:0}
+    .fila{font-size:12.5px}
+    #tablero{width:min(232px,58vw)}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
@@ -160,18 +186,19 @@
 <canvas id="lienzo"></canvas>
 
 <div id="hud">
-  <div id="reloj"><b>2:30</b><small>Lap 1</small></div>
+  <div id="reloj">
+    <span class="caja"><b>2:30</b></span>
+    <span class="caja vuelta">Lap 1</span>
+  </div>
   <div id="panel-der">
-    <canvas id="mapa" width="224" height="132"></canvas>
-    <div class="barra" id="barra-dano"><i></i></div>
-    <div id="rotulo-dano">Body</div>
+    <canvas id="mapa" width="240" height="144"></canvas>
   </div>
   <div id="rivales"></div>
+  <div id="tablero"><canvas id="tablero-lienzo" width="376" height="184"></canvas></div>
   <div id="estacionando">
     <div class="rot">Parking</div>
-    <div class="caja"><i></i></div>
+    <div class="caja2"><i></i></div>
   </div>
-  <div id="velocimetro"><b>0</b><small>km/h</small></div>
   <div id="dif">Get to the ramp</div>
   <div id="aviso"></div>
 </div>
@@ -181,67 +208,77 @@
   <button class="tecla" id="t-der" aria-label="Steer right">&#9654;</button>
   <button class="tecla" id="t-gas" aria-label="Accelerate">&#9650;</button>
   <button class="tecla" id="t-fre" aria-label="Brake">&#9660;</button>
-  <button class="tecla" id="t-mano" aria-label="Handbrake">Hand</button>
+  <button class="tecla" id="t-mano" aria-label="Handbrake">HAND</button>
 </div>
 
 <button id="sonido" type="button">Sound: on</button>
 
 <div class="pantalla ver" id="pant-menu">
   <div class="caja-pant">
-    <h1 class="impact">Load Up</h1>
-    <p class="bajada">Out on the county fair ovals there is a contest that looks like no race at all:
-      a pickup tows an open trailer and goes round without ever stopping, and the winner is
-      <b>the first driver to get their car aboard and hold it still</b>. It is not about being fast.
-      It is about reaching the ramp, matching the speed and driving up straight, with three other
-      people trying the very same thing beside you.</p>
-
-    <div class="rotulo">Difficulty</div>
-    <div class="opciones" id="op-dif">
-      <button data-dif="0">Rookie<small>Slow pickup, 2 rivals</small></button>
-      <button data-dif="1" class="sel">Pro<small>3 rivals who know how</small></button>
-      <button data-dif="2">Legend<small>The pickup weaves</small></button>
+    <div class="logo">
+      <div class="arriba">COUNTY FAIR OVAL</div>
+      <h1>LOAD UP</h1>
+      <div class="abajo">Get your car into a moving trailer</div>
     </div>
+    <div class="panel">
+      <p class="bajada">Out on the county fair ovals there is a contest that looks like no race at
+        all: a pickup tows an open trailer and goes round without ever stopping, and the winner is
+        <b>the first driver to get their car aboard and hold it still</b>. It is not about being
+        fast. It is about reaching the ramp, matching the speed and driving up straight, with three
+        other people trying the very same thing beside you.</p>
 
-    <button class="grande" id="btn-arrancar">Race</button>
-    <button class="grande flojo" id="btn-como">How to play</button>
+      <div class="rotulo">Difficulty</div>
+      <div class="opciones" id="op-dif">
+        <button data-dif="0">Rookie<small>Slow pickup, 2 rivals</small></button>
+        <button data-dif="1" class="sel">Pro<small>3 rivals who know how</small></button>
+        <button data-dif="2">Legend<small>The pickup weaves</small></button>
+      </div>
 
-    <div class="ayuda">
-      <b>Keyboard:</b> <kbd>&uarr;</kbd> accelerates, <kbd>&darr;</kbd> brakes and reverses,
-      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer, <kbd>space</kbd> is the handbrake.<br>
-      <b>Phone:</b> the buttons on screen. It plays better sideways.
+      <button class="grande" id="btn-arrancar">RACE</button>
+      <button class="grande flojo" id="btn-como">HOW TO PLAY</button>
+
+      <div class="ayuda">
+        <b>Keyboard:</b> <kbd>&uarr;</kbd> accelerates, <kbd>&darr;</kbd> brakes and reverses,
+        <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer, <kbd>space</kbd> is the handbrake.<br>
+        <b>Phone:</b> the buttons on screen. It plays better sideways.
+      </div>
     </div>
   </div>
 </div>
 
 <div class="pantalla" id="pant-como">
   <div class="caja-pant">
-    <h2 class="impact">How to play</h2>
-    <p class="bajada">The trailer has room for one car. Whoever gets there second has to shove the
-      first one off.</p>
-    <ol class="pasos">
-      <li><b>Reach the ramp.</b> The pickup runs at about ninety and never stops. Your car is a good
-        deal faster, so the trouble is not catching it but arriving tidy.</li>
-      <li><b>Line up in the channel.</b> Two guide lines show up behind the trailer. When they turn
-        green you are straight and at a sane speed to climb.</li>
-      <li><b>Climb with a little extra.</b> You want to be just barely faster than the trailer. Come
-        in flying and you run out of deck and fall off the front.</li>
-      <li><b>Brake up there and pin the car.</b> The bar fills while the whole car is on the deck and
-        stays still. There are no rails to lean on, and in the corners the trailer pulls you outward,
-        so hold the handbrake: up on the deck it is what keeps the wheels from sliding.</li>
-      <li><b>Look after the bodywork.</b> Every hit dents, and a dented car loses speed and steering,
-        so mistakes cost you twice. At zero you are out and they win.</li>
-    </ol>
-    <button class="grande" id="btn-volver-menu">Got it</button>
+    <div class="panel">
+      <h2>HOW TO PLAY</h2>
+      <p class="bajada">The trailer has room for one car. Whoever gets there second has to shove the
+        first one off.</p>
+      <ol class="pasos">
+        <li><b>Reach the ramp.</b> The pickup runs at about ninety and never stops. Your car is a good
+          deal faster, so the trouble is not catching it but arriving tidy.</li>
+        <li><b>Line up in the channel.</b> Two guide lines show up behind the trailer. When they turn
+          green you are straight and at a sane speed to climb.</li>
+        <li><b>Climb with a little extra.</b> You want to be just barely faster than the trailer. Come
+          in flying and you run out of deck and fall off the front.</li>
+        <li><b>Brake up there and pin the car.</b> The bar fills while the whole car is on the deck and
+          stays still. There are no rails to lean on, and in the corners the trailer pulls you outward,
+          so hold the handbrake: up on the deck it is what keeps the wheels from sliding.</li>
+        <li><b>Look after the bodywork.</b> Every hit dents, and a dented car loses speed and steering,
+          so mistakes cost you twice. At zero you are out and they win.</li>
+      </ol>
+      <button class="grande" id="btn-volver-menu">GOT IT</button>
+    </div>
   </div>
 </div>
 
 <div class="pantalla" id="pant-fin">
   <div class="caja-pant">
-    <h2 class="impact" id="fin-titulo">Result</h2>
-    <p class="bajada" id="fin-texto"></p>
-    <div class="marcador" id="fin-marcador"></div>
-    <button class="grande" id="btn-otra">Race again</button>
-    <button class="grande flojo" id="btn-menu">Change difficulty</button>
+    <div class="panel">
+      <h2 id="fin-titulo">RESULT</h2>
+      <p class="bajada" id="fin-texto"></p>
+      <div class="marcador" id="fin-marcador"></div>
+      <button class="grande" id="btn-otra">RACE AGAIN</button>
+      <button class="grande flojo" id="btn-menu">CHANGE DIFFICULTY</button>
+    </div>
   </div>
 </div>
 
@@ -1153,7 +1190,7 @@ var OV_BORDE_INT = caminoOval(R - HW + 4);
 /* la tribuna: se calcula una vez y después solo se pinta */
 var TRIBUNA = (function () {
   var g = [];
-  var paleta = ["#6a5f74", "#8d7f96", "#c8b9d2", "#4e4557", "#a89bb2"];
+  var paleta = ["#c94f2a", "#e2a33b", "#6f8f4b", "#8fd3e8", "#f9e7c2", "#a0759b"];
   for (var lado = -1; lado <= 1; lado += 2) {
     for (var fila = 0; fila < 6; fila++) {
       for (var col = 0; col < 46; col++) {
@@ -1161,7 +1198,7 @@ var TRIBUNA = (function () {
         g.push({
           x: -A - 20 + col * ((2 * A + 40) / 45),
           y: lado * (R + HW + 54 + fila * 12),
-          c: paleta[(fila * 7 + col * 3) % 5]
+          c: paleta[(fila * 7 + col * 3) % 6]
         });
       }
     }
@@ -1169,58 +1206,69 @@ var TRIBUNA = (function () {
   return g;
 })();
 
-function dibujarPista() {
-  ctx.fillStyle = "#24361f"; ctx.fill(OV_MURO_EXT);
-  ctx.fillStyle = "#3a3a44"; ctx.fill(OV_ASF_EXT);
-  ctx.fillStyle = "#2d4526"; ctx.fill(OV_ASF_INT);
+var TINTA = "#2b1d14";
 
-  /* textura del asfalto: dos anillos apenas más claros */
+function dibujarPista() {
+  ctx.fillStyle = "#6f8f4b"; ctx.fill(OV_MURO_EXT);      // pasto de afuera
+  ctx.fillStyle = "#b9a77f"; ctx.fill(caminoOval(R + HW + 14));
+  ctx.fillStyle = "#6e6a63"; ctx.fill(OV_ASF_EXT);       // asfalto
+  ctx.fillStyle = "#b9a77f"; ctx.fill(caminoOval(R - HW - 14));
+  ctx.fillStyle = "#7ea653"; ctx.fill(OV_ASF_INT);       // pasto de adentro
+
+  /* dos anillos apenas distintos, para que el asfalto no sea una plancha */
   ctx.save();
-  ctx.globalAlpha = 0.5;
-  ctx.strokeStyle = "#414150"; ctx.lineWidth = 34;
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = "#757169"; ctx.lineWidth = 34;
   ctx.stroke(caminoOval(R + HW * 0.55));
-  ctx.strokeStyle = "#36363f"; ctx.stroke(caminoOval(R - HW * 0.55));
+  ctx.strokeStyle = "#67635c"; ctx.stroke(caminoOval(R - HW * 0.55));
   ctx.restore();
 
-  ctx.strokeStyle = "rgba(243,236,230,.75)"; ctx.lineWidth = 3;
+  ctx.strokeStyle = "#fff3d6"; ctx.lineWidth = 4;
   ctx.stroke(OV_BORDE_EXT); ctx.stroke(OV_BORDE_INT);
 
   ctx.save();
-  ctx.setLineDash([26, 30]); ctx.strokeStyle = "rgba(243,236,230,.20)"; ctx.lineWidth = 2;
+  ctx.setLineDash([26, 30]); ctx.strokeStyle = "rgba(255,243,214,.35)"; ctx.lineWidth = 3;
   ctx.stroke(OV_EJE);
   ctx.restore();
 
-  /* muros */
-  ctx.strokeStyle = "#d8d4dc"; ctx.lineWidth = 9;
+  /* muros de cemento con franjas, y su línea de tinta */
+  ctx.strokeStyle = "#fff3d6"; ctx.lineWidth = 11;
   ctx.stroke(OV_MURO_EXT); ctx.stroke(OV_MURO_INT);
   ctx.save();
-  ctx.setLineDash([24, 24]); ctx.strokeStyle = "#FF2350"; ctx.lineWidth = 9;
+  ctx.setLineDash([24, 24]); ctx.strokeStyle = "#c94f2a"; ctx.lineWidth = 11;
   ctx.stroke(OV_MURO_EXT); ctx.stroke(OV_MURO_INT);
   ctx.restore();
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 3;
+  ctx.stroke(caminoOval(R + HW + 31.5)); ctx.stroke(caminoOval(R + HW + 20.5));
+  ctx.stroke(caminoOval(R - HW - 31.5)); ctx.stroke(caminoOval(R - HW - 20.5));
 
   /* largada: cuadros sobre la recta de abajo */
-  ctx.save();
   for (var i = 0; i < 12; i++) {
-    ctx.fillStyle = i % 2 ? "#e8e8ea" : "#1b1b22";
+    ctx.fillStyle = i % 2 ? "#fff3d6" : TINTA;
     ctx.fillRect(-16, R - HW + i * (2 * HW / 12), 16, 2 * HW / 12);
-    ctx.fillStyle = i % 2 ? "#1b1b22" : "#e8e8ea";
+    ctx.fillStyle = i % 2 ? TINTA : "#fff3d6";
     ctx.fillRect(0, R - HW + i * (2 * HW / 12), 16, 2 * HW / 12);
   }
-  ctx.restore();
 
-  /* tribunas y torres de luz */
-  ctx.fillStyle = "#1a1620";
+  /* tribunas: tarima de madera, gente de colores y torres de luz */
+  ctx.fillStyle = "#8a6f4a";
   ctx.fillRect(-A - 30, -(R + HW + 124), 2 * A + 60, 82);
   ctx.fillRect(-A - 30, R + HW + 42, 2 * A + 60, 82);
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 4;
+  ctx.strokeRect(-A - 30, -(R + HW + 124), 2 * A + 60, 82);
+  ctx.strokeRect(-A - 30, R + HW + 42, 2 * A + 60, 82);
   for (var k = 0; k < TRIBUNA.length; k++) {
     var t = TRIBUNA[k];
     ctx.fillStyle = t.c;
     ctx.fillRect(t.x, t.y, 7, 7);
   }
-  ctx.fillStyle = "rgba(20,16,24,.55)";
   for (var m = -2; m <= 2; m++) {
-    ctx.beginPath(); ctx.arc(m * 320, -(R + HW + 46), 9, 0, 7); ctx.fill();
-    ctx.beginPath(); ctx.arc(m * 320, (R + HW + 46), 9, 0, 7); ctx.fill();
+    for (var lado2 = -1; lado2 <= 1; lado2 += 2) {
+      var ly = lado2 * (R + HW + 40);
+      ctx.beginPath(); ctx.arc(m * 320, ly, 11, 0, 7);
+      ctx.fillStyle = "#e2a33b"; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
+    }
   }
 }
 
@@ -1237,61 +1285,65 @@ function rectRedondo(x, y, w, h, r) {
 function dibujarAuto(a) {
   ctx.save();
   ctx.translate(a.x, a.y);
-  /* sombra: si va arriba del acoplado, la sombra cae más marcada */
+
+  /* sombra redonda, como la de un dibujo animado */
   ctx.save();
   ctx.rotate(a.ang);
-  ctx.fillStyle = a.arriba ? "rgba(0,0,0,.45)" : "rgba(0,0,0,.30)";
-  var off = a.arriba ? 5 : 3;
-  rectRedondo(-AUTO_L / 2 + off, -AUTO_W / 2 + off, AUTO_L, AUTO_W, 6); ctx.fill();
+  ctx.fillStyle = a.arriba ? "rgba(43,29,20,.4)" : "rgba(43,29,20,.26)";
+  var off = a.arriba ? 6 : 4;
+  rectRedondo(-AUTO_L / 2 + off, -AUTO_W / 2 + off, AUTO_L, AUTO_W, 8); ctx.fill();
   ctx.restore();
 
   ctx.rotate(a.ang);
 
   /* ruedas */
   var gir = a.ctrl.giro * 0.42;
-  ctx.fillStyle = "#15131a";
   var pos = [[13, -12, gir], [13, 12, gir], [-13, -12, 0], [-13, 12, 0]];
   for (var i = 0; i < 4; i++) {
     ctx.save(); ctx.translate(pos[i][0], pos[i][1]); ctx.rotate(pos[i][2]);
-    ctx.fillRect(-6, -3.4, 12, 6.8); ctx.restore();
+    ctx.fillStyle = "#2b1d14"; ctx.fillRect(-7, -4, 14, 8);
+    ctx.restore();
   }
 
-  /* carrocería */
-  var grad = ctx.createLinearGradient(0, -AUTO_W / 2, 0, AUTO_W / 2);
-  grad.addColorStop(0, a.color); grad.addColorStop(0.55, a.oscuro); grad.addColorStop(1, a.color);
-  ctx.fillStyle = a.fuera ? "#4a464e" : grad;
-  rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 5); ctx.fill();
-  ctx.strokeStyle = "rgba(0,0,0,.55)"; ctx.lineWidth = 1.6; ctx.stroke();
+  /* carrocería con línea de tinta */
+  ctx.fillStyle = a.fuera ? "#8a8078" : a.color;
+  rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 7); ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
+  /* brillo de arriba */
+  ctx.fillStyle = "rgba(255,255,255,.22)";
+  rectRedondo(-AUTO_L / 2 + 3, -AUTO_W / 2 + 3, AUTO_L - 6, 6, 3); ctx.fill();
 
   /* techo y parabrisas */
-  ctx.fillStyle = "rgba(10,8,14,.78)";
-  rectRedondo(-8, -AUTO_W / 2 + 3, 16, AUTO_W - 6, 3); ctx.fill();
-  ctx.fillStyle = "rgba(160,200,230,.35)";
-  rectRedondo(8, -AUTO_W / 2 + 4, 6, AUTO_W - 8, 2); ctx.fill();
-  rectRedondo(-14, -AUTO_W / 2 + 4, 6, AUTO_W - 8, 2); ctx.fill();
+  ctx.fillStyle = "#3d4a52";
+  rectRedondo(-9, -AUTO_W / 2 + 4, 18, AUTO_W - 8, 4); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = TINTA; ctx.stroke();
+  ctx.fillStyle = "#8fd3e8";
+  rectRedondo(9, -AUTO_W / 2 + 5, 6, AUTO_W - 10, 2); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = TINTA; ctx.stroke();
+  rectRedondo(-15, -AUTO_W / 2 + 5, 6, AUTO_W - 10, 2); ctx.fillStyle = "#8fd3e8"; ctx.fill(); ctx.stroke();
 
   /* número en el techo */
-  ctx.fillStyle = "rgba(243,236,230,.9)";
-  ctx.font = "bold 11px Helvetica,Arial,sans-serif";
+  ctx.fillStyle = "#fff3d6";
+  ctx.font = "bold 13px Fredoka, Trebuchet MS, sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.save(); ctx.rotate(Math.PI / 2); ctx.fillText(a.jugador ? "1" : String(a.id + 1), 0, 0); ctx.restore();
 
-  /* golpes recientes y chapa arruinada */
+  /* abolladuras y el golpe recién pegado */
   if (a.dano > 25) {
-    ctx.fillStyle = "rgba(20,16,20," + Math.min(0.55, a.dano / 180) + ")";
-    rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 5); ctx.fill();
+    ctx.fillStyle = "rgba(43,29,20," + Math.min(0.45, a.dano / 220) + ")";
+    rectRedondo(-AUTO_L / 2, -AUTO_W / 2, AUTO_L, AUTO_W, 7); ctx.fill();
   }
   if (a.golpe > 0) {
-    ctx.strokeStyle = "rgba(255,255,255," + a.golpe * 0.8 + ")"; ctx.lineWidth = 2.5;
-    rectRedondo(-AUTO_L / 2 - 2, -AUTO_W / 2 - 2, AUTO_L + 4, AUTO_W + 4, 6); ctx.stroke();
+    ctx.strokeStyle = "rgba(255,243,214," + a.golpe * 0.9 + ")"; ctx.lineWidth = 3;
+    rectRedondo(-AUTO_L / 2 - 3, -AUTO_W / 2 - 3, AUTO_L + 6, AUTO_W + 6, 9); ctx.stroke();
   }
   ctx.restore();
 
   if (a.fuera || a.dano > 70) {
     var n = a.fuera ? 3 : 1;
     for (var h = 0; h < n; h++) {
-      var r2 = 7 + Math.sin(tiempo * 3 + h * 2 + a.id) * 4 + h * 5;
-      ctx.fillStyle = "rgba(120,120,130," + (0.20 - h * 0.05) + ")";
+      var r2 = 8 + Math.sin(tiempo * 3 + h * 2 + a.id) * 4 + h * 6;
+      ctx.fillStyle = "rgba(60,50,45," + (0.22 - h * 0.05) + ")";
       ctx.beginPath();
       ctx.arc(a.x - Math.cos(a.ang) * 14, a.y - Math.sin(a.ang) * 14 - h * 6, r2, 0, 7);
       ctx.fill();
@@ -1306,81 +1358,83 @@ function dibujarConjunto(c) {
   ctx.save();
   ctx.translate(tr.x, tr.y); ctx.rotate(tr.ang);
 
-  ctx.fillStyle = "rgba(0,0,0,.45)";
-  rectRedondo(-ACOP_L / 2 + 5, -ACOP_W / 2 + 7, ACOP_L, ACOP_W, 4); ctx.fill();
+  ctx.fillStyle = "rgba(43,29,20,.35)";
+  rectRedondo(-ACOP_L / 2 + 5, -ACOP_W / 2 + 7, ACOP_L, ACOP_W, 6); ctx.fill();
 
   /* rampa */
-  ctx.fillStyle = "#4b4b56";
+  ctx.fillStyle = "#9a9188";
   ctx.beginPath();
   ctx.moveTo(-CAMA_L / 2, -CAMA_W / 2 + 1);
   ctx.lineTo(-CAMA_L / 2 - RAMPA_L, -CAMA_W / 2 - 3);
   ctx.lineTo(-CAMA_L / 2 - RAMPA_L, CAMA_W / 2 + 3);
   ctx.lineTo(-CAMA_L / 2, CAMA_W / 2 - 1);
   ctx.closePath(); ctx.fill();
-  ctx.strokeStyle = "rgba(243,236,230,.35)"; ctx.lineWidth = 1.4; ctx.stroke();
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 3; ctx.stroke();
   for (var t = 1; t < 5; t++) {
     ctx.beginPath();
     ctx.moveTo(-CAMA_L / 2 - RAMPA_L * t / 5, -CAMA_W / 2 - 1);
     ctx.lineTo(-CAMA_L / 2 - RAMPA_L * t / 5, CAMA_W / 2 + 1);
-    ctx.strokeStyle = "rgba(0,0,0,.35)"; ctx.stroke();
+    ctx.strokeStyle = "rgba(43,29,20,.4)"; ctx.lineWidth = 2; ctx.stroke();
   }
 
   /* ruedas del acoplado */
-  ctx.fillStyle = "#15131a";
-  ctx.fillRect(-20, -ACOP_W / 2 - 5, 15, 7); ctx.fillRect(-20, ACOP_W / 2 - 2, 15, 7);
-  ctx.fillRect(-2, -ACOP_W / 2 - 5, 15, 7); ctx.fillRect(-2, ACOP_W / 2 - 2, 15, 7);
+  ctx.fillStyle = TINTA;
+  ctx.fillRect(-20, -ACOP_W / 2 - 6, 16, 8); ctx.fillRect(-20, ACOP_W / 2 - 2, 16, 8);
+  ctx.fillRect(-2, -ACOP_W / 2 - 6, 16, 8);  ctx.fillRect(-2, ACOP_W / 2 - 2, 16, 8);
 
-  /* piso de la cama */
-  ctx.fillStyle = "#57575f";
-  ctx.fillRect(-ACOP_L / 2, -ACOP_W / 2, ACOP_L, ACOP_W);
-  ctx.fillStyle = "#6d6d78";
-  ctx.fillRect(-CAMA_L / 2, -CAMA_W / 2, CAMA_L, CAMA_W);
-  ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = 1;
+  /* tarima */
+  ctx.fillStyle = "#e6d9b8";
+  rectRedondo(-ACOP_L / 2, -ACOP_W / 2, ACOP_L, ACOP_W, 5); ctx.fill();
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 3.5; ctx.stroke();
+  ctx.strokeStyle = "rgba(43,29,20,.22)"; ctx.lineWidth = 1.5;
   for (var tb = -CAMA_L / 2 + 8; tb < CAMA_L / 2; tb += 8) {
     ctx.beginPath(); ctx.moveTo(tb, -CAMA_W / 2); ctx.lineTo(tb, CAMA_W / 2); ctx.stroke();
   }
   /* marca del lugar donde hay que quedar */
-  ctx.strokeStyle = "rgba(255,196,0,.55)"; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
+  ctx.strokeStyle = "rgba(201,79,42,.75)"; ctx.lineWidth = 3; ctx.setLineDash([7, 6]);
   ctx.strokeRect(-AUTO_L / 2 - 3, -AUTO_W / 2 - 3, AUTO_L + 6, AUTO_W + 6);
   ctx.setLineDash([]);
 
   /* No hay barandas ni pared: es una tarima pelada. El borde va pintado con
      franjas de peligro, que avisan sin sujetar nada. */
   for (var fr = -ACOP_L / 2; fr < ACOP_L / 2; fr += 14) {
-    ctx.fillStyle = ((fr / 14) | 0) % 2 ? "#1b1b22" : "#FFC400";
+    ctx.fillStyle = ((fr / 14) | 0) % 2 ? TINTA : "#e2a33b";
     var an = Math.min(14, ACOP_L / 2 - fr);
-    ctx.fillRect(fr, -ACOP_W / 2, an, 4);
-    ctx.fillRect(fr, ACOP_W / 2 - 4, an, 4);
+    ctx.fillRect(fr, -ACOP_W / 2, an, 5);
+    ctx.fillRect(fr, ACOP_W / 2 - 5, an, 5);
   }
-  ctx.fillStyle = "#FF2350";
-  ctx.fillRect(CAMA_L / 2 + 1, -ACOP_W / 2, 3, ACOP_W);      // dónde se acaba la cama
-  ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 2;
+  ctx.fillStyle = "#c94f2a";
+  ctx.fillRect(CAMA_L / 2 + 1, -ACOP_W / 2, 4, ACOP_W);      // dónde se acaba la cama
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 3;
   ctx.strokeRect(-ACOP_L / 2, -ACOP_W / 2, ACOP_L, ACOP_W);
 
   /* lanza hacia la camioneta */
-  ctx.fillStyle = "#3a3a44";
-  ctx.fillRect(ACOP_L / 2, -3, ENGANCHE - ACOP_L / 2 - CAM_L / 2 + 6, 6);
+  ctx.fillStyle = "#6e6a63";
+  ctx.fillRect(ACOP_L / 2, -4, ENGANCHE - ACOP_L / 2 - CAM_L / 2 + 6, 8);
+  ctx.strokeStyle = TINTA; ctx.lineWidth = 2.5;
+  ctx.strokeRect(ACOP_L / 2, -4, ENGANCHE - ACOP_L / 2 - CAM_L / 2 + 6, 8);
   ctx.restore();
 
   /* ---- camioneta ---- */
   ctx.save();
   ctx.translate(c.x, c.y); ctx.rotate(c.ang);
-  ctx.fillStyle = "rgba(0,0,0,.35)";
-  rectRedondo(-CAM_L / 2 + 4, -CAM_W / 2 + 5, CAM_L, CAM_W, 6); ctx.fill();
-  ctx.fillStyle = "#15131a";
-  ctx.fillRect(12, -CAM_W / 2 - 3, 15, 7); ctx.fillRect(12, CAM_W / 2 - 4, 15, 7);
-  ctx.fillRect(-22, -CAM_W / 2 - 3, 15, 7); ctx.fillRect(-22, CAM_W / 2 - 4, 15, 7);
-  var g2 = ctx.createLinearGradient(0, -CAM_W / 2, 0, CAM_W / 2);
-  g2.addColorStop(0, "#F3ECE6"); g2.addColorStop(0.5, "#b9b2bd"); g2.addColorStop(1, "#F3ECE6");
-  ctx.fillStyle = g2;
-  rectRedondo(-CAM_L / 2, -CAM_W / 2, CAM_L, CAM_W, 6); ctx.fill();
-  ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = 1.6; ctx.stroke();
-  ctx.fillStyle = "rgba(10,8,14,.75)";
-  rectRedondo(-6, -CAM_W / 2 + 3, 18, CAM_W - 6, 3); ctx.fill();
-  ctx.fillStyle = "rgba(160,200,230,.4)";
-  rectRedondo(12, -CAM_W / 2 + 4, 7, CAM_W - 8, 2); ctx.fill();
-  ctx.fillStyle = "#FFC400";
-  ctx.fillRect(-2, -CAM_W / 2 - 2, 5, 3); ctx.fillRect(-2, CAM_W / 2 - 1, 5, 3);
+  ctx.fillStyle = "rgba(43,29,20,.35)";
+  rectRedondo(-CAM_L / 2 + 5, -CAM_W / 2 + 7, CAM_L, CAM_W, 8); ctx.fill();
+  ctx.fillStyle = TINTA;
+  ctx.fillRect(12, -CAM_W / 2 - 4, 16, 8); ctx.fillRect(12, CAM_W / 2 - 4, 16, 8);
+  ctx.fillRect(-22, -CAM_W / 2 - 4, 16, 8); ctx.fillRect(-22, CAM_W / 2 - 4, 16, 8);
+  ctx.fillStyle = "#f9e7c2";
+  rectRedondo(-CAM_L / 2, -CAM_W / 2, CAM_L, CAM_W, 8); ctx.fill();
+  ctx.lineWidth = 3.5; ctx.strokeStyle = TINTA; ctx.stroke();
+  ctx.fillStyle = "rgba(255,255,255,.3)";
+  rectRedondo(-CAM_L / 2 + 4, -CAM_W / 2 + 4, CAM_L - 8, 7, 3); ctx.fill();
+  ctx.fillStyle = "#3d4a52";
+  rectRedondo(-7, -CAM_W / 2 + 4, 20, CAM_W - 8, 4); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = TINTA; ctx.stroke();
+  ctx.fillStyle = "#8fd3e8";
+  rectRedondo(13, -CAM_W / 2 + 5, 7, CAM_W - 10, 2); ctx.fill(); ctx.stroke();
+  ctx.fillStyle = "#e2a33b";
+  ctx.fillRect(-3, -CAM_W / 2 - 3, 6, 4); ctx.fillRect(-3, CAM_W / 2 - 1, 6, 4);
   ctx.restore();
 }
 
@@ -1393,10 +1447,10 @@ function dibujarGuia(a, tr) {
   var dang = Math.abs(normAng(a.ang - tr.ang));
   var ok = Math.abs(loc.y) < CAMA_W / 2 - 3 && dang < 0.3 &&
            rl.x > 5 * RAPIDEZ && rl.x < V_SUBIDA - 18;
-  var col = ok ? "rgba(67,224,107,.85)" : "rgba(255,196,0,.5)";
+  var col = ok ? "#8bc34a" : "rgba(226,163,59,.75)";
   ctx.save();
   ctx.translate(tr.x, tr.y); ctx.rotate(tr.ang);
-  ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.setLineDash([12, 10]);
+  ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.setLineDash([13, 10]);
   var x0 = -CAMA_L / 2 - RAMPA_L, x1 = x0 - 170;
   ctx.beginPath();
   ctx.moveTo(x0, -CAMA_W / 2); ctx.lineTo(x1, -CAMA_W / 2 - 8);
@@ -1415,7 +1469,7 @@ function enLaRampa(a) {
 
 function dibujar() {
   var yo = autos[0];
-  ctx.fillStyle = "#1b2a18";
+  ctx.fillStyle = "#6f8f4b";
   ctx.fillRect(0, 0, W, H);
 
   /* la cámara sigue al jugador y mira un poco hacia el acoplado */
@@ -1435,7 +1489,7 @@ function dibujar() {
 
   dibujarPista();
 
-  ctx.fillStyle = "rgba(10,8,12,.45)";
+  ctx.fillStyle = "rgba(43,29,20,.5)";
   for (var m = 0; m < marcas.length; m++) {
     var mk = marcas[m];
     ctx.globalAlpha = Math.min(0.45, mk.t / 3.2) * 0.9;
@@ -1457,8 +1511,8 @@ function dibujar() {
 
   for (var c = 0; c < chispas.length; c++) {
     var ch = chispas[c];
-    ctx.fillStyle = "rgba(255,196,0," + Math.max(0, ch.t * 2.4) + ")";
-    ctx.fillRect(ch.x - 1.5, ch.y - 1.5, 3, 3);
+    ctx.fillStyle = "rgba(226,163,59," + Math.max(0, ch.t * 2.4) + ")";
+    ctx.fillRect(ch.x - 2, ch.y - 2, 4, 4);
   }
 
   ctx.restore();
@@ -1473,25 +1527,29 @@ function dibujar() {
       var ry = H / 2 + Math.sin(ang) * Math.min(W, H) * 0.34;
       ctx.save();
       ctx.translate(rx, ry); ctx.rotate(ang);
-      ctx.fillStyle = "rgba(255,196,0,.9)";
-      ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-9, -10); ctx.lineTo(-9, 10); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(17, 0); ctx.lineTo(-10, -11); ctx.lineTo(-10, 11); ctx.closePath();
+      ctx.fillStyle = "#e2a33b"; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
       ctx.restore();
     }
   }
 
   if (estado === "menu") {
-    ctx.fillStyle = "rgba(6,4,10,.62)";
+    ctx.fillStyle = "rgba(43,29,20,.35)";
     ctx.fillRect(0, 0, W, H);
   }
 
   if (estado === "cuenta") {
     var n = Math.ceil(cuenta);
+    var txt = n > 0 ? String(n) : "GO!";
+    var tam = Math.round(Math.min(W, H) * 0.24);
     ctx.save();
-    ctx.fillStyle = "rgba(243,236,230,.95)";
-    ctx.font = "700 " + Math.round(Math.min(W, H) * 0.22) + "px Impact,Haettenschweiler,Arial Black,sans-serif";
+    ctx.font = "400 " + tam + "px Bangers,Impact,Arial Black,sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.shadowColor = "rgba(255,35,80,.8)"; ctx.shadowBlur = 24;
-    ctx.fillText(n > 0 ? String(n) : "GO!", W / 2, H * 0.4);
+    ctx.lineJoin = "round"; ctx.lineWidth = tam * 0.14;
+    ctx.strokeStyle = TINTA; ctx.strokeText(txt, W / 2, H * 0.38);
+    ctx.fillStyle = n > 0 ? "#e2a33b" : "#8bc34a";
+    ctx.fillText(txt, W / 2, H * 0.38);
     ctx.restore();
   }
 }
@@ -1500,31 +1558,124 @@ function dibujar() {
 function dibujarMapa() {
   var w = mapa.width, h = mapa.height;
   mtx.clearRect(0, 0, w, h);
-  var k = Math.min(w / (2 * (A + R + HW + 40)), h / (2 * (R + HW + 40)));
+  var k = Math.min(w / (2 * (A + R + HW + 90)), h / (2 * (R + HW + 90)));
   mtx.save();
   mtx.translate(w / 2, h / 2); mtx.scale(k, k);
-  mtx.strokeStyle = "rgba(243,236,230,.45)"; mtx.lineWidth = 2 * HW / 1.8;
+  mtx.strokeStyle = "#c9b48a"; mtx.lineWidth = 2 * HW / 1.5;
   mtx.stroke(OV_EJE);
-  mtx.strokeStyle = "rgba(10,7,16,.5)"; mtx.lineWidth = 6;
-  mtx.stroke(OV_EJE);
+  mtx.strokeStyle = "rgba(43,29,20,.85)"; mtx.lineWidth = 10;
+  mtx.stroke(caminoOval(R + HW)); mtx.stroke(caminoOval(R - HW));
   var tr = camion.tr;
-  mtx.fillStyle = "#F3ECE6";
-  mtx.fillRect(tr.x - 46, tr.y - 46, 92, 92);
+  mtx.fillStyle = "#2b1d14";
+  mtx.fillRect(tr.x - 52, tr.y - 52, 104, 104);
   for (var i = 0; i < autos.length; i++) {
     var a = autos[i];
-    mtx.fillStyle = a.fuera ? "#5a5560" : a.color;
-    var r = a.jugador ? 58 : 44;
-    mtx.beginPath(); mtx.arc(a.x, a.y, r, 0, 7); mtx.fill();
+    mtx.beginPath(); mtx.arc(a.x, a.y, a.jugador ? 62 : 48, 0, 7);
+    mtx.fillStyle = a.fuera ? "#8a8078" : a.color; mtx.fill();
+    mtx.lineWidth = 12; mtx.strokeStyle = "#2b1d14"; mtx.stroke();
   }
   mtx.restore();
 }
 
+/* ------------------------------------------------- tablero de a bordo */
+/* Un solo lienzo con los daños, el reloj de aguja y lo que falta para
+   ganar, al estilo del tablero de Formula 600. */
+var tablero = document.getElementById("tablero-lienzo");
+var btx = tablero.getContext("2d");
+var aguja = 0;
+
+function cajaRedonda(g, x, y, w, h, r) {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);         g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
+
+function dibujarTablero(dt) {
+  var yo = autos[0];
+  if (!yo) return;
+  var g = btx, W = 376, H = 184;
+  var TINTA = "#2b1d14", CREMA = "rgba(255,243,214,.94)";
+  g.clearRect(0, 0, W, H);
+  cajaRedonda(g, 3, 3, W - 6, H - 6, 22);
+  g.fillStyle = CREMA; g.fill(); g.lineWidth = 5; g.strokeStyle = TINTA; g.stroke();
+  g.textAlign = "center"; g.textBaseline = "middle";
+
+  /* ---- chapa: la silueta se va poniendo fea con los golpes */
+  var v = yo.dano / 100;
+  var colChapa = v < 0.25 ? "#8bc34a" : v < 0.5 ? "#f0c541" : v < 0.75 ? "#ef8a3c" : "#d94a3a";
+  var dx = 22, dy = 44;
+  cajaRedonda(g, dx, dy, 52, 96, 12);
+  g.fillStyle = colChapa; g.fill(); g.lineWidth = 3; g.strokeStyle = TINTA; g.stroke();
+  cajaRedonda(g, dx + 10, dy + 26, 32, 44, 8);
+  g.fillStyle = "rgba(43,29,20,.35)"; g.fill();
+  g.fillStyle = TINTA; g.font = "700 12px Fredoka, Trebuchet MS, sans-serif";
+  g.fillText("BODY", dx + 26, 28);
+  g.font = "bold 15px Fredoka, Trebuchet MS, sans-serif";
+  g.fillText(Math.round(100 - yo.dano) + "%", dx + 26, 158);
+
+  g.strokeStyle = "rgba(43,29,20,.25)"; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(96, 22); g.lineTo(96, H - 22); g.stroke();
+  g.beginPath(); g.moveTo(296, 22); g.lineTo(296, H - 22); g.stroke();
+
+  /* ---- reloj de aguja */
+  var kmh = Math.hypot(yo.vx, yo.vy) * KMH;
+  var cx = 196, cy = 138, RR = 84, a0 = Math.PI * 1.08, a1 = Math.PI * 1.92, TOPE = 180;
+  g.beginPath(); g.arc(cx, cy, RR - 14, a0, a1);
+  g.lineWidth = 11; g.strokeStyle = "#a08c6b"; g.stroke();
+  g.beginPath(); g.arc(cx, cy, RR - 14, a0, a0 + (a1 - a0) * lim(kmh / TOPE, 0, 1));
+  g.strokeStyle = kmh > TOPE * 0.8 ? "#d94a3a" : "#e2a33b"; g.stroke();
+  g.font = "bold 12px Fredoka, Trebuchet MS, sans-serif"; g.fillStyle = TINTA;
+  for (var m = 0; m <= TOPE; m += 20) {
+    var am = a0 + (a1 - a0) * m / TOPE, largo = m % 40 === 0 ? 11 : 6;
+    g.beginPath();
+    g.moveTo(cx + Math.cos(am) * (RR - 25), cy + Math.sin(am) * (RR - 25));
+    g.lineTo(cx + Math.cos(am) * (RR - 25 - largo), cy + Math.sin(am) * (RR - 25 - largo));
+    g.lineWidth = m % 40 === 0 ? 3 : 2;
+    g.strokeStyle = m >= 140 ? "#d94a3a" : TINTA; g.stroke();
+    if (m % 40 === 0) g.fillText(m, cx + Math.cos(am) * (RR - 48), cy + Math.sin(am) * (RR - 48));
+  }
+  aguja += (lim(kmh, 0, TOPE + 5) - aguja) * lim(dt * 12, 0, 1);
+  var na = a0 + (a1 - a0) * aguja / TOPE;
+  g.beginPath();
+  g.moveTo(cx - Math.cos(na) * 10, cy - Math.sin(na) * 10);
+  g.lineTo(cx + Math.cos(na) * (RR - 30), cy + Math.sin(na) * (RR - 30));
+  g.lineWidth = 5; g.strokeStyle = "#c94f2a"; g.lineCap = "round"; g.stroke();
+  g.beginPath(); g.arc(cx, cy, 8, 0, 7); g.fillStyle = TINTA; g.fill();
+  g.font = "bold 32px Fredoka, Trebuchet MS, sans-serif";
+  g.fillText(Math.round(kmh), cx, 38);
+  g.font = "600 11px Fredoka, Trebuchet MS, sans-serif"; g.fillText("km/h", cx, 60);
+
+  /* ---- lo que importa ahora: cuánto falta arriba, o cuánto se cierra */
+  var gx = 336, rotulo, valor, color = "#e6d9b8";
+  if (yo.arriba) {
+    rotulo = "HOLD";
+    valor = Math.round(yo.prog / nivel.aguante * 100) + "%";
+    color = yo.prog > 0 ? "#8bc34a" : "#e6d9b8";
+  } else {
+    var tr2 = camion.tr;
+    var rel = rotar(yo.vx - tr2.vx, yo.vy - tr2.vy, -tr2.ang).x;
+    rotulo = "CLOSING";
+    valor = (rel > 0 ? "+" : "") + Math.round(rel * KMH);
+    color = rel > V_SUBIDA - 18 ? "#d94a3a" : rel > 4 * RAPIDEZ ? "#8bc34a" : "#e6d9b8";
+  }
+  g.font = "700 11px Fredoka, Trebuchet MS, sans-serif"; g.fillStyle = TINTA;
+  g.fillText(rotulo, gx, 28);
+  cajaRedonda(g, gx - 30, 48, 60, 58, 12);
+  g.fillStyle = color; g.fill(); g.lineWidth = 3; g.strokeStyle = TINTA; g.stroke();
+  g.font = "bold 24px Fredoka, Trebuchet MS, sans-serif"; g.fillStyle = TINTA;
+  g.fillText(valor, gx, 78);
+  g.font = "600 11px Fredoka, Trebuchet MS, sans-serif";
+  g.fillText(yo.arriba ? "of " + nivel.aguante.toFixed(1) + " s" : "km/h", gx, 122);
+}
+
 /* ------------------------------------------------------------------ HUD */
-var elReloj = document.querySelector("#reloj b"), elVuelta = document.querySelector("#reloj small");
+var elReloj = document.querySelector("#reloj b");
+var elVuelta = document.querySelector("#reloj .vuelta");
 var elRel = document.getElementById("reloj");
-var elVel = document.querySelector("#velocimetro b");
-var elDano = document.querySelector("#barra-dano i"), elBarraDano = document.getElementById("barra-dano");
-var elEst = document.getElementById("estacionando"), elEstBar = document.querySelector("#estacionando .caja i");
+var elEst = document.getElementById("estacionando");
+var elEstBar = document.querySelector("#estacionando .caja2 i");
 var elDif = document.getElementById("dif"), elAviso = document.getElementById("aviso");
 var elRivales = document.getElementById("rivales");
 var chips = [];
@@ -1532,18 +1683,23 @@ var chips = [];
 function pintarChips() {
   elRivales.innerHTML = "";
   chips = [];
+  var caja = document.createElement("div");
+  caja.className = "caja";
   for (var i = 0; i < autos.length; i++) {
     var a = autos[i];
     var d = document.createElement("div");
-    d.className = "chip";
+    d.className = "fila";
     d.innerHTML = '<u style="background:' + a.color + '"></u><span>' + a.nombre + '</span><em></em>';
-    elRivales.appendChild(d);
+    caja.appendChild(d);
     chips.push({ el: d, em: d.querySelector("em"), auto: a });
   }
+  elRivales.appendChild(caja);
 }
 
 function flash(txt) {
   elAviso.textContent = txt;
+  elAviso.classList.remove("ver");
+  void elAviso.offsetWidth;          // reinicia la animación
   elAviso.classList.add("ver");
   avisoHasta = tiempo + 1.3;
 }
@@ -1556,14 +1712,11 @@ function actualizarHUD() {
   elRel.classList.toggle("apura", seg < 30);
   elVuelta.textContent = "Lap " + (camion.vueltas + 1);
 
-  var v = Math.hypot(yo.vx, yo.vy) * KMH;
-  elVel.textContent = Math.round(v);
-  elDano.style.width = (100 - yo.dano) + "%";
-  elBarraDano.classList.toggle("alerta", yo.dano > 55);
-
   if (yo.arriba) {
     elEst.classList.add("ver");
-    elEstBar.style.width = Math.min(100, yo.prog / nivel.aguante * 100) + "%";
+    var pc = Math.min(100, yo.prog / nivel.aguante * 100);
+    elEstBar.style.width = pc + "%";
+    elEst.classList.toggle("lleno", pc > 60);
   } else {
     elEst.classList.remove("ver");
   }
@@ -1688,6 +1841,7 @@ function bucle(ahora) {
     }
     dibujar();
     dibujarMapa();
+    dibujarTablero(dt);
     actualizarHUD();
     var yo = autos[0];
     if (yo) motorSuena(Math.hypot(yo.vx, yo.vy), yo.arriba);
