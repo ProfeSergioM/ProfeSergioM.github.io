@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Sube al Tráiler</title>
-<meta name="description" content="La competencia gringa de meter el auto en un tráiler en movimiento, en un óvalo y contra tres rivales.">
-<meta property="og:title" content="Sube al Tráiler">
-<meta property="og:description" content="Persigue la camioneta, sube por la rampa y estaciona adentro del acoplado antes que los demás.">
+<title>Load Up</title>
+<meta name="description" content="The county fair contest of driving your car into a moving trailer, on an oval, against three rivals.">
+<meta property="og:title" content="Load Up">
+<meta property="og:description" content="Chase the pickup, drive up the ramp and park inside the trailer before anyone else does.">
 <meta property="og:type" content="website">
 <meta name="theme-color" content="#0a0710">
 <style>
@@ -160,91 +160,92 @@
 <canvas id="lienzo"></canvas>
 
 <div id="hud">
-  <div id="reloj"><b>2:30</b><small>Vuelta 1</small></div>
+  <div id="reloj"><b>2:30</b><small>Lap 1</small></div>
   <div id="panel-der">
     <canvas id="mapa" width="224" height="132"></canvas>
     <div class="barra" id="barra-dano"><i></i></div>
-    <div id="rotulo-dano">Chapa</div>
+    <div id="rotulo-dano">Body</div>
   </div>
   <div id="rivales"></div>
   <div id="estacionando">
-    <div class="rot">Estacionando</div>
+    <div class="rot">Parking</div>
     <div class="caja"><i></i></div>
   </div>
   <div id="velocimetro"><b>0</b><small>km/h</small></div>
-  <div id="dif">Acércate a la rampa</div>
+  <div id="dif">Get to the ramp</div>
   <div id="aviso"></div>
 </div>
 
 <div id="mandos">
-  <button class="tecla" id="t-izq" aria-label="Doblar a la izquierda">&#9664;</button>
-  <button class="tecla" id="t-der" aria-label="Doblar a la derecha">&#9654;</button>
-  <button class="tecla" id="t-gas" aria-label="Acelerar">&#9650;</button>
-  <button class="tecla" id="t-fre" aria-label="Frenar">&#9660;</button>
-  <button class="tecla" id="t-mano" aria-label="Freno de mano">Mano</button>
+  <button class="tecla" id="t-izq" aria-label="Steer left">&#9664;</button>
+  <button class="tecla" id="t-der" aria-label="Steer right">&#9654;</button>
+  <button class="tecla" id="t-gas" aria-label="Accelerate">&#9650;</button>
+  <button class="tecla" id="t-fre" aria-label="Brake">&#9660;</button>
+  <button class="tecla" id="t-mano" aria-label="Handbrake">Hand</button>
 </div>
 
-<button id="sonido" type="button">Sonido: sí</button>
+<button id="sonido" type="button">Sound: on</button>
 
 <div class="pantalla ver" id="pant-menu">
   <div class="caja-pant">
-    <h1 class="impact">Sube al Tráiler</h1>
-    <p class="bajada">En los óvalos del medio oeste hay una prueba que no se parece a ninguna carrera:
-      una camioneta arrastra un acoplado abierto y da vueltas sin parar, y gana <b>el primero que logra
-      meter su auto adentro y dejarlo quieto</b>. No se trata de ir rápido. Se trata de alcanzar la rampa,
-      igualar la velocidad y subir derecho, con tres tipos intentando lo mismo al lado tuyo.</p>
+    <h1 class="impact">Load Up</h1>
+    <p class="bajada">Out on the county fair ovals there is a contest that looks like no race at all:
+      a pickup tows an open trailer and goes round without ever stopping, and the winner is
+      <b>the first driver to get their car aboard and hold it still</b>. It is not about being fast.
+      It is about reaching the ramp, matching the speed and driving up straight, with three other
+      people trying the very same thing beside you.</p>
 
-    <div class="rotulo">Dificultad</div>
+    <div class="rotulo">Difficulty</div>
     <div class="opciones" id="op-dif">
-      <button data-dif="0">Novato<small>Camioneta lenta, 2 rivales</small></button>
-      <button data-dif="1" class="sel">Pro<small>3 rivales con oficio</small></button>
-      <button data-dif="2">Leyenda<small>Camioneta que zigzaguea</small></button>
+      <button data-dif="0">Rookie<small>Slow pickup, 2 rivals</small></button>
+      <button data-dif="1" class="sel">Pro<small>3 rivals who know how</small></button>
+      <button data-dif="2">Legend<small>The pickup weaves</small></button>
     </div>
 
-    <button class="grande" id="btn-arrancar">Correr</button>
-    <button class="grande flojo" id="btn-como">Cómo se juega</button>
+    <button class="grande" id="btn-arrancar">Race</button>
+    <button class="grande flojo" id="btn-como">How to play</button>
 
     <div class="ayuda">
-      <b>Teclado:</b> <kbd>&uarr;</kbd> acelera, <kbd>&darr;</kbd> frena y retrocede,
-      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> doblan, <kbd>espacio</kbd> es freno de mano.<br>
-      <b>Teléfono:</b> los botones de la pantalla. Conviene jugarlo acostado.
+      <b>Keyboard:</b> <kbd>&uarr;</kbd> accelerates, <kbd>&darr;</kbd> brakes and reverses,
+      <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer, <kbd>space</kbd> is the handbrake.<br>
+      <b>Phone:</b> the buttons on screen. It plays better sideways.
     </div>
   </div>
 </div>
 
 <div class="pantalla" id="pant-como">
   <div class="caja-pant">
-    <h2 class="impact">Cómo se juega</h2>
-    <p class="bajada">El acoplado tiene lugar para un solo auto. El que llega segundo tiene que sacar
-      al primero a los empujones.</p>
+    <h2 class="impact">How to play</h2>
+    <p class="bajada">The trailer has room for one car. Whoever gets there second has to shove the
+      first one off.</p>
     <ol class="pasos">
-      <li><b>Alcanza la rampa.</b> La camioneta va a unos noventa por hora y no para nunca. Tu auto
-        corre bastante más rápido, así que el problema no es llegar sino llegar ordenado.</li>
-      <li><b>Métete en el pasillo.</b> Detrás del acoplado aparecen dos líneas guía. Cuando se ponen
-        verdes estás derecho y a una velocidad razonable para subir.</li>
-      <li><b>Sube con poquito extra.</b> Necesitas ir apenas más rápido que el acoplado. Si llegas
-        disparado te estrellas contra la pared del frente y pierdes chapa.</li>
-      <li><b>Frena arriba y clava el auto.</b> La barra se llena si el auto entra completo y queda
-        quieto. En las curvas el acoplado tira para afuera, así que conviene sostener el freno de
-        mano: arriba de la cama es lo que traba las ruedas.</li>
-      <li><b>Cuida la chapa.</b> Cada golpe abolla, y el auto abollado pierde punta y volante, así que
-        los errores se pagan dos veces. Con la chapa en cero quedas afuera y ganan ellos.</li>
+      <li><b>Reach the ramp.</b> The pickup runs at about ninety and never stops. Your car is a good
+        deal faster, so the trouble is not catching it but arriving tidy.</li>
+      <li><b>Line up in the channel.</b> Two guide lines show up behind the trailer. When they turn
+        green you are straight and at a sane speed to climb.</li>
+      <li><b>Climb with a little extra.</b> You want to be just barely faster than the trailer. Come
+        in flying and you run out of deck and fall off the front.</li>
+      <li><b>Brake up there and pin the car.</b> The bar fills while the whole car is on the deck and
+        stays still. There are no rails to lean on, and in the corners the trailer pulls you outward,
+        so hold the handbrake: up on the deck it is what keeps the wheels from sliding.</li>
+      <li><b>Look after the bodywork.</b> Every hit dents, and a dented car loses speed and steering,
+        so mistakes cost you twice. At zero you are out and they win.</li>
     </ol>
-    <button class="grande" id="btn-volver-menu">Entendido</button>
+    <button class="grande" id="btn-volver-menu">Got it</button>
   </div>
 </div>
 
 <div class="pantalla" id="pant-fin">
   <div class="caja-pant">
-    <h2 class="impact" id="fin-titulo">Resultado</h2>
+    <h2 class="impact" id="fin-titulo">Result</h2>
     <p class="bajada" id="fin-texto"></p>
     <div class="marcador" id="fin-marcador"></div>
-    <button class="grande" id="btn-otra">Otra vez</button>
-    <button class="grande flojo" id="btn-menu">Cambiar dificultad</button>
+    <button class="grande" id="btn-otra">Race again</button>
+    <button class="grande flojo" id="btn-menu">Change difficulty</button>
   </div>
 </div>
 
-<script defer src="../volver.js" data-pos="top-left"></script>
+<script defer src="../volver.js" data-pos="top-left" data-texto="Projects"></script>
 <script defer src="../publicidad.js"></script>
 <script>
 /* ============================================================================
@@ -369,9 +370,9 @@ var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Novato",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.05, demora: 9, aguante: 2.0, vaiven: 14, minutos: 3.0 },
+  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.05, demora: 9, aguante: 2.0, vaiven: 14, minutos: 3.0 },
   { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.68, exito: 0.15, demora: 8, aguante: 2.8, vaiven: 26, minutos: 2.5 },
-  { nom: "Leyenda", vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, demora: 4, aguante: 3.5, vaiven: 34, minutos: 2.0 }
+  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, demora: 4, aguante: 3.5, vaiven: 34, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -473,7 +474,7 @@ function nuevoAuto(i, esJugador, s, n) {
   var d = NOMBRES[(esJugador ? 0 : i - 1) % NOMBRES.length];
   return {
     id: i, jugador: esJugador,
-    nombre: esJugador ? "Tú" : d.nom,
+    nombre: esJugador ? "You" : d.nom,
     color: esJugador ? "#FFC400" : d.color,
     oscuro: esJugador ? "#B07F00" : d.oscuro,
     x: p.x, y: p.y, ang: anguloPista(s), vx: 0, vy: 0,
@@ -557,7 +558,7 @@ function abollar(a, fuerza) {
   if (a.dano >= 100 && !a.fuera) {
     a.fuera = true; a.arriba = false; a.prog = 0;
     if (a.jugador) terminar(null, "chatarra");
-    else flash(a.nombre + " quedó\nen el pasto");
+    else flash(a.nombre + " is out\nof the running");
   }
 }
 
@@ -630,7 +631,7 @@ function verAcoplado(a, tr, dt) {
       a.arriba = true; a.prog = 0;
       a.lx = loc.x; a.ly = loc.y; a.lang = dang;
       a.lvx = rl.x; a.lvy = rl.y;
-      if (a.jugador) flash("¡Arriba!");
+      if (a.jugador) flash("Aboard!");
       sonar("subir");
       return;
     }
@@ -644,7 +645,7 @@ function verAcoplado(a, tr, dt) {
     a.vx = tr.vx + nv.x; a.vy = tr.vy + nv.y;
     abollar(a, 6 + Math.abs(rl.x) * 0.03);
     sonar("golpe");
-    if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "¡Torcido!" : "¡Muy rápido!");
+    if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "Crooked!" : "Too fast!");
     else { a.ia.nervio = nivel.demora * (0.7 + 0.6 * Math.random()); cortarIntento(a); }
     return;
   }
@@ -761,7 +762,7 @@ function caerse(a, tr) {
   colocarDesdeCama(a, tr);
   abollar(a, 8);
   a.humoHasta = tiempo + 1.4;
-  if (a.jugador) flash("¡Te caíste!");
+  if (a.jugador) flash("You fell off!");
   else { a.ia.nervio = nivel.demora * (0.6 + 0.5 * Math.random()); cortarIntento(a); }
 }
 
@@ -970,7 +971,7 @@ function pasoCarrera(dt) {
     cuenta -= dt;
     moverCamion(camion, dt);
     for (var k = 0; k < autos.length; k++) colocarLargada(autos[k]);
-    if (cuenta <= 0) { estado = "corre"; flash("¡Ya!"); sonar("largada"); }
+    if (cuenta <= 0) { estado = "corre"; flash("Go!"); sonar("largada"); }
     return;
   }
   if (estado !== "corre") {
@@ -1123,7 +1124,7 @@ function motorSuena(vel, arriba) {
 var btnSonido = document.getElementById("sonido");
 btnSonido.addEventListener("click", function () {
   sonidoSi = !sonidoSi;
-  btnSonido.textContent = "Sonido: " + (sonidoSi ? "sí" : "no");
+  btnSonido.textContent = "Sound: " + (sonidoSi ? "on" : "off");
   if (!sonidoSi && motorGan) motorGan.gain.setTargetAtTime(0, audio.currentTime, 0.05);
   if (sonidoSi) arrancarAudio();
 });
@@ -1490,7 +1491,7 @@ function dibujar() {
     ctx.font = "700 " + Math.round(Math.min(W, H) * 0.22) + "px Impact,Haettenschweiler,Arial Black,sans-serif";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(255,35,80,.8)"; ctx.shadowBlur = 24;
-    ctx.fillText(n > 0 ? String(n) : "¡YA!", W / 2, H * 0.4);
+    ctx.fillText(n > 0 ? String(n) : "GO!", W / 2, H * 0.4);
     ctx.restore();
   }
 }
@@ -1553,7 +1554,7 @@ function actualizarHUD() {
   var seg = Math.max(0, restante);
   elReloj.textContent = Math.floor(seg / 60) + ":" + ("0" + Math.floor(seg % 60)).slice(-2);
   elRel.classList.toggle("apura", seg < 30);
-  elVuelta.textContent = "Vuelta " + (camion.vueltas + 1);
+  elVuelta.textContent = "Lap " + (camion.vueltas + 1);
 
   var v = Math.hypot(yo.vx, yo.vy) * KMH;
   elVel.textContent = Math.round(v);
@@ -1569,29 +1570,30 @@ function actualizarHUD() {
 
   /* la línea de ayuda de abajo: lo único que hay que mirar mientras se maneja */
   var tr = camion.tr;
-  if (yo.fuera) elDif.innerHTML = "Te quedaste sin chapa";
+  if (yo.fuera) elDif.innerHTML = "Your car is done";
   else if (yo.arriba) {
     var vr = Math.hypot(yo.lvx, yo.lvy);
-    elDif.innerHTML = vr < QUIETO ? "<b>Quieto.</b> Aguanta el freno de mano" : "Frena: te mueves a <b>" + Math.round(vr * KMH) + "</b>";
+    elDif.innerHTML = vr < QUIETO ? "<b>Steady.</b> Hold the handbrake"
+      : "Brake: you are moving at <b>" + Math.round(vr * KMH) + "</b>";
   } else {
     var loc = aLocal(tr, yo.x, yo.y);
     var rl = rotar(yo.vx - tr.vx, yo.vy - tr.vy, -tr.ang);
     var dist = Math.max(0, -loc.x - CAMA_L / 2 - RAMPA_L);
     var lateral = Math.abs(loc.y);
-    if (dist > 300) elDif.innerHTML = "Rampa a <b>" + Math.round(dist * METRO) + " m</b>";
-    else if (lateral > CAMA_W / 2) elDif.innerHTML = "Céntrate en el pasillo";
-    else if (rl.x > V_SUBIDA - 18) elDif.innerHTML = "<b>Vienes muy rápido</b>";
-    else if (rl.x < 4 * RAPIDEZ) elDif.innerHTML = "Un poco más de gas";
-    else elDif.innerHTML = "Así: <b>+" + Math.round(rl.x * KMH) + "</b> sobre el acoplado";
+    if (dist > 300) elDif.innerHTML = "Ramp in <b>" + Math.round(dist * METRO) + " m</b>";
+    else if (lateral > CAMA_W / 2) elDif.innerHTML = "Line up in the channel";
+    else if (rl.x > V_SUBIDA - 18) elDif.innerHTML = "<b>You are coming in too fast</b>";
+    else if (rl.x < 4 * RAPIDEZ) elDif.innerHTML = "A little more throttle";
+    else elDif.innerHTML = "Like this: <b>+" + Math.round(rl.x * KMH) + "</b> over the trailer";
   }
 
   for (var i = 0; i < chips.length; i++) {
     var c = chips[i], a = c.auto;
     c.el.classList.toggle("fuera", a.fuera);
     c.el.classList.toggle("arriba", a.arriba && !a.fuera);
-    c.em.textContent = a.fuera ? "fuera"
+    c.em.textContent = a.fuera ? "out"
       : a.arriba ? Math.round(a.prog / nivel.aguante * 100) + "%"
-      : a.dano < 1 ? "entero" : Math.round(a.dano) + "% roto";
+      : a.dano < 1 ? "clean" : Math.round(a.dano) + "% wrecked";
   }
 
   if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
@@ -1633,23 +1635,23 @@ function mostrarFin() {
   var tit = document.getElementById("fin-titulo");
   var txt = document.getElementById("fin-texto");
   if (ganador && ganador.jugador) {
-    tit.textContent = "¡Lo lograste!";
-    txt.innerHTML = "Subiste por la rampa y aguantaste quieto arriba del acoplado mientras la camioneta " +
-      "seguía dando vueltas. Tardaste <b>" + Math.floor(tiempo / 60) + ":" +
-      ("0" + Math.floor(tiempo % 60)).slice(-2) + "</b> y terminaste con <b>" +
-      Math.round(100 - yo.dano) + "%</b> de chapa sana.";
+    tit.textContent = "You did it!";
+    txt.innerHTML = "You drove up the ramp and held still on the trailer while the pickup kept going " +
+      "round. It took you <b>" + Math.floor(tiempo / 60) + ":" +
+      ("0" + Math.floor(tiempo % 60)).slice(-2) + "</b> and you finished with <b>" +
+      Math.round(100 - yo.dano) + "%</b> of the bodywork intact.";
   } else if (ganador) {
-    tit.textContent = ganador.nombre + " ganó";
-    txt.innerHTML = "Se metió antes que tú y no hubo forma de sacarlo. La próxima conviene quedarse " +
-      "pegado al pasillo desde la primera vuelta, aunque tengas que dejar pasar un intento.";
+    tit.textContent = ganador.nombre + " won";
+    txt.innerHTML = "They got aboard before you and there was no shifting them. Next time stay glued " +
+      "to the channel from the first lap, even if it means letting one attempt go by.";
   } else if (motivoFin === "chatarra") {
-    tit.textContent = "Chatarra";
-    txt.innerHTML = "El auto no dio más. Contra la baranda del acoplado se pierde mucha chapa: " +
-      "más vale abortar y volver a intentarlo que forzar una subida torcida.";
+    tit.textContent = "Scrap";
+    txt.innerHTML = "The car gave up. The expensive hits are the ones at the mouth of the trailer, " +
+      "so it pays to wave off a bad run instead of forcing a crooked climb.";
   } else {
-    tit.textContent = "Se acabó el tiempo";
-    txt.innerHTML = "La camioneta se fue con el acoplado vacío. Nadie se lo llevó, que en esta prueba " +
-      "es lo que suele pasar.";
+    tit.textContent = "Time is up";
+    txt.innerHTML = "The pickup drove off with an empty trailer. Nobody took it home, which in this " +
+      "contest is what usually happens.";
   }
   var m = document.getElementById("fin-marcador");
   m.innerHTML = "";
@@ -1657,9 +1659,9 @@ function mostrarFin() {
   lista.forEach(function (a) {
     var d = document.createElement("div");
     if (a.jugador) d.className = "yo";
-    var est = a === ganador ? "Estacionó" : a.fuera ? "Chatarra" :
-              a.arriba ? "Arriba, " + Math.round(a.prog / nivel.aguante * 100) + "%" :
-              "Chapa " + Math.round(100 - a.dano) + "%";
+    var est = a === ganador ? "Parked" : a.fuera ? "Scrap" :
+              a.arriba ? "Aboard, " + Math.round(a.prog / nivel.aguante * 100) + "%" :
+              "Body " + Math.round(100 - a.dano) + "%";
     d.innerHTML = "<span>" + a.nombre + "</span><span>" + est + "</span>";
     m.appendChild(d);
   });

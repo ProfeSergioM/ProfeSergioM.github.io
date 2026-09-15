@@ -1,4 +1,8 @@
-# Sube al Tráiler
+# Load Up (carpeta `sube-al-trailer`)
+
+El juego está en inglés, que es lo único que cambió de nombre: la carpeta y
+el enlace siguen siendo `sube-al-trailer`, y este documento queda en
+castellano porque es para el que toca el código.
 
 La prueba existe de verdad en los óvalos de Estados Unidos: una camioneta
 arrastra un acoplado abierto con una rampa atrás y da vueltas sin parar,

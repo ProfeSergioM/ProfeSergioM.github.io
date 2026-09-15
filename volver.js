@@ -1,6 +1,9 @@
 /* Banner compartido: botón para volver a la portada.
    Se incluye en cada proyecto con  <script defer src="../volver.js"></script>
 
+   El texto se cambia con data-texto (por defecto "Proyectos"), para los
+   juegos que están en inglés.
+
    La esquina se elige con data-pos, porque cada juego tiene su interfaz ocupada
    en un lado distinto:  data-pos="top-left" (por defecto) | "top-right"
                          "bottom-left" | "bottom-right"
@@ -15,6 +18,8 @@
   var propio = document.currentScript ||
                document.querySelector('script[src$="volver.js"]');
   var pos = (propio && propio.getAttribute("data-pos")) || "top-left";
+  /* Los juegos que están en inglés pasan su propio texto con data-texto. */
+  var texto = (propio && propio.getAttribute("data-texto")) || "Proyectos";
 
   var ESQUINAS = {
     "top-left":     ["top:calc(env(safe-area-inset-top,0px) + 10px);",
@@ -69,8 +74,9 @@
     var a = document.createElement("a");
     a.id = "volver-portada";
     a.href = "../";
-    a.setAttribute("aria-label", "Volver a la portada de proyectos");
-    a.innerHTML = '<span class="vp-flecha" aria-hidden="true">&larr;</span><span>Proyectos</span>';
+    a.setAttribute("aria-label", texto);
+    a.innerHTML = '<span class="vp-flecha" aria-hidden="true">&larr;</span><span></span>';
+    a.lastChild.textContent = texto;
 
     /* Los juegos de canvas escuchan toques en toda la ventana. Sin esto, tocar
        el botón también cuenta como jugada. */
