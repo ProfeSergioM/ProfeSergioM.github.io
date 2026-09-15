@@ -1,14 +1,15 @@
-# Load Up (carpeta `sube-al-trailer`)
+# Load Up (carpeta `load-up`)
 
-El juego está en inglés, que es lo único que cambió de nombre: la carpeta y
-el enlace siguen siendo `sube-al-trailer`, y este documento queda en
-castellano porque es para el que toca el código.
+El juego está en inglés y vive en `/load-up/`. La dirección vieja,
+`/sube-al-trailer/`, quedó como una página que redirige, para no romper los
+enlaces que ya andan dando vueltas. Este documento queda en castellano
+porque es para el que toca el código.
 
 La prueba existe de verdad en los óvalos de Estados Unidos: una camioneta
 arrastra un acoplado abierto con una rampa atrás y da vueltas sin parar,
 mientras varios autos intentan subirse en movimiento. Gana el primero que
 mete el auto adentro y lo deja quieto. El juego es eso, visto desde arriba,
-en un solo archivo (`sube-al-trailer/index.html`) y sin dependencias.
+en un solo archivo (`load-up/index.html`) y sin dependencias.
 
 ## Cómo está armado
 
