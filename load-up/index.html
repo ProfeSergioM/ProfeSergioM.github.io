@@ -909,11 +909,12 @@ function pensarIA(a, dt) {
 
   /* Solo encara el que tiene el turno; los demás esperan corridos a un lado,
      como en la fila de verdad. */
-  /* Con la cama ocupada no hay turnos que valgan: van todos, ya. */
+  /* Con la cama ocupada encaran los dos mejor parados, sin esperar turno. */
   var ocupada = hayAlguienArriba(a) !== null;
-  var miTurno = ocupada || ((turnoDe === a) && a.ia.nervio <= 0);
+  var miTurno = ocupada ? (turnoDe === a || segundoDe === a)
+                        : ((turnoDe === a) && a.ia.nervio <= 0);
   if (!miTurno) { a.ia.duda = 0.5 + Math.random() * 1.4; cortarIntento(a); }
-  if (ocupada) {
+  else if (ocupada) {
     a.ia.duda = 0;
     a.ia.nervio = 0;
     if (a.ia.intento !== 0 && a.ia.intento !== 4) a.ia.intento = 4;   // lo que sea, ahora es embestida
@@ -1054,22 +1055,22 @@ function hayAlguienArriba(salvo) {
   return null;
 }
 
-/* el turno es del rival mejor parado detrás de la rampa */
-var turnoDe = null;
+/* El turno es del rival mejor parado detrás de la rampa. Con alguien arriba
+   encaran dos, el mejor y el segundo: alcanza para no dejarlo tranquilo, y
+   evita que se amontonen los cuatro sobre la rampa. */
+var turnoDe = null, segundoDe = null;
 function repartirTurno() {
-  var mejor = null, mejorD = 1e9;
+  var candidatos = [];
   for (var i = 0; i < autos.length; i++) {
     var a = autos[i];
     if (a.jugador || a.fuera || a.arriba) continue;
     if (a.ia.nervio > 0 && !hayAlguienArriba(a)) continue;
     var loc = aLocal(camion.tr, a.x, a.y);
-    var d = Math.abs(-loc.x - CAMA_L / 2 - RAMPA_L - 60) + Math.abs(loc.y) * 0.8;
-    if (d < mejorD) { mejorD = d; mejor = a; }
+    candidatos.push({ a: a, d: Math.abs(-loc.x - CAMA_L / 2 - RAMPA_L - 60) + Math.abs(loc.y) * 0.8 });
   }
-  if (mejor !== turnoDe) {
-    if (turnoDe) cortarIntento(turnoDe);
-    turnoDe = mejor;
-  }
+  candidatos.sort(function (x, y) { return x.d - y.d; });
+  turnoDe = candidatos.length ? candidatos[0].a : null;
+  segundoDe = candidatos.length > 1 ? candidatos[1].a : null;
 }
 
 /* ========================================================================== */
