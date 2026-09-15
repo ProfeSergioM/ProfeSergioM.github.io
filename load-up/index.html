@@ -389,12 +389,16 @@ var CAM_L = 66, CAM_W = 30;            // la camioneta
    crezca con la velocidad y el óvalo siga entrando. */
 var RAPIDEZ = 1.5;
 
-var VMAX = 335 * RAPIDEZ, ACEL = 275 * RAPIDEZ, FRENO = 440 * RAPIDEZ;
+/* La aceleración es la mitad de lo que fue: el auto llega igual de rápido,
+   pero tarda en llegar, así que cada frenada de más se paga y no alcanza
+   con pisar el acelerador y esperar. El freno queda igual, porque es lo que
+   hace falta para subir con la diferencia justa. */
+var VMAX = 335 * RAPIDEZ, ACEL = 137 * RAPIDEZ, FRENO = 440 * RAPIDEZ;
 var RETRO = 120 * RAPIDEZ, GIRO = 3.15 * RAPIDEZ, AGARRE = 7.2;
 var REF_GIRO = 95 * RAPIDEZ;     // a esta velocidad el volante rinde la mitad
 var KMH = 0.32, METRO = 0.089;   // 1 px son ~9 cm
-var V_SUBIDA = 115 * RAPIDEZ;    // diferencia máxima de velocidad para subir
-var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
+var V_SUBIDA = 95 * RAPIDEZ;     // diferencia máxima de velocidad para subir
+var QUIETO = 15;                 // velocidad relativa que cuenta como detenido
 
 /* exito: de cada intento de un rival, cuántos salen limpios.
    demora: cuánto tardan en volver a encarar después de un intento fallido,
@@ -404,9 +408,9 @@ var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 3, pericia: 0.55, exito: 0.18, demora: 4, aguante: 2.0, vaiven: 14, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 4, pericia: 0.80, exito: 0.38, demora: 3, aguante: 2.8, vaiven: 26, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 4, pericia: 0.97, exito: 0.70, demora: 1.5, aguante: 3.5, vaiven: 34, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, minutos: 2.5 },
+  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, minutos: 2.0 }
 ];
 
 var NOMBRES = [
