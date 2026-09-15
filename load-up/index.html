@@ -903,9 +903,15 @@ function pensarIA(a, dt) {
 
   /* Solo encara el que tiene el turno; los demás esperan corridos a un lado,
      como en la fila de verdad. */
+  /* Con la cama ocupada no hay turnos que valgan: van todos, ya. */
   var ocupada = hayAlguienArriba(a) !== null;
-  var miTurno = (turnoDe === a) && (a.ia.nervio <= 0 || ocupada);
+  var miTurno = ocupada || ((turnoDe === a) && a.ia.nervio <= 0);
   if (!miTurno) { a.ia.duda = 0.5 + Math.random() * 1.4; cortarIntento(a); }
+  if (ocupada) {
+    a.ia.duda = 0;
+    a.ia.nervio = 0;
+    if (a.ia.intento !== 0 && a.ia.intento !== 4) a.ia.intento = 4;   // lo que sea, ahora es embestida
+  }
 
   var sTr = proyectar(tr.x, tr.y).s;
   var enCurva = (sTr > L_RECTA - 80 && sTr < L_RECTA + L_CURVA) || (sTr > 2 * L_RECTA + L_CURVA - 80);
@@ -926,7 +932,7 @@ function pensarIA(a, dt) {
   if (listo) {
     a.ia.reloj += dt;
     var raspando = loc.x > -70 && Math.abs(loc.y) > 26 && a.ia.intento !== 4;
-    if (a.ia.reloj > 10 || raspando) {
+    if ((a.ia.reloj > (ocupada ? 20 : 10)) || raspando) {
       /* intento abandonado: se va al fondo de la fila y le toca a otro */
       cortarIntento(a);
       a.ia.nervio = nivel.demora * (ocupada ? 0.35 : 1) * (0.7 + 0.6 * Math.random());
@@ -938,7 +944,8 @@ function pensarIA(a, dt) {
 
   /* dónde ponerse de costado y a qué velocidad ir */
   var lateralEspera = miTurno ? (a.id % 2 ? 1 : -1) * 24 : (a.id % 2 ? 1 : -1) * 58;
-  var atras = miTurno ? CAMA_L / 2 + RAMPA_L + 90 : CAMA_L / 2 + RAMPA_L + 210 + a.id * 28;
+  var atras = miTurno ? CAMA_L / 2 + RAMPA_L + (ocupada ? 45 : 90)
+                      : CAMA_L / 2 + RAMPA_L + 210 + a.id * 28;
   var espera = aMundo(tr, -atras, 0);
   var brecha = difS(proyectar(espera.x, espera.y).s - me.s);
 
@@ -979,7 +986,12 @@ function pensarIA(a, dt) {
   var vLat = a.vx * nx + a.vy * ny;
   var corr = lim(-((me.n - nObj) * 0.011 + vLat * 0.020 / RAPIDEZ), -0.6, 0.6) + sesgo;
   c.giro = lim(normAng(at + corr - a.ang) * 3.2, -1, 1);
-  c.acel = lim((vObj - vMia) / (55 * RAPIDEZ), -1, 1);
+  /* Primero el acelerador que hace falta solo para sostener esa velocidad
+     contra el roce del aire, y recién después la corrección por la
+     diferencia. Sin esa primera parte, con poca aceleración el rival se
+     queda siempre por debajo de lo que se propuso y nunca alcanza nada. */
+  var sostener = CFG_ASF.arrastre * vObj / CFG_ASF.acel;
+  c.acel = lim(sostener + (vObj - vMia) / (30 * RAPIDEZ), -1, 1);
   if (estorbo) {                          // apuntarle y empujar
     c.giro = lim(normAng(Math.atan2(estorbo.y - a.y, estorbo.x - a.x) - a.ang) * 3.0, -1, 1);
     c.acel = 1;
