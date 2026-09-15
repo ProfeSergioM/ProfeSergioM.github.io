@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Load Up</title>
-<meta name="description" content="The county fair contest of driving your car into a moving trailer, on an oval, against three rivals.">
+<meta name="description" content="The county fair contest of driving your car into a moving trailer, on an oval, against a pack of rivals.">
 <meta property="og:title" content="Load Up">
 <meta property="og:description" content="Chase the pickup, drive up the ramp and park inside the trailer before anyone else does.">
 <meta property="og:type" content="website">
@@ -224,14 +224,14 @@
       <p class="bajada">Out on the county fair ovals there is a contest that looks like no race at
         all: a pickup tows an open trailer and goes round without ever stopping, and the winner is
         <b>the first driver to get their car aboard and hold it still</b>. It is not about being
-        fast. It is about reaching the ramp, matching the speed and driving up straight, with three
-        other people trying the very same thing beside you.</p>
+        fast. It is about reaching the ramp, matching the speed and driving up straight, with four other
+        people trying the very same thing beside you.</p>
 
       <div class="rotulo">Difficulty</div>
       <div class="opciones" id="op-dif">
-        <button data-dif="0">Rookie<small>Slow pickup, 2 rivals</small></button>
-        <button data-dif="1" class="sel">Pro<small>3 rivals who know how</small></button>
-        <button data-dif="2">Legend<small>The pickup weaves</small></button>
+        <button data-dif="0">Rookie<small>Slow pickup, 3 rivals</small></button>
+        <button data-dif="1" class="sel">Pro<small>4 rivals who know how</small></button>
+        <button data-dif="2">Legend<small>4 rivals, pickup weaves</small></button>
       </div>
 
       <button class="grande" id="btn-arrancar">RACE</button>
@@ -250,8 +250,8 @@
   <div class="caja-pant">
     <div class="panel">
       <h2>HOW TO PLAY</h2>
-      <p class="bajada">The trailer has room for one car. Whoever gets there second has to shove the
-        first one off.</p>
+      <p class="bajada">The trailer has room for one car. Whoever gets there second climbs up anyway and
+        shoves the first one off, and everybody is doing it to everybody.</p>
       <ol class="pasos">
         <li><b>Reach the ramp.</b> The pickup runs at about ninety and never stops. Your car is a good
           deal faster, so the trouble is not catching it but arriving tidy.</li>
@@ -407,9 +407,9 @@ var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.50, exito: 0.10, demora: 6, aguante: 2.0, vaiven: 14, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.74, exito: 0.26, demora: 5, aguante: 2.8, vaiven: 26, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.95, exito: 0.58, demora: 2.5, aguante: 3.5, vaiven: 34, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 3, pericia: 0.55, exito: 0.18, demora: 4, aguante: 2.0, vaiven: 14, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 4, pericia: 0.80, exito: 0.38, demora: 3, aguante: 2.8, vaiven: 26, minutos: 2.5 },
+  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 4, pericia: 0.97, exito: 0.70, demora: 1.5, aguante: 3.5, vaiven: 34, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -557,7 +557,7 @@ function dinamica(o, dt, ctrl, cfg, cast) {
      mano aguantan bastante más, y esa es toda la diferencia entre quedarse
      y caerse por el costado. */
   if (cfg.roceLat) {
-    var fl = cfg.roceLat * (ctrl.mano ? 2.6 : 1) * dt;
+    var fl = cfg.roceLat * (ctrl.mano ? 6 : 1) * dt;
     vs -= Math.sign(vs) * Math.min(Math.abs(vs), fl);
   }
 
@@ -569,7 +569,7 @@ function dinamica(o, dt, ctrl, cfg, cast) {
 
 var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70 * RAPIDEZ, arrastre: 0.42 };
 var CFG_PAST = { acel: ACEL * 0.5, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210 * RAPIDEZ, arrastre: 1.5 };
-var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, roceLat: 120, arrastre: 1.1, clavar: true };
+var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, roceLat: 45, arrastre: 1.1, clavar: true };
 
 /* La chapa rota se paga manejando: además de quedar afuera al llegar a cien,
    el auto abollado pierde punta y el volante se pone vago. */
@@ -783,7 +783,7 @@ function pasoCama(a, tr, dt) {
 
   /* lo que se siente arriba: el acoplado acelera, frena y dobla debajo del auto */
   var af = rotar(tr.ax, tr.ay, -tr.ang);
-  a.lvx -= af.x * 0.5 * dt; a.lvy -= af.y * 0.5 * dt;
+  a.lvx -= af.x * 0.62 * dt; a.lvy -= af.y * 0.62 * dt;
   var w = tr.giroAng;
   a.lvx += 2 * w * a.lvy * 0.5 * dt;
   a.lvy -= 2 * w * a.lvx * 0.5 * dt;
@@ -910,7 +910,7 @@ function pensarIA(a, dt) {
   var enCurva = (sTr > L_RECTA - 80 && sTr < L_RECTA + L_CURVA) || (sTr > 2 * L_RECTA + L_CURVA - 80);
 
   if (miTurno && a.ia.duda <= 0 && a.ia.intento === 0) {
-    if (enCurva && !ocupada && Math.random() > nivel.pericia * 0.5) {
+    if (enCurva && !ocupada && Math.random() > 0.35 + nivel.pericia * 0.6) {
       a.ia.duda = 0.5;                                  // mejor esperar la recta
     } else if (ocupada) {
       a.ia.intento = 4; a.ia.desvio = 0; a.ia.reloj = 0;           // 4 es embestida
@@ -941,6 +941,17 @@ function pensarIA(a, dt) {
   var espera = aMundo(tr, -atras, 0);
   var brecha = difS(proyectar(espera.x, espera.y).s - me.s);
 
+  /* Si alguien le tapa el pasillo, no espera: va a sacarlo del camino. */
+  var estorbo = null;
+  if (listo) {
+    for (var q = 0; q < autos.length; q++) {
+      var o = autos[q];
+      if (o === a || o.arriba || o.fuera) continue;
+      var lo = aLocal(tr, o.x, o.y);
+      if (lo.x > loc.x && lo.x - loc.x < 110 && Math.abs(lo.y - loc.y) < 34) estorbo = o;
+    }
+  }
+
   var nObj = tr.n, sesgo = 0, vObj;
   if (a.ia.entrando) {
     if (a.ia.intento === 2) sesgo = a.ia.desvio * 0.032;      // el que sube cruzado
@@ -968,6 +979,10 @@ function pensarIA(a, dt) {
   var corr = lim(-((me.n - nObj) * 0.011 + vLat * 0.020 / RAPIDEZ), -0.6, 0.6) + sesgo;
   c.giro = lim(normAng(at + corr - a.ang) * 3.2, -1, 1);
   c.acel = lim((vObj - vMia) / (55 * RAPIDEZ), -1, 1);
+  if (estorbo) {                          // apuntarle y empujar
+    c.giro = lim(normAng(Math.atan2(estorbo.y - a.y, estorbo.x - a.x) - a.ang) * 3.0, -1, 1);
+    c.acel = 1;
+  }
   c.mano = false;
 
 }
@@ -1048,11 +1063,11 @@ function armarCarrera() {
   autos = [];
   var total = nivel.rivales + 1;
   /* largada lanzada: todos ya vienen rodando detrás del acoplado */
-  var formacion = [[-200, 0], [-205, -62], [-265, 58], [-270, -118]];
+  var formacion = [[-200, 0], [-205, -62], [-265, 58], [-270, -104], [-330, 100]];
   for (var i = 0; i < total; i++) {
     var a = nuevoAuto(i, i === 0, camion.s - ENGANCHE + formacion[i][0], formacion[i][1]);
     a.dIni = formacion[i][0]; a.nIni = formacion[i][1];
-    a.ia.duda = 6.5 + i * 2.2 + Math.random() * 3.0;
+    a.ia.duda = 3.0 + i * 1.1 + Math.random() * 1.8;
     autos.push(a);
   }
   tiempo = 0; cuenta = 3.0; restante = nivel.minutos * 60; ganador = null; motivoFin = "";
