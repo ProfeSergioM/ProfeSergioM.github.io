@@ -250,7 +250,7 @@
       <p class="bajada">The trailer has room for one car. Whoever gets there second climbs up anyway and
         shoves the first one off, and everybody is doing it to everybody.</p>
       <ol class="pasos">
-        <li><b>Reach the ramp.</b> The pickup runs at about ninety and never stops. Your car is a good
+        <li><b>Reach the ramp.</b> The pickup runs at about seventy and never stops. Your car is a good
           deal faster, so the trouble is not catching it but arriving tidy.</li>
         <li><b>Line up in the channel.</b> Two guide lines show up behind the trailer. When they turn
           green you are straight and at a sane speed to climb.</li>
@@ -400,7 +400,11 @@ var KMH = 0.32, METRO = 0.089;   // 1 px son ~9 cm
 var V_SUBIDA = 95 * RAPIDEZ;     // diferencia máxima de velocidad para subir
 var QUIETO = 15;                 // velocidad relativa que cuenta como detenido
 
-/* exito: de cada intento de un rival, cuántos salen limpios.
+/* La camioneta va al 80% de lo que iba: el auto le saca una diferencia
+   clara, que es lo que hace que alcanzarla se sienta como alcanzarla.
+   vRecta y vCurva ya vienen con ese 80 aplicado.
+
+   exito: de cada intento de un rival, cuántos salen limpios.
    demora: cuánto tardan en volver a encarar después de un intento fallido,
    que es lo que más mueve el largo de la carrera, porque un rival que sube
    torcido igual se acomoda y termina ganando.
@@ -408,9 +412,9 @@ var QUIETO = 15;                 // velocidad relativa que cuenta como detenido
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 122 * RAPIDEZ, vCurva: 102 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 150 * RAPIDEZ, vCurva: 125 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, minutos: 2.5 },
+  { nom: "Legend",  vRecta: 174 * RAPIDEZ, vCurva: 146 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -784,7 +788,9 @@ function pasoCama(a, tr, dt) {
 
   /* lo que se siente arriba: el acoplado acelera, frena y dobla debajo del auto */
   var af = rotar(tr.ax, tr.ay, -tr.ang);
-  a.lvx -= af.x * 0.62 * dt; a.lvy -= af.y * 0.62 * dt;
+  /* con la camioneta más lenta la curva empujaría un 36% menos, así que se
+     compensa: quedarse quieto en la curva sigue pidiendo freno de mano */
+  a.lvx -= af.x * 0.9 * dt; a.lvy -= af.y * 0.9 * dt;
   var w = tr.giroAng;
   a.lvx += 2 * w * a.lvy * 0.5 * dt;
   a.lvy -= 2 * w * a.lvx * 0.5 * dt;
