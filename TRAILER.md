@@ -40,8 +40,12 @@ chapa rota se paga manejando: el auto pierde punta y el volante se pone vago
 
 **Los rivales.** Van por turnos: encara el que está mejor parado y los demás
 esperan corridos a un costado. Cada intento se sortea antes de empezar y
-puede salir limpio, torcido o pasado de velocidad, así que la dificultad no
-se nota en que manejen mejor sino en cuántas veces les sale bien.
+puede salir limpio, torcido o pasado de velocidad. Como el que sube torcido
+igual se acomoda y termina ganando, lo que más mueve el largo de la carrera
+no es cuántos intentos salen limpios sino `demora`, cuánto esperan antes de
+volver a encarar. Medido con el jugador quieto, el primer rival gana cerca
+de los ochenta segundos en Novato, de los treinta en Pro y de los veinte en
+Leyenda, con bastante dispersión entre carreras.
 
 ## Los números que conviene tocar
 
@@ -54,7 +58,7 @@ Están todos juntos arriba del archivo:
 | `CAMA_L`, `CAMA_W` | las medidas | qué tan holgado entra el auto |
 | `V_SUBIDA` | las medidas | diferencia máxima de velocidad para subir |
 | `QUIETO` | las medidas | qué tan quieto hay que quedarse |
-| `NIVELES` | dificultades | velocidad de la camioneta, vaivén, cantidad de rivales, `exito` (cuántos intentos de los rivales salen limpios) y `aguante` (segundos que hay que aguantar arriba) |
+| `NIVELES` | dificultades | velocidad de la camioneta, vaivén, cantidad de rivales, `exito` (cuántos intentos de los rivales salen limpios), `demora` (cuánto esperan antes de volver a encarar) y `aguante` (segundos que hay que aguantar arriba) |
 
 Con `?depurar=1` en la dirección queda `window.__juego` a mano, con los autos,
 la camioneta y las funciones de la pista. Sirve para probar el juego desde
