@@ -512,6 +512,14 @@ function dinamica(o, dt, ctrl, cfg, cast) {
 
   var g = ctrl.mano ? cfg.agarre * (cfg.clavar ? 1.7 : 0.32) : cfg.agarre;
   vs *= Math.exp(-g * dt);
+  /* Arriba de la cama las ruedas quietas agarran de verdad: mientras la
+     fuerza de la curva no las venza, el auto no se corre. Con el freno de
+     mano aguantan bastante más, y esa es toda la diferencia entre quedarse
+     y caerse por el costado. */
+  if (cfg.roceLat) {
+    var fl = cfg.roceLat * (ctrl.mano ? 2.6 : 1) * dt;
+    vs -= Math.sign(vs) * Math.min(Math.abs(vs), fl);
+  }
 
   co = Math.cos(o.ang); si = Math.sin(o.ang);
   o.vx = vf * co - vs * si;
@@ -521,7 +529,7 @@ function dinamica(o, dt, ctrl, cfg, cast) {
 
 var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70 * RAPIDEZ, arrastre: 0.42 };
 var CFG_PAST = { acel: ACEL * 0.5, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210 * RAPIDEZ, arrastre: 1.5 };
-var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, arrastre: 1.1, clavar: true };
+var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, roceLat: 120, arrastre: 1.1, clavar: true };
 
 /* La chapa rota se paga manejando: además de quedar afuera al llegar a cien,
    el auto abollado pierde punta y el volante se pone vago. */
@@ -709,33 +717,12 @@ function pasoCama(a, tr, dt) {
 
   a.lx += a.lvx * dt; a.ly += a.lvy * dt;
 
-  /* paredes de la cama: frente y barandas. Atrás está abierto. */
-  var cs = circulosLocales(a);
-  for (var i = 0; i < cs.length; i++) {
-    var c = cs[i];
-    var brazo = i === 0 ? 1 : -1;        // 0 es la trompa, 1 es la cola
-    if (c.x + c.r > CAMA_L / 2) {
-      var pen = c.x + c.r - CAMA_L / 2;
-      a.lx -= pen;
-      if (a.lvx > 0) { abollar(a, Math.max(0, a.lvx - 40) * 0.14); if (a.lvx > 70) sonar("golpe"); a.lvx = -a.lvx * 0.3; }
-    }
-    if (Math.abs(c.y) + c.r > CAMA_W / 2) {
-      var lado = c.y > 0 ? 1 : -1;
-      var pen2 = Math.abs(c.y) + c.r - CAMA_W / 2;
-      a.ly -= lado * pen2;
-      if (a.lvy * lado > 0) {
-        abollar(a, Math.max(0, Math.abs(a.lvy) - 40) * 0.11);
-        /* la baranda empuja la punta que la tocó, así que endereza el
-           auto en vez de hacerlo girar: la trompa y la cola giran al revés */
-        a.lang -= brazo * lado * Math.min(0.05, Math.abs(a.lvy) * 0.0012);
-        a.lvy = -a.lvy * 0.3;
-      }
-    }
-  }
-
-  /* se cayó por la boca */
-  if (a.lx < -CAMA_L / 2 - 10) {
-    bajar(a, tr);
+  /* La cama es una tarima pelada: no hay barandas ni pared adelante, así que
+     lo único que sostiene al auto es el freno. Pasarse de cualquier borde es
+     caerse. */
+  if (a.lx > CAMA_L / 2 + 4 || a.lx < -CAMA_L / 2 - 8 ||
+      Math.abs(a.ly) > CAMA_W / 2 + 4) {
+    caerse(a, tr);
     return;
   }
 
@@ -767,11 +754,11 @@ function colocarDesdeCama(a, tr) {
   a.vx = tr.vx + v.x; a.vy = tr.vy + v.y;
 }
 
-function bajar(a, tr) {
+/* Se cayó de la cama: sigue con la velocidad que traía, que es lo que hace
+   que caerse de costado en una curva termine contra el muro. */
+function caerse(a, tr) {
   a.arriba = false; a.prog = 0;
   colocarDesdeCama(a, tr);
-  a.vx = tr.vx + Math.cos(tr.ang) * -40 * RAPIDEZ;
-  a.vy = tr.vy + Math.sin(tr.ang) * -40 * RAPIDEZ;
   abollar(a, 8);
   a.humoHasta = tiempo + 1.4;
   if (a.jugador) flash("¡Te caíste!");
@@ -1018,7 +1005,7 @@ function pasoCarrera(dt) {
   }
   /* los que quedaron colgando afuera después de un empujón */
   for (var z = 0; z < autos.length; z++) {
-    if (autos[z].arriba && autos[z].lx < -CAMA_L / 2 - 10) bajar(autos[z], tr);
+    if (autos[z].arriba && Math.abs(autos[z].ly) > CAMA_W / 2 + 4) caerse(autos[z], tr);
   }
 
   for (var m = marcas.length - 1; m >= 0; m--) { marcas[m].t -= dt; if (marcas[m].t <= 0) marcas.splice(m, 1); }
@@ -1318,8 +1305,8 @@ function dibujarConjunto(c) {
   ctx.save();
   ctx.translate(tr.x, tr.y); ctx.rotate(tr.ang);
 
-  ctx.fillStyle = "rgba(0,0,0,.35)";
-  rectRedondo(-ACOP_L / 2 + 4, -ACOP_W / 2 + 5, ACOP_L, ACOP_W, 4); ctx.fill();
+  ctx.fillStyle = "rgba(0,0,0,.45)";
+  rectRedondo(-ACOP_L / 2 + 5, -ACOP_W / 2 + 7, ACOP_L, ACOP_W, 4); ctx.fill();
 
   /* rampa */
   ctx.fillStyle = "#4b4b56";
@@ -1356,14 +1343,18 @@ function dibujarConjunto(c) {
   ctx.strokeRect(-AUTO_L / 2 - 3, -AUTO_W / 2 - 3, AUTO_L + 6, AUTO_W + 6);
   ctx.setLineDash([]);
 
-  /* barandas y frente */
-  ctx.fillStyle = "#d8d4dc";
-  ctx.fillRect(-ACOP_L / 2, -ACOP_W / 2, ACOP_L, 5);
-  ctx.fillRect(-ACOP_L / 2, ACOP_W / 2 - 5, ACOP_L, 5);
+  /* No hay barandas ni pared: es una tarima pelada. El borde va pintado con
+     franjas de peligro, que avisan sin sujetar nada. */
+  for (var fr = -ACOP_L / 2; fr < ACOP_L / 2; fr += 14) {
+    ctx.fillStyle = ((fr / 14) | 0) % 2 ? "#1b1b22" : "#FFC400";
+    var an = Math.min(14, ACOP_L / 2 - fr);
+    ctx.fillRect(fr, -ACOP_W / 2, an, 4);
+    ctx.fillRect(fr, ACOP_W / 2 - 4, an, 4);
+  }
   ctx.fillStyle = "#FF2350";
-  ctx.fillRect(CAMA_L / 2, -ACOP_W / 2, 5, ACOP_W);
-  ctx.fillStyle = "rgba(0,0,0,.3)";
-  ctx.fillRect(-ACOP_L / 2, -ACOP_W / 2, 3, ACOP_W);
+  ctx.fillRect(CAMA_L / 2 + 1, -ACOP_W / 2, 3, ACOP_W);      // dónde se acaba la cama
+  ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = 2;
+  ctx.strokeRect(-ACOP_L / 2, -ACOP_W / 2, ACOP_L, ACOP_W);
 
   /* lanza hacia la camioneta */
   ctx.fillStyle = "#3a3a44";
@@ -1414,6 +1405,13 @@ function dibujarGuia(a, tr) {
   ctx.restore();
 }
 
+/* ¿está pisando la rampa o la cama, aunque todavía no haya subido? */
+function enLaRampa(a) {
+  var lc = aLocal(camion.tr, a.x, a.y);
+  return lc.x < CAMA_L / 2 + 14 && lc.x > -CAMA_L / 2 - RAMPA_L - 34 &&
+         Math.abs(lc.y) < CAMA_W / 2 + 10;
+}
+
 function dibujar() {
   var yo = autos[0];
   ctx.fillStyle = "#1b2a18";
@@ -1446,8 +1444,14 @@ function dibujar() {
 
   if (autos[0] && !autos[0].arriba && estado !== "menu") dibujarGuia(autos[0], camion.tr);
 
-  for (var i = 0; i < autos.length; i++) if (!autos[i].arriba) dibujarAuto(autos[i]);
+  /* El que va subiendo por la rampa se dibuja después del acoplado: si no,
+     el gráfico de la rampa le pasa por encima y parece que se metiera
+     debajo del tráiler. */
+  for (var i = 0; i < autos.length; i++)
+    if (!autos[i].arriba && !enLaRampa(autos[i])) dibujarAuto(autos[i]);
   dibujarConjunto(camion);
+  for (var k = 0; k < autos.length; k++)
+    if (!autos[k].arriba && enLaRampa(autos[k])) dibujarAuto(autos[k]);
   for (var j = 0; j < autos.length; j++) if (autos[j].arriba) dibujarAuto(autos[j]);
 
   for (var c = 0; c < chispas.length; c++) {

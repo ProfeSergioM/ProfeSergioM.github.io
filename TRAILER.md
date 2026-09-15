@@ -24,13 +24,19 @@ hace que subir en curva sea otra cosa que subir en recta.
 lateral, que es la forma más corta de que un auto cenital se sienta como un
 auto. La misma función de dinámica corre en dos marcos distintos: el piso y
 la cama del acoplado. Arriba de la cama se agregan las fuerzas que se sienten
-adentro de un acoplado que acelera y dobla, y por eso en las curvas el auto
-se va para afuera si no está frenado.
+adentro de un acoplado que acelera y dobla, y contra eso juegan las ruedas
+quietas, que agarran hasta cierto punto (`roceLat`) y bastante más con el
+freno de mano. La cama no tiene barandas ni pared adelante: pasarse de
+cualquier borde es caerse, con la velocidad que se traía. De ahí sale la
+regla del juego: en la recta uno se queda quieto sin esfuerzo, y en la curva
+hace falta el freno de mano.
 
 **Subir.** Lo único que se puede pisar del conjunto es el canal que va de la
-punta de la rampa hasta la pared del frente; el resto es chapa y se choca
+punta de la rampa hasta el final de la cama; el resto es chapa y se choca
 rueda por rueda, así que un auto cruzado raspa con la parte que quedó afuera
-en vez de colarse por debajo del acoplado. Al cruzar la boca se mira el ángulo
+en vez de colarse por debajo del acoplado. El que va subiendo se dibuja
+después del acoplado, porque si no el gráfico de la rampa le pasa por encima
+y parece que se metiera debajo. Al cruzar la boca se mira el ángulo
 y la diferencia de velocidad: derecho y por debajo de `V_SUBIDA` el auto sube;
 torcido o disparado se lleva puesta la baranda.
 
