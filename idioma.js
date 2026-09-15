@@ -60,6 +60,10 @@
     // ---- Penales
     'Tanda de penales uno contra uno. Uno patea y el otro ataja, eligiendo a la vez en la misma grilla de nueve sin ver lo del otro. Cinco cada uno y después muerte súbita. Al ángulo es donde menos atajan... y donde más seguido se va afuera.':
       'One-on-one penalty shootout. One shoots and the other saves, both picking at the same time on the same grid of nine without seeing the other. Five each and then sudden death. The top corners are saved least often... and missed most often.',
+    // ---- Sube al Tráiler
+    'La prueba de óvalo que inventaron los gringos: una camioneta arrastra un acoplado abierto y no para nunca, y gana el primero que mete su auto adentro y lo deja quieto. Alcanza la rampa, iguala la velocidad, sube derecho y aguanta las curvas con tres rivales empujando.':
+      'The oval stunt the Americans came up with: a pickup tows an open trailer and never stops, and the first driver to get their car inside and hold it still wins. Catch the ramp, match the speed, drive up straight and hang on through the corners with three rivals shoving.',
+
     'De a 2': 'Two players',
     '2 minutos': '2 minutes',
   };
