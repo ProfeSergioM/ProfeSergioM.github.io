@@ -218,8 +218,8 @@
     <p class="bajada">El acoplado tiene lugar para un solo auto. El que llega segundo tiene que sacar
       al primero a los empujones.</p>
     <ol class="pasos">
-      <li><b>Alcanza la rampa.</b> La camioneta va a unos sesenta por hora y no para nunca. Tu auto corre
-        bastante más rápido, así que el problema no es llegar sino llegar ordenado.</li>
+      <li><b>Alcanza la rampa.</b> La camioneta va a unos noventa por hora y no para nunca. Tu auto
+        corre bastante más rápido, así que el problema no es llegar sino llegar ordenado.</li>
       <li><b>Métete en el pasillo.</b> Detrás del acoplado aparecen dos líneas guía. Cuando se ponen
         verdes estás derecho y a una velocidad razonable para subir.</li>
       <li><b>Sube con poquito extra.</b> Necesitas ir apenas más rápido que el acoplado. Si llegas
@@ -227,7 +227,8 @@
       <li><b>Frena arriba y clava el auto.</b> La barra se llena si el auto entra completo y queda
         quieto. En las curvas el acoplado tira para afuera, así que conviene sostener el freno de
         mano: arriba de la cama es lo que traba las ruedas.</li>
-      <li><b>Cuida la chapa.</b> Cada golpe abolla. Con la chapa en cero quedas afuera y ganan ellos.</li>
+      <li><b>Cuida la chapa.</b> Cada golpe abolla, y el auto abollado pierde punta y volante, así que
+        los errores se pagan dos veces. Con la chapa en cero quedas afuera y ganan ellos.</li>
     </ol>
     <button class="grande" id="btn-volver-menu">Entendido</button>
   </div>
@@ -341,21 +342,33 @@ function lim(v, a, b) { return v < a ? a : (v > b ? b : v); }
 
 /* ------------------------------------------------------------- las medidas */
 var AUTO_L = 46, AUTO_W = 22;          // el auto del jugador y los rivales
-var CAMA_L = 86, CAMA_W = 36;          // piso útil del acoplado
+var CAMA_L = 86, CAMA_W = 40;          // piso útil del acoplado
 var RAMPA_L = 30;                      // la rampa que sale por atrás
 var ACOP_L = CAMA_L + 10, ACOP_W = CAMA_W + 10;   // caja de choque del acoplado
 var ENGANCHE = 112;                    // del centro del acoplado al de la camioneta
 var CAM_L = 66, CAM_W = 30;            // la camioneta
 
-var VMAX = 335, ACEL = 275, FRENO = 440, RETRO = 120, GIRO = 3.15, AGARRE = 7.2;
-var KMH = 0.32, METRO = 0.089;   // 1 px son ~9 cm
-var V_SUBIDA = 115;              // diferencia máxima de velocidad para subir
-var QUIETO = 18;                       // velocidad relativa que cuenta como detenido
+/* Todo el juego corre a esta velocidad respecto del primer ajuste. Sube las
+   velocidades y las aceleraciones a la vez, así el auto se sigue sintiendo
+   igual, solo que más rápido. El giro acompaña para que el radio de vuelta no
+   crezca con la velocidad y el óvalo siga entrando. */
+var RAPIDEZ = 1.5;
 
+var VMAX = 335 * RAPIDEZ, ACEL = 275 * RAPIDEZ, FRENO = 440 * RAPIDEZ;
+var RETRO = 120 * RAPIDEZ, GIRO = 3.15 * RAPIDEZ, AGARRE = 7.2;
+var REF_GIRO = 95 * RAPIDEZ;     // a esta velocidad el volante rinde la mitad
+var KMH = 0.32, METRO = 0.089;   // 1 px son ~9 cm
+var V_SUBIDA = 115 * RAPIDEZ;    // diferencia máxima de velocidad para subir
+var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
+
+/* exito: de cada intento de un rival, cuántos salen limpios.
+   aguante: segundos que hay que quedarse quieto arriba para ganar.
+   vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
+   los intentos prolijos. */
 var NIVELES = [
-  { nom: "Novato",  vRecta: 152, vCurva: 128, rivales: 2, pericia: 0.40, exito: 0.07, aguante: 1.6, vaiven: 10, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188, vCurva: 156, rivales: 3, pericia: 0.62, exito: 0.13, aguante: 2.1, vaiven: 22, minutos: 2.5 },
-  { nom: "Leyenda", vRecta: 218, vCurva: 182, rivales: 3, pericia: 0.88, exito: 0.30, aguante: 2.6, vaiven: 30, minutos: 2.0 }
+  { nom: "Novato",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.10, aguante: 2.0, vaiven: 14, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.68, exito: 0.22, aguante: 2.8, vaiven: 26, minutos: 2.5 },
+  { nom: "Leyenda", vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, aguante: 3.5, vaiven: 34, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -385,7 +398,7 @@ function redimensionar() {
   W = lienzo.clientWidth; H = lienzo.clientHeight;
   lienzo.width = Math.round(W * dpr); lienzo.height = Math.round(H * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  escala = lim(Math.min(W / 640, H / 560), 0.42, 1.2);
+  escala = lim(Math.min(W / 720, H / 620), 0.38, 1.1);
 }
 window.addEventListener("resize", redimensionar);
 redimensionar();
@@ -408,7 +421,7 @@ function moverCamion(c, dt) {
   var enCurva = (c.s > L_RECTA && c.s < L_RECTA + L_CURVA) ||
                 (c.s > 2 * L_RECTA + L_CURVA);
   var objetivo = enCurva ? nivel.vCurva : nivel.vRecta;
-  c.v += lim(objetivo - c.v, -70 * dt, 55 * dt);
+  c.v += lim(objetivo - c.v, -70 * RAPIDEZ * dt, 55 * RAPIDEZ * dt);
 
   var sPrev = c.s;
   c.s += c.v * dt;
@@ -472,26 +485,27 @@ function nuevoAuto(i, esJugador, s, n) {
 /* Dinámica del auto dentro de un marco cualquiera (el suelo o el acoplado).
    Trabajo con velocidad de avance y velocidad lateral, que es la forma más
    corta de que un auto cenital se sienta como un auto. */
-function dinamica(o, dt, ctrl, cfg) {
+function dinamica(o, dt, ctrl, cfg, cast) {
+  cast = cast === undefined ? 1 : cast;
   var co = Math.cos(o.ang), si = Math.sin(o.ang);
   var vf = o.vx * co + o.vy * si;
   var vs = -o.vx * si + o.vy * co;
 
   if (ctrl.acel > 0) {
-    vf += cfg.acel * ctrl.acel * dt;
+    vf += cfg.acel * cast * ctrl.acel * dt;
   } else if (ctrl.acel < 0) {
     if (vf > 8) vf += cfg.freno * ctrl.acel * dt;
-    else vf = Math.max(vf + cfg.acel * 0.55 * ctrl.acel * dt, -cfg.retro);
+    else vf = Math.max(vf + cfg.acel * cast * 0.55 * ctrl.acel * dt, -cfg.retro);
   } else {
     var roce = cfg.roce * dt;
     vf -= Math.sign(vf) * Math.min(Math.abs(vf), roce);
   }
   if (ctrl.mano) vf -= vf * (cfg.clavar ? 7.0 : 3.0) * dt;
   vf -= vf * cfg.arrastre * dt;
-  vf = lim(vf, -cfg.retro, cfg.vmax);
+  vf = lim(vf, -cfg.retro, cfg.vmax * cast);
 
-  var ef = Math.abs(vf) / (Math.abs(vf) + 95);
-  o.ang += ctrl.giro * cfg.giro * ef * (vf < 0 ? -1 : 1) * dt;
+  var ef = Math.abs(vf) / (Math.abs(vf) + REF_GIRO);
+  o.ang += ctrl.giro * cfg.giro * (0.78 + 0.22 * cast) * ef * (vf < 0 ? -1 : 1) * dt;
 
   var g = ctrl.mano ? cfg.agarre * (cfg.clavar ? 1.7 : 0.32) : cfg.agarre;
   vs *= Math.exp(-g * dt);
@@ -502,9 +516,13 @@ function dinamica(o, dt, ctrl, cfg) {
   return vf;
 }
 
-var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70, arrastre: 0.42 };
-var CFG_PAST = { acel: ACEL * 0.5, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210, arrastre: 1.5 };
-var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150, giro: GIRO * 1.25, agarre: 9.5, roce: 230, arrastre: 1.1, clavar: true };
+var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70 * RAPIDEZ, arrastre: 0.42 };
+var CFG_PAST = { acel: ACEL * 0.5, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210 * RAPIDEZ, arrastre: 1.5 };
+var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, arrastre: 1.1, clavar: true };
+
+/* La chapa rota se paga manejando: además de quedar afuera al llegar a cien,
+   el auto abollado pierde punta y el volante se pone vago. */
+function castigoPorDano(a) { return 1 - a.dano / 100 * 0.35; }
 
 /* dos círculos por auto: sirven para chocar contra todo sin complicarse */
 function circulos(a) {
@@ -559,14 +577,14 @@ function pasoSuelo(a, dt) {
   var cfg = enPasto ? CFG_PAST : CFG_ASF;
 
   var o = { ang: a.ang, vx: a.vx, vy: a.vy };
-  var vf = dinamica(o, dt, a.ctrl, cfg);
+  var vf = dinamica(o, dt, a.ctrl, cfg, castigoPorDano(a));
   a.ang = o.ang; a.vx = o.vx; a.vy = o.vy;
   a.x += a.vx * dt; a.y += a.vy * dt;
   a.ruedas += Math.abs(vf) * dt * 0.08;
 
   /* marcas de goma cuando patina */
   var lat = Math.abs(-a.vx * Math.sin(a.ang) + a.vy * Math.cos(a.ang));
-  if ((lat > 55 || a.ctrl.mano) && Math.abs(vf) > 40 && marcas.length < 420 && !enPasto) {
+  if ((lat > 55 * RAPIDEZ || a.ctrl.mano) && Math.abs(vf) > 40 * RAPIDEZ && marcas.length < 420 && !enPasto) {
     var co = Math.cos(a.ang), si = Math.sin(a.ang);
     marcas.push({ x: a.x - co * 13 + si * 9, y: a.y - si * 13 - co * 9, t: 3.2 });
     marcas.push({ x: a.x - co * 13 - si * 9, y: a.y - si * 13 + co * 9, t: 3.2 });
@@ -584,7 +602,7 @@ function pasoSuelo(a, dt) {
     var vn = a.vx * nx * lado + a.vy * ny * lado;
     if (vn > 0) {
       a.vx -= nx * lado * vn * 1.35; a.vy -= ny * lado * vn * 1.35;
-      abollar(a, Math.max(0, vn - 90) * 0.09);
+      abollar(a, Math.max(0, vn - 70) * 0.14);
     }
   }
 }
@@ -596,10 +614,6 @@ function verAcoplado(a, tr, dt) {
   var rl = rotar(a.vx - tr.vx, a.vy - tr.vy, -tr.ang);
   var bocaX = -CAMA_L / 2;
 
-  /* la rampa está al ras del piso: ahí no hay nada contra qué chocar */
-  var enRampa = loc.x < bocaX + 3 && loc.x > bocaX - RAMPA_L - 34 &&
-                Math.abs(loc.y) < CAMA_W / 2 + 3;
-
   if (loc.x > bocaX && loc.x < CAMA_L / 2 && Math.abs(loc.y) < CAMA_W / 2) {
     if (Math.abs(dang) < 0.42 && rl.x > 0.5 && rl.x < V_SUBIDA) {
       a.arriba = true; a.prog = 0;
@@ -610,23 +624,51 @@ function verAcoplado(a, tr, dt) {
       return;
     }
     /* el que se deja caer hacia atrás sale solo, sin romper nada */
-    if (rl.x < 12 && Math.abs(dang) < 0.42) return;
+    if (rl.x < 12 * RAPIDEZ && Math.abs(dang) < 0.42) return;
 
     /* entró torcido o disparado: se lleva puesta la baranda de atrás */
     var p = aMundo(tr, bocaX - 12, lim(loc.y, -CAMA_W / 2, CAMA_W / 2));
     a.x = p.x; a.y = p.y;
-    var nv = rotar(Math.min(rl.x, -25), rl.y * 0.4, tr.ang);
+    var nv = rotar(Math.min(rl.x, -25 * RAPIDEZ), rl.y * 0.4, tr.ang);
     a.vx = tr.vx + nv.x; a.vy = tr.vy + nv.y;
-    abollar(a, 9 + Math.abs(rl.x) * 0.05);
+    abollar(a, 12 + Math.abs(rl.x) * 0.06);
     sonar("golpe");
     if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "¡Torcido!" : "¡Muy rápido!");
     else { a.ia.nervio = 2.4 + Math.random() * 2.6; cortarIntento(a); }
     return;
   }
-  if (enRampa) return;
 
-  /* cuerpo sólido del acoplado y de la camioneta */
-  chocarRect(a, tr, ACOP_L / 2, ACOP_W / 2);
+  chocarConjunto(a, tr);
+}
+
+/* Lo único que se puede pisar del conjunto es el canal que va de la punta de
+   la rampa hasta la pared del frente: ahí el piso está al ras y para eso está
+   la rampa. Todo lo demás es chapa, y se choca rueda por rueda, así que un
+   auto cruzado raspa con la parte que quedó afuera en vez de colarse por
+   debajo del acoplado. */
+function enCanal(lc) {
+  return Math.abs(lc.y) < CAMA_W / 2 - 1 &&
+         lc.x < CAMA_L / 2 && lc.x > -CAMA_L / 2 - RAMPA_L - 46;
+}
+
+function chocarConjunto(a, tr) {
+  var cajaX = (-CAMA_L / 2 - RAMPA_L + ACOP_L / 2) / 2;          // acoplado + rampa
+  var cajaHX = (ACOP_L / 2 + CAMA_L / 2 + RAMPA_L) / 2;
+  var cs = circulos(a);
+  for (var i = 0; i < cs.length; i++) {
+    var lc = aLocal(tr, cs[i].x, cs[i].y);
+    if (enCanal(lc)) continue;
+    var h = contraRect(lc.x - cajaX, lc.y, cs[i].r, cajaHX, ACOP_W / 2);
+    if (!h) continue;
+    var nm = rotar(h.nx, h.ny, tr.ang);
+    a.x += nm.x * h.pen; a.y += nm.y * h.pen;
+    var vn = (a.vx - tr.vx) * nm.x + (a.vy - tr.vy) * nm.y;
+    if (vn < 0) {
+      a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
+      abollar(a, Math.max(0, -vn - 60) * 0.15);
+      if (-vn > 110) sonar("golpe");
+    }
+  }
   chocarRect(a, { x: camion.x, y: camion.y, ang: camion.ang, vx: camion.vx, vy: camion.vy },
              CAM_L / 2, CAM_W / 2);
 }
@@ -643,7 +685,7 @@ function chocarRect(a, obj, hx, hy) {
     var vn = rvx * nm.x + rvy * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 70) * 0.10);
+      abollar(a, Math.max(0, -vn - 60) * 0.15);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -652,12 +694,12 @@ function chocarRect(a, obj, hx, hy) {
 /* ------------------------------------------- el auto arriba del acoplado */
 function pasoCama(a, tr, dt) {
   var o = { ang: a.lang, vx: a.lvx, vy: a.lvy };
-  dinamica(o, dt, a.ctrl, CFG_CAMA);
+  dinamica(o, dt, a.ctrl, CFG_CAMA, castigoPorDano(a));
   a.lang = o.ang; a.lvx = o.vx; a.lvy = o.vy;
 
   /* lo que se siente arriba: el acoplado acelera, frena y dobla debajo del auto */
   var af = rotar(tr.ax, tr.ay, -tr.ang);
-  a.lvx -= af.x * 0.7 * dt; a.lvy -= af.y * 0.7 * dt;
+  a.lvx -= af.x * 0.5 * dt; a.lvy -= af.y * 0.5 * dt;
   var w = tr.giroAng;
   a.lvx += 2 * w * a.lvy * 0.5 * dt;
   a.lvy -= 2 * w * a.lvx * 0.5 * dt;
@@ -668,17 +710,23 @@ function pasoCama(a, tr, dt) {
   var cs = circulosLocales(a);
   for (var i = 0; i < cs.length; i++) {
     var c = cs[i];
+    var brazo = i === 0 ? 1 : -1;        // 0 es la trompa, 1 es la cola
     if (c.x + c.r > CAMA_L / 2) {
       var pen = c.x + c.r - CAMA_L / 2;
       a.lx -= pen;
-      if (a.lvx > 0) { abollar(a, Math.max(0, a.lvx - 28) * 0.13); if (a.lvx > 70) sonar("golpe"); a.lvx = -a.lvx * 0.3; }
+      if (a.lvx > 0) { abollar(a, Math.max(0, a.lvx - 25) * 0.18); if (a.lvx > 70) sonar("golpe"); a.lvx = -a.lvx * 0.3; }
     }
     if (Math.abs(c.y) + c.r > CAMA_W / 2) {
       var lado = c.y > 0 ? 1 : -1;
       var pen2 = Math.abs(c.y) + c.r - CAMA_W / 2;
       a.ly -= lado * pen2;
-      if (a.lvy * lado > 0) { abollar(a, Math.max(0, Math.abs(a.lvy) - 45) * 0.08); a.lvy = -a.lvy * 0.3; }
-      a.lang -= lado * pen2 * 0.01;
+      if (a.lvy * lado > 0) {
+        abollar(a, Math.max(0, Math.abs(a.lvy) - 40) * 0.11);
+        /* la baranda empuja la punta que la tocó, así que endereza el
+           auto en vez de hacerlo girar: la trompa y la cola giran al revés */
+        a.lang -= brazo * lado * Math.min(0.05, Math.abs(a.lvy) * 0.0012);
+        a.lvy = -a.lvy * 0.3;
+      }
     }
   }
 
@@ -712,8 +760,9 @@ function colocarDesdeCama(a, tr) {
 function bajar(a, tr) {
   a.arriba = false; a.prog = 0;
   colocarDesdeCama(a, tr);
-  a.vx = tr.vx + Math.cos(tr.ang) * -40; a.vy = tr.vy + Math.sin(tr.ang) * -40;
-  abollar(a, 6);
+  a.vx = tr.vx + Math.cos(tr.ang) * -40 * RAPIDEZ;
+  a.vy = tr.vy + Math.sin(tr.ang) * -40 * RAPIDEZ;
+  abollar(a, 8);
   a.humoHasta = tiempo + 1.4;
   if (a.jugador) flash("¡Te caíste!");
   else { a.ia.nervio = 1.8 + Math.random() * 1.8; cortarIntento(a); }
@@ -737,11 +786,12 @@ function chocarAutos(a, b, local) {
     var imp = -vn * 0.85;
     if (local) {
       a.lvx -= nx * imp; a.lvy -= ny * imp; b.lvx += nx * imp; b.lvy += ny * imp;
-      a.lang -= 0.0016 * imp; b.lang += 0.0016 * imp;
+      var giron = Math.min(0.22, 0.0016 * imp);
+      a.lang -= giron; b.lang += giron;
     } else {
       a.vx -= nx * imp; a.vy -= ny * imp; b.vx += nx * imp; b.vy += ny * imp;
     }
-    var d2 = Math.max(0, -vn - 60) * 0.05;
+    var d2 = Math.max(0, -vn - 55) * 0.09;
     abollar(a, d2); abollar(b, d2);
     if (-vn > 110) sonar("golpe");
     a.prog = Math.max(0, a.prog - 0.35); b.prog = Math.max(0, b.prog - 0.35);
@@ -814,16 +864,17 @@ function pensarIA(a, dt) {
   var nObj = tr.n, sesgo = 0, vObj;
   if (a.ia.entrando) {
     if (a.ia.intento === 2) sesgo = a.ia.desvio * 0.032;      // el que sube cruzado
-    vObj = vTr + (a.ia.intento === 3 ? 165 : 46 + 22 * nivel.pericia);
+    vObj = vTr + RAPIDEZ * (a.ia.intento === 3 ? 165 : 46 + 22 * nivel.pericia);
   } else if (!listo) {
     nObj = tr.n + lateralEspera;
     vObj = brecha > 190 ? VMAX * (0.80 + 0.18 * nivel.pericia)
          : brecha < -80 ? vTr * 0.55
-         : vTr + lim(brecha * 1.1, -50, 38);
+         : vTr + lim(brecha * 1.1, -50 * RAPIDEZ, 38 * RAPIDEZ);
   } else if (lejos) {
-    vObj = brecha > 190 ? VMAX * (0.80 + 0.18 * nivel.pericia) : vTr + lim(brecha * 1.2, -40, 110);
+    vObj = brecha > 190 ? VMAX * (0.80 + 0.18 * nivel.pericia)
+         : vTr + lim(brecha * 1.2, -40 * RAPIDEZ, 110 * RAPIDEZ);
   } else {
-    vObj = vTr + 14;                                          // acomodarse antes de entrar
+    vObj = vTr + 14 * RAPIDEZ;                                // acomodarse antes de entrar
   }
   nObj = lim(nObj, -HW + 22, HW - 22);
 
@@ -832,9 +883,9 @@ function pensarIA(a, dt) {
      mismo y el auto terminaba yéndose al pasto. */
   var nx = -Math.sin(at), ny = Math.cos(at);
   var vLat = a.vx * nx + a.vy * ny;
-  var corr = lim(-((me.n - nObj) * 0.012 + vLat * 0.020), -0.6, 0.6) + sesgo;
+  var corr = lim(-((me.n - nObj) * 0.011 + vLat * 0.020 / RAPIDEZ), -0.6, 0.6) + sesgo;
   c.giro = lim(normAng(at + corr - a.ang) * 3.2, -1, 1);
-  c.acel = lim((vObj - vMia) / 55, -1, 1);
+  c.acel = lim((vObj - vMia) / (55 * RAPIDEZ), -1, 1);
   c.mano = false;
 
 }
@@ -846,9 +897,9 @@ function arribaIA(a, dt) {
   var vf = a.lvx * Math.cos(a.lang) + a.lvy * Math.sin(a.lang);
   var derecho = Math.abs(a.ly) < 5.5 && Math.abs(a.lang) < 0.10;
   if (derecho) {
-    c.acel = a.lx < -6 ? 0.35 : (a.lx > 6 ? -0.45 : (Math.abs(vf) > 6 ? -1 : 0));
+    c.acel = a.lx < -6 ? 0.35 : (a.lx > 6 ? -0.45 : (Math.abs(vf) > 6 * RAPIDEZ ? -1 : 0));
     c.giro = lim(-a.lang * 3 - a.ly * 0.06, -1, 1);
-    c.mano = Math.abs(a.lx) < 9 && Math.abs(vf) < 12;
+    c.mano = Math.abs(a.lx) < 9 && Math.abs(vf) < 12 * RAPIDEZ;
   } else {
     a.ia.vaiven -= dt;
     if (a.ia.vaiven <= 0) { a.ia.vaiven = 0.55 + Math.random() * 0.5; a.ia.marcha = -a.ia.marcha; }
@@ -1334,7 +1385,8 @@ function dibujarGuia(a, tr) {
   if (dist < -10 || dist > 420) return;
   var rl = rotar(a.vx - tr.vx, a.vy - tr.vy, -tr.ang);
   var dang = Math.abs(normAng(a.ang - tr.ang));
-  var ok = Math.abs(loc.y) < CAMA_W / 2 - 3 && dang < 0.3 && rl.x > 5 && rl.x < V_SUBIDA - 12;
+  var ok = Math.abs(loc.y) < CAMA_W / 2 - 3 && dang < 0.3 &&
+           rl.x > 5 * RAPIDEZ && rl.x < V_SUBIDA - 18;
   var col = ok ? "rgba(67,224,107,.85)" : "rgba(255,196,0,.5)";
   ctx.save();
   ctx.translate(tr.x, tr.y); ctx.rotate(tr.ang);
@@ -1510,8 +1562,8 @@ function actualizarHUD() {
     var lateral = Math.abs(loc.y);
     if (dist > 300) elDif.innerHTML = "Rampa a <b>" + Math.round(dist * METRO) + " m</b>";
     else if (lateral > CAMA_W / 2) elDif.innerHTML = "Céntrate en el pasillo";
-    else if (rl.x > V_SUBIDA - 12) elDif.innerHTML = "<b>Vienes muy rápido</b>";
-    else if (rl.x < 4) elDif.innerHTML = "Un poco más de gas";
+    else if (rl.x > V_SUBIDA - 18) elDif.innerHTML = "<b>Vienes muy rápido</b>";
+    else if (rl.x < 4 * RAPIDEZ) elDif.innerHTML = "Un poco más de gas";
     else elDif.innerHTML = "Así: <b>+" + Math.round(rl.x * KMH) + "</b> sobre el acoplado";
   }
 

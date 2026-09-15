@@ -27,9 +27,16 @@ la cama del acoplado. Arriba de la cama se agregan las fuerzas que se sienten
 adentro de un acoplado que acelera y dobla, y por eso en las curvas el auto
 se va para afuera si no está frenado.
 
-**Subir.** Detrás de la rampa no hay nada contra qué chocar. Al cruzar la
-boca se mira el ángulo y la diferencia de velocidad: derecho y por debajo de
-`V_SUBIDA` el auto sube; torcido o disparado se lleva puesta la baranda.
+**Subir.** Lo único que se puede pisar del conjunto es el canal que va de la
+punta de la rampa hasta la pared del frente; el resto es chapa y se choca
+rueda por rueda, así que un auto cruzado raspa con la parte que quedó afuera
+en vez de colarse por debajo del acoplado. Al cruzar la boca se mira el ángulo
+y la diferencia de velocidad: derecho y por debajo de `V_SUBIDA` el auto sube;
+torcido o disparado se lleva puesta la baranda.
+
+**Los golpes.** Cada choque abolla según la velocidad con que se dio, y la
+chapa rota se paga manejando: el auto pierde punta y el volante se pone vago
+(`castigoPorDano`). Al llegar a cien queda afuera.
 
 **Los rivales.** Van por turnos: encara el que está mejor parado y los demás
 esperan corridos a un costado. Cada intento se sortea antes de empezar y
@@ -42,6 +49,7 @@ Están todos juntos arriba del archivo:
 
 | Qué | Dónde | Para qué |
 | --- | --- | --- |
+| `RAPIDEZ` | arriba de todo | multiplica velocidades, aceleraciones y giro a la vez, así el auto se sigue sintiendo igual pero todo pasa más rápido |
 | `A`, `R`, `HW` | la pista | tamaño del óvalo y ancho del asfalto |
 | `CAMA_L`, `CAMA_W` | las medidas | qué tan holgado entra el auto |
 | `V_SUBIDA` | las medidas | diferencia máxima de velocidad para subir |
