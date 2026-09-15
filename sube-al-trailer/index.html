@@ -362,13 +362,16 @@ var V_SUBIDA = 115 * RAPIDEZ;    // diferencia máxima de velocidad para subir
 var QUIETO = 18;                 // velocidad relativa que cuenta como detenido
 
 /* exito: de cada intento de un rival, cuántos salen limpios.
+   demora: cuánto tardan en volver a encarar después de un intento fallido,
+   que es lo que más mueve el largo de la carrera, porque un rival que sube
+   torcido igual se acomoda y termina ganando.
    aguante: segundos que hay que quedarse quieto arriba para ganar.
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos. */
 var NIVELES = [
-  { nom: "Novato",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.10, aguante: 2.0, vaiven: 14, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.68, exito: 0.22, aguante: 2.8, vaiven: 26, minutos: 2.5 },
-  { nom: "Leyenda", vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, aguante: 3.5, vaiven: 34, minutos: 2.0 }
+  { nom: "Novato",  vRecta: 152 * RAPIDEZ, vCurva: 128 * RAPIDEZ, rivales: 2, pericia: 0.45, exito: 0.05, demora: 14, aguante: 2.0, vaiven: 14, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 188 * RAPIDEZ, vCurva: 156 * RAPIDEZ, rivales: 3, pericia: 0.68, exito: 0.15, demora: 8, aguante: 2.8, vaiven: 26, minutos: 2.5 },
+  { nom: "Leyenda", vRecta: 218 * RAPIDEZ, vCurva: 182 * RAPIDEZ, rivales: 3, pericia: 0.92, exito: 0.45, demora: 4, aguante: 3.5, vaiven: 34, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -634,7 +637,7 @@ function verAcoplado(a, tr, dt) {
     abollar(a, 6 + Math.abs(rl.x) * 0.03);
     sonar("golpe");
     if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "¡Torcido!" : "¡Muy rápido!");
-    else { a.ia.nervio = 2.4 + Math.random() * 2.6; cortarIntento(a); }
+    else { a.ia.nervio = nivel.demora * (0.7 + 0.6 * Math.random()); cortarIntento(a); }
     return;
   }
 
@@ -740,14 +743,21 @@ function pasoCama(a, tr, dt) {
 
   /* ¿está adentro, completo y quieto? */
   var vrel = Math.hypot(a.lvx, a.lvy);
-  var co = Math.abs(Math.cos(a.lang)), si = Math.abs(Math.sin(a.lang));
-  var ex = (AUTO_L / 2) * co + (AUTO_W / 2) * si;
-  var ey = (AUTO_L / 2) * si + (AUTO_W / 2) * co;
-  var dentro = Math.abs(a.lx) + ex <= CAMA_L / 2 + 0.5 && Math.abs(a.ly) + ey <= CAMA_W / 2 + 0.5;
-  if (dentro && vrel < QUIETO) a.prog += dt;
+  if (entroCompleto(a) && vrel < QUIETO) a.prog += dt;
   else a.prog = Math.max(0, a.prog - dt * 1.4);
 
   if (a.prog >= nivel.aguante && estado === "corre") terminar(a, "estaciono");
+}
+
+/* El auto cuenta como estacionado cuando sus cuatro puntas entran en la
+   cama. Lo usa el juego para dar por ganada la prueba y la IA para saber
+   cuándo dejar de maniobrar y clavar el freno. */
+function entroCompleto(a) {
+  var co = Math.abs(Math.cos(a.lang)), si = Math.abs(Math.sin(a.lang));
+  var ex = (AUTO_L / 2) * co + (AUTO_W / 2) * si;
+  var ey = (AUTO_L / 2) * si + (AUTO_W / 2) * co;
+  return Math.abs(a.lx) + ex <= CAMA_L / 2 + 0.5 &&
+         Math.abs(a.ly) + ey <= CAMA_W / 2 + 0.5;
 }
 
 function colocarDesdeCama(a, tr) {
@@ -765,7 +775,7 @@ function bajar(a, tr) {
   abollar(a, 8);
   a.humoHasta = tiempo + 1.4;
   if (a.jugador) flash("¡Te caíste!");
-  else { a.ia.nervio = 1.8 + Math.random() * 1.8; cortarIntento(a); }
+  else { a.ia.nervio = nivel.demora * (0.6 + 0.5 * Math.random()); cortarIntento(a); }
 }
 
 /* choques entre autos (mismo marco: los dos en el piso o los dos arriba) */
@@ -849,7 +859,7 @@ function pensarIA(a, dt) {
     var raspando = loc.x > -70 && Math.abs(loc.y) > 26;
     if (a.ia.reloj > 10 || raspando) {
       /* intento abandonado: se va al fondo de la fila y le toca a otro */
-      cortarIntento(a); a.ia.nervio = 2.5 + Math.random() * 2.5; listo = false;
+      cortarIntento(a); a.ia.nervio = nivel.demora * (0.7 + 0.6 * Math.random()); listo = false;
     }
   }
   if (listo && !lejos && Math.abs(errLat) < 13 &&
@@ -895,7 +905,11 @@ function pensarIA(a, dt) {
 function arribaIA(a, dt) {
   var c = a.ctrl;
   var vf = a.lvx * Math.cos(a.lang) + a.lvy * Math.sin(a.lang);
-  var derecho = Math.abs(a.ly) < 5.5 && Math.abs(a.lang) < 0.10;
+  if (entroCompleto(a)) {
+    c.acel = 0; c.giro = 0; c.mano = true;      // ya entró: solo falta no moverse
+    return;
+  }
+  var derecho = Math.abs(a.ly) < 8 && Math.abs(a.lang) < 0.18;
   if (derecho) {
     c.acel = a.lx < -6 ? 0.35 : (a.lx > 6 ? -0.45 : (Math.abs(vf) > 6 * RAPIDEZ ? -1 : 0));
     c.giro = lim(-a.lang * 3 - a.ly * 0.06, -1, 1);
@@ -946,7 +960,7 @@ function armarCarrera() {
   for (var i = 0; i < total; i++) {
     var a = nuevoAuto(i, i === 0, camion.s - ENGANCHE + formacion[i][0], formacion[i][1]);
     a.dIni = formacion[i][0]; a.nIni = formacion[i][1];
-    a.ia.duda = 5.0 + i * 1.8 + Math.random() * 2.5;
+    a.ia.duda = 6.5 + i * 2.2 + Math.random() * 3.0;
     autos.push(a);
   }
   tiempo = 0; cuenta = 3.0; restante = nivel.minutos * 60; ganador = null; motivoFin = "";
