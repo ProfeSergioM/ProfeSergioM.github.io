@@ -31,72 +31,71 @@
   .caja{background:rgba(255,243,214,.93);border:3px solid var(--tinta);border-radius:14px;
     padding:6px 12px;font-weight:700;box-shadow:var(--sombrita)}
 
-  #reloj{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);left:50%;
-    transform:translateX(-50%);display:flex;gap:10px;align-items:stretch}
-  #reloj b{font-size:30px;line-height:1;font-variant-numeric:tabular-nums;display:block}
-  #reloj .vuelta{display:flex;align-items:center;font-size:17px}
+  /* Todo lo que es texto vive en una sola columna arriba, para que el medio
+     de la pantalla quede libre: ahí es donde pasa el juego. */
+  #centro{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);left:50%;
+    transform:translateX(-50%);width:min(340px,58vw);display:flex;flex-direction:column;
+    align-items:center;gap:5px}
+  #reloj{display:flex;gap:8px;align-items:stretch}
+  #reloj b{font-size:27px;line-height:1;font-variant-numeric:tabular-nums;display:block}
+  #reloj .vuelta{display:flex;align-items:center;font-size:15px}
   #reloj.apura b{color:var(--ladrillo)}
 
-  #mapa{position:static;display:block;width:120px;height:72px;
-    background:rgba(255,243,214,.9);border:3px solid var(--tinta);border-radius:16px;
-    box-shadow:var(--sombrita)}
-  #panel-der{position:absolute;top:calc(env(safe-area-inset-top,0px) + 12px);
-    right:calc(env(safe-area-inset-right,0px) + 12px)}
+  #estacionando{width:min(100%,200px);opacity:0;transition:opacity .15s}
+  #estacionando.ver{opacity:1}
+  #estacionando .caja2{height:14px;background:var(--crema);border:3px solid var(--tinta);
+    border-radius:9px;overflow:hidden;box-shadow:var(--sombrita)}
+  #estacionando .caja2 i{display:block;height:100%;width:0;background:var(--ocre)}
+  #estacionando.lleno .caja2 i{background:var(--verde)}
 
-  #rivales{position:absolute;left:calc(env(safe-area-inset-left,0px) + 12px);
-    top:calc(env(safe-area-inset-top,0px) + 92px);min-width:168px}
-  #rivales .caja{padding:7px 10px}
-  .fila{display:flex;gap:8px;align-items:center;font-size:14px;padding:1px 0;line-height:1.25}
-  .fila u{width:14px;height:14px;border-radius:4px;border:2px solid var(--tinta);
+  #dif{text-align:center;font-size:13px;line-height:1.3;background:rgba(43,29,20,.86);
+    color:var(--crema);border:2px solid var(--crema);border-radius:11px;padding:4px 12px;
+    box-shadow:0 3px 0 rgba(0,0,0,.3);font-weight:600}
+  #dif b{color:var(--ocre)}
+
+  #aviso{font-family:'Bangers',Impact,sans-serif;font-size:clamp(22px,5.5vw,34px);
+    letter-spacing:2px;color:var(--crema);background:var(--ladrillo);
+    border:3px solid var(--tinta);border-radius:13px;padding:2px 20px;
+    box-shadow:var(--sombrita);white-space:pre-line;text-align:center;
+    opacity:0;transition:opacity .15s}
+  #aviso.ver{opacity:1;animation:pop .25s ease-out}
+  @keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+
+  #mapa{position:static;display:block;width:104px;height:62px;
+    background:rgba(255,243,214,.9);border:3px solid var(--tinta);border-radius:14px;
+    box-shadow:var(--sombrita)}
+  #panel-der{position:absolute;top:calc(env(safe-area-inset-top,0px) + 10px);
+    right:calc(env(safe-area-inset-right,0px) + 10px)}
+
+  /* Una tira de fichas, no una lista: color y cómo viene cada uno. */
+  #rivales{width:auto;max-width:100%}
+  #rivales .caja{padding:4px 8px;display:inline-flex;flex-wrap:wrap;gap:3px 9px;justify-content:center}
+  .fila{display:flex;gap:4px;align-items:center;font-size:12.5px;line-height:1.2}
+  .fila u{width:11px;height:11px;border-radius:3px;border:2px solid var(--tinta);
     display:inline-block;flex:none}
-  .fila em{font-style:normal;margin-left:auto;font-weight:600;opacity:.75;font-size:12.5px}
+  .fila em{font-style:normal;font-weight:600;opacity:.75;font-size:11.5px}
   .fila.fuera{opacity:.45}
   .fila.arriba{color:var(--ladrillo)}
   .fila.arriba em{color:var(--ladrillo);opacity:1}
 
-  #tablero{position:absolute;right:calc(env(safe-area-inset-right,0px) + 12px);
-    bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
-    width:min(300px,52vw);filter:drop-shadow(0 4px 0 rgba(43,29,20,.9))}
+  #tablero{position:absolute;right:calc(env(safe-area-inset-right,0px) + 10px);
+    bottom:calc(env(safe-area-inset-bottom,0px) + 10px);
+    width:min(264px,44vw);filter:drop-shadow(0 4px 0 rgba(43,29,20,.9))}
   #tablero canvas{display:block;width:100%;height:auto}
-
-  #estacionando{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 168px);
-    transform:translateX(-50%);width:min(320px,74vw);text-align:center;opacity:0;transition:opacity .15s}
-  #estacionando.ver{opacity:1}
-  #estacionando .rot{font-family:'Bangers',Impact,sans-serif;font-size:22px;letter-spacing:2px;
-    color:var(--crema);text-shadow:3px 3px 0 var(--tinta);margin-bottom:4px}
-  #estacionando .caja2{height:18px;background:var(--crema);border:3px solid var(--tinta);
-    border-radius:10px;overflow:hidden;box-shadow:var(--sombrita)}
-  #estacionando .caja2 i{display:block;height:100%;width:0;background:var(--ocre)}
-  #estacionando.lleno .caja2 i{background:var(--verde)}
-
-  #dif{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 128px);
-    transform:translateX(-50%);max-width:76vw;text-align:center;font-size:14px;line-height:1.35;
-    background:var(--tinta);color:var(--crema);border:3px solid var(--crema);border-radius:12px;
-    padding:5px 14px;box-shadow:0 4px 0 rgba(0,0,0,.35);font-weight:600}
-  #dif b{color:var(--ocre)}
-
-  #aviso{position:absolute;left:50%;top:34%;transform:translate(-50%,-50%);text-align:center;
-    font-family:'Bangers',Impact,sans-serif;font-size:clamp(30px,8vw,58px);letter-spacing:3px;
-    color:var(--crema);background:var(--ladrillo);border:4px solid var(--tinta);
-    border-radius:16px;padding:4px 30px;box-shadow:var(--sombra);white-space:pre-line;
-    opacity:0;transition:opacity .15s}
-  #aviso.ver{opacity:1;animation:pop .25s ease-out}
-  @keyframes pop{from{transform:translate(-50%,-50%) scale(.6);opacity:0}
-    to{transform:translate(-50%,-50%) scale(1);opacity:1}}
 
   /* ---------- controles táctiles ---------- */
   #mandos{position:fixed;inset:0;z-index:6;pointer-events:none}
   #mandos.ver .tecla{display:flex}
   .tecla{display:none;position:absolute;pointer-events:auto;align-items:center;justify-content:center;
-    border:3px solid var(--tinta);background:var(--papel);color:var(--tinta);
-    font-family:'Bangers',Impact,sans-serif;font-size:24px;letter-spacing:1px;border-radius:50%;
-    box-shadow:0 5px 0 var(--tinta)}
-  .tecla.on{transform:translateY(4px);box-shadow:0 1px 0 var(--tinta);background:var(--ocre)}
-  #t-izq{left:calc(env(safe-area-inset-left,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:76px;height:76px}
-  #t-der{left:calc(env(safe-area-inset-left,0px) + 100px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:76px;height:76px}
-  #t-gas{right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 116px);width:86px;height:86px;background:var(--verde)}
-  #t-fre{right:calc(env(safe-area-inset-right,0px) + 106px);bottom:calc(env(safe-area-inset-bottom,0px) + 24px);width:72px;height:72px;background:var(--ladrillo);color:var(--crema)}
-  #t-mano{right:calc(env(safe-area-inset-right,0px) + 16px);bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:72px;height:72px;background:var(--ocre);font-size:17px}
+    border:3px solid var(--tinta);background:rgba(249,231,194,.78);color:var(--tinta);
+    font-family:'Bangers',Impact,sans-serif;font-size:21px;letter-spacing:1px;border-radius:50%;
+    box-shadow:0 4px 0 var(--tinta)}
+  .tecla.on{transform:translateY(3px);box-shadow:0 1px 0 var(--tinta);background:var(--ocre)}
+  #t-izq{left:calc(env(safe-area-inset-left,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:64px;height:64px}
+  #t-der{left:calc(env(safe-area-inset-left,0px) + 84px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:64px;height:64px}
+  #t-gas{right:calc(env(safe-area-inset-right,0px) + 12px);bottom:calc(env(safe-area-inset-bottom,0px) + 90px);width:70px;height:70px;background:rgba(139,195,74,.82)}
+  #t-fre{right:calc(env(safe-area-inset-right,0px) + 90px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:62px;height:62px;background:rgba(201,79,42,.82);color:var(--crema)}
+  #t-mano{right:calc(env(safe-area-inset-right,0px) + 14px);bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:62px;height:62px;background:rgba(226,163,59,.85);font-size:15px}
 
   /* ---------- pantallas ---------- */
   .pantalla{position:fixed;inset:0;z-index:20;display:none;overflow-y:auto;
@@ -156,27 +155,24 @@
     border-radius:999px;cursor:pointer;box-shadow:0 3px 0 var(--tinta)}
   #sonido:active{transform:translateY(2px);box-shadow:0 1px 0 var(--tinta)}
   /* Con controles en pantalla el tablero no puede ir abajo a la derecha,
-     porque ahí están los botones. En vertical sube arriba de ellos y en
-     horizontal se va al centro, que es la única franja libre. */
+     porque ahí están los botones: en vertical sube arriba de ellos y en
+     horizontal se queda al centro, que es la franja que queda libre. */
   @media (pointer:coarse) and (orientation:portrait){
-    #tablero{left:50%;right:auto;transform:translateX(-50%);
-      bottom:calc(env(safe-area-inset-bottom,0px) + 206px);width:min(300px,80vw)}
-    #dif{bottom:calc(env(safe-area-inset-bottom,0px) + 366px)}
-    #estacionando{bottom:calc(env(safe-area-inset-bottom,0px) + 404px)}
+    #tablero{left:calc(env(safe-area-inset-left,0px) + 10px);right:auto;transform:none;
+      bottom:calc(env(safe-area-inset-bottom,0px) + 92px);width:min(220px,58vw)}
   }
   @media (pointer:coarse) and (orientation:landscape){
     #tablero{left:50%;right:auto;transform:translateX(-50%);
-      bottom:calc(env(safe-area-inset-bottom,0px) + 8px);width:min(250px,32vw)}
-    #dif{bottom:calc(env(safe-area-inset-bottom,0px) + 150px)}
-    #estacionando{bottom:calc(env(safe-area-inset-bottom,0px) + 188px);width:min(280px,50vw)}
+      bottom:calc(env(safe-area-inset-bottom,0px) + 6px);width:min(220px,28vw)}
   }
   @media (max-width:460px){
-    #mapa{width:92px;height:56px}
-    #reloj b{font-size:24px}#reloj .vuelta{font-size:14px}
+    /* el botón de sonido baja, para no rozar la tira de rivales */
+    #sonido{top:calc(env(safe-area-inset-top,0px) + 96px);font-size:11px;padding:4px 10px}
+    #mapa{width:88px;height:53px}
+    #reloj b{font-size:22px}#reloj .vuelta{font-size:13px}
+    #centro{width:min(268px,64vw)}
+    #dif{font-size:12px;padding:3px 9px}
     .opciones{grid-template-columns:1fr}
-    #rivales{top:calc(env(safe-area-inset-top,0px) + 86px);min-width:0}
-    .fila{font-size:12.5px}
-    #tablero{width:min(232px,58vw)}
   }
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -186,21 +182,22 @@
 <canvas id="lienzo"></canvas>
 
 <div id="hud">
-  <div id="reloj">
-    <span class="caja"><b>2:30</b></span>
-    <span class="caja vuelta">Lap 1</span>
+  <div id="centro">
+    <div id="reloj">
+      <span class="caja"><b>2:30</b></span>
+      <span class="caja vuelta">Lap 1</span>
+    </div>
+    <div id="rivales"></div>
+    <div id="estacionando">
+      <div class="caja2"><i></i></div>
+    </div>
+    <div id="dif">Get to the ramp</div>
+    <div id="aviso"></div>
   </div>
   <div id="panel-der">
     <canvas id="mapa" width="240" height="144"></canvas>
   </div>
-  <div id="rivales"></div>
   <div id="tablero"><canvas id="tablero-lienzo" width="376" height="184"></canvas></div>
-  <div id="estacionando">
-    <div class="rot">Parking</div>
-    <div class="caja2"><i></i></div>
-  </div>
-  <div id="dif">Get to the ramp</div>
-  <div id="aviso"></div>
 </div>
 
 <div id="mandos">
@@ -1824,7 +1821,7 @@ function pintarChips() {
     var a = autos[i];
     var d = document.createElement("div");
     d.className = "fila";
-    d.innerHTML = '<u style="background:' + a.color + '"></u><span>' + a.nombre + '</span><em></em>';
+    d.innerHTML = '<u style="background:' + a.color + '" title="' + a.nombre + '"></u><em></em>';
     caja.appendChild(d);
     chips.push({ el: d, em: d.querySelector("em"), auto: a });
   }
@@ -1881,7 +1878,7 @@ function actualizarHUD() {
     c.el.classList.toggle("arriba", a.arriba && !a.fuera);
     c.em.textContent = a.fuera ? "out"
       : a.arriba ? Math.round(a.prog / nivel.aguante * 100) + "%"
-      : a.dano < 1 ? "clean" : Math.round(a.dano) + "% wrecked";
+      : a.dano < 1 ? "ok" : Math.round(a.dano) + "%";
   }
 
   if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
