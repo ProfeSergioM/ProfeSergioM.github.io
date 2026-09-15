@@ -602,7 +602,7 @@ function pasoSuelo(a, dt) {
     var vn = a.vx * nx * lado + a.vy * ny * lado;
     if (vn > 0) {
       a.vx -= nx * lado * vn * 1.35; a.vy -= ny * lado * vn * 1.35;
-      abollar(a, Math.max(0, vn - 70) * 0.14);
+      abollar(a, Math.max(0, vn - 95) * 0.12);
     }
   }
 }
@@ -631,7 +631,7 @@ function verAcoplado(a, tr, dt) {
     a.x = p.x; a.y = p.y;
     var nv = rotar(Math.min(rl.x, -25 * RAPIDEZ), rl.y * 0.4, tr.ang);
     a.vx = tr.vx + nv.x; a.vy = tr.vy + nv.y;
-    abollar(a, 12 + Math.abs(rl.x) * 0.06);
+    abollar(a, 6 + Math.abs(rl.x) * 0.03);
     sonar("golpe");
     if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "¡Torcido!" : "¡Muy rápido!");
     else { a.ia.nervio = 2.4 + Math.random() * 2.6; cortarIntento(a); }
@@ -665,7 +665,7 @@ function chocarConjunto(a, tr) {
     var vn = (a.vx - tr.vx) * nm.x + (a.vy - tr.vy) * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 60) * 0.15);
+      abollar(a, Math.max(0, -vn - 75) * 0.13);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -714,7 +714,7 @@ function pasoCama(a, tr, dt) {
     if (c.x + c.r > CAMA_L / 2) {
       var pen = c.x + c.r - CAMA_L / 2;
       a.lx -= pen;
-      if (a.lvx > 0) { abollar(a, Math.max(0, a.lvx - 25) * 0.18); if (a.lvx > 70) sonar("golpe"); a.lvx = -a.lvx * 0.3; }
+      if (a.lvx > 0) { abollar(a, Math.max(0, a.lvx - 40) * 0.14); if (a.lvx > 70) sonar("golpe"); a.lvx = -a.lvx * 0.3; }
     }
     if (Math.abs(c.y) + c.r > CAMA_W / 2) {
       var lado = c.y > 0 ? 1 : -1;
@@ -864,7 +864,7 @@ function pensarIA(a, dt) {
   var nObj = tr.n, sesgo = 0, vObj;
   if (a.ia.entrando) {
     if (a.ia.intento === 2) sesgo = a.ia.desvio * 0.032;      // el que sube cruzado
-    vObj = vTr + RAPIDEZ * (a.ia.intento === 3 ? 165 : 46 + 22 * nivel.pericia);
+    vObj = vTr + (a.ia.intento === 3 ? V_SUBIDA + 55 : RAPIDEZ * (46 + 22 * nivel.pericia));
   } else if (!listo) {
     nObj = tr.n + lateralEspera;
     vObj = brecha > 190 ? VMAX * (0.80 + 0.18 * nivel.pericia)
