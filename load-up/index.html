@@ -228,7 +228,7 @@
       <div class="opciones" id="op-dif">
         <button data-dif="0">Rookie<small>Slow pickup, 3 rivals</small></button>
         <button data-dif="1" class="sel">Pro<small>4 rivals who know how</small></button>
-        <button data-dif="2">Legend<small>4 rivals, pickup weaves</small></button>
+        <button data-dif="2">Legend<small>No guides, no hints</small></button>
       </div>
 
       <button class="grande" id="btn-arrancar">RACE</button>
@@ -410,11 +410,13 @@ var QUIETO = 15;                 // velocidad relativa que cuenta como detenido
    torcido igual se acomoda y termina ganando.
    aguante: segundos que hay que quedarse quieto arriba para ganar.
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
-   los intentos prolijos. */
+   los intentos prolijos.
+   ayudas: las líneas guía de atrás y el cartel que dice qué hacer. En
+   Legend no están, y el pasillo hay que leerlo en el tablero. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 122 * RAPIDEZ, vCurva: 102 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 150 * RAPIDEZ, vCurva: 125 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 174 * RAPIDEZ, vCurva: 146 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 122 * RAPIDEZ, vCurva: 102 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, ayudas: true, minutos: 3.0 },
+  { nom: "Pro",     vRecta: 150 * RAPIDEZ, vCurva: 125 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, ayudas: true, minutos: 2.5 },
+  { nom: "Legend",  vRecta: 174 * RAPIDEZ, vCurva: 146 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, ayudas: false, minutos: 2.0 }
 ];
 
 var NOMBRES = [
@@ -432,6 +434,7 @@ var mtx = mapa.getContext("2d");
 
 var W = 0, H = 0, escala = 1, dpr = 1;
 var camara = { x: 0, y: 0 };
+var visX0 = -1e9, visX1 = 1e9, visY0 = -1e9, visY1 = 1e9;   // lo que entra en pantalla
 var estado = "menu";      // menu | cuenta | corre | fin
 var nivel = NIVELES[1];
 var autos = [], camion = null, tiempo = 0, cuenta = 0, ganador = null, motivoFin = "";
@@ -573,7 +576,10 @@ function dinamica(o, dt, ctrl, cfg, cast) {
 }
 
 var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70 * RAPIDEZ, arrastre: 0.42 };
-var CFG_PAST = { acel: ACEL * 0.5, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210 * RAPIDEZ, arrastre: 1.5 };
+/* El pasto frena, pero tiene que dejar volver: con la aceleración a la
+   mitad y el arrastre viejo, el auto que se iba afuera quedaba a 69 de
+   techo, por debajo de la camioneta, y la carrera se le terminaba ahí. */
+var CFG_PAST = { acel: ACEL * 0.7, freno: FRENO * 0.8, retro: RETRO * 0.6, vmax: VMAX * 0.42, giro: GIRO * 0.85, agarre: 3.4, roce: 210 * RAPIDEZ, arrastre: 1.0 };
 var CFG_CAMA = { acel: ACEL * 0.62, freno: FRENO, retro: RETRO * 0.9, vmax: 150 * RAPIDEZ, giro: GIRO * 1.25, agarre: 11, roce: 230 * RAPIDEZ, roceLat: 45, arrastre: 1.1, clavar: true };
 
 /* La chapa rota se paga manejando: además de quedar afuera al llegar a cien,
@@ -1082,8 +1088,9 @@ function armarCarrera() {
   moverCamion(camion, 1 / 60);
   autos = [];
   var total = nivel.rivales + 1;
-  /* largada lanzada: todos ya vienen rodando detrás del acoplado */
-  var formacion = [[-200, 0], [-205, -62], [-265, 58], [-270, -104], [-330, 100]];
+  /* Largada lanzada y en V, con el jugador en el vértice: arranca último y
+     con los cuatro rivales abiertos por delante, más cerca de la rampa. */
+  var formacion = [[-280, 0], [-222, -58], [-222, 58], [-164, -104], [-164, 104]];
   for (var i = 0; i < total; i++) {
     var a = nuevoAuto(i, i === 0, camion.s - ENGANCHE + formacion[i][0], formacion[i][1]);
     a.dIni = formacion[i][0]; a.nIni = formacion[i][1];
@@ -1319,23 +1326,29 @@ var OV_EJE = caminoOval(R);
 var OV_BORDE_EXT = caminoOval(R + HW - 4);
 var OV_BORDE_INT = caminoOval(R - HW + 4);
 
-/* la tribuna: se calcula una vez y después solo se pinta */
+/* La tribuna da toda la vuelta al óvalo, curvas incluidas: se calcula una
+   vez siguiendo el trazado y después solo se pinta la parte que se ve. */
+var TRIB_DESDE = HW + 52, TRIB_HASTA = HW + 116;
 var TRIBUNA = (function () {
   var g = [];
-  var paleta = ["#c94f2a", "#e2a33b", "#6f8f4b", "#8fd3e8", "#f9e7c2", "#a0759b"];
-  for (var lado = -1; lado <= 1; lado += 2) {
-    for (var fila = 0; fila < 6; fila++) {
-      for (var col = 0; col < 46; col++) {
-        if (Math.random() < 0.12) continue;          // butacas vacías
-        g.push({
-          x: -A - 20 + col * ((2 * A + 40) / 45),
-          y: lado * (R + HW + 54 + fila * 12),
-          c: paleta[(fila * 7 + col * 3) % 6]
-        });
-      }
+  var paleta = ["#c94f2a", "#e2a33b", "#6f8f4b", "#8fd3e8", "#f9e7c2", "#a0759b", "#d94a3a"];
+  var filas = 5, paso = 21;
+  for (var s2 = 0; s2 < L_TOTAL; s2 += paso) {
+    var ang = anguloPista(s2);
+    for (var f = 0; f < filas; f++) {
+      if (Math.random() < 0.14) continue;            // butacas vacías
+      var p = puntoPista(s2, TRIB_DESDE + 8 + f * 12);
+      g.push({ x: p.x, y: p.y, a: ang, c: paleta[((s2 / paso) | 0) * 3 + f * 5 >> 0 & 6] });
     }
   }
   return g;
+})();
+
+/* torres de luz, también alrededor de todo */
+var TORRES = (function () {
+  var t = [];
+  for (var i = 0; i < 14; i++) t.push(puntoPista(i * L_TOTAL / 14, HW + 34));
+  return t;
 })();
 
 var TINTA = "#2b1d14";
@@ -1382,25 +1395,27 @@ function dibujarPista() {
     ctx.fillRect(0, R - HW + i * (2 * HW / 12), 16, 2 * HW / 12);
   }
 
-  /* tribunas: tarima de madera, gente de colores y torres de luz */
-  ctx.fillStyle = "#8a6f4a";
-  ctx.fillRect(-A - 30, -(R + HW + 124), 2 * A + 60, 82);
-  ctx.fillRect(-A - 30, R + HW + 42, 2 * A + 60, 82);
+  /* tribunas: un anillo de madera con gente alrededor de toda la pista */
+  var medio = (TRIB_DESDE + TRIB_HASTA) / 2;
+  ctx.strokeStyle = "#8a6f4a"; ctx.lineWidth = TRIB_HASTA - TRIB_DESDE;
+  ctx.stroke(caminoOval(R + medio));
   ctx.strokeStyle = TINTA; ctx.lineWidth = 4;
-  ctx.strokeRect(-A - 30, -(R + HW + 124), 2 * A + 60, 82);
-  ctx.strokeRect(-A - 30, R + HW + 42, 2 * A + 60, 82);
+  ctx.stroke(caminoOval(R + TRIB_DESDE)); ctx.stroke(caminoOval(R + TRIB_HASTA));
+
   for (var k = 0; k < TRIBUNA.length; k++) {
     var t = TRIBUNA[k];
-    ctx.fillStyle = t.c;
-    ctx.fillRect(t.x, t.y, 7, 7);
+    if (t.x < visX0 || t.x > visX1 || t.y < visY0 || t.y > visY1) continue;
+    ctx.save();
+    ctx.translate(t.x, t.y); ctx.rotate(t.a);
+    ctx.fillStyle = t.c; ctx.fillRect(-4, -3.5, 8, 7);
+    ctx.restore();
   }
-  for (var m = -2; m <= 2; m++) {
-    for (var lado2 = -1; lado2 <= 1; lado2 += 2) {
-      var ly = lado2 * (R + HW + 40);
-      ctx.beginPath(); ctx.arc(m * 320, ly, 11, 0, 7);
-      ctx.fillStyle = "#e2a33b"; ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
-    }
+  for (var m = 0; m < TORRES.length; m++) {
+    var to = TORRES[m];
+    if (to.x < visX0 - 20 || to.x > visX1 + 20 || to.y < visY0 - 20 || to.y > visY1 + 20) continue;
+    ctx.beginPath(); ctx.arc(to.x, to.y, 11, 0, 7);
+    ctx.fillStyle = "#e2a33b"; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = TINTA; ctx.stroke();
   }
 }
 
@@ -1465,16 +1480,41 @@ function dibujarAuto(a) {
     rectRedondo(-AUTO_L / 2 + 3, -AUTO_W / 2 + 3, AUTO_L - 6, 6, 3); ctx.fill();
   }
 
-  /* techo y parabrisas */
-  ctx.fillStyle = "#3d4a52";
-  rectRedondo(-9, -AUTO_W / 2 + 4, 18, AUTO_W - 8, 4); ctx.fill();
+  /* franja central, que es lo que los hace ver de carrera y deja ver el color */
+  ctx.fillStyle = "rgba(255,243,214,.8)";
+  ctx.fillRect(-AUTO_L / 2 + 5, -3, AUTO_L - 10, 6);
+
+  /* faros adelante y luces de freno atrás */
+  ctx.fillStyle = "#fff3d6";
+  ctx.fillRect(AUTO_L / 2 - 5, -AUTO_W / 2 + 3, 4, 5);
+  ctx.fillRect(AUTO_L / 2 - 5, AUTO_W / 2 - 8, 4, 5);
+  ctx.fillStyle = "#d94a3a";
+  ctx.fillRect(-AUTO_L / 2 + 2, -AUTO_W / 2 + 3, 3, 5);
+  ctx.fillRect(-AUTO_L / 2 + 2, AUTO_W / 2 - 8, 3, 5);
+
+  /* habitáculo y parabrisas */
+  ctx.fillStyle = "#2f3a42";
+  rectRedondo(-7, -AUTO_W / 2 + 4, 15, AUTO_W - 8, 4); ctx.fill();
   ctx.lineWidth = 2.5; ctx.strokeStyle = TINTA; ctx.stroke();
   ctx.fillStyle = "#8fd3e8";
-  rectRedondo(9, -AUTO_W / 2 + 5, 6, AUTO_W - 10, 2); ctx.fill();
+  rectRedondo(8, -AUTO_W / 2 + 5, 5, AUTO_W - 10, 2); ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = TINTA; ctx.stroke();
-  rectRedondo(-15, -AUTO_W / 2 + 5, 6, AUTO_W - 10, 2); ctx.fillStyle = "#8fd3e8"; ctx.fill(); ctx.stroke();
 
-  /* número en el techo */
+  /* espejos */
+  ctx.fillStyle = a.oscuro;
+  ctx.fillRect(5, -AUTO_W / 2 - 2.5, 5, 3); ctx.fillRect(5, AUTO_W / 2 - 0.5, 5, 3);
+
+  /* trompa y alerón trasero */
+  ctx.fillStyle = a.oscuro;
+  rectRedondo(AUTO_L / 2 - 2, -AUTO_W / 2 - 1, 5, AUTO_W + 2, 2); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = TINTA; ctx.stroke();
+  ctx.fillStyle = TINTA;
+  ctx.fillRect(-AUTO_L / 2 + 1, -5.5, 6, 3); ctx.fillRect(-AUTO_L / 2 + 1, 2.5, 6, 3);
+  ctx.fillStyle = a.fuera ? "#4a423a" : a.color;
+  rectRedondo(-AUTO_L / 2 - 5, -AUTO_W / 2 - 3, 7, AUTO_W + 6, 3); ctx.fill();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = TINTA; ctx.stroke();
+
+  /* número sobre el habitáculo */
   ctx.fillStyle = "#fff3d6";
   ctx.font = "bold 13px Fredoka, Trebuchet MS, sans-serif";
   ctx.textAlign = "center"; ctx.textBaseline = "middle";
@@ -1594,6 +1634,7 @@ function dibujarConjunto(c) {
 
 /* guía del pasillo de atrás, solo para el jugador */
 function dibujarGuia(a, tr) {
+  if (!nivel.ayudas) return;
   var loc = aLocal(tr, a.x, a.y);
   var dist = -loc.x - CAMA_L / 2;
   if (dist < -10 || dist > 420) return;
@@ -1635,6 +1676,10 @@ function dibujar() {
     camara.x += (objX - camara.x) * 0.14;
     camara.y += (objY - camara.y) * 0.14;
   }
+
+  var mx = W / (2 * escala) + 40, my = H / (2 * escala) + 40;
+  visX0 = camara.x - mx; visX1 = camara.x + mx;
+  visY0 = camara.y - my; visY1 = camara.y + my;
 
   ctx.save();
   ctx.translate(W / 2, H / 2);
@@ -1877,6 +1922,8 @@ function actualizarHUD() {
   }
 
   /* la línea de ayuda de abajo: lo único que hay que mirar mientras se maneja */
+  elDif.style.display = nivel.ayudas ? "" : "none";
+  if (!nivel.ayudas) { pintarFichas(); return; }
   var tr = camion.tr;
   if (yo.fuera) elDif.innerHTML = "Your car is done";
   else if (yo.arriba) {
@@ -1895,6 +1942,12 @@ function actualizarHUD() {
     else elDif.innerHTML = "Like this: <b>+" + Math.round(rl.x * KMH) + "</b> over the trailer";
   }
 
+  pintarFichas();
+
+  if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
+}
+
+function pintarFichas() {
   for (var i = 0; i < chips.length; i++) {
     var c = chips[i], a = c.auto;
     c.el.classList.toggle("fuera", a.fuera);
@@ -1903,8 +1956,6 @@ function actualizarHUD() {
       : a.arriba ? Math.round(a.prog / nivel.aguante * 100) + "%"
       : a.dano < 1 ? "ok" : Math.round(a.dano) + "%";
   }
-
-  if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
 }
 
 /* ========================================================================== */
@@ -2025,7 +2076,8 @@ if (location.search.indexOf("depurar") >= 0) {
     autos: function () { return autos; },
     camion: function () { return camion; },
     estado: function () { return estado; },
-    aLocal: aLocal, rotar: rotar, proyectar: proyectar, HW: HW, nivel: function () { return nivel; },
+    aLocal: aLocal, rotar: rotar, proyectar: proyectar, anguloPista: anguloPista, HW: HW,
+    nivel: function () { return nivel; },
     turno: function () { return turnoDe ? turnoDe.nombre : null; }
   };
 }
