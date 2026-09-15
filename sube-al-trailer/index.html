@@ -34,7 +34,7 @@
 
   #panel-der{position:absolute;top:calc(env(safe-area-inset-top,0px) + 6px);
     right:calc(env(safe-area-inset-right,0px) + 8px);width:112px;text-align:right}
-  #mapa{width:112px;height:66px;display:block;position:static;background:rgba(10,7,16,.55);
+  #mapa{width:112px;height:66px;display:block;position:static;background:rgba(8,5,12,.85);
     border:1px solid rgba(243,236,230,.18);border-radius:4px}
   .barra{height:7px;margin-top:6px;background:rgba(243,236,230,.14);border:1px solid rgba(243,236,230,.2);
     overflow:hidden}
@@ -1519,7 +1519,9 @@ function actualizarHUD() {
     var c = chips[i], a = c.auto;
     c.el.classList.toggle("fuera", a.fuera);
     c.el.classList.toggle("arriba", a.arriba && !a.fuera);
-    c.em.textContent = a.fuera ? "fuera" : a.arriba ? Math.round(a.prog / nivel.aguante * 100) + "%" : Math.round(a.dano) + "% roto";
+    c.em.textContent = a.fuera ? "fuera"
+      : a.arriba ? Math.round(a.prog / nivel.aguante * 100) + "%"
+      : a.dano < 1 ? "entero" : Math.round(a.dano) + "% roto";
   }
 
   if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
