@@ -394,7 +394,7 @@ var RAPIDEZ = 1.5;
    con pisar el acelerador y esperar. El freno queda igual, porque es lo que
    hace falta para subir con la diferencia justa. */
 var VMAX = 335 * RAPIDEZ, ACEL = 137 * RAPIDEZ, FRENO = 440 * RAPIDEZ;
-var RETRO = 120 * RAPIDEZ, GIRO = 3.15 * RAPIDEZ, AGARRE = 7.2;
+var RETRO = 120 * RAPIDEZ, GIRO = 3.15 * RAPIDEZ, AGARRE = 5.4;
 var REF_GIRO = 95 * RAPIDEZ;     // a esta velocidad el volante rinde la mitad
 var KMH = 0.32, METRO = 0.089;   // 1 px son ~9 cm
 var V_SUBIDA = 95 * RAPIDEZ;     // diferencia máxima de velocidad para subir
@@ -586,6 +586,9 @@ function dinamica(o, dt, ctrl, cfg, cast) {
   return vf;
 }
 
+/* La tierra no agarra como el asfalto: el auto entra a la curva y la cola
+   se le va sola, así que hay que contravolantear o clavar el freno de mano.
+   Es el único número que separa este piso del anterior. */
 var CFG_ASF  = { acel: ACEL, freno: FRENO, retro: RETRO, vmax: VMAX, giro: GIRO, agarre: AGARRE, roce: 70 * RAPIDEZ, arrastre: 0.42 };
 /* El pasto frena, pero tiene que dejar volver: con la aceleración a la
    mitad y el arrastre viejo, el auto que se iba afuera quedaba a 69 de

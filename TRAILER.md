@@ -65,7 +65,8 @@ Están todos juntos arriba del archivo:
 | Qué | Dónde | Para qué |
 | --- | --- | --- |
 | `RAPIDEZ` | arriba de todo | multiplica velocidades, aceleraciones y giro a la vez, así el auto se sigue sintiendo igual pero todo pasa más rápido |
-| `A`, `R`, `HW` | la pista | tamaño del óvalo y ancho del asfalto |
+| `A`, `R`, `HW` | la pista | tamaño del óvalo y ancho de la tierra |
+| `AGARRE` | arriba de todo | cuánto agarra la tierra: bajarlo saca la cola en las curvas, subirlo la pega al piso |
 | `CAMA_L`, `CAMA_W` | las medidas | qué tan holgado entra el auto |
 | `V_SUBIDA` | las medidas | diferencia máxima de velocidad para subir |
 | `QUIETO` | las medidas | qué tan quieto hay que quedarse |
