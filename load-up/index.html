@@ -411,12 +411,17 @@ var QUIETO = 15;                 // velocidad relativa que cuenta como detenido
    aguante: segundos que hay que quedarse quieto arriba para ganar.
    vaiven: cuánto se mueve de lado la camioneta, que es lo que arruina
    los intentos prolijos.
+   embisten: cuántos rivales suben a sacar al que ya está arriba. Con uno
+   solo alcanza para molestar; con tres no queda lugar para acomodarse.
+   arranque: cuánto dudan los rivales en la largada. Es lo único que le da
+   al jugador tiempo de llegar a la rampa, porque arranca en el vértice de
+   la V y los tiene a todos por delante.
    ayudas: las líneas guía de atrás y el cartel que dice qué hacer. En
    Legend no están, y el pasillo hay que leerlo en el tablero. */
 var NIVELES = [
-  { nom: "Rookie",  vRecta: 122 * RAPIDEZ, vCurva: 102 * RAPIDEZ, rivales: 3, pericia: 0.58, exito: 0.22, demora: 3, aguante: 2.5, vaiven: 18, ayudas: true, minutos: 3.0 },
-  { nom: "Pro",     vRecta: 150 * RAPIDEZ, vCurva: 125 * RAPIDEZ, rivales: 4, pericia: 0.84, exito: 0.45, demora: 2.2, aguante: 3.6, vaiven: 34, ayudas: true, minutos: 2.5 },
-  { nom: "Legend",  vRecta: 174 * RAPIDEZ, vCurva: 146 * RAPIDEZ, rivales: 4, pericia: 0.98, exito: 0.78, demora: 1.2, aguante: 4.5, vaiven: 44, ayudas: false, minutos: 2.0 }
+  { nom: "Rookie",  vRecta: 122 * RAPIDEZ, vCurva: 102 * RAPIDEZ, rivales: 3, pericia: 0.62, exito: 0.22, demora: 3.2, aguante: 3.0, vaiven: 24, embisten: 2, arranque: 1.9, ayudas: true, minutos: 2.6 },
+  { nom: "Pro",     vRecta: 150 * RAPIDEZ, vCurva: 125 * RAPIDEZ, rivales: 4, pericia: 0.92, exito: 0.52, demora: 1.8, aguante: 4.2, vaiven: 34, embisten: 3, arranque: 1.2, ayudas: true, minutos: 2.2 },
+  { nom: "Legend",  vRecta: 174 * RAPIDEZ, vCurva: 146 * RAPIDEZ, rivales: 4, pericia: 1.00, exito: 0.88, demora: 0.7, aguante: 5.2, vaiven: 42, embisten: 3, arranque: 0.8, ayudas: false, minutos: 1.9 }
 ];
 
 var NOMBRES = [
@@ -463,6 +468,23 @@ function nuevoCamion() {
   };
 }
 
+/* Cuánto se corre de lado el conjunto en el punto s del óvalo. La onda larga
+   lo lleva de un borde al otro, la media lo saca de ritmo y la corta es la
+   que hace que se corte encima.
+
+   Las tres juntas tienen un techo que no se puede pasar. Cuanto más rápido
+   cambia el corrimiento, más cruzado queda el acoplado respecto de la pista,
+   y el juego solo deja subir con menos de 0.42 rad de diferencia. Una onda
+   corta y grande cierra esa ventana sola: el acoplado se vuelve imposible de
+   abordar y eso ya no es dificultad. La suma de amplitud sobre longitud de
+   las tres ondas, por el vaivén del nivel, es ese cruce, y conviene dejarla
+   cerca de 0.30 en el nivel más bravo. */
+function culebra(s, a) {
+  return a * Math.sin(s / 430) +
+         a * 0.40 * Math.sin(s / 137 + 1.1) +
+         a * 0.18 * Math.sin(s / 100 + 2.4);
+}
+
 /* La camioneta va sola por el eje del óvalo: acelera en las rectas, levanta
    el pie en las curvas y se mueve un poco de lado, que es lo que arruina los
    intentos prolijos. */
@@ -480,9 +502,13 @@ function moverCamion(c, dt) {
   var camPrev = { x: c.x, y: c.y };
 
   var sT = c.s - ENGANCHE;
+  /* Tres ondas superpuestas en vez de dos. La tercera es la corta, y es la
+     que cambia el juego: la camioneta deja de barrer la pista de lado a lado
+     y empieza a cortarse encima, así que el pasillo se abre y se cierra
+     mientras el auto todavía está entrando. */
   var vaiven = nivel.vaiven;
-  var nCam = vaiven * Math.sin(c.s / 430) + vaiven * 0.4 * Math.sin(c.s / 137 + 1.1);
-  var nTr  = vaiven * Math.sin(sT / 430) + vaiven * 0.4 * Math.sin(sT / 137 + 1.1);
+  var nCam = culebra(c.s, vaiven);
+  var nTr  = culebra(sT, vaiven);
 
   var pc = puntoPista(c.s, nCam);
   c.x = pc.x; c.y = pc.y; c.ang = anguloPista(c.s);
@@ -492,7 +518,7 @@ function moverCamion(c, dt) {
   c.tr.x = pt.x; c.tr.y = pt.y; c.tr.n = nTr;
   var angT = anguloPista(sT);
   /* el acoplado apunta un poco hacia donde va, incluido el vaivén */
-  var pt2 = puntoPista(sT + 14, vaiven * Math.sin((sT + 14) / 430) + vaiven * 0.4 * Math.sin((sT + 14) / 137 + 1.1));
+  var pt2 = puntoPista(sT + 14, culebra(sT + 14, vaiven));
   c.tr.ang = Math.atan2(pt2.y - pt.y, pt2.x - pt.x);
   if (isNaN(c.tr.ang)) c.tr.ang = angT;
 
@@ -748,7 +774,7 @@ function verAcoplado(a, tr, dt) {
     sonar("golpe");
     if (a.jugador) flash(Math.abs(dang) >= 0.42 ? "Crooked!" : "Too fast!");
     else {
-      a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.35 : 1) * (0.7 + 0.6 * Math.random());
+      a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.2 : 1) * (0.7 + 0.6 * Math.random());
       cortarIntento(a);
     }
     return;
@@ -871,7 +897,7 @@ function caerse(a, tr) {
   a.humoHasta = tiempo + 1.4;
   if (a.jugador) flash("You fell off!");
   else {
-    a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.3 : 1) * (0.6 + 0.5 * Math.random());
+    a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.2 : 1) * (0.6 + 0.5 * Math.random());
     cortarIntento(a);
   }
 }
@@ -899,11 +925,14 @@ function chocarAutos(a, b, local) {
     } else {
       a.vx -= nx * imp; a.vy -= ny * imp; b.vx += nx * imp; b.vy += ny * imp;
     }
-    var d2 = Math.max(0, -vn - 55) * 0.09;
+    var d2 = Math.max(0, -vn - 55) * (local ? 0.045 : 0.09);
     var gol = rotar(nx, ny, local ? camion.tr.ang : 0);
     abollar(a, d2, gol.x, gol.y); abollar(b, d2, -gol.x, -gol.y);
     if (-vn > 110) sonar("golpe");
-    a.prog = Math.max(0, a.prog - 0.35); b.prog = Math.max(0, b.prog - 0.35);
+    /* Un golpe arriba no solo mueve el auto: le borra casi un segundo de
+       cuenta, así que aguantar con alguien encima deja de ser cuestión de
+       resistir el empujón. */
+    a.prog = Math.max(0, a.prog - 0.9); b.prog = Math.max(0, b.prog - 0.9);
   }
 }
 
@@ -938,7 +967,7 @@ function pensarIA(a, dt) {
      como en la fila de verdad. */
   /* Con la cama ocupada encaran los dos mejor parados, sin esperar turno. */
   var ocupada = hayAlguienArriba(a) !== null;
-  var miTurno = ocupada ? (turnoDe === a || segundoDe === a)
+  var miTurno = ocupada ? atacantes.indexOf(a) >= 0
                         : ((turnoDe === a) && a.ia.nervio <= 0);
   if (!miTurno) { a.ia.duda = 0.5 + Math.random() * 1.4; cortarIntento(a); }
   else if (ocupada) {
@@ -969,7 +998,7 @@ function pensarIA(a, dt) {
     if ((a.ia.reloj > (ocupada ? 20 : 10)) || raspando) {
       /* intento abandonado: se va al fondo de la fila y le toca a otro */
       cortarIntento(a);
-      a.ia.nervio = nivel.demora * (ocupada ? 0.35 : 1) * (0.7 + 0.6 * Math.random());
+      a.ia.nervio = nivel.demora * (ocupada ? 0.2 : 1) * (0.7 + 0.6 * Math.random());
       listo = false;
     }
   }
@@ -998,7 +1027,7 @@ function pensarIA(a, dt) {
   if (a.ia.entrando) {
     if (a.ia.intento === 2) sesgo = a.ia.desvio * 0.032;      // el que sube cruzado
     vObj = vTr + (a.ia.intento === 3 ? V_SUBIDA + 55
-                : a.ia.intento === 4 ? V_SUBIDA - 25            // entra fuerte, a sacarlo
+                : a.ia.intento === 4 ? V_SUBIDA - 18            // entra fuerte, a sacarlo
                 : RAPIDEZ * (46 + 22 * nivel.pericia));
   } else if (!listo) {
     nObj = tr.n + lateralEspera;
@@ -1083,9 +1112,9 @@ function hayAlguienArriba(salvo) {
 }
 
 /* El turno es del rival mejor parado detrás de la rampa. Con alguien arriba
-   encaran dos, el mejor y el segundo: alcanza para no dejarlo tranquilo, y
-   evita que se amontonen los cuatro sobre la rampa. */
-var turnoDe = null, segundoDe = null;
+   encaran los mejor parados, tantos como diga el nivel: en Rookie son dos,
+   y de Pro para arriba son tres, que es lo que no deja acomodarse. */
+var turnoDe = null, atacantes = [];
 function repartirTurno() {
   var candidatos = [];
   for (var i = 0; i < autos.length; i++) {
@@ -1097,7 +1126,10 @@ function repartirTurno() {
   }
   candidatos.sort(function (x, y) { return x.d - y.d; });
   turnoDe = candidatos.length ? candidatos[0].a : null;
-  segundoDe = candidatos.length > 1 ? candidatos[1].a : null;
+  atacantes.length = 0;
+  for (var k = 0; k < Math.min(nivel.embisten, candidatos.length); k++) {
+    atacantes.push(candidatos[k].a);
+  }
 }
 
 /* ========================================================================== */
@@ -1115,7 +1147,7 @@ function armarCarrera() {
   for (var i = 0; i < total; i++) {
     var a = nuevoAuto(i, i === 0, camion.s - ENGANCHE + formacion[i][0], formacion[i][1]);
     a.dIni = formacion[i][0]; a.nIni = formacion[i][1];
-    a.ia.duda = 3.0 + i * 1.1 + Math.random() * 1.8;
+    a.ia.duda = (3.0 + i * 1.1 + Math.random() * 1.8) * nivel.arranque;
     autos.push(a);
   }
   tiempo = 0; cuenta = 3.0; restante = nivel.minutos * 60; ganador = null; motivoFin = "";

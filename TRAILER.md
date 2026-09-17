@@ -70,7 +70,8 @@ Están todos juntos arriba del archivo:
 | `CAMA_L`, `CAMA_W` | las medidas | qué tan holgado entra el auto |
 | `V_SUBIDA` | las medidas | diferencia máxima de velocidad para subir |
 | `QUIETO` | las medidas | qué tan quieto hay que quedarse |
-| `NIVELES` | dificultades | velocidad de la camioneta, vaivén, cantidad de rivales, `exito` (cuántos intentos de los rivales salen limpios), `demora` (cuánto esperan antes de volver a encarar) y `aguante` (segundos que hay que aguantar arriba) |
+| `NIVELES` | dificultades | velocidad de la camioneta, cantidad de rivales, `exito` (cuántos intentos de los rivales salen limpios), `demora` (cuánto esperan antes de volver a encarar), `aguante` (segundos que hay que aguantar arriba), `embisten` (cuántos suben a sacar al que ya está) y `arranque` (cuánto dudan en la largada, que es lo que le da tiempo al jugador de llegar a la rampa) |
+| `vaiven` + `culebra` | dificultades y la camioneta | cuánto y qué tan rápido se corre de lado el conjunto. Tiene techo: la suma de amplitud sobre longitud de las tres ondas, por el vaivén, es lo cruzado que queda el acoplado, y con más de 0.42 rad ya no se puede subir |
 
 Con `?depurar=1` en la dirección queda `window.__juego` a mano, con los autos,
 la camioneta y las funciones de la pista. Sirve para probar el juego desde
