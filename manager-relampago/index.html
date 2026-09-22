@@ -337,6 +337,18 @@ try {
 }
 if (db) getDoc(doc(db, COL, "0000")).catch(function (e) { console.warn("calentando:", e); });
 
+/* La base por defecto se puede editar desde admin.html, que la guarda en
+   global_game_defaults/manager_base. Si está, reemplaza a la que viene en
+   base-chilena.js. Solo la usa el que arma la sala: al empezar se copia el
+   pozo a la sala, así que los demás no dependen de esto. */
+const baseRemota = !db ? Promise.resolve() :
+  conReloj(getDoc(doc(db, "global_game_defaults", "manager_base")), 8000).then(function (s) {
+    if (!s.exists()) return;
+    const d = s.data();
+    const r = M.leerBase(d.csv || "");
+    if (r.jugadores.length) { M.fijarBaseDefecto(r.jugadores, d.nombre); pintar(); }
+  }).catch(function (e) { console.warn("sin base editada, uso la del juego:", e); });
+
 /* ── atajos sobre la partida ─────────────────────────────── */
 const jugadores = () => (sala && sala.jugadores) || {};
 const listaJug  = () => Object.keys(jugadores()).sort(function (a, b) {
@@ -369,10 +381,59 @@ function tacticaDe(id){
   return { f: M.FORMACIONES[t.f] ? t.f : "4-4-2", e: M.ESTILOS[t.e] ? t.e : "eq" };
 }
 
+/* ── modo solo ───────────────────────────────────────────────
+   La partida contra la máquina vive entera en este navegador, sin Firestore.
+   Para no tener dos juegos, se imita lo poco que el juego usa de Firestore:
+   escribir campos (con rutas "a.b"), transacciones y el aviso de cambio. Todo
+   lo demás (draft, tácticas, partidos) es exactamente el mismo código. */
+let solo = false;
+let salaLocal = null;
+const REF_LOCAL = { local: true };
+const clonar = x => JSON.parse(JSON.stringify(x));
+
+function ponerRuta(obj, ruta, valor){
+  const p = ruta.split(".");
+  let o = obj;
+  for (let i = 0; i < p.length - 1; i++) {
+    if (typeof o[p[i]] !== "object" || o[p[i]] === null) o[p[i]] = {};
+    o = o[p[i]];
+  }
+  o[p[p.length - 1]] = clonar(valor);
+}
+function aplicarLocal(cambios){
+  for (const [k, v] of Object.entries(cambios)) ponerRuta(salaLocal, k, v);
+  try { localStorage.setItem("manager-solo", JSON.stringify(salaLocal)); } catch (e) {}
+  /* Como onSnapshot: el aviso llega después, no en medio de la escritura. */
+  const copia = clonar(salaLocal);
+  setTimeout(function(){ if (solo && salaLocal) recibirSala(copia); }, 0);
+}
+function actualizar(cambios){
+  if (solo) { aplicarLocal(cambios); return Promise.resolve(); }
+  return updateDoc(ref, cambios);
+}
+function transaccion(fn){
+  if (!solo) return runTransaction(db, fn);
+  const pendientes = [];
+  const t = {
+    get: async () => ({ exists: () => true, data: () => clonar(salaLocal) }),
+    update: (r, cambios) => pendientes.push(cambios)
+  };
+  return fn(t).then(function(res){ pendientes.forEach(aplicarLocal); return res; });
+}
+
+/* Lo que se hace cada vez que la sala cambia, venga de Firestore o del modo solo. */
+function recibirSala(datos){
+  const antes = sala;
+  sala = datos;
+  alCambiar(antes);
+  pintar();
+  revisarFase();
+}
+
 /* Las escrituras simples no se esperan: el onSnapshot redibuja al toque. */
 function escribir(cambios){
   if (!ref) return;
-  updateDoc(ref, cambios).catch(function(err){ avisar(explicarError(err, "guardar el cambio")); });
+  actualizar(cambios).catch(function(err){ avisar(explicarError(err, "guardar el cambio")); });
 }
 
 /* ── entrar y salir ──────────────────────────────────────── */
@@ -395,11 +456,7 @@ function escuchar(codigo){
     history.replaceState(null, "", location.pathname + "?sala=" + codigo);
   cortar = onSnapshot(ref, function(s){
     if (!s.exists()) { avisar("La sala ya no existe."); salirDeLaSala(); return; }
-    const antes = sala;
-    sala = s.data();
-    alCambiar(antes);
-    pintar();
-    revisarFase();
+    recibirSala(s.data());
   }, function(err){
     avisar(explicarError(err, "leer la sala"));
   });
@@ -408,6 +465,13 @@ function escuchar(codigo){
 function salirDeLaSala(){
   if (cortar) cortar();
   cortar = null; ref = null; sala = null;
+  if (solo) {
+    /* La partida queda guardada para retomarla, salvo que ya haya terminado. */
+    if (salaLocal && salaLocal.estado === "fin") try { localStorage.removeItem("manager-solo"); } catch (e) {}
+    solo = false; salaLocal = null; fase = "";
+    pintar();
+    return;
+  }
   salaGuardada = "";
   anotar("manager-sala", "");
   if (location.search) history.replaceState(null, "", location.pathname);
@@ -477,7 +541,7 @@ async function entrarSala(codigoForzado){
 function fuenteElegida(){
   return (usarPropia && basePropia)
     ? { nombre: basePropia.nombre, n: basePropia.jugadores.length, propia: true }
-    : { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length, propia: false };
+    : { nombre: M.nombreBaseDefecto(), n: M.baseDefecto().length, propia: false };
 }
 
 document.getElementById("archivo").addEventListener("change", function(ev){
@@ -511,8 +575,10 @@ function bajarPlantilla(){
 }
 
 /* ── empezar ─────────────────────────────────────────────── */
-function empezar(){
+async function empezar(){
   if (!soyMando() || sala.estado !== "sala") return;
+  await baseRemota;
+  if (!sala || sala.estado !== "sala") return;
   const ids = listaJug();
   if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
   if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
@@ -531,13 +597,118 @@ function empezar(){
   });
 }
 
+/* ── partida solo: vos contra tres rivales de la máquina ────── */
+const RIVALES_CPU = ["Deportivo Cordillera", "Unión Pacífico", "Atlético Desierto", "Real Araucanía",
+  "Sporting Patagonia", "Club Estrecho", "Juventud Altiplano", "Rangers del Maule"];
+const CANTIDAD_CPU = 3;
+
+async function crearSolo(){
+  if (!validarNombre()) return;
+  ocupado = true; pintar();
+  await baseRemota;
+  ocupado = false;
+  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
+  const picks = 16;
+  const faltan = M.alcanzaBase(base, CANTIDAD_CPU + 1, picks);
+  if (faltan.length) { avisar("La base no alcanza para cuatro equipos. Falta: " + faltan.join(", ") + "."); pintar(); return; }
+  let codigo = "";
+  for (let i = 0; i < 4; i++) codigo += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+  const semilla = codigo + "·" + Date.now();
+  const r = M.azar(semilla);
+  const clubes = RIVALES_CPU.map(c => [r(), c]).sort((a, b) => a[0] - b[0]).slice(0, CANTIDAD_CPU).map(x => x[1]);
+  const js = { [yo]: { nombre: miNombre, club: "", orden: 0 } };
+  clubes.forEach((c, i) => { js["cpu" + (i + 1)] = { nombre: "Máquina", club: c, orden: i + 1, cpu: true }; });
+  const ids = Object.keys(js);
+  const ordenDraft = ids.map(id => [r(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const tacticas = {};
+  for (const id of ids) tacticas[id] = { f: "4-4-2", e: "eq" };
+  salaLocal = {
+    codigo, solo: true, estado: "draft", ronda: 0, anfitrion: yo, jugadores: js,
+    config: { picks, seg: 0 }, fuente: fuenteElegida(), orden: ordenDraft,
+    pozo: M.armarPozo(base, ids.length, picks, semilla),
+    picks: {}, tacticas, listos: {}, historial: []
+  };
+  arrancarSolo();
+}
+
+function arrancarSolo(){
+  if (cortar) cortar();
+  cortar = null;
+  solo = true; ref = REF_LOCAL; fase = "";
+  if (location.search) history.replaceState(null, "", location.pathname);
+  aplicarLocal({});
+}
+
+function retomarSolo(){
+  try { salaLocal = JSON.parse(localStorage.getItem("manager-solo") || "null"); } catch (e) { salaLocal = null; }
+  if (!salaLocal || !salaLocal.solo) { avisar("No hay ninguna partida guardada."); return; }
+  arrancarSolo();
+}
+function hayPartidaSolo(){
+  try { const d = JSON.parse(localStorage.getItem("manager-solo") || "null"); return !!(d && d.solo && d.estado !== "fin"); }
+  catch (e) { return false; }
+}
+
+const esCPU = id => !!(jugadores()[id] && jugadores()[id].cpu);
+
+/* Lo que hacen los rivales de la máquina en cada fase. Se llama con cada
+   cambio de la sala y con el reloj de cuarto de segundo; las banderas evitan
+   que una misma decisión se tome dos veces. */
+let cpuHecho = false, cierreHecho = false;
+function moverCPU(){
+  const st = sala.estado;
+  if (st === "draft") {
+    const n = sala.ronda;
+    const id = M.turnoDe(orden(), n);
+    if (!esCPU(id) || cpuHecho) return;
+    cpuHecho = true;
+    /* Un respiro antes de cada pick, para que se vea el draft pasar. */
+    setTimeout(function(){
+      if (!solo || !sala || sala.estado !== "draft" || sala.ronda !== n) return;
+      const pl = calculos().pl[id] || [];
+      const idx = M.autoPick(pl, sala.pozo, sala.picks, cfg().picks, M.azar(sala.codigo + "·pick·" + n));
+      if (idx >= 0) hacerPick(n, idx);
+    }, 650);
+  } else if (st === "tactica") {
+    const j = sala.ronda;
+    if (!cpuHecho) {
+      cpuHecho = true;
+      const { pl } = calculos();
+      const cambios = {};
+      const previo = sala.historial.length ? sala.historial[sala.historial.length - 1].t : null;
+      for (const id of orden().filter(esCPU)) {
+        const rival = rivalDe(id, j);
+        const t = M.tacticaCPU(pl[id] || [], previo && rival && previo[rival] ? previo[rival].e : null,
+                               M.azar(sala.codigo + "·tactica·" + j + "·" + id));
+        cambios["tacticas." + id] = t;
+        cambios["listos." + id] = true;
+      }
+      escribir(cambios);
+      return;
+    }
+    const todos = orden().every(id => sala.listos && sala.listos[id]);
+    if (todos && !cierreHecho) { cierreHecho = true; cerrarTacticas(j); }
+  } else if (st === "partido") {
+    if (!cpuHecho) {
+      cpuHecho = true;
+      const cambios = {};
+      for (const id of orden().filter(esCPU)) cambios["listos." + id] = true;
+      escribir(cambios);
+      return;
+    }
+    const todos = orden().every(id => sala.listos && sala.listos[id]);
+    const animado = Date.now() - inicioFase >= SEG_PARTIDO * 1000;
+    if (todos && animado && !cierreHecho) { cierreHecho = true; siguienteJornada(sala.ronda); }
+  }
+}
+
 /* ── el draft ────────────────────────────────────────────── */
 /* El pick va en una transacción que comprueba el número de pick: si el
    piloto automático de otro teléfono se adelantó, este pick no pisa nada. */
 async function hacerPick(n, idx){
   if (!ref) return false;
   try {
-    return await conReloj(runTransaction(db, async function(t){
+    return await conReloj(transaccion(async function(t){
       const s = await t.get(ref);
       const d = s.data();
       if (!d || d.estado !== "draft" || d.ronda !== n) return false;
@@ -568,7 +739,7 @@ function pickAutomatico(n){
 /* ── jornadas ────────────────────────────────────────────── */
 async function cerrarTacticas(j){
   try {
-    await conReloj(runTransaction(db, async function(t){
+    await conReloj(transaccion(async function(t){
       const s = await t.get(ref);
       const d = s.data();
       if (!d || d.estado !== "tactica" || d.ronda !== j) return;
@@ -584,7 +755,7 @@ async function cerrarTacticas(j){
 
 async function siguienteJornada(j){
   try {
-    await conReloj(runTransaction(db, async function(t){
+    await conReloj(transaccion(async function(t){
       const s = await t.get(ref);
       const d = s.data();
       if (!d || d.estado !== "partido" || d.ronda !== j) return;
@@ -615,8 +786,11 @@ function alCambiar(antes){
     fase = clave;
     inicioFase = Date.now();
     disparado = false;
+    cpuHecho = false; cierreHecho = false;
     elegido = null;
-    const seg = sala.estado === "draft" ? cfg().seg
+    /* En la partida solo no hay apuro: nadie espera a nadie. */
+    const seg = solo ? 0
+              : sala.estado === "draft" ? cfg().seg
               : sala.estado === "tactica" ? SEG_TACTICA
               : sala.estado === "partido" ? SEG_PARTIDO + SEG_RESUMEN : 0;
     finFase = seg ? inicioFase + seg * 1000 : 0;
@@ -629,9 +803,11 @@ function alCambiar(antes){
 }
 
 function quedan(){ return finFase ? Math.ceil((finFase - Date.now()) / 1000) : 0; }
+function relojHTML(){ return finFase ? `<div class="reloj" id="reloj">${Math.max(0, quedan())}</div>` : ""; }
 
 function revisarFase(){
   if (!sala || !ref) return;
+  if (solo) { moverCPU(); return; }
   const st = sala.estado;
   if (st === "draft") {
     const n = sala.ronda;
@@ -692,10 +868,28 @@ function titulo(){
   return `<h1>Mánager<br><span>Relámpago</span></h1>`;
 }
 
+function cajaSolo(){
+  const guardada = hayPartidaSolo();
+  return `<div class="caja rayo">
+      <span class="et">Un jugador</span>
+      <h2>Jugar solo</h2>
+      <p class="chico">Vos contra tres rivales de la máquina: draft de 16 picks sin reloj, liga ida
+        y vuelta de seis fechas. La partida se guarda en este teléfono.</p>
+      ${guardada ? `<div class="fila" style="margin-bottom:9px">
+        <button class="verde" data-accion="retomar-solo" ${ocupado ? "disabled" : ""}>Seguir la partida</button></div>` : ""}
+      <button ${guardada ? `class="fantasma"` : ""} data-accion="solo" ${ocupado ? "disabled" : ""}>
+        ${ocupado ? "Armando…" : guardada ? "Empezar otra" : "Contra 3 rivales"}</button>
+    </div>`;
+}
+
 function vistaPortada(){
   if (!db) return `<header>${titulo()}</header>
     <div class="caja roja"><h2>Sin conexión</h2>
-    <p class="chico">Es multijugador y necesita internet. Probá recargar la página.</p></div>`;
+    <p class="chico">El multijugador necesita internet. Probá recargar la página, o jugá solo.</p></div>
+    <div class="caja"><span class="et">Paso 1</span>
+      <input id="nombre" maxlength="14" placeholder="Tu nombre de DT" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}"></div>
+    ${cajaSolo()}`;
   const invitado = !!desdeUrl;
   const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
   return `
@@ -714,6 +908,8 @@ function vistaPortada(){
              spellcheck="false" value="${esc(miNombre)}">
       <p class="chico">Así te van a ver los demás en la tabla.</p>
     </div>
+
+    ${invitado ? "" : cajaSolo()}
 
     <div class="caja${invitado ? " rayo" : ""}">
       <span class="et">${invitado ? "Te invitaron a jugar" : "Si te pasaron un código"}</span>
@@ -750,7 +946,7 @@ function vistaPortada(){
 function cabecera(){
   const vivo = sala.estado !== "sala";
   return `<div class="cabezal" style="margin-top:6px">
-      <div><span class="et gris">Sala ${esc(sala.codigo)}</span>
+      <div><span class="et gris">${solo ? "Partida solo" : "Sala " + esc(sala.codigo)}</span>
         ${vivo && !juego() ? `<span class="et verde">Mirando</span>` : ""}</div>
       <button class="fantasma mini" data-accion="salir">Salir</button>
     </div>`;
@@ -760,7 +956,7 @@ function cabecera(){
 function vistaSala(){
   const ids = listaJug();
   const c = cfg();
-  const f = sala.fuente || { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length };
+  const f = sala.fuente || { nombre: M.nombreBaseDefecto(), n: M.baseDefecto().length };
   const link = location.origin + location.pathname + "?sala=" + sala.codigo;
   const mando = soyMando();
   const mio = jugadores()[yo] || {};
@@ -887,7 +1083,7 @@ function vistaDraft(){
       <div class="cabezal">
         <div><span class="et ${mio ? "" : "gris"}">Pick ${n + 1} de ${total} · vuelta ${Math.floor(n / orden().length) + 1}</span>
           <h2 style="margin:0">${mio ? "¡Te toca elegir!" : "Elige " + esc(nombreDe(turno))}</h2></div>
-        <div class="reloj" id="reloj">${Math.max(0, quedan())}</div>
+        ${relojHTML()}
       </div>
       <p class="chico" style="margin:4px 0 0">Después: ${proximos.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") || "se termina el draft"}</p>
     </div>
@@ -1006,7 +1202,7 @@ function vistaTactica(){
     <div class="caja">
       <div class="cabezal">
         <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${j === temp.liga ? "Charla de la final" : "Charla técnica"}</h2></div>
-        <div class="reloj" id="reloj">${Math.max(0, quedan())}</div>
+        ${relojHTML()}
       </div>
       <p class="chico" style="margin:0">${esperando.length ? "Faltan: " + esperando.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") : "Todos listos, arranca."}</p>
     </div>
@@ -1057,7 +1253,7 @@ function vistaPartido(){
     <div class="caja">
       <div class="cabezal">
         <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${terminado ? "Resultados" : "En juego"}</h2></div>
-        ${terminado ? `<div class="reloj" id="reloj">${Math.max(0, quedan())}</div>` : ""}
+        ${terminado ? `${relojHTML()}` : ""}
       </div>
     </div>
     <div id="partidos">${partidos.map((p, k) => partidoHTML(p, k, min)).join("")}</div>
@@ -1116,7 +1312,8 @@ function vistaFin(){
       <div class="copa" aria-hidden="true">🏆</div>
       <span class="et">Campeón</span>
       <h2>${esc(nombreDe(cid))}</h2>
-      <p class="chico">${gane ? "Sos el campeón. Que lo sepa todo el grupo." : "DT: " + esc(dtDe(cid)) + "."}
+      <p class="chico">${gane ? (solo ? "Le ganaste a la máquina." : "Sos el campeón. Que lo sepa todo el grupo.")
+        : esCPU(cid) ? "Esta vez ganó la máquina." : "DT: " + esc(dtDe(cid)) + "."}
         ${fi ? `Ganó la final ${fi.gana === fi.a ? fi.ga + " a " + fi.gb : fi.gb + " a " + fi.ga}${fi.penales ? " y en penales " + Math.max(...fi.penales) + " a " + Math.min(...fi.penales) : ""}
           contra ${esc(nombreDe(fi.gana === fi.a ? fi.b : fi.a))}`
           : `Hizo ${campeon.pts} puntos, ${campeon.g} ganados, ${campeon.gf} goles a favor`}.</p>
@@ -1131,7 +1328,8 @@ function vistaFin(){
         <summary><span class="punto" style="background:${colorDe(id)}"></span>${esc(nombreDe(id))}</summary>
         ${(pl[id] || []).map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("")}</details>`).join("")}
     </div>
-    ${soyMando() ? `<div class="flota"><button class="verde" data-accion="revancha">Revancha con los mismos</button></div>`
+    ${solo ? `<div class="flota"><button class="verde" data-accion="solo">Jugar otra</button></div>`
+      : soyMando() ? `<div class="flota"><button class="verde" data-accion="revancha">Revancha con los mismos</button></div>`
       : `<p class="chico">Si ${esc(dtDe(sala.anfitrion))} arma la revancha, vuelven todos a la sala.</p>`}`;
 }
 
@@ -1141,6 +1339,8 @@ app.addEventListener("click", function(ev){
   if (!b || b.disabled) return;
   const a = b.dataset.accion, v = b.dataset.valor;
   if (a === "crear") crearSala();
+  else if (a === "solo") { if (solo) salirDeLaSala(); crearSolo(); }
+  else if (a === "retomar-solo") retomarSolo();
   else if (a === "entrar") entrarSala();
   else if (a === "volver") entrarSala(v);
   else if (a === "salir") salirDeLaSala();

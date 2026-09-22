@@ -93,12 +93,33 @@ export function desempacar(txt) {
    Figuras históricas del fútbol chileno, en base-chilena.js. Es un CSV igual
    al que se sube a mano, leído con el mismo lector. Viene con el juego, así
    que es idéntica en todos los teléfonos sin bajar nada aparte. */
-let defectoCache = null;
+let defectoCache = null, nombreDefecto = NOMBRE_BASE;
 export function baseDefecto() {
   if (!defectoCache) defectoCache = leerBase(CSV_DEFECTO).jugadores;
   return defectoCache;
 }
+export function nombreBaseDefecto() { return nombreDefecto; }
+/* La consola de administración guarda una versión editada de la base en
+   Firestore. Si el juego la encuentra al arrancar, pasa a ser la de por defecto. */
+export function fijarBaseDefecto(jugadores, nombre) {
+  if (!jugadores || !jugadores.length) return;
+  defectoCache = jugadores;
+  if (nombre) nombreDefecto = String(nombre).slice(0, 40);
+}
+export function baseOriginal() { return leerBase(CSV_DEFECTO).jugadores; }
 export { NOMBRE_BASE };
+
+/* De vuelta a CSV, con el mismo formato que lee leerBase. */
+export function aCSV(jugadores) {
+  const campo = v => {
+    const t = String(v == null ? "" : v);
+    return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const conPais = jugadores.some(j => j.pais);
+  const cab = conPais ? "nombre;posicion;media;club;pais" : "nombre;posicion;media;club";
+  return cab + "\n" + jugadores.map(j =>
+    [j.nombre, j.pos, j.media, j.club].concat(conPais ? [j.pais] : []).map(campo).join(";")).join("\n") + "\n";
+}
 
 /* ── bases propias (CSV o JSON) ───────────────────────────────
    Se aceptan los nombres de columna más comunes, en castellano o en inglés,
@@ -325,7 +346,7 @@ export function pickValido(plantel, pos, pozo, picks, picksTotales) {
 /* El piloto automático: si se te acaba el reloj, elige por vos el mejor
    disponible del puesto que más te hace falta. Es determinista a propósito:
    si dos teléfonos lo corren a la vez, eligen al mismo. */
-export function autoPick(plantel, pozo, picks, picksTotales) {
+export function autoPick(plantel, pozo, picks, picksTotales, ruido) {
   const ya = tomados(picks);
   const c = contarPos(plantel);
   const libre = !hayOpcion(plantel, pozo, picks, picksTotales);
@@ -337,6 +358,9 @@ export function autoPick(plantel, pozo, picks, picksTotales) {
     let puntos = j.media;
     if (c[j.pos] < IDEAL[j.pos]) puntos += 8;
     if (j.pos === "POR" && c.POR >= 1) puntos -= 25;
+    /* Los rivales de la máquina no eligen siempre al mejor: un poco de ruido
+       hace que cada draft contra ellos sea distinto y deja pasar alguna ganga. */
+    if (ruido) puntos += ruido() * 7;
     if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = i; }
   }
   return mejor;
@@ -571,4 +595,22 @@ function anotar(fila, gf, gc) {
 }
 function ordenTabla(a, b) {
   return b.pts - a.pts || (b.gf - b.gc) - (a.gf - a.gc) || b.gf - a.gf || (a.id < b.id ? -1 : 1);
+}
+
+/* ── los rivales de la máquina ────────────────────────────────
+   Eligen la formación que mejor le calza a su plantel y un estilo con algo de
+   azar. Si ya vieron al rival, a veces juegan a ganarle el piedra, papel o
+   tijera con lo que usó la fecha pasada. */
+const CONTRA = { of: "def", eq: "of", def: "eq" };
+export function tacticaCPU(plantel, estiloPrevioRival, r) {
+  let mejor = "4-4-2", mejorSuma = -Infinity;
+  for (const f of Object.keys(FORMACIONES)) {
+    const x = fuerza(plantel, f, "eq");
+    const suma = x.def + x.med + x.ata + r() * 3;
+    if (suma > mejorSuma) { mejorSuma = suma; mejor = f; }
+  }
+  let e;
+  if (estiloPrevioRival && r() < 0.45) e = CONTRA[estiloPrevioRival];
+  else { const x = r(); e = x < 0.45 ? "eq" : x < 0.75 ? "of" : "def"; }
+  return { f: mejor, e };
 }

@@ -100,6 +100,30 @@ ya no le queda ningún jugador que respete los mínimos por puesto (por ejemplo,
 se acabaron los arqueros), el juego lo deja elegir a cualquiera antes que
 trabar el turno.
 
+**La consola de administración** está en `manager-relampago/admin.html`
+(<https://profesergiom.github.io/manager-relampago/admin.html>). Sirve para
+editar, agregar y quitar jugadores de la base por defecto sin tocar código.
+Guarda en Firestore, en `global_game_defaults/manager_base`, con los campos
+`csv` (la base entera, mismo formato que el archivo), `nombre`, `n`,
+`actualizado` y `por`. **No necesita regla nueva**: usa la de
+`global_game_defaults` que ya está publicada, que deja leer a cualquiera y
+escribir solo a la cuenta de administrador (la misma de Agente Agente). Hay que
+entrar con esa cuenta de Google para poder guardar; sin sesión se puede mirar y
+exportar.
+
+El juego lee ese documento al arrancar. Si existe, esa base reemplaza a la de
+`base-chilena.js`; si no existe o no se puede leer, se usa la del código. Las
+salas que ya empezaron no cambian, porque su pozo quedó copiado en la sala.
+
+**El modo solo** (vos contra tres rivales de la máquina) no usa Firestore: la
+partida vive en el navegador y se guarda en `localStorage` (`manager-solo`),
+así que se puede cerrar y retomar. Usa exactamente el mismo draft, tácticas y
+simulación que el multijugador; solo cambia dónde se escribe. No tiene relojes.
+Los rivales eligen con el piloto automático más un poco de azar, arman la
+formación que mejor le calza a su plantel y a veces juegan a ganarle el
+piedra, papel o tijera a lo que usaste la fecha anterior. Son cuatro equipos,
+así que se juega una liga ida y vuelta de seis fechas.
+
 **El formato del campeonato sale de cuántos DT hay**: 2 juegan una serie al
 mejor de tres, 3 o 4 una liga ida y vuelta, y de 5 a 8 una liga a una rueda
 con final entre los dos primeros (con penales si empatan).
