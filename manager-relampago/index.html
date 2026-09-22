@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mánager Relámpago</title>
+<meta name="google-adsense-account" content="ca-pub-6113562135089306">
+<meta name="description" content="Football manager multijugador de partidas cortas: draft en serpiente, tácticas y liga relámpago con tus amigos. Podés subir tu propia base de jugadores.">
+<meta property="og:title" content="Mánager Relámpago">
+<meta property="og:description" content="Draft en vivo, tácticas y una liga corta contra tus amigos. Con tu propia base de jugadores si querés.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800&display=swap">
+<!--
+  ═══ SALAS EN FIRESTORE ═════════════════════════════════
+  Cada partida es UN documento de la colección salas_manager, en el
+  mismo proyecto de Firebase que usan los otros juegos del sitio.
+  La regla de seguridad está en MANAGER.md, en la raíz del sitio.
+  Sin esa regla publicada el juego no arranca.
+
+  Nadie arbitra. Los picks del draft se escriben con una transacción
+  que comprueba el número de pick, así dos teléfonos no pueden elegir
+  en el mismo turno. Los partidos no se escriben nunca: cada teléfono
+  los simula a partir de los planteles y de las tácticas guardadas en
+  el historial, con una semilla fija (motor.js). Mismo dato, mismo
+  resultado en todos lados.
+  ════════════════════════════════════════════════════════
+-->
+<style>
+  /* Pizarra de vestuario: azul noche, tiza y un rayo ámbar. */
+  :root{
+    --noche:#0B1426; --pizarra:#12213B; --pizarra2:#0E1A30; --tiza:#EEF3FA; --tinta:#060C18;
+    --rayo:#FFC42E; --pasto:#2BD67B; --rojo:#FF4D6A; --cielo:#6FC3FF;
+    --humo:rgba(238,243,250,.62); --linea:rgba(238,243,250,.16);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--noche)}
+  body{
+    color:var(--tiza);font-size:16px;line-height:1.45;
+    font-family:Inter,system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+    padding:58px 14px 90px;max-width:620px;margin:0 auto;min-height:100vh;
+    background:
+      radial-gradient(90% 40% at 50% -10%,rgba(255,196,46,.16),transparent 65%),
+      radial-gradient(70% 50% at 100% 100%,rgba(43,214,123,.08),transparent 60%),
+      var(--noche);
+  }
+  .titular{font-family:Anton,Impact,"Arial Black",sans-serif;font-weight:400;
+    text-transform:uppercase;letter-spacing:.02em;line-height:.92}
+
+  header{text-align:center;margin:18px 0 18px}
+  h1{margin:0;font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;
+    line-height:.88;font-size:clamp(48px,14vw,80px);color:var(--tiza);
+    text-shadow:4px 5px 0 var(--tinta),0 0 30px rgba(255,196,46,.25)}
+  h1 span{color:var(--rayo)}
+  .bajada{font-size:14px;color:var(--humo);margin:12px auto 0;max-width:42ch}
+
+  .caja{background:linear-gradient(170deg,var(--pizarra),var(--pizarra2));
+    border:1.5px solid var(--linea);border-radius:14px;padding:14px 14px 16px;margin-bottom:14px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4)}
+  .caja.rayo{border-color:rgba(255,196,46,.6)}
+  .caja.verde{border-color:rgba(43,214,123,.6)}
+  .caja.roja{border-color:rgba(255,77,106,.6)}
+
+  .et{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--tinta);background:var(--rayo);
+    padding:3px 9px;border-radius:999px;margin-bottom:9px}
+  .et.gris{background:rgba(238,243,250,.2);color:var(--tiza)}
+  .et.verde{background:var(--pasto)}
+  h2{margin:0 0 9px;font-family:Anton,Impact,sans-serif;font-weight:400;
+    text-transform:uppercase;font-size:clamp(24px,6.6vw,32px);line-height:.95}
+  h3{margin:14px 0 7px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--humo)}
+  p{margin:0 0 9px}
+  .chico{font-size:13.5px;color:var(--humo);line-height:1.5}
+
+  input,select{width:100%;font:600 17px Inter,system-ui,sans-serif;color:var(--tiza);
+    background:rgba(0,0,0,.3);border:1.5px solid rgba(238,243,250,.26);
+    border-radius:11px;padding:10px 12px;outline:none;margin-bottom:10px}
+  input::placeholder{color:rgba(238,243,250,.35)}
+  input:focus{border-color:var(--rayo)}
+  input.codigo{text-align:center;letter-spacing:.3em;text-transform:uppercase;
+    font-family:Anton,sans-serif;font-size:32px;padding:8px 12px}
+
+  button{font-family:Anton,Impact,sans-serif;font-size:21px;letter-spacing:.03em;
+    text-transform:uppercase;color:var(--tinta);background:var(--rayo);
+    border:none;border-radius:11px;padding:10px 16px 8px;width:100%;cursor:pointer;
+    box-shadow:0 4px 0 #B3840E;transition:transform .07s,box-shadow .07s}
+  button:active{transform:translateY(3px);box-shadow:0 1px 0 #B3840E}
+  button:disabled{background:rgba(238,243,250,.18);color:rgba(238,243,250,.45);
+    box-shadow:0 4px 0 rgba(0,0,0,.3);cursor:default;transform:none}
+  button.verde{background:var(--pasto);box-shadow:0 4px 0 #168A4B}
+  button.cielo{background:var(--cielo);box-shadow:0 4px 0 #2F7FB8}
+  button.fantasma{background:transparent;color:var(--tiza);font-size:16px;
+    border:1.5px solid rgba(238,243,250,.3);box-shadow:none}
+  button.mini{width:auto;font-size:14px;padding:6px 11px 5px;box-shadow:none}
+  .fila{display:flex;gap:9px}
+  .fila > *{flex:1}
+
+  .codigazo{font-family:Anton,sans-serif;font-size:clamp(46px,15vw,66px);
+    letter-spacing:.16em;color:var(--rayo);text-align:center;line-height:1;margin:2px 0 8px;
+    text-shadow:0 0 22px rgba(255,196,46,.4)}
+
+  /* selector de opciones: formación, estilo, ajustes */
+  .opciones{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}
+  .opciones.dos{grid-template-columns:repeat(2,1fr)}
+  .op{font-family:Inter,sans-serif;font-weight:800;font-size:15px;letter-spacing:0;text-transform:none;
+    background:rgba(0,0,0,.28);color:var(--tiza);border:1.5px solid rgba(238,243,250,.22);
+    box-shadow:none;padding:9px 6px;border-radius:10px}
+  .op small{display:block;font-weight:600;font-size:11px;color:var(--humo);margin-top:2px}
+  .op[aria-pressed="true"]{background:var(--rayo);color:var(--tinta);border-color:var(--rayo)}
+  .op[aria-pressed="true"] small{color:rgba(6,12,24,.7)}
+  .op:disabled{opacity:.5}
+
+  /* reloj de la fase */
+  .cabezal{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .reloj{font-family:Anton,sans-serif;font-size:26px;line-height:1;background:var(--tinta);
+    color:var(--tiza);padding:6px 11px 4px;border-radius:9px;border:1.5px solid var(--linea);
+    min-width:62px;text-align:center}
+  .reloj.poco{background:var(--rojo);color:#fff;border-color:var(--rojo)}
+
+  /* jugadores de la sala */
+  .gente{list-style:none;margin:0;padding:0}
+  .gente li{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--linea)}
+  .gente li:last-child{border-bottom:none}
+  .punto{width:12px;height:12px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+  .gente .nom{font-weight:800}
+  .gente .sub{font-size:12.5px;color:var(--humo)}
+  .gente .der{margin-left:auto;font-size:12px;color:var(--humo);text-align:right}
+  .sello{font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    padding:2px 7px;border-radius:999px;background:rgba(238,243,250,.14);color:var(--tiza)}
+  .sello.ok{background:var(--pasto);color:var(--tinta)}
+  .sello.yo{background:var(--rayo);color:var(--tinta)}
+
+  /* fichas de jugador */
+  .pos{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.06em;
+    padding:2px 0;border-radius:6px;width:38px;text-align:center;color:var(--tinta);flex:none}
+  .pos.POR{background:#FFC42E}.pos.DEF{background:#6FC3FF}.pos.MED{background:#2BD67B}.pos.DEL{background:#FF7A8E}
+  .ficha{display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+    font-family:Inter,sans-serif;text-transform:none;letter-spacing:0;font-size:15px;
+    background:rgba(0,0,0,.22);color:var(--tiza);border:1.5px solid transparent;box-shadow:none;
+    border-radius:10px;padding:8px 10px;margin-bottom:5px}
+  .ficha:active{transform:none;box-shadow:none}
+  .ficha .quien{flex:1;min-width:0}
+  .ficha .quien b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ficha .quien small{display:block;color:var(--humo);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ficha .med{font-family:Anton,sans-serif;font-size:24px;line-height:1;min-width:34px;text-align:right}
+  .ficha[aria-pressed="true"]{border-color:var(--rayo);background:rgba(255,196,46,.14)}
+  .ficha.no{opacity:.4}
+  .ficha:disabled{background:rgba(0,0,0,.22);color:var(--tiza)}
+  .lista-pozo{max-height:52vh;overflow-y:auto;margin:0 -4px;padding:0 4px;
+    overscroll-behavior:contain}
+
+  .conteo{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .conteo span{font-size:12.5px;font-weight:700;background:rgba(0,0,0,.25);border-radius:7px;padding:3px 8px}
+  .conteo span.falta{box-shadow:inset 0 0 0 1.5px var(--rojo)}
+
+  .flota{position:sticky;bottom:10px;z-index:5;margin-top:10px}
+  .flota button{box-shadow:0 4px 0 #B3840E,0 10px 30px rgba(0,0,0,.6)}
+
+  /* la cancha chica de la táctica */
+  .cancha{position:relative;border-radius:12px;overflow:hidden;padding:10px 6px;margin:6px 0 10px;
+    background:repeating-linear-gradient(0deg,#15623A 0 30px,#135833 30px 60px);
+    border:2px solid rgba(238,243,250,.5)}
+  .cancha::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:2px solid rgba(238,243,250,.35)}
+  .cancha::after{content:"";position:absolute;left:50%;top:50%;width:70px;height:70px;
+    margin:-35px 0 0 -35px;border-radius:50%;border:2px solid rgba(238,243,250,.35)}
+  .linea-c{position:relative;z-index:1;display:flex;justify-content:space-around;gap:4px;margin:9px 0}
+  .chapa{flex:1;max-width:92px;text-align:center;font-size:10.5px;font-weight:700;line-height:1.15;
+    background:rgba(6,12,24,.78);border-radius:8px;padding:4px 3px}
+  .chapa b{display:block;font-family:Anton,sans-serif;font-size:17px;font-weight:400}
+  .chapa.fuera b{color:var(--rojo)}
+  .chapa span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  .barras{display:grid;grid-template-columns:44px 1fr 34px 34px;gap:5px 8px;align-items:center;font-size:13px}
+  .barras .r{height:9px;background:rgba(0,0,0,.35);border-radius:6px;position:relative;overflow:hidden}
+  .barras .r i{position:absolute;left:0;top:0;bottom:0;background:var(--pasto);border-radius:6px}
+  .barras .r i.otro{background:var(--rojo);height:4px;top:auto}
+  .barras .n{font-weight:800;text-align:right}
+  .barras .n.otro{color:var(--rojo)}
+
+  /* tabla */
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--humo);
+    text-align:right;padding:4px 4px;font-weight:800}
+  td{padding:7px 4px;text-align:right;border-top:1px solid var(--linea)}
+  th:nth-child(2),td:nth-child(2){text-align:left}
+  td.pts{font-family:Anton,sans-serif;font-size:19px}
+  tr.mio td{background:rgba(255,196,46,.1)}
+  .forma{display:inline-flex;gap:2px}
+  .forma i{width:7px;height:7px;border-radius:50%;display:inline-block}
+  .forma .G{background:var(--pasto)}.forma .E{background:#9aa3b2}.forma .P{background:var(--rojo)}
+
+  /* partidos */
+  .partido{background:rgba(0,0,0,.25);border-radius:12px;padding:10px 12px;margin-bottom:9px;
+    border:1.5px solid transparent}
+  .partido.mio{border-color:rgba(255,196,46,.6)}
+  .marcador{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px}
+  .marcador .eq{font-weight:800;font-size:15px;display:flex;align-items:center;gap:6px;min-width:0}
+  .marcador .eq span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .marcador .eq.b{justify-content:flex-end;text-align:right}
+  .marcador .goles{font-family:Anton,sans-serif;font-size:34px;line-height:1;letter-spacing:.04em}
+  .marcador .goles.salta{animation:salta .5s}
+  @keyframes salta{0%{transform:scale(1.5);color:var(--rayo)}100%{transform:scale(1)}}
+  .minuto{text-align:center;font-size:11.5px;font-weight:800;color:var(--rayo);letter-spacing:.1em}
+  .goleo{font-size:12.5px;color:var(--humo);display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-top:6px}
+  .goleo div:nth-child(2){text-align:right}
+  .posesion{height:5px;border-radius:4px;background:var(--rojo);margin-top:8px;overflow:hidden}
+  .posesion i{display:block;height:100%;background:var(--cielo)}
+  .detalle{font-size:11.5px;color:var(--humo);text-align:center;margin-top:4px}
+
+  .campeon{text-align:center;padding:10px 0 6px}
+  .campeon .copa{font-size:64px;line-height:1;filter:drop-shadow(0 0 18px rgba(255,196,46,.6))}
+  .campeon h2{font-size:clamp(34px,10vw,52px);color:var(--rayo);margin:8px 0 4px}
+
+  details{background:rgba(0,0,0,.2);border-radius:10px;padding:8px 10px;margin-bottom:6px}
+  summary{cursor:pointer;font-weight:800;display:flex;align-items:center;gap:8px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";margin-left:auto;color:var(--humo)}
+  details[open] summary::after{content:"–"}
+  details .ficha{background:transparent;padding:4px 0;margin:0}
+
+  .feed{font-size:13px;color:var(--humo);margin:0;padding:0;list-style:none}
+  .feed li{padding:3px 0}
+  .feed b{color:var(--tiza)}
+
+  .ayuda{font-size:13px;color:var(--humo);line-height:1.55}
+  .ayuda b{color:var(--tiza)}
+  .ayuda li{margin-bottom:5px}
+  .ayuda ol,.ayuda ul{padding-left:18px;margin:6px 0 0}
+
+  a{color:var(--cielo)}
+  #aviso{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:50;display:none;
+    max-width:min(92vw,480px);background:var(--rojo);color:#fff;font-weight:700;font-size:14px;
+    padding:11px 15px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  #aviso.bien{background:var(--pasto);color:var(--tinta)}
+  input[type=file]{display:none}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="aviso" role="status"></div>
+<input type="file" id="archivo" accept=".csv,.json,.txt,text/csv,application/json">
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot, runTransaction, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import * as M from "./motor.js";
+
+/* ══════════════════════════════════════════════════════════
+   MÁNAGER RELÁMPAGO · draft en serpiente, tácticas y una liga
+   corta contra los amigos. Cada fase tiene reloj: si alguien se
+   duerme, elige el piloto automático y la partida sigue.
+   ══════════════════════════════════════════════════════════ */
+
+const COL = "salas_manager";
+const BD  = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
+
+const MAX_EQUIPOS  = 8;
+const MAX_SALA     = 16;     // con espectadores
+const MIN_EQUIPOS  = 2;
+const SEG_TACTICA  = 45;
+const SEG_PARTIDO  = 16;     // lo que dura la animación de los 90 minutos
+const SEG_RESUMEN  = 30;     // después del pitazo, cuánto se espera a los que no apretan Seguir
+const GRACIA       = 3;      // los demás esperan un poco más antes de elegir por el dormido
+const ESPERA_RED   = 25000;
+const LETRAS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const COLORES = ["#FFC42E", "#6FC3FF", "#2BD67B", "#FF7A8E", "#C58BFF", "#FF9F43", "#EEF3FA", "#3DE0D0"];
+
+/* ── memoria del navegador ───────────────────────────────── */
+function leer(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function anotar(k, v){ try { localStorage.setItem(k, v); } catch (e) {} }
+
+let yo = leer("manager-yo");
+if (!yo) {
+  yo = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-3);
+  anotar("manager-yo", yo);
+}
+
+/* La base propia vive en este navegador: solo el anfitrión la necesita, porque
+   al empezar el draft se copia a la sala el pozo que se va a usar. */
+let basePropia = null;
+try { basePropia = JSON.parse(leer("manager-base") || "null"); } catch (e) { basePropia = null; }
+
+/* ── estado de la pantalla ───────────────────────────────── */
+let db = null, ref = null, cortar = null;
+let sala = null;
+let miNombre = leer("manager-nombre") || "";
+let codigoTecleado = "";
+let ocupado = false;
+let filtro = "TODOS", busqueda = "", elegido = null;
+const abiertos = new Set();
+let usarPropia = leer("manager-usar-propia") === "1";
+
+const desdeUrl = (new URLSearchParams(location.search).get("sala") || "")
+  .toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+if (desdeUrl) codigoTecleado = desdeUrl;
+let salaGuardada = leer("manager-sala") || "";
+
+const app   = document.getElementById("app");
+const aviso = document.getElementById("aviso");
+let relojAviso = null;
+function avisar(txt, bien){
+  aviso.textContent = txt;
+  aviso.className = bien ? "bien" : "";
+  aviso.style.display = "block";
+  clearTimeout(relojAviso);
+  relojAviso = setTimeout(function(){ aviso.style.display = "none"; }, bien ? 3000 : 6000);
+}
+
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+function conReloj(p, ms){
+  return Promise.race([
+    p, new Promise((_, no) => setTimeout(() => no(new Error("sin respuesta")), ms || ESPERA_RED))
+  ]);
+}
+function explicarError(err, que){
+  console.warn(err);
+  return err && err.code === "permission-denied"
+    ? "Firestore no deja " + que + ". Falta publicar la regla de salas_manager (MANAGER.md)."
+    : "No se pudo " + que + ". Revisá la conexión.";
+}
+
+try {
+  const fb = initializeApp({
+    apiKey:    "AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs",
+    projectId: "gen-lang-client-0964124310",
+    appId:     "1:161151384926:web:48d30816de6e09aab863cf"
+  });
+  db = getFirestore(fb, BD);
+} catch (e) {
+  console.warn("Firestore no disponible:", e);
+}
+if (db) getDoc(doc(db, COL, "0000")).catch(function (e) { console.warn("calentando:", e); });
+
+/* ── atajos sobre la partida ─────────────────────────────── */
+const jugadores = () => (sala && sala.jugadores) || {};
+const listaJug  = () => Object.keys(jugadores()).sort(function (a, b) {
+  return ((jugadores()[a].orden || 0) - (jugadores()[b].orden || 0)) || (a < b ? -1 : a > b ? 1 : 0);
+});
+const orden     = () => (sala && sala.orden) || [];
+const juego     = () => orden().includes(yo);
+const soyMando  = () => !!sala && sala.anfitrion === yo;
+const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()[id].nombre)) || "Equipo sin DT";
+const dtDe      = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
+const colorDe   = id => COLORES[Math.max(0, orden().indexOf(id)) % COLORES.length];
+const cfg       = () => Object.assign({ picks: 16, seg: 20 }, (sala && sala.config) || {});
+const totalPicks = () => orden().length * cfg().picks;
+
+/* Lo que sale del motor se recalcula solo cuando cambia algo que lo afecta. */
+let cacheClave = "", cacheTemp = null, cachePl = null;
+function calculos(){
+  const clave = JSON.stringify([sala.codigo, sala.orden, (sala.pozo || []).length,
+    sala.picks, (sala.historial || []).length]);
+  if (clave !== cacheClave) {
+    cacheClave = clave;
+    cachePl = M.planteles(orden(), sala.picks || {}, sala.pozo || []);
+    cacheTemp = M.temporada(sala.codigo, orden(), sala.pozo || [], sala.picks || {},
+                            sala.historial || []);
+  }
+  return { pl: cachePl, temp: cacheTemp };
+}
+function tacticaDe(id){
+  const t = (sala.tacticas && sala.tacticas[id]) || {};
+  return { f: M.FORMACIONES[t.f] ? t.f : "4-4-2", e: M.ESTILOS[t.e] ? t.e : "eq" };
+}
+
+/* Las escrituras simples no se esperan: el onSnapshot redibuja al toque. */
+function escribir(cambios){
+  if (!ref) return;
+  updateDoc(ref, cambios).catch(function(err){ avisar(explicarError(err, "guardar el cambio")); });
+}
+
+/* ── entrar y salir ──────────────────────────────────────── */
+async function codigoLibre(){
+  for (let intento = 0; intento < 6; intento++) {
+    let c = "";
+    for (let i = 0; i < 4; i++) c += LETRAS[Math.floor(Math.random() * LETRAS.length)];
+    const s = await conReloj(getDoc(doc(db, COL, c)));
+    if (!s.exists()) return c;
+  }
+  throw new Error("no hay códigos libres");
+}
+
+function escuchar(codigo){
+  if (cortar) cortar();
+  ref = doc(db, COL, codigo);
+  salaGuardada = codigo;
+  anotar("manager-sala", codigo);
+  if (new URLSearchParams(location.search).get("sala") !== codigo)
+    history.replaceState(null, "", location.pathname + "?sala=" + codigo);
+  cortar = onSnapshot(ref, function(s){
+    if (!s.exists()) { avisar("La sala ya no existe."); salirDeLaSala(); return; }
+    const antes = sala;
+    sala = s.data();
+    alCambiar(antes);
+    pintar();
+    revisarFase();
+  }, function(err){
+    avisar(explicarError(err, "leer la sala"));
+  });
+}
+
+function salirDeLaSala(){
+  if (cortar) cortar();
+  cortar = null; ref = null; sala = null;
+  salaGuardada = "";
+  anotar("manager-sala", "");
+  if (location.search) history.replaceState(null, "", location.pathname);
+  pintar();
+}
+
+function validarNombre(){
+  miNombre = (miNombre || "").trim().slice(0, 14);
+  if (!miNombre) { avisar("Escribí tu nombre primero."); return false; }
+  anotar("manager-nombre", miNombre);
+  return true;
+}
+
+async function crearSala(){
+  if (!db || !validarNombre()) return;
+  ocupado = true; pintar();
+  try {
+    const codigo = await codigoLibre();
+    setDoc(doc(db, COL, codigo), {
+      codigo, estado: "sala", ronda: 0, anfitrion: yo,
+      jugadores: { [yo]: { nombre: miNombre, club: "", orden: 0 } },
+      config: { picks: 16, seg: 20 },
+      fuente: fuenteElegida(),
+      orden: [], pozo: [], picks: {}, tacticas: {}, listos: {}, historial: [],
+      creada: serverTimestamp()
+    }).catch(function (err) { salirDeLaSala(); avisar(explicarError(err, "crear la sala")); });
+    escuchar(codigo);
+  } catch (e) {
+    avisar(explicarError(e, "crear la sala"));
+  } finally {
+    ocupado = false;
+    if (!sala) pintar();
+  }
+}
+
+async function entrarSala(codigoForzado){
+  if (!db || !validarNombre()) return;
+  const codigo = String(codigoForzado || codigoTecleado).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+  if (codigo.length !== 4) { avisar("El código tiene cuatro letras."); return; }
+  ocupado = true; pintar();
+  try {
+    const s = await conReloj(getDoc(doc(db, COL, codigo)));
+    if (!s.exists()) { avisar("No existe la sala " + codigo + "."); return; }
+    const d = s.data();
+    const js = d.jugadores || {};
+    if (!js[yo]) {
+      const cuantos = Object.keys(js).length;
+      if (cuantos >= MAX_SALA) { avisar("La sala está llena."); return; }
+      const equipos = Object.keys(js).length;
+      if (d.estado === "sala" && equipos >= MAX_EQUIPOS) { avisar("Ya hay ocho equipos en la sala."); return; }
+      await conReloj(updateDoc(doc(db, COL, codigo), {
+        ["jugadores." + yo]: { nombre: miNombre, club: "", orden: cuantos }
+      }));
+    } else if (js[yo].nombre !== miNombre) {
+      await conReloj(updateDoc(doc(db, COL, codigo), { ["jugadores." + yo + ".nombre"]: miNombre }));
+    }
+    escuchar(codigo);
+  } catch (e) {
+    avisar(explicarError(e, "entrar"));
+  } finally {
+    ocupado = false;
+    if (!sala) pintar();
+  }
+}
+
+/* ── la base de jugadores ────────────────────────────────── */
+function fuenteElegida(){
+  return (usarPropia && basePropia)
+    ? { nombre: basePropia.nombre, n: basePropia.jugadores.length, propia: true }
+    : { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length, propia: false };
+}
+
+document.getElementById("archivo").addEventListener("change", function(ev){
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (!f) return;
+  if (f.size > 8 * 1024 * 1024) { avisar("El archivo pesa más de 8 MB. Recortalo un poco."); return; }
+  const lector = new FileReader();
+  lector.onload = function(){
+    const res = M.leerBase(lector.result, f.name);
+    if (!res.jugadores.length) { avisar(res.avisos.join(" ") || "No se encontraron jugadores."); return; }
+    basePropia = { nombre: f.name.replace(/\.[^.]+$/, "").slice(0, 40), jugadores: res.jugadores, avisos: res.avisos };
+    try { anotar("manager-base", JSON.stringify(basePropia)); }
+    catch (e) { /* si no entra en el navegador, igual sirve para esta sesión */ }
+    usarPropia = true; anotar("manager-usar-propia", "1");
+    avisar(res.jugadores.length + " jugadores cargados de " + f.name + ".", true);
+    if (sala && soyMando() && sala.estado === "sala") escribir({ fuente: fuenteElegida() });
+    pintar();
+  };
+  lector.onerror = function(){ avisar("No se pudo leer el archivo."); };
+  lector.readAsText(f);
+});
+
+function bajarPlantilla(){
+  const blob = new Blob(["﻿" + M.PLANTILLA_CSV], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "plantilla-manager.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ── empezar ─────────────────────────────────────────────── */
+function empezar(){
+  if (!soyMando() || sala.estado !== "sala") return;
+  const ids = listaJug();
+  if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
+  if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
+  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
+  const faltan = M.alcanzaBase(base, ids.length, cfg().picks);
+  if (faltan.length) { avisar("La base no alcanza para " + ids.length + " equipos. Falta: " + faltan.join(", ") + "."); return; }
+  const semilla = sala.codigo + "·" + Date.now();
+  const r = M.azar(semilla);
+  const ordenDraft = ids.map(id => [r(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const tacticas = {};
+  for (const id of ids) tacticas[id] = { f: "4-4-2", e: "eq" };
+  escribir({
+    estado: "draft", ronda: 0, orden: ordenDraft,
+    pozo: M.armarPozo(base, ids.length, cfg().picks, semilla),
+    fuente: fuenteElegida(), picks: {}, tacticas, listos: {}, historial: []
+  });
+}
+
+/* ── el draft ────────────────────────────────────────────── */
+/* El pick va en una transacción que comprueba el número de pick: si el
+   piloto automático de otro teléfono se adelantó, este pick no pisa nada. */
+async function hacerPick(n, idx){
+  if (!ref) return false;
+  try {
+    return await conReloj(runTransaction(db, async function(t){
+      const s = await t.get(ref);
+      const d = s.data();
+      if (!d || d.estado !== "draft" || d.ronda !== n) return false;
+      if (M.tomados(d.picks).has(idx)) return false;
+      const total = d.orden.length * Object.assign({ picks: 16 }, d.config).picks;
+      const id = M.turnoDe(d.orden, n);
+      const pl = M.planteles(d.orden, d.picks, d.pozo)[id];
+      const j = M.desempacar(d.pozo[idx]);
+      if (!M.pickValido(pl, j.pos, d.pozo, d.picks, total / d.orden.length)) return false;
+      const fin = n + 1 >= total;
+      t.update(ref, Object.assign({ ["picks." + n]: idx },
+        fin ? { estado: "tactica", ronda: 0, listos: {} } : { ronda: n + 1 }));
+      return true;
+    }));
+  } catch (e) {
+    avisar(explicarError(e, "guardar el pick"));
+    return false;
+  }
+}
+
+function pickAutomatico(n){
+  const id = M.turnoDe(orden(), n);
+  const pl = calculos().pl[id] || [];
+  const idx = M.autoPick(pl, sala.pozo, sala.picks, cfg().picks);
+  if (idx >= 0) hacerPick(n, idx);
+}
+
+/* ── jornadas ────────────────────────────────────────────── */
+async function cerrarTacticas(j){
+  try {
+    await conReloj(runTransaction(db, async function(t){
+      const s = await t.get(ref);
+      const d = s.data();
+      if (!d || d.estado !== "tactica" || d.ronda !== j) return;
+      const tt = {};
+      for (const id of d.orden) {
+        const x = (d.tacticas && d.tacticas[id]) || {};
+        tt[id] = { f: M.FORMACIONES[x.f] ? x.f : "4-4-2", e: M.ESTILOS[x.e] ? x.e : "eq" };
+      }
+      t.update(ref, { estado: "partido", listos: {}, historial: (d.historial || []).concat([{ t: tt }]) });
+    }));
+  } catch (e) { avisar(explicarError(e, "cerrar la jornada")); }
+}
+
+async function siguienteJornada(j){
+  try {
+    await conReloj(runTransaction(db, async function(t){
+      const s = await t.get(ref);
+      const d = s.data();
+      if (!d || d.estado !== "partido" || d.ronda !== j) return;
+      const fechas = M.totalFechas(d.orden);
+      t.update(ref, j + 1 >= fechas
+        ? { estado: "fin", listos: {} }
+        : { estado: "tactica", ronda: j + 1, listos: {} });
+    }));
+  } catch (e) { avisar(explicarError(e, "pasar de jornada")); }
+}
+
+function revancha(){
+  if (!soyMando()) return;
+  escribir({ estado: "sala", ronda: 0, orden: [], pozo: [], picks: {}, tacticas: {}, listos: {}, historial: [],
+             fuente: fuenteElegida() });
+}
+
+/* ── los relojes ─────────────────────────────────────────────
+   Cada teléfono cuenta su propio tiempo desde que ve la fase: así no importa
+   que los relojes estén desfasados. Al llegar a cero, el que primero se da
+   cuenta hace lo que corresponde, y la transacción impide que se haga dos
+   veces. */
+let fase = "", finFase = 0, inicioFase = 0, disparado = false;
+
+function alCambiar(antes){
+  const clave = sala.estado + "·" + sala.ronda;
+  if (clave !== fase) {
+    fase = clave;
+    inicioFase = Date.now();
+    disparado = false;
+    elegido = null;
+    const seg = sala.estado === "draft" ? cfg().seg
+              : sala.estado === "tactica" ? SEG_TACTICA
+              : sala.estado === "partido" ? SEG_PARTIDO + SEG_RESUMEN : 0;
+    finFase = seg ? inicioFase + seg * 1000 : 0;
+    if (sala.estado === "draft" && M.turnoDe(orden(), sala.ronda) === yo && navigator.vibrate) {
+      try { navigator.vibrate([90, 60, 90]); } catch (e) {}
+    }
+    if (sala.estado === "partido") { golesVistos = {}; }
+    if (sala.estado !== "draft") { filtro = "TODOS"; busqueda = ""; }
+  }
+}
+
+function quedan(){ return finFase ? Math.ceil((finFase - Date.now()) / 1000) : 0; }
+
+function revisarFase(){
+  if (!sala || !ref) return;
+  const st = sala.estado;
+  if (st === "draft") {
+    const n = sala.ronda;
+    const mio = M.turnoDe(orden(), n) === yo;
+    const q = (finFase - Date.now()) / 1000;
+    if (!disparado && (q <= 0 && mio || q <= -GRACIA)) { disparado = true; pickAutomatico(n); }
+    /* Si la transacción no pasó (se adelantó otro), probamos de nuevo más tarde. */
+    if (disparado && q <= -GRACIA - 8) { disparado = false; finFase = Date.now() + 1000; }
+  } else if (st === "tactica") {
+    const todos = orden().every(id => sala.listos && sala.listos[id]);
+    if (!disparado && (todos || Date.now() >= finFase)) { disparado = true; cerrarTacticas(sala.ronda); }
+  } else if (st === "partido") {
+    const todos = orden().every(id => sala.listos && sala.listos[id]);
+    const animado = Date.now() - inicioFase >= SEG_PARTIDO * 1000;
+    if (!disparado && animado && (todos || Date.now() >= finFase)) { disparado = true; siguienteJornada(sala.ronda); }
+  }
+}
+
+setInterval(function(){
+  if (!sala) return;
+  const r = document.getElementById("reloj");
+  if (r && finFase) {
+    const q = Math.max(0, sala.estado === "partido" ? quedan() : quedan());
+    r.textContent = q;
+    r.classList.toggle("poco", q <= 5);
+  }
+  if (sala.estado === "partido") animarPartidos();
+  revisarFase();
+}, 250);
+
+/* ═══ PINTAR ════════════════════════════════════════════════ */
+function pintar(){
+  /* Se redibuja todo en cada cambio. Para no perder lo que el jugador está
+     escribiendo ni el lugar de la lista, se guarda y se repone. */
+  const foco = document.activeElement && document.activeElement.id;
+  const selIni = foco && document.activeElement.selectionStart;
+  const lista = document.querySelector(".lista-pozo");
+  const scroll = lista ? lista.scrollTop : 0;
+
+  if (!sala) app.innerHTML = vistaPortada();
+  else app.innerHTML = cabecera() + ({
+    sala: vistaSala, draft: vistaDraft, tactica: vistaTactica, partido: vistaPartido, fin: vistaFin
+  }[sala.estado] || vistaSala)();
+
+  if (foco) {
+    const el = document.getElementById(foco);
+    if (el && el.tagName === "INPUT") {
+      el.focus();
+      try { if (selIni != null) el.setSelectionRange(selIni, selIni); } catch (e) {}
+    }
+  }
+  const lista2 = document.querySelector(".lista-pozo");
+  if (lista2) lista2.scrollTop = scroll;
+  if (sala && sala.estado === "partido") animarPartidos(true);
+}
+
+function titulo(){
+  return `<h1>Mánager<br><span>Relámpago</span></h1>`;
+}
+
+function vistaPortada(){
+  if (!db) return `<header>${titulo()}</header>
+    <div class="caja roja"><h2>Sin conexión</h2>
+    <p class="chico">Es multijugador y necesita internet. Probá recargar la página.</p></div>`;
+  const invitado = !!desdeUrl;
+  const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
+  return `
+    <header>${titulo()}
+      <p class="bajada">Draft en vivo con leyendas del fútbol chileno, una táctica por fecha
+        y un campeonato corto contra tus amigos.</p>
+    </header>
+
+    ${retomar ? `<div class="caja rayo"><span class="et">Quedaste a medias</span>
+      <button data-accion="volver" data-valor="${esc(salaGuardada)}" ${ocupado ? "disabled" : ""}>
+        Volver a la sala ${esc(salaGuardada)}</button></div>` : ""}
+
+    <div class="caja">
+      <span class="et">Paso 1</span>
+      <input id="nombre" maxlength="14" placeholder="Tu nombre de DT" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}">
+      <p class="chico">Así te van a ver los demás en la tabla.</p>
+    </div>
+
+    <div class="caja${invitado ? " rayo" : ""}">
+      <span class="et">${invitado ? "Te invitaron a jugar" : "Si te pasaron un código"}</span>
+      <h2>Entrar a una sala</h2>
+      <input id="codigo" class="codigo" maxlength="4" placeholder="ABCD" autocomplete="off"
+             spellcheck="false" value="${esc(codigoTecleado)}">
+      <button class="cielo" data-accion="entrar" ${ocupado ? "disabled" : ""}>${ocupado ? "Entrando…" : "Entrar"}</button>
+    </div>
+
+    <div class="caja">
+      <span class="et">Si armás vos la partida</span>
+      <h2>Crear una sala</h2>
+      <p class="chico">Vas a elegir la base de jugadores, cuántos picks tiene cada uno y
+        cuánto dura cada turno. Podés subir tu propia base en CSV o JSON.</p>
+      <button data-accion="crear" ${ocupado ? "disabled" : ""}>${ocupado ? "Creando…" : "Crear sala"}</button>
+    </div>
+
+    <div class="caja">
+      <span class="et gris">Cómo se juega</span>
+      <div class="ayuda"><ol>
+        <li><b>Draft en serpiente.</b> Cada uno elige un jugador por turno, y el orden se da
+          vuelta en cada vuelta. Si se te acaba el reloj, elige el piloto automático.</li>
+        <li><b>Plantel completo.</b> Hace falta al menos 1 arquero, 3 defensas, 3 medios y
+          1 delantero. El draft no te deja elegir algo que te impida llegar a eso.</li>
+        <li><b>Una táctica por fecha.</b> Formación y estilo. El defensivo le gana al ofensivo
+          de contragolpe, el ofensivo encierra al equilibrado y el equilibrado desarma al
+          defensivo. Los del mismo club o país suman química.</li>
+        <li><b>Liga todos contra todos.</b> Los partidos se simulan en vivo en todos los
+          teléfonos a la vez. Gana el que termina arriba en la tabla.</li>
+      </ol></div>
+    </div>`;
+}
+
+function cabecera(){
+  const vivo = sala.estado !== "sala";
+  return `<div class="cabezal" style="margin-top:6px">
+      <div><span class="et gris">Sala ${esc(sala.codigo)}</span>
+        ${vivo && !juego() ? `<span class="et verde">Mirando</span>` : ""}</div>
+      <button class="fantasma mini" data-accion="salir">Salir</button>
+    </div>`;
+}
+
+/* ── sala de espera ──────────────────────────────────────── */
+function vistaSala(){
+  const ids = listaJug();
+  const c = cfg();
+  const f = sala.fuente || { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length };
+  const link = location.origin + location.pathname + "?sala=" + sala.codigo;
+  const mando = soyMando();
+  const mio = jugadores()[yo] || {};
+  const opcion = (campo, valor, texto, sub) =>
+    `<button class="op" data-accion="config" data-campo="${campo}" data-valor="${valor}"
+       aria-pressed="${c[campo] === valor}" ${mando ? "" : "disabled"}>${texto}${sub ? `<small>${sub}</small>` : ""}</button>`;
+  const fmt = M.formato(Math.max(2, ids.length));
+  const fechas = M.totalFechas(ids.length >= 2 ? ids : ["a", "b"]);
+  const minutos = Math.round((ids.length * c.picks * c.seg * 0.55 +
+    fechas * (SEG_TACTICA * 0.7 + SEG_PARTIDO + 8)) / 60);
+
+  return `
+    <div class="caja rayo" style="text-align:center">
+      <span class="et">Pasá el código</span>
+      <div class="codigazo">${esc(sala.codigo)}</div>
+      <div class="fila">
+        <button class="cielo" data-accion="compartir" data-valor="${esc(link)}">Compartir link</button>
+      </div>
+    </div>
+
+    <div class="caja">
+      <h2>DT en la sala · ${ids.length}/${MAX_EQUIPOS}</h2>
+      <ul class="gente">${ids.map((id, i) => `<li>
+        <span class="punto" style="background:${COLORES[i % COLORES.length]}"></span>
+        <div><div class="nom">${esc(dtDe(id))}</div>
+          <div class="sub">${esc(jugadores()[id].club || "Sin nombre de club")}</div></div>
+        <div class="der">
+          ${id === sala.anfitrion ? `<span class="sello yo">Arma</span>` : ""}
+          ${id === yo ? `<span class="sello">Vos</span>` : ""}
+          ${mando && id !== yo ? `<button class="fantasma mini" data-accion="echar" data-valor="${esc(id)}">Sacar</button>` : ""}
+        </div></li>`).join("")}</ul>
+      <h3>Tu club</h3>
+      <input id="club" maxlength="22" placeholder="Nombre de tu club (opcional)" autocomplete="off"
+             spellcheck="false" value="${esc(mio.club || "")}">
+    </div>
+
+    <div class="caja">
+      <h2>Reglas de la partida</h2>
+      ${mando ? "" : `<p class="chico">Las elige ${esc(dtDe(sala.anfitrion))}.</p>`}
+      <h3>Base de jugadores</h3>
+      <p><b>${esc(f.nombre)}</b> <span class="chico">· ${f.n} jugadores${f.propia ? " · subida por el que arma" : " históricos, cada uno con su club"}</span></p>
+      ${mando ? `
+        <div class="opciones dos">
+          <button class="op" data-accion="base" data-valor="clasica" aria-pressed="${!f.propia}">Leyendas chilenas<small>${M.baseDefecto().length} históricos</small></button>
+          <button class="op" data-accion="base" data-valor="propia" aria-pressed="${!!f.propia}">
+            ${basePropia ? esc(basePropia.nombre.slice(0, 18)) : "Propia"}<small>${basePropia ? basePropia.jugadores.length + " jugadores" : "todavía no subiste"}</small></button>
+        </div>
+        <div class="fila">
+          <button class="fantasma" data-accion="subir">Subir CSV o JSON</button>
+          <button class="fantasma" data-accion="plantilla">Plantilla</button>
+        </div>
+        ${basePropia && basePropia.avisos && basePropia.avisos.length && f.propia
+          ? `<p class="chico" style="margin-top:8px">${esc(basePropia.avisos.join(" "))}</p>` : ""}
+        <p class="chico" style="margin-top:8px">Columnas: <b>nombre</b>, <b>posicion</b>, <b>media</b>
+          (1 a 99) y, si querés química, <b>club</b> y <b>pais</b>. Sirven las posiciones de
+          cualquier juego (GK, CB, CAM, ST, POR, DFC, MC, DC…) y los nombres de columna en
+          inglés de las bases más comunes. Solo tu teléfono necesita el archivo.</p>` : ""}
+
+      <h3>Picks por equipo</h3>
+      <div class="opciones">${opcion("picks", 12, "12", "1 suplente")}${opcion("picks", 14, "14", "3 suplentes")}${opcion("picks", 16, "16", "5 suplentes")}</div>
+      <h3>Tiempo por pick</h3>
+      <div class="opciones">${opcion("seg", 12, "12 s", "a lo loco")}${opcion("seg", 20, "20 s", "normal")}${opcion("seg", 35, "35 s", "con calma")}</div>
+      <h3>Campeonato</h3>
+      <p style="margin-bottom:4px"><b>${esc(fmt.nombre)}</b> <span class="chico">· ${fechas} fechas</span></p>
+      <p class="chico">${esc(fmt.detalle)} El formato se ajusta solo a cuántos DT hay:
+        2 juegan una serie, de 3 a 4 una liga ida y vuelta, y de 5 a 8 una liga con final.
+        Con ${ids.length < 2 ? "dos" : ids.length} DT, unos ${Math.max(5, minutos)} minutos en total.
+        El draft sale de un pozo de ${Math.max(M.TAM_POZO, Math.ceil(Math.max(2, ids.length) * c.picks * 1.25))} jugadores.</p>
+    </div>
+
+    ${mando ? `<div class="flota"><button class="verde" data-accion="empezar" ${ids.length < MIN_EQUIPOS ? "disabled" : ""}>
+        ${ids.length < MIN_EQUIPOS ? "Esperando rivales…" : "Empezar el draft"}</button></div>`
+      : `<div class="caja"><p class="chico" style="margin:0">Esperando que ${esc(dtDe(sala.anfitrion))} empiece.
+        ${sala.anfitrion && !jugadores()[sala.anfitrion] ? "" : ""}</p>
+        <button class="fantasma" style="margin-top:10px" data-accion="mando">Tomar el mando</button></div>`}`;
+}
+
+/* ── draft ───────────────────────────────────────────────── */
+function fichaHTML(j, extra){
+  return `<span class="pos ${j.pos}">${j.pos}</span>
+    <span class="quien"><b>${esc(j.nombre)}</b><small>${esc([j.club, j.pais].filter(Boolean).join(" · ") || "Sin club")}</small></span>
+    ${extra || ""}<span class="med">${j.media}</span>`;
+}
+
+function contarPos(pl){
+  const c = { POR: 0, DEF: 0, MED: 0, DEL: 0 };
+  for (const j of pl) c[j.pos]++;
+  return c;
+}
+
+function vistaDraft(){
+  const n = sala.ronda;
+  const total = totalPicks();
+  const turno = M.turnoDe(orden(), n);
+  const mio = turno === yo;
+  const { pl } = calculos();
+  const mi = pl[yo] || [];
+  const ya = M.tomados(sala.picks);
+  const c = contarPos(mi);
+  const pozo = (sala.pozo || []).map((t, i) => Object.assign({ i }, M.desempacar(t)));
+  const q = busqueda.trim().toLowerCase();
+  const visibles = pozo.filter(j => !ya.has(j.i) && (filtro === "TODOS" || j.pos === filtro) &&
+    (!q || (j.nombre + " " + j.club + " " + j.pais).toLowerCase().includes(q)));
+
+  /* Los últimos picks, del más nuevo al más viejo. */
+  const ultimos = [];
+  for (let k = n - 1; k >= 0 && ultimos.length < 4; k--) {
+    const idx = sala.picks[k];
+    if (idx == null) continue;
+    const j = M.desempacar(sala.pozo[idx]);
+    ultimos.push(`<li><b>${esc(nombreDe(M.turnoDe(orden(), k)))}</b> se llevó a ${esc(j.nombre)}
+      <span class="pos ${j.pos}" style="width:auto;padding:1px 5px">${j.pos} ${j.media}</span></li>`);
+  }
+  /* Quiénes vienen después. */
+  const proximos = [];
+  for (let k = n + 1; k < Math.min(total, n + 5); k++) proximos.push(M.turnoDe(orden(), k));
+
+  const sel = elegido != null ? pozo[elegido] : null;
+  const libre = juego() && !M.hayOpcion(mi, sala.pozo, sala.picks, cfg().picks);
+  const puede = sel && !ya.has(sel.i) && (libre || M.puedeElegir(mi, sel.pos, cfg().picks));
+
+  return `
+    <div class="caja ${mio ? "rayo" : ""}">
+      <div class="cabezal">
+        <div><span class="et ${mio ? "" : "gris"}">Pick ${n + 1} de ${total} · vuelta ${Math.floor(n / orden().length) + 1}</span>
+          <h2 style="margin:0">${mio ? "¡Te toca elegir!" : "Elige " + esc(nombreDe(turno))}</h2></div>
+        <div class="reloj" id="reloj">${Math.max(0, quedan())}</div>
+      </div>
+      <p class="chico" style="margin:4px 0 0">Después: ${proximos.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") || "se termina el draft"}</p>
+    </div>
+
+    ${juego() ? `<div class="caja">
+      <h3 style="margin-top:0">Tu plantel · ${mi.length}/${cfg().picks}</h3>
+      <div class="conteo">${M.POSICIONES.map(p =>
+        `<span class="${c[p] < M.MINIMOS[p] ? "falta" : ""}">${p} ${c[p]}${c[p] < M.MINIMOS[p] ? " de " + M.MINIMOS[p] : ""}</span>`).join("")}</div>
+      ${mi.length ? `<details ${abiertos.has("yo") ? "open" : ""} data-id="yo"><summary>Ver mis jugadores</summary>
+        ${mi.slice().sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media)
+          .map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("")}</details>` : ""}
+    </div>` : ""}
+
+    <div class="caja">
+      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">
+        ${["TODOS", ...M.POSICIONES].map(p => `<button class="op" data-accion="filtro" data-valor="${p}"
+          aria-pressed="${filtro === p}">${p === "TODOS" ? "Todos" : p}</button>`).join("")}
+      </div>
+      <input id="buscar" placeholder="Buscar por nombre o club" autocomplete="off" spellcheck="false" value="${esc(busqueda)}">
+      <div class="lista-pozo">
+        ${visibles.length ? visibles.map(j => {
+          const ok = !juego() || libre || M.puedeElegir(mi, j.pos, cfg().picks);
+          return `<button class="ficha ${ok ? "" : "no"}" data-accion="elegir" data-valor="${j.i}"
+            aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j)}</button>`;
+        }).join("") : `<p class="chico">No queda nadie con ese filtro.</p>`}
+      </div>
+      ${mio ? `<div class="flota"><button data-accion="pick" ${puede ? "" : "disabled"}>
+        ${sel ? (puede ? "Fichar a " + esc(sel.nombre) : "No podés sumar otro " + sel.pos) : "Tocá un jugador"}</button></div>` : ""}
+    </div>
+
+    ${ultimos.length ? `<div class="caja"><h3 style="margin-top:0">Últimos picks</h3><ul class="feed">${ultimos.join("")}</ul></div>` : ""}
+
+    <div class="caja"><h3 style="margin-top:0">Los planteles</h3>
+      ${orden().filter(id => id !== yo).map(id => {
+        const p = pl[id] || [];
+        const cc = contarPos(p);
+        return `<details ${abiertos.has(id) ? "open" : ""} data-id="${esc(id)}">
+          <summary><span class="punto" style="background:${colorDe(id)}"></span>${esc(nombreDe(id))}
+            <span class="chico" style="font-weight:600">${p.length} · ${M.POSICIONES.map(x => x + " " + cc[x]).join(" ")}</span></summary>
+          ${p.map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("") || `<p class="chico">Todavía nada.</p>`}
+        </details>`;
+      }).join("")}
+    </div>`;
+}
+
+/* ── táctica ─────────────────────────────────────────────── */
+function rivalDe(id, j){
+  const { temp } = calculos();
+  const fecha = temp.fechas[j] || [];
+  for (const [a, b] of fecha) { if (a === id) return b; if (b === id) return a; }
+  return null;
+}
+
+function canchaHTML(once){
+  const filas = ["DEL", "MED", "DEF", "POR"].map(pos => {
+    const de = once.filter(o => o.en === pos);
+    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos ? "fuera" : ""}">
+      <b>${Math.round(o.rinde)}</b><span>${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
+      ${o.j.pos !== pos ? `<span style="color:var(--rojo)">${o.j.pos}</span>` : ""}</div>`).join("")}</div>`;
+  });
+  return `<div class="cancha">${filas.join("")}</div>`;
+}
+
+function tablaHTML(tabla){
+  return `<table><thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>DG</th><th>Forma</th><th>Pts</th></tr></thead>
+    <tbody>${tabla.map((f, i) => `<tr class="${f.id === yo ? "mio" : ""}">
+      <td>${i + 1}</td>
+      <td><span class="punto" style="display:inline-block;background:${colorDe(f.id)};margin-right:6px;vertical-align:-1px"></span>${esc(nombreDe(f.id))}</td>
+      <td>${f.pj}</td><td>${f.gf - f.gc > 0 ? "+" : ""}${f.gf - f.gc}</td>
+      <td><span class="forma">${f.forma.slice(-4).map(x => `<i class="${x}"></i>`).join("")}</span></td>
+      <td class="pts">${f.pts}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function vistaTactica(){
+  const j = sala.ronda;
+  const { pl, temp } = calculos();
+  const total = M.totalFechas(orden());
+  const t = tacticaDe(yo);
+  const listo = !!(sala.listos && sala.listos[yo]);
+  const rival = juego() ? rivalDe(yo, j) : null;
+  const esperando = orden().filter(id => !(sala.listos && sala.listos[id]));
+
+  let cuerpo = "";
+  if (juego()) {
+    const mia = M.fuerza(pl[yo] || [], t.f, t.e);
+    /* Del rival se muestra lo que usó la fecha pasada: su táctica de hoy es secreta. */
+    const previa = rival && sala.historial.length ? (sala.historial[sala.historial.length - 1].t || {})[rival] : null;
+    const tr = previa || { f: "4-4-2", e: "eq" };
+    const suya = rival ? M.fuerza(pl[rival] || [], tr.f, tr.e) : null;
+    const barra = (et, a, b) => `<span>${et}</span>
+      <span class="r"><i style="width:${Math.max(4, Math.min(100, (a - 45) * 2.2))}%"></i>
+        ${b != null ? `<i class="otro" style="width:${Math.max(4, Math.min(100, (b - 45) * 2.2))}%"></i>` : ""}</span>
+      <span class="n">${Math.round(a)}</span><span class="n otro">${b != null ? Math.round(b) : ""}</span>`;
+    cuerpo = `
+      <div class="caja ${listo ? "verde" : "rayo"}">
+        <p style="margin:0 0 4px">${rival
+          ? `Rival: <b style="color:${colorDe(rival)}">${esc(nombreDe(rival))}</b>
+             <span class="chico">${previa ? `· la fecha pasada jugó ${previa.f} ${M.ESTILOS[previa.e].nombre.toLowerCase()}` : "· primera fecha, nadie mostró nada"}</span>`
+          : `<b>Descansás esta fecha.</b> <span class="chico">Igual podés dejar lista la táctica.</span>`}</p>
+        <h3>Formación</h3>
+        <div class="opciones">${Object.keys(M.FORMACIONES).map(f => `<button class="op" data-accion="formacion" data-valor="${f}" aria-pressed="${t.f === f}">${f}</button>`).join("")}</div>
+        <h3>Estilo</h3>
+        <div class="opciones">${Object.entries(M.ESTILOS).map(([k, e]) => `<button class="op" data-accion="estilo" data-valor="${k}" aria-pressed="${t.e === k}">${e.nombre}
+          <small>${{ def: "gana al ofensivo", eq: "gana al defensivo", of: "gana al equilibrado" }[k]}</small></button>`).join("")}</div>
+        ${canchaHTML(mia.once)}
+        <div class="barras">
+          ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
+        </div>
+        <p class="chico" style="margin:8px 0 0">Química del once: <b>+${mia.quimica}%</b>${suya ? ` · en rojo, el rival con lo que usó la última vez` : ""}.
+          Los números en rojo en la cancha son jugadores fuera de su puesto.</p>
+        <div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="listo">${listo ? "Listo · cambiar algo" : "Listo para jugar"}</button></div>
+      </div>`;
+  }
+
+  return `
+    <div class="caja">
+      <div class="cabezal">
+        <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${j === temp.liga ? "Charla de la final" : "Charla técnica"}</h2></div>
+        <div class="reloj" id="reloj">${Math.max(0, quedan())}</div>
+      </div>
+      <p class="chico" style="margin:0">${esperando.length ? "Faltan: " + esperando.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") : "Todos listos, arranca."}</p>
+    </div>
+    ${cuerpo}
+    <div class="caja"><h3 style="margin-top:0">Tabla</h3>${tablaHTML(temp.tabla)}</div>`;
+}
+
+/* ── partido ─────────────────────────────────────────────── */
+let golesVistos = {};
+function minutoActual(){
+  return Math.min(90, Math.floor((Date.now() - inicioFase) / (SEG_PARTIDO * 1000) * 90));
+}
+
+function partidoHTML(p, k, min){
+  const ga = p.goles.filter(g => g.lado === 0 && g.min <= min);
+  const gb = p.goles.filter(g => g.lado === 1 && g.min <= min);
+  const mio = p.a === yo || p.b === yo;
+  return `<div class="partido ${mio ? "mio" : ""}" data-partido="${k}">
+    <div class="marcador">
+      <div class="eq"><span class="punto" style="background:${colorDe(p.a)}"></span><span>${esc(nombreDe(p.a))}</span></div>
+      <div class="goles" data-g="${k}">${ga.length} - ${gb.length}</div>
+      <div class="eq b"><span>${esc(nombreDe(p.b))}</span><span class="punto" style="background:${colorDe(p.b)}"></span></div>
+    </div>
+    <div class="minuto">${min >= 90 ? (p.penales ? "PENALES " + p.penales[0] + " - " + p.penales[1] : "FINAL") : min + "'"}</div>
+    <div class="goleo"><div>${ga.map(g => `<div>${g.min}' ${esc(g.autor)}</div>`).join("")}</div>
+      <div>${gb.map(g => `<div>${esc(g.autor)} ${g.min}'</div>`).join("")}</div></div>
+    ${min >= 90 ? `<div class="posesion"><i style="width:${p.posesion}%"></i></div>
+      <div class="detalle">Posesión ${p.posesion}% - ${100 - p.posesion}% ·
+        ${esc(sala.historial[sala.ronda].t[p.a].f)} ${M.ESTILOS[sala.historial[sala.ronda].t[p.a].e].nombre.toLowerCase()} vs
+        ${esc(sala.historial[sala.ronda].t[p.b].f)} ${M.ESTILOS[sala.historial[sala.ronda].t[p.b].e].nombre.toLowerCase()}
+        ${p.bono === 0 ? "· el estilo favoreció a " + esc(nombreDe(p.a)) : p.bono === 1 ? "· el estilo favoreció a " + esc(nombreDe(p.b)) : ""}</div>` : ""}
+  </div>`;
+}
+
+function vistaPartido(){
+  const j = sala.ronda;
+  const { temp } = calculos();
+  const jor = temp.jornadas[j];
+  if (!jor) return `<div class="caja"><p>Cargando la fecha…</p></div>`;
+  const min = minutoActual();
+  const terminado = min >= 90;
+  const partidos = jor.partidos.slice().sort((x, y) => ((y.a === yo || y.b === yo) - (x.a === yo || x.b === yo)));
+  const listo = !!(sala.listos && sala.listos[yo]);
+  const esperando = orden().filter(id => !(sala.listos && sala.listos[id]));
+  /* Durante los 90 minutos, la tabla es la de antes de la fecha. */
+  const tabla = terminado ? temp.tabla : tablaHasta(j);
+  return `
+    <div class="caja">
+      <div class="cabezal">
+        <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${terminado ? "Resultados" : "En juego"}</h2></div>
+        ${terminado ? `<div class="reloj" id="reloj">${Math.max(0, quedan())}</div>` : ""}
+      </div>
+    </div>
+    <div id="partidos">${partidos.map((p, k) => partidoHTML(p, k, min)).join("")}</div>
+    ${jor.descansa.length && !jor.final ? `<p class="chico">Descansa: ${jor.descansa.map(id => esc(nombreDe(id))).join(", ")}.</p>` : ""}
+    <div class="caja" id="tabla-partido"><h3 style="margin-top:0">Tabla${terminado ? "" : " antes de la fecha"}</h3>${tablaHTML(tabla)}</div>
+    ${terminado && juego() ? `<div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="seguir" ${listo ? "disabled" : ""}>
+      ${listo ? "Esperando a " + esc(esperando.map(nombreDe).join(", ") || "nadie") : j + 1 >= M.totalFechas(orden()) ? "Ver al campeón" : j + 1 === temp.liga ? "Seguir a la final" : "Seguir a la fecha " + (j + 2)}</button></div>` : ""}`;
+}
+
+function etiquetaFecha(j){
+  const { temp } = calculos();
+  if (temp.formato.final && j === temp.liga) return "Final";
+  return "Fecha " + (j + 1) + " de " + temp.liga;
+}
+
+function tablaHasta(j){
+  const T = M.temporada(sala.codigo, orden(), sala.pozo, sala.picks, (sala.historial || []).slice(0, j));
+  return T.tabla;
+}
+
+/* Cada cuarto de segundo avanza el reloj de los partidos. Solo se redibuja
+   todo cuando entra un gol o cuando termina, para no hacer parpadear nada. */
+let ultimoMin = -1;
+function animarPartidos(forzado){
+  if (!sala || sala.estado !== "partido") return;
+  const min = minutoActual();
+  if (!forzado && min === ultimoMin) return;
+  const antes = ultimoMin;
+  ultimoMin = min;
+  if (forzado) return;
+  const { temp } = calculos();
+  const jor = temp.jornadas[sala.ronda];
+  if (!jor) return;
+  const hubo = jor.partidos.some(p => p.goles.some(g => g.min > antes && g.min <= min));
+  if (hubo || (min >= 90 && antes < 90)) {
+    pintar();
+    if (hubo) document.querySelectorAll(".partido").forEach(function(el){
+      const g = el.querySelector(".goles");
+      if (g) { g.classList.remove("salta"); void g.offsetWidth; g.classList.add("salta"); }
+    });
+  } else {
+    document.querySelectorAll(".partido .minuto").forEach(el => { el.textContent = min + "'"; });
+  }
+}
+
+/* ── fin ─────────────────────────────────────────────────── */
+function vistaFin(){
+  const { temp, pl } = calculos();
+  const cid = temp.campeon || temp.tabla[0].id;
+  const campeon = temp.tabla.find(f => f.id === cid);
+  const gane = cid === yo;
+  const fi = temp.final;
+  const top = temp.artilleros.slice(0, 5);
+  return `
+    <div class="caja rayo campeon">
+      <div class="copa" aria-hidden="true">🏆</div>
+      <span class="et">Campeón</span>
+      <h2>${esc(nombreDe(cid))}</h2>
+      <p class="chico">${gane ? "Sos el campeón. Que lo sepa todo el grupo." : "DT: " + esc(dtDe(cid)) + "."}
+        ${fi ? `Ganó la final ${fi.gana === fi.a ? fi.ga + " a " + fi.gb : fi.gb + " a " + fi.ga}${fi.penales ? " y en penales " + Math.max(...fi.penales) + " a " + Math.min(...fi.penales) : ""}
+          contra ${esc(nombreDe(fi.gana === fi.a ? fi.b : fi.a))}`
+          : `Hizo ${campeon.pts} puntos, ${campeon.g} ganados, ${campeon.gf} goles a favor`}.</p>
+    </div>
+    <div class="caja"><h3 style="margin-top:0">${fi ? "Tabla de la liga" : "Tabla final"}</h3>${tablaHTML(temp.tabla)}</div>
+    ${top.length ? `<div class="caja"><h3 style="margin-top:0">Goleadores</h3><ul class="gente">
+      ${top.map(g => `<li><span class="punto" style="background:${colorDe(g.de)}"></span>
+        <div><div class="nom">${esc(g.nombre)}</div><div class="sub">${esc(nombreDe(g.de))}</div></div>
+        <div class="der titular" style="font-size:22px;color:var(--tiza)">${g.goles}</div></li>`).join("")}</ul></div>` : ""}
+    <div class="caja"><h3 style="margin-top:0">Los planteles</h3>
+      ${orden().map(id => `<details ${abiertos.has(id) ? "open" : ""} data-id="${esc(id)}">
+        <summary><span class="punto" style="background:${colorDe(id)}"></span>${esc(nombreDe(id))}</summary>
+        ${(pl[id] || []).map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("")}</details>`).join("")}
+    </div>
+    ${soyMando() ? `<div class="flota"><button class="verde" data-accion="revancha">Revancha con los mismos</button></div>`
+      : `<p class="chico">Si ${esc(dtDe(sala.anfitrion))} arma la revancha, vuelven todos a la sala.</p>`}`;
+}
+
+/* ═══ TOQUES ═══════════════════════════════════════════════ */
+app.addEventListener("click", function(ev){
+  const b = ev.target.closest("[data-accion]");
+  if (!b || b.disabled) return;
+  const a = b.dataset.accion, v = b.dataset.valor;
+  if (a === "crear") crearSala();
+  else if (a === "entrar") entrarSala();
+  else if (a === "volver") entrarSala(v);
+  else if (a === "salir") salirDeLaSala();
+  else if (a === "compartir") compartir(v);
+  else if (a === "config") {
+    if (!soyMando()) return;
+    escribir({ ["config." + b.dataset.campo]: Number(v) });
+  }
+  else if (a === "base") {
+    if (v === "propia" && !basePropia) { document.getElementById("archivo").click(); return; }
+    usarPropia = v === "propia"; anotar("manager-usar-propia", usarPropia ? "1" : "0");
+    escribir({ fuente: fuenteElegida() });
+  }
+  else if (a === "subir") document.getElementById("archivo").click();
+  else if (a === "plantilla") bajarPlantilla();
+  else if (a === "echar") {
+    if (!soyMando() || sala.estado !== "sala") return;
+    const js = Object.assign({}, jugadores()); delete js[v];
+    escribir({ jugadores: js });
+  }
+  else if (a === "mando") escribir({ anfitrion: yo });
+  else if (a === "empezar") empezar();
+  else if (a === "filtro") { filtro = v; pintar(); }
+  else if (a === "elegir") { elegido = Number(v); pintar(); }
+  else if (a === "pick") {
+    if (elegido == null) return;
+    const n = sala.ronda;
+    b.disabled = true;
+    hacerPick(n, elegido).then(function(ok){ if (!ok && sala && sala.ronda === n) { avisar("Ese pick no pasó. Probá con otro."); pintar(); } });
+  }
+  else if (a === "formacion") escribir({ ["tacticas." + yo + ".f"]: v, ["listos." + yo]: false });
+  else if (a === "estilo") escribir({ ["tacticas." + yo + ".e"]: v, ["listos." + yo]: false });
+  else if (a === "listo") escribir({ ["listos." + yo]: !(sala.listos && sala.listos[yo]) });
+  else if (a === "seguir") escribir({ ["listos." + yo]: true });
+  else if (a === "revancha") revancha();
+});
+
+app.addEventListener("input", function(ev){
+  const el = ev.target;
+  if (el.id === "nombre") miNombre = el.value;
+  else if (el.id === "codigo") codigoTecleado = el.value.toUpperCase();
+  else if (el.id === "buscar") { busqueda = el.value; pintar(); }
+});
+app.addEventListener("change", function(ev){
+  const el = ev.target;
+  if (el.id === "club" && sala) escribir({ ["jugadores." + yo + ".club"]: el.value.trim().slice(0, 22) });
+});
+app.addEventListener("keydown", function(ev){
+  if (ev.key !== "Enter") return;
+  if (ev.target.id === "codigo") entrarSala();
+  if (ev.target.id === "club") ev.target.blur();
+});
+app.addEventListener("toggle", function(ev){
+  const d = ev.target;
+  if (d.tagName !== "DETAILS" || !d.dataset.id) return;
+  if (d.open) abiertos.add(d.dataset.id); else abiertos.delete(d.dataset.id);
+}, true);
+
+async function compartir(link){
+  const texto = "Armé una liga en Mánager Relámpago. Entrá con el código " + sala.codigo + ": " + link;
+  try {
+    if (navigator.share) { await navigator.share({ title: "Mánager Relámpago", text: texto }); return; }
+  } catch (e) { if (e && e.name === "AbortError") return; }
+  try { await navigator.clipboard.writeText(link); avisar("Link copiado.", true); }
+  catch (e) { avisar("Copialo a mano: " + link); }
+}
+
+pintar();
+if (desdeUrl && miNombre) entrarSala();
+</script>
+<script defer src="../volver.js" data-pos="top-left"></script>
+<script defer src="../publicidad.js"></script>
+</body>
+</html>
