@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mánager Relámpago · Administración</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;800&display=swap">
+<!--
+  ═══ CONSOLA DE ADMINISTRACIÓN ══════════════════════════
+  Edita la base de jugadores por defecto del juego. La guarda en
+  Firestore, en global_game_defaults/manager_base, como un CSV en el
+  campo "csv". La regla de global_game_defaults (ya publicada, la
+  misma de Agente Agente) deja leer a cualquiera y escribir solo a
+  la cuenta de administrador, así que no hace falta ninguna regla
+  nueva. El juego lee ese documento al arrancar; si no existe, usa
+  base-chilena.js.
+  ════════════════════════════════════════════════════════
+-->
+<style>
+  :root{
+    --noche:#0B1426; --pizarra:#12213B; --pizarra2:#0E1A30; --tiza:#EEF3FA; --tinta:#060C18;
+    --rayo:#FFC42E; --pasto:#2BD67B; --rojo:#FF4D6A; --cielo:#6FC3FF;
+    --humo:rgba(238,243,250,.62); --linea:rgba(238,243,250,.16);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--noche)}
+  body{color:var(--tiza);font:15px/1.45 Inter,system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+    padding:18px 14px 110px;max-width:980px;margin:0 auto;min-height:100vh}
+  h1{margin:0 0 4px;font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;
+    font-size:clamp(30px,8vw,46px);line-height:.95}
+  h1 span{color:var(--rayo)}
+  h2{margin:0 0 8px;font-family:Anton,Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:22px}
+  .chico{font-size:13px;color:var(--humo)}
+  a{color:var(--cielo)}
+  .caja{background:linear-gradient(170deg,var(--pizarra),var(--pizarra2));border:1.5px solid var(--linea);
+    border-radius:14px;padding:14px;margin:14px 0}
+  .caja.rayo{border-color:rgba(255,196,46,.6)}
+  .caja.roja{border-color:rgba(255,77,106,.7)}
+  .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  button{font:800 14px Inter,system-ui,sans-serif;color:var(--tinta);background:var(--rayo);border:none;
+    border-radius:10px;padding:9px 14px;cursor:pointer}
+  button:disabled{opacity:.45;cursor:default}
+  button.verde{background:var(--pasto)}
+  button.fantasma{background:transparent;color:var(--tiza);border:1.5px solid rgba(238,243,250,.3)}
+  button.rojo{background:transparent;color:var(--rojo);border:1.5px solid rgba(255,77,106,.5)}
+  button.mini{padding:5px 9px;font-size:12.5px}
+  input,select{font:600 14px Inter,system-ui,sans-serif;color:var(--tiza);background:rgba(0,0,0,.3);
+    border:1.5px solid rgba(238,243,250,.2);border-radius:8px;padding:7px 8px;outline:none;min-width:0}
+  input:focus,select:focus{border-color:var(--rayo)}
+  select option{background:var(--pizarra);color:var(--tiza)}
+  input[type=file]{display:none}
+  .conteo{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+  .conteo span{font-size:12.5px;font-weight:800;background:rgba(0,0,0,.28);border-radius:7px;padding:4px 9px}
+  .conteo span.mal{box-shadow:inset 0 0 0 1.5px var(--rojo);color:#ffb3c0}
+  .conteo span.bien{box-shadow:inset 0 0 0 1.5px var(--pasto)}
+
+  .herr{display:grid;grid-template-columns:1fr auto auto;gap:8px;margin-bottom:10px}
+  @media (max-width:560px){.herr{grid-template-columns:1fr 1fr}.herr input{grid-column:1/-1}}
+
+  .tabla{width:100%;border-collapse:collapse}
+  .tabla th{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--humo);text-align:left;
+    padding:4px 4px;cursor:pointer;user-select:none;white-space:nowrap}
+  .tabla th.orden::after{content:" ▾"}
+  .tabla th.orden.sube::after{content:" ▴"}
+  .tabla td{padding:3px 4px;border-top:1px solid var(--linea);vertical-align:middle}
+  .tabla td input,.tabla td select{width:100%}
+  .tabla td.n{width:74px}
+  .tabla td.p{width:84px}
+  .tabla td.x{width:40px;text-align:right}
+  .tabla tr.nuevo td{background:rgba(43,214,123,.08)}
+  .tabla tr.cambiado td{background:rgba(255,196,46,.07)}
+  .tabla tr.dup td input.nom{border-color:var(--rojo)}
+  .tabla td.p select.POR{color:#FFC42E}.tabla td.p select.DEF{color:#6FC3FF}
+  .tabla td.p select.MED{color:#2BD67B}.tabla td.p select.DEL{color:#FF7A8E}
+  @media (max-width:560px){
+    .tabla thead{display:none}
+    .tabla tr{display:grid;grid-template-columns:1fr 84px 62px 36px;gap:5px;padding:7px 0;border-top:1px solid var(--linea)}
+    .tabla td{border:none;padding:0}
+    .tabla td.c{grid-column:1/-1}
+    .tabla td.n,.tabla td.p,.tabla td.x{width:auto}
+  }
+
+  .alta{display:grid;grid-template-columns:2fr 90px 80px 1.5fr auto;gap:8px}
+  @media (max-width:560px){.alta{grid-template-columns:1fr 1fr}.alta input.nom,.alta input.club{grid-column:1/-1}}
+
+  .barra{position:fixed;left:0;right:0;bottom:0;z-index:20;background:rgba(6,12,24,.94);
+    border-top:1.5px solid var(--linea);padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));
+    backdrop-filter:blur(6px)}
+  .barra .dentro{max-width:980px;margin:0 auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .barra .estado{flex:1;min-width:180px;font-size:13px;color:var(--humo)}
+  .barra .estado b{color:var(--rayo)}
+
+  #aviso{position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:50;display:none;
+    max-width:min(92vw,520px);background:var(--rojo);color:#fff;font-weight:700;font-size:14px;
+    padding:11px 15px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+  #aviso.bien{background:var(--pasto);color:var(--tinta)}
+</style>
+</head>
+<body>
+
+<header>
+  <p class="chico" style="margin:0 0 6px"><a href="./">← Volver al juego</a></p>
+  <h1>Mánager <span>Relámpago</span></h1>
+  <p class="chico" style="margin:0">Administración de la base de jugadores por defecto.</p>
+</header>
+
+<div id="app"></div>
+<div id="aviso" role="status"></div>
+<input type="file" id="archivo" accept=".csv,.json,.txt,text/csv,application/json">
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
+         onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
+import * as M from "./motor.js";
+
+const BD = "ai-studio-simuladordeagent-0792efbc-5156-4ebe-b931-3945e1f65db4";
+/* La misma cuenta de administrador que tiene permiso de escritura en la regla
+   de global_game_defaults. Acá solo sirve para avisar antes de intentar: el que
+   manda de verdad es la regla. */
+const ADMIN = "Ykn696N9wIZBfnHX1LwMJXcMG562";
+/* Lo que hace falta para la partida más grande: 8 DT con 16 picks. */
+const EQUIPOS_MAX = 8, PICKS_MAX = 16;
+const BORRADOR = "manager-admin-borrador";
+
+const fb = initializeApp({
+  apiKey:     "AIzaSyCfIYgZhaRUyYdgAyJqGTNYJMNW_iUtsQs",
+  authDomain: "gen-lang-client-0964124310.firebaseapp.com",
+  projectId:  "gen-lang-client-0964124310",
+  appId:      "1:161151384926:web:48d30816de6e09aab863cf"
+});
+const db = getFirestore(fb, BD);
+const auth = getAuth(fb);
+const REF = doc(db, "global_game_defaults", "manager_base");
+
+/* ── estado ─────────────────────────────────────────────── */
+let usuario = null;
+let cargado = false;
+let origen = "";            // "firestore" | "juego"
+let actualizado = null;
+let nombreBase = M.NOMBRE_BASE;
+let lista = [];             // [{id, nombre, pos, media, club, pais, nuevo, cambiado}]
+let guardadoCSV = "";       // lo último que está en el servidor, para saber si hay cambios
+let filtro = "TODOS", busca = "", orden = { campo: "media", sube: false };
+let guardando = false;
+let sigId = 1;
+
+const app = document.getElementById("app");
+const aviso = document.getElementById("aviso");
+let relojAviso = null;
+function avisar(txt, bien){
+  aviso.textContent = txt; aviso.className = bien ? "bien" : ""; aviso.style.display = "block";
+  clearTimeout(relojAviso);
+  relojAviso = setTimeout(() => { aviso.style.display = "none"; }, bien ? 3000 : 7000);
+}
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+function conReloj(p, ms){
+  return Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("sin respuesta")), ms || 20000))]);
+}
+
+const conId = js => js.map(j => ({ id: sigId++, nombre: j.nombre, pos: j.pos, media: j.media, club: j.club || "", pais: j.pais || "" }));
+const limpio = () => lista.map(j => ({ nombre: j.nombre.trim(), pos: j.pos, media: j.media, club: j.club.trim(), pais: (j.pais || "").trim() }));
+const csvActual = () => M.aCSV(limpio());
+const hayCambios = () => cargado && csvActual() !== guardadoCSV;
+const esAdmin = () => !!usuario && usuario.uid === ADMIN;
+
+/* ── cargar ─────────────────────────────────────────────── */
+async function cargar(){
+  try {
+    const s = await conReloj(getDoc(REF), 12000);
+    if (s.exists() && s.data().csv) {
+      const d = s.data();
+      const r = M.leerBase(d.csv);
+      lista = conId(r.jugadores);
+      nombreBase = d.nombre || M.NOMBRE_BASE;
+      actualizado = d.actualizado && d.actualizado.toDate ? d.actualizado.toDate() : null;
+      origen = "firestore";
+    } else {
+      lista = conId(M.baseOriginal());
+      origen = "juego";
+    }
+  } catch (e) {
+    console.warn(e);
+    lista = conId(M.baseOriginal());
+    origen = "juego";
+    avisar("No se pudo leer Firestore; se muestra la base que viene con el juego.");
+  }
+  guardadoCSV = origen === "firestore" ? csvActual() : "";
+  cargado = true;
+  /* Si quedó un borrador sin guardar en este navegador, se ofrece recuperarlo. */
+  let b = null;
+  try { b = JSON.parse(localStorage.getItem(BORRADOR) || "null"); } catch (e) {}
+  if (b && b.csv && b.csv !== csvActual()) borradorPendiente = b;
+  pintar();
+}
+let borradorPendiente = null;
+
+function guardarBorrador(){
+  try {
+    if (hayCambios()) localStorage.setItem(BORRADOR, JSON.stringify({ csv: csvActual(), nombre: nombreBase, cuando: Date.now() }));
+    else localStorage.removeItem(BORRADOR);
+  } catch (e) {}
+}
+
+/* ── guardar ────────────────────────────────────────────── */
+function problemas(){
+  const js = limpio();
+  const out = [];
+  const vacios = js.filter(j => !j.nombre).length;
+  if (vacios) out.push(vacios + (vacios === 1 ? " jugador sin nombre" : " jugadores sin nombre"));
+  const malos = js.filter(j => !(j.media >= 1 && j.media <= 99)).length;
+  if (malos) out.push(malos + " con OVR fuera de 1 a 99");
+  return out;
+}
+function duplicados(){
+  const vistos = {}, dup = new Set();
+  for (const j of lista) {
+    const k = j.nombre.trim().toLowerCase() + "|" + j.pos;
+    if (!j.nombre.trim()) continue;
+    if (vistos[k]) { dup.add(vistos[k]); dup.add(j.id); } else vistos[k] = j.id;
+  }
+  return dup;
+}
+
+async function guardar(){
+  if (!esAdmin()) { avisar("Solo la cuenta de administrador puede guardar."); return; }
+  const p = problemas();
+  if (p.length) { avisar("Antes de guardar, corregí: " + p.join(", ") + "."); return; }
+  const faltan = M.alcanzaBase(limpio(), EQUIPOS_MAX, PICKS_MAX);
+  if (faltan.length && !confirm("Con esta base no alcanza para 8 DT con 16 picks (falta " + faltan.join(", ") +
+      "). Las salas más chicas igual funcionan. ¿Guardar igual?")) return;
+  const csv = csvActual();
+  if (csv.length > 900000) { avisar("La base es demasiado grande para un documento de Firestore (1 MB)."); return; }
+  guardando = true; pintar();
+  try {
+    await conReloj(setDoc(REF, {
+      csv, nombre: (nombreBase || M.NOMBRE_BASE).trim().slice(0, 40), n: lista.length,
+      actualizado: serverTimestamp(), por: usuario.email || usuario.uid
+    }));
+    guardadoCSV = csv;
+    origen = "firestore";
+    actualizado = new Date();
+    lista.forEach(j => { j.nuevo = false; j.cambiado = false; });
+    try { localStorage.removeItem(BORRADOR); } catch (e) {}
+    avisar("Guardado. Las salas nuevas ya usan esta base.", true);
+  } catch (e) {
+    console.warn(e);
+    avisar(e.code === "permission-denied"
+      ? "Firestore rechazó el cambio: la cuenta no tiene permiso de escritura en global_game_defaults."
+      : "No se pudo guardar. Revisá la conexión.");
+  } finally {
+    guardando = false; pintar();
+  }
+}
+
+/* ── sesión ─────────────────────────────────────────────── */
+async function entrar(){
+  const prov = new GoogleAuthProvider();
+  try { await signInWithPopup(auth, prov); }
+  catch (e) {
+    if (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment") {
+      await signInWithRedirect(auth, prov);
+    } else if (e.code !== "auth/popup-closed-by-user" && e.code !== "auth/cancelled-popup-request") {
+      console.warn(e);
+      avisar(e.code === "auth/unauthorized-domain"
+        ? "Este dominio no está autorizado en Firebase Authentication."
+        : "No se pudo iniciar sesión: " + (e.code || e.message));
+    }
+  }
+}
+getRedirectResult(auth).catch(e => console.warn(e));
+onAuthStateChanged(auth, u => { usuario = u; pintar(); });
+
+/* ── pintar ─────────────────────────────────────────────── */
+function contar(){
+  const c = { POR: 0, DEF: 0, MED: 0, DEL: 0 };
+  for (const j of lista) c[j.pos]++;
+  return c;
+}
+
+function visibles(){
+  const q = busca.trim().toLowerCase();
+  const out = lista.filter(j => (filtro === "TODOS" || j.pos === filtro) &&
+    (!q || (j.nombre + " " + j.club).toLowerCase().includes(q)));
+  const { campo, sube } = orden;
+  const pos = p => M.POSICIONES.indexOf(p);
+  out.sort((a, b) => {
+    let d = campo === "media" ? a.media - b.media
+          : campo === "pos" ? pos(a.pos) - pos(b.pos)
+          : String(a[campo]).localeCompare(String(b[campo]), "es");
+    if (!sube) d = -d;
+    return d || b.media - a.media || a.id - b.id;
+  });
+  /* Los recién agregados siempre arriba, para verlos al toque. */
+  return out.filter(j => j.nuevo).concat(out.filter(j => !j.nuevo));
+}
+
+function pintar(){
+  const foco = document.activeElement;
+  const focoId = foco && foco.dataset ? (foco.dataset.id ? foco.dataset.id + ":" + foco.dataset.campo : foco.id) : null;
+  const selIni = foco && foco.selectionStart;
+
+  app.innerHTML = vistaSesion() + (cargado ? vistaBase() : `<div class="caja"><p class="chico">Cargando la base…</p></div>`) + barra();
+
+  if (focoId) {
+    const el = focoId.includes(":")
+      ? app.querySelector(`[data-id="${focoId.split(":")[0]}"][data-campo="${focoId.split(":")[1]}"]`)
+      : document.getElementById(focoId);
+    if (el) { el.focus(); try { if (selIni != null && el.setSelectionRange) el.setSelectionRange(selIni, selIni); } catch (e) {} }
+  }
+}
+
+function vistaSesion(){
+  if (!usuario) return `<div class="caja rayo">
+      <h2>Iniciar sesión</h2>
+      <p class="chico">Podés mirar y exportar la base sin entrar. Para guardar cambios hay que
+        entrar con la cuenta de Google de administrador del sitio.</p>
+      <button data-accion="entrar">Entrar con Google</button></div>`;
+  return `<div class="caja ${esAdmin() ? "" : "roja"}"><div class="fila">
+      <div style="flex:1"><b>${esc(usuario.displayName || usuario.email || "Sesión iniciada")}</b>
+        <div class="chico">${esc(usuario.email || "")} · ${esAdmin() ? "administrador, puede guardar" : "esta cuenta no puede guardar"}</div></div>
+      <button class="fantasma mini" data-accion="salir">Cerrar sesión</button></div></div>`;
+}
+
+function vistaResumen(){
+  const c = contar();
+  const faltan = M.alcanzaBase(limpio(), EQUIPOS_MAX, PICKS_MAX);
+  const dup = duplicados();
+  return `<div class="conteo">
+        <span class="${lista.length >= EQUIPOS_MAX * PICKS_MAX ? "bien" : "mal"}">Total ${lista.length}</span>
+        ${M.POSICIONES.map(p => `<span class="${c[p] >= Math.max(M.MINIMOS[p] * EQUIPOS_MAX, p === "POR" ? EQUIPOS_MAX : 0) ? "" : "mal"}">${p} ${c[p]}</span>`).join("")}
+        ${dup.size ? `<span class="mal">${dup.size} repetidos</span>` : ""}
+      </div>
+      <p class="chico" style="margin:8px 0 0">${faltan.length
+        ? "Para una sala de 8 DT con 16 picks falta: " + esc(faltan.join(", ")) + ". Las salas más chicas funcionan igual."
+        : "Alcanza para la sala más grande: 8 DT con 16 picks (hacen falta 128 jugadores y 8 arqueros)."}</p>`;
+}
+
+function vistaBase(){
+  const dup = duplicados();
+  const vs = visibles();
+  const fecha = actualizado ? actualizado.toLocaleString("es-CL", { dateStyle: "medium", timeStyle: "short" }) : "";
+  return `
+    ${borradorPendiente ? `<div class="caja rayo"><div class="fila">
+      <div style="flex:1">Hay cambios sin guardar de una sesión anterior en este navegador
+        <span class="chico">(${new Date(borradorPendiente.cuando).toLocaleString("es-CL")})</span>.</div>
+      <button data-accion="recuperar">Recuperar</button><button class="fantasma" data-accion="descartar-borrador">Descartar</button></div></div>` : ""}
+
+    <div class="caja">
+      <div class="fila" style="align-items:flex-end">
+        <div style="flex:1;min-width:220px">
+          <div class="chico" style="margin-bottom:4px">Nombre de la base, como se ve en la sala</div>
+          <input id="nombre-base" maxlength="40" value="${esc(nombreBase)}" style="width:100%">
+        </div>
+      </div>
+      <p class="chico" style="margin:8px 0 0">${origen === "firestore"
+        ? `En uso por el juego: la versión guardada${fecha ? " el " + esc(fecha) : ""}.`
+        : `Todavía no hay una versión guardada: el juego usa la base que viene en el código. Al guardar, esta pasa a ser la que se usa.`}</p>
+      <div id="resumen">${vistaResumen()}</div>
+    </div>
+
+    <div class="caja">
+      <h2>Agregar jugador</h2>
+      <div class="alta">
+        <input id="alta-nombre" class="nom" placeholder="Nombre" maxlength="28" autocomplete="off">
+        <select id="alta-pos">${M.POSICIONES.map(p => `<option>${p}</option>`).join("")}</select>
+        <input id="alta-media" type="number" min="1" max="99" placeholder="OVR" inputmode="numeric">
+        <input id="alta-club" class="club" placeholder="Club" maxlength="24" autocomplete="off">
+        <button class="verde" data-accion="agregar">Agregar</button>
+      </div>
+    </div>
+
+    <div class="caja">
+      <div class="herr">
+        <input id="busca" placeholder="Buscar por nombre o club" value="${esc(busca)}" autocomplete="off">
+        <select id="filtro">${["TODOS", ...M.POSICIONES].map(p => `<option value="${p}" ${filtro === p ? "selected" : ""}>${p === "TODOS" ? "Todas las posiciones" : p}</option>`).join("")}</select>
+        <span class="chico" style="align-self:center">${vs.length} de ${lista.length}</span>
+      </div>
+      <table class="tabla">
+        <thead><tr>
+          ${[["nombre", "Nombre"], ["pos", "Pos"], ["media", "OVR"], ["club", "Club"]].map(([k, t]) =>
+            `<th data-orden="${k}" class="${orden.campo === k ? "orden" + (orden.sube ? " sube" : "") : ""}">${t}</th>`).join("")}<th></th>
+        </tr></thead>
+        <tbody>${vs.map(j => `<tr data-fila="${j.id}" class="${j.nuevo ? "nuevo" : j.cambiado ? "cambiado" : ""} ${dup.has(j.id) ? "dup" : ""}">
+          <td><input class="nom" data-id="${j.id}" data-campo="nombre" value="${esc(j.nombre)}" maxlength="28"></td>
+          <td class="p"><select class="${j.pos}" data-id="${j.id}" data-campo="pos">${M.POSICIONES.map(p => `<option ${p === j.pos ? "selected" : ""}>${p}</option>`).join("")}</select></td>
+          <td class="n"><input type="number" min="1" max="99" data-id="${j.id}" data-campo="media" value="${j.media}" inputmode="numeric"></td>
+          <td class="c"><input data-id="${j.id}" data-campo="club" value="${esc(j.club)}" maxlength="24" placeholder="Sin club"></td>
+          <td class="x"><button class="rojo mini" data-accion="quitar" data-id="${j.id}" title="Quitar a ${esc(j.nombre)}" aria-label="Quitar a ${esc(j.nombre)}">✕</button></td>
+        </tr>`).join("")}</tbody>
+      </table>
+      ${vs.length ? "" : `<p class="chico">No hay jugadores con ese filtro.</p>`}
+    </div>
+
+    <div class="caja">
+      <h2>Archivo</h2>
+      <p class="chico">Para trabajar en una planilla: exportá, editá en Excel o Google Sheets y volvé a
+        importar. Sirven las mismas columnas que acepta el juego.</p>
+      <div class="fila">
+        <button class="fantasma" data-accion="exportar">Exportar CSV</button>
+        <button class="fantasma" data-accion="importar" data-modo="reemplazar">Importar y reemplazar</button>
+        <button class="fantasma" data-accion="importar" data-modo="sumar">Importar y sumar</button>
+        <button class="rojo" data-accion="original">Volver a la base original del juego</button>
+      </div>
+    </div>`;
+}
+
+function barra(){
+  const cambios = hayCambios() || (origen === "juego" && cargado);
+  const pend = hayCambios();
+  return `<div class="barra"><div class="dentro">
+    <div class="estado">${!cargado ? "" : pend ? `<b>Cambios sin guardar.</b> El juego sigue usando la versión anterior.`
+      : origen === "firestore" ? "Todo guardado." : "Sin versión guardada todavía."}</div>
+    ${pend ? `<button class="fantasma" data-accion="deshacer">Deshacer todo</button>` : ""}
+    <button class="verde" data-accion="guardar" ${!cambios || guardando || !esAdmin() ? "disabled" : ""}
+      title="${esAdmin() ? "" : "Entrá con la cuenta de administrador"}">${guardando ? "Guardando…" : "Guardar"}</button>
+  </div></div>`;
+}
+
+/* ── toques ─────────────────────────────────────────────── */
+let modoImport = "reemplazar";
+app.addEventListener("click", function(ev){
+  const th = ev.target.closest("th[data-orden]");
+  if (th) {
+    const k = th.dataset.orden;
+    orden = orden.campo === k ? { campo: k, sube: !orden.sube } : { campo: k, sube: k !== "media" };
+    pintar(); return;
+  }
+  const b = ev.target.closest("[data-accion]");
+  if (!b || b.disabled) return;
+  const a = b.dataset.accion;
+  if (a === "entrar") entrar();
+  else if (a === "salir") signOut(auth);
+  else if (a === "guardar") guardar();
+  else if (a === "agregar") agregar();
+  else if (a === "quitar") {
+    const id = Number(b.dataset.id);
+    const j = lista.find(x => x.id === id);
+    lista = lista.filter(x => x.id !== id);
+    guardarBorrador(); pintar();
+    if (j) avisar("Quitaste a " + j.nombre + ". Se borra de verdad al guardar.", true);
+  }
+  else if (a === "exportar") exportar();
+  else if (a === "importar") { modoImport = b.dataset.modo; document.getElementById("archivo").click(); }
+  else if (a === "original") {
+    if (!confirm("¿Reemplazar la lista por la base que viene con el juego? Se pierden los cambios que no guardaste.")) return;
+    lista = conId(M.baseOriginal()); nombreBase = M.NOMBRE_BASE;
+    lista.forEach(j => { j.cambiado = true; });
+    guardarBorrador(); pintar();
+  }
+  else if (a === "deshacer") {
+    if (!confirm("¿Descartar todos los cambios sin guardar?")) return;
+    try { localStorage.removeItem(BORRADOR); } catch (e) {}
+    borradorPendiente = null; cargado = false; pintar(); cargar();
+  }
+  else if (a === "recuperar") {
+    const r = M.leerBase(borradorPendiente.csv);
+    lista = conId(r.jugadores); lista.forEach(j => { j.cambiado = true; });
+    nombreBase = borradorPendiente.nombre || nombreBase;
+    borradorPendiente = null; pintar();
+  }
+  else if (a === "descartar-borrador") {
+    try { localStorage.removeItem(BORRADOR); } catch (e) {}
+    borradorPendiente = null; pintar();
+  }
+});
+
+/* Las celdas se editan en el lugar: se actualiza el dato sin redibujar la
+   tabla, así no se pierde el foco mientras se escribe. */
+app.addEventListener("input", function(ev){
+  const el = ev.target;
+  if (el.id === "busca") { busca = el.value; pintar(); return; }
+  if (el.id === "nombre-base") { nombreBase = el.value; guardarBorrador(); pintarBarra(); return; }
+  const id = Number(el.dataset.id), campo = el.dataset.campo;
+  if (!id || !campo) return;
+  const j = lista.find(x => x.id === id);
+  if (!j) return;
+  if (campo === "media") {
+    const v = parseInt(el.value, 10);
+    j.media = v; el.style.borderColor = v >= 1 && v <= 99 ? "" : "var(--rojo)";
+  } else if (campo === "pos") {
+    j.pos = el.value; el.className = el.value;
+  } else j[campo] = el.value.replace(/[|\n\r\t]/g, " ");
+  if (!j.nuevo) { j.cambiado = true; el.closest("tr").classList.add("cambiado"); }
+  guardarBorrador(); pintarBarra();
+});
+app.addEventListener("change", function(ev){
+  const el = ev.target;
+  if (el.id === "filtro") { filtro = el.value; pintar(); }
+  else if (el.dataset.campo === "nombre" || el.dataset.campo === "pos") refrescarResumen();
+});
+
+/* Recuenta puestos y repetidos sin redibujar la tabla. */
+function refrescarResumen(){
+  const r = document.getElementById("resumen");
+  if (r) r.innerHTML = vistaResumen();
+  const dup = duplicados();
+  app.querySelectorAll("tr[data-fila]").forEach(tr => tr.classList.toggle("dup", dup.has(Number(tr.dataset.fila))));
+}
+app.addEventListener("keydown", function(ev){
+  if (ev.key === "Enter" && ev.target.closest(".alta")) { ev.preventDefault(); agregar(); }
+});
+
+function pintarBarra(){
+  const vieja = app.querySelector(".barra");
+  if (vieja) vieja.outerHTML = barra();
+}
+
+function agregar(){
+  const nombre = document.getElementById("alta-nombre").value.replace(/[|\n\r\t]/g, " ").trim();
+  const pos = document.getElementById("alta-pos").value;
+  const media = parseInt(document.getElementById("alta-media").value, 10);
+  const club = document.getElementById("alta-club").value.replace(/[|\n\r\t]/g, " ").trim();
+  if (!nombre) { avisar("Falta el nombre."); document.getElementById("alta-nombre").focus(); return; }
+  if (!(media >= 1 && media <= 99)) { avisar("El OVR va de 1 a 99."); document.getElementById("alta-media").focus(); return; }
+  if (lista.some(j => j.nombre.trim().toLowerCase() === nombre.toLowerCase() && j.pos === pos)) {
+    avisar("Ya hay un " + pos + " llamado " + nombre + "."); return;
+  }
+  lista.push({ id: sigId++, nombre, pos, media, club, pais: "", nuevo: true });
+  guardarBorrador(); pintar();
+  const n = document.getElementById("alta-nombre");
+  n.value = ""; document.getElementById("alta-media").value = "";
+  n.focus();
+  avisar(nombre + " agregado.", true);
+}
+
+function exportar(){
+  const blob = new Blob(["﻿" + csvActual()], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "base-manager-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+document.getElementById("archivo").addEventListener("change", function(ev){
+  const f = ev.target.files && ev.target.files[0];
+  ev.target.value = "";
+  if (!f) return;
+  const lector = new FileReader();
+  lector.onload = function(){
+    const r = M.leerBase(lector.result, f.name);
+    if (!r.jugadores.length) { avisar(r.avisos.join(" ") || "No se encontraron jugadores."); return; }
+    if (modoImport === "reemplazar") {
+      if (!confirm("¿Reemplazar los " + lista.length + " jugadores actuales por los " + r.jugadores.length + " del archivo?")) return;
+      lista = conId(r.jugadores); lista.forEach(j => { j.cambiado = true; });
+    } else {
+      const ya = new Set(lista.map(j => j.nombre.trim().toLowerCase() + "|" + j.pos));
+      const nuevos = r.jugadores.filter(j => !ya.has(j.nombre.toLowerCase() + "|" + j.pos));
+      conId(nuevos).forEach(j => { j.nuevo = true; lista.push(j); });
+      r.avisos.push((r.jugadores.length - nuevos.length) + " ya estaban y se saltaron.");
+    }
+    guardarBorrador(); pintar();
+    avisar(r.jugadores.length + " jugadores leídos de " + f.name + ". " + r.avisos.join(" "), true);
+  };
+  lector.readAsText(f);
+});
+
+window.addEventListener("beforeunload", function(ev){
+  if (hayCambios()) { ev.preventDefault(); ev.returnValue = ""; }
+});
+
+pintar();
+cargar();
+</script>
+</body>
+</html>

@@ -337,6 +337,18 @@ try {
 }
 if (db) getDoc(doc(db, COL, "0000")).catch(function (e) { console.warn("calentando:", e); });
 
+/* La base por defecto se puede editar desde admin.html, que la guarda en
+   global_game_defaults/manager_base. Si está, reemplaza a la que viene en
+   base-chilena.js. Solo la usa el que arma la sala: al empezar se copia el
+   pozo a la sala, así que los demás no dependen de esto. */
+const baseRemota = !db ? Promise.resolve() :
+  conReloj(getDoc(doc(db, "global_game_defaults", "manager_base")), 8000).then(function (s) {
+    if (!s.exists()) return;
+    const d = s.data();
+    const r = M.leerBase(d.csv || "");
+    if (r.jugadores.length) { M.fijarBaseDefecto(r.jugadores, d.nombre); pintar(); }
+  }).catch(function (e) { console.warn("sin base editada, uso la del juego:", e); });
+
 /* ── atajos sobre la partida ─────────────────────────────── */
 const jugadores = () => (sala && sala.jugadores) || {};
 const listaJug  = () => Object.keys(jugadores()).sort(function (a, b) {
@@ -477,7 +489,7 @@ async function entrarSala(codigoForzado){
 function fuenteElegida(){
   return (usarPropia && basePropia)
     ? { nombre: basePropia.nombre, n: basePropia.jugadores.length, propia: true }
-    : { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length, propia: false };
+    : { nombre: M.nombreBaseDefecto(), n: M.baseDefecto().length, propia: false };
 }
 
 document.getElementById("archivo").addEventListener("change", function(ev){
@@ -511,8 +523,10 @@ function bajarPlantilla(){
 }
 
 /* ── empezar ─────────────────────────────────────────────── */
-function empezar(){
+async function empezar(){
   if (!soyMando() || sala.estado !== "sala") return;
+  await baseRemota;
+  if (!sala || sala.estado !== "sala") return;
   const ids = listaJug();
   if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
   if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
@@ -760,7 +774,7 @@ function cabecera(){
 function vistaSala(){
   const ids = listaJug();
   const c = cfg();
-  const f = sala.fuente || { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length };
+  const f = sala.fuente || { nombre: M.nombreBaseDefecto(), n: M.baseDefecto().length };
   const link = location.origin + location.pathname + "?sala=" + sala.codigo;
   const mando = soyMando();
   const mio = jugadores()[yo] || {};

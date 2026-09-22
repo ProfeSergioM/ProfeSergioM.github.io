@@ -93,12 +93,33 @@ export function desempacar(txt) {
    Figuras históricas del fútbol chileno, en base-chilena.js. Es un CSV igual
    al que se sube a mano, leído con el mismo lector. Viene con el juego, así
    que es idéntica en todos los teléfonos sin bajar nada aparte. */
-let defectoCache = null;
+let defectoCache = null, nombreDefecto = NOMBRE_BASE;
 export function baseDefecto() {
   if (!defectoCache) defectoCache = leerBase(CSV_DEFECTO).jugadores;
   return defectoCache;
 }
+export function nombreBaseDefecto() { return nombreDefecto; }
+/* La consola de administración guarda una versión editada de la base en
+   Firestore. Si el juego la encuentra al arrancar, pasa a ser la de por defecto. */
+export function fijarBaseDefecto(jugadores, nombre) {
+  if (!jugadores || !jugadores.length) return;
+  defectoCache = jugadores;
+  if (nombre) nombreDefecto = String(nombre).slice(0, 40);
+}
+export function baseOriginal() { return leerBase(CSV_DEFECTO).jugadores; }
 export { NOMBRE_BASE };
+
+/* De vuelta a CSV, con el mismo formato que lee leerBase. */
+export function aCSV(jugadores) {
+  const campo = v => {
+    const t = String(v == null ? "" : v);
+    return /[;"\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const conPais = jugadores.some(j => j.pais);
+  const cab = conPais ? "nombre;posicion;media;club;pais" : "nombre;posicion;media;club";
+  return cab + "\n" + jugadores.map(j =>
+    [j.nombre, j.pos, j.media, j.club].concat(conPais ? [j.pais] : []).map(campo).join(";")).join("\n") + "\n";
+}
 
 /* ── bases propias (CSV o JSON) ───────────────────────────────
    Se aceptan los nombres de columna más comunes, en castellano o en inglés,
