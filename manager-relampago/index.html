@@ -348,7 +348,7 @@ const soyMando  = () => !!sala && sala.anfitrion === yo;
 const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()[id].nombre)) || "Equipo sin DT";
 const dtDe      = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
 const colorDe   = id => COLORES[Math.max(0, orden().indexOf(id)) % COLORES.length];
-const cfg       = () => Object.assign({ picks: 13, seg: 25 }, (sala && sala.config) || {});
+const cfg       = () => Object.assign({ picks: 16, seg: 20 }, (sala && sala.config) || {});
 const totalPicks = () => orden().length * cfg().picks;
 
 /* Lo que sale del motor se recalcula solo cuando cambia algo que lo afecta. */
@@ -429,7 +429,7 @@ async function crearSala(){
     setDoc(doc(db, COL, codigo), {
       codigo, estado: "sala", ronda: 0, anfitrion: yo,
       jugadores: { [yo]: { nombre: miNombre, club: "", orden: 0 } },
-      config: { picks: 13, seg: 25 },
+      config: { picks: 16, seg: 20 },
       fuente: fuenteElegida(),
       orden: [], pozo: [], picks: {}, tacticas: {}, listos: {}, historial: [],
       creada: serverTimestamp()
@@ -477,7 +477,7 @@ async function entrarSala(codigoForzado){
 function fuenteElegida(){
   return (usarPropia && basePropia)
     ? { nombre: basePropia.nombre, n: basePropia.jugadores.length, propia: true }
-    : { nombre: "Base clásica", n: M.baseClasica().length, propia: false };
+    : { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length, propia: false };
 }
 
 document.getElementById("archivo").addEventListener("change", function(ev){
@@ -516,7 +516,7 @@ function empezar(){
   const ids = listaJug();
   if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
   if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
-  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseClasica();
+  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
   const faltan = M.alcanzaBase(base, ids.length, cfg().picks);
   if (faltan.length) { avisar("La base no alcanza para " + ids.length + " equipos. Falta: " + faltan.join(", ") + "."); return; }
   const semilla = sala.codigo + "·" + Date.now();
@@ -542,11 +542,11 @@ async function hacerPick(n, idx){
       const d = s.data();
       if (!d || d.estado !== "draft" || d.ronda !== n) return false;
       if (M.tomados(d.picks).has(idx)) return false;
-      const total = d.orden.length * Object.assign({ picks: 13 }, d.config).picks;
+      const total = d.orden.length * Object.assign({ picks: 16 }, d.config).picks;
       const id = M.turnoDe(d.orden, n);
       const pl = M.planteles(d.orden, d.picks, d.pozo)[id];
       const j = M.desempacar(d.pozo[idx]);
-      if (!M.puedeElegir(pl, j.pos, total / d.orden.length)) return false;
+      if (!M.pickValido(pl, j.pos, d.pozo, d.picks, total / d.orden.length)) return false;
       const fin = n + 1 >= total;
       t.update(ref, Object.assign({ ["picks." + n]: idx },
         fin ? { estado: "tactica", ronda: 0, listos: {} } : { ronda: n + 1 }));
@@ -700,8 +700,8 @@ function vistaPortada(){
   const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
   return `
     <header>${titulo()}
-      <p class="bajada">Draft en vivo con tus amigos, una táctica por fecha y una liga
-        corta que se juega sola. Veinte minutos de punta a punta.</p>
+      <p class="bajada">Draft en vivo con leyendas del fútbol chileno, una táctica por fecha
+        y un campeonato corto contra tus amigos.</p>
     </header>
 
     ${retomar ? `<div class="caja rayo"><span class="et">Quedaste a medias</span>
@@ -760,7 +760,7 @@ function cabecera(){
 function vistaSala(){
   const ids = listaJug();
   const c = cfg();
-  const f = sala.fuente || { nombre: "Base clásica", n: M.baseClasica().length };
+  const f = sala.fuente || { nombre: M.NOMBRE_BASE, n: M.baseDefecto().length };
   const link = location.origin + location.pathname + "?sala=" + sala.codigo;
   const mando = soyMando();
   const mio = jugadores()[yo] || {};
@@ -801,10 +801,10 @@ function vistaSala(){
       <h2>Reglas de la partida</h2>
       ${mando ? "" : `<p class="chico">Las elige ${esc(dtDe(sala.anfitrion))}.</p>`}
       <h3>Base de jugadores</h3>
-      <p><b>${esc(f.nombre)}</b> <span class="chico">· ${f.n} jugadores${f.propia ? " · subida por el que arma" : " inventados"}</span></p>
+      <p><b>${esc(f.nombre)}</b> <span class="chico">· ${f.n} jugadores${f.propia ? " · subida por el que arma" : " históricos, cada uno con su club"}</span></p>
       ${mando ? `
         <div class="opciones dos">
-          <button class="op" data-accion="base" data-valor="clasica" aria-pressed="${!f.propia}">Clásica<small>390 inventados</small></button>
+          <button class="op" data-accion="base" data-valor="clasica" aria-pressed="${!f.propia}">Leyendas chilenas<small>${M.baseDefecto().length} históricos</small></button>
           <button class="op" data-accion="base" data-valor="propia" aria-pressed="${!!f.propia}">
             ${basePropia ? esc(basePropia.nombre.slice(0, 18)) : "Propia"}<small>${basePropia ? basePropia.jugadores.length + " jugadores" : "todavía no subiste"}</small></button>
         </div>
@@ -820,9 +820,9 @@ function vistaSala(){
           inglés de las bases más comunes. Solo tu teléfono necesita el archivo.</p>` : ""}
 
       <h3>Picks por equipo</h3>
-      <div class="opciones">${opcion("picks", 11, "11", "solo titulares")}${opcion("picks", 13, "13", "2 suplentes")}${opcion("picks", 15, "15", "4 suplentes")}</div>
+      <div class="opciones">${opcion("picks", 12, "12", "1 suplente")}${opcion("picks", 14, "14", "3 suplentes")}${opcion("picks", 16, "16", "5 suplentes")}</div>
       <h3>Tiempo por pick</h3>
-      <div class="opciones">${opcion("seg", 15, "15 s", "a lo loco")}${opcion("seg", 25, "25 s", "normal")}${opcion("seg", 40, "40 s", "con calma")}</div>
+      <div class="opciones">${opcion("seg", 12, "12 s", "a lo loco")}${opcion("seg", 20, "20 s", "normal")}${opcion("seg", 35, "35 s", "con calma")}</div>
       <h3>Campeonato</h3>
       <p style="margin-bottom:4px"><b>${esc(fmt.nombre)}</b> <span class="chico">· ${fechas} fechas</span></p>
       <p class="chico">${esc(fmt.detalle)} El formato se ajusta solo a cuántos DT hay:
@@ -879,7 +879,8 @@ function vistaDraft(){
   for (let k = n + 1; k < Math.min(total, n + 5); k++) proximos.push(M.turnoDe(orden(), k));
 
   const sel = elegido != null ? pozo[elegido] : null;
-  const puede = sel && !ya.has(sel.i) && M.puedeElegir(mi, sel.pos, cfg().picks);
+  const libre = juego() && !M.hayOpcion(mi, sala.pozo, sala.picks, cfg().picks);
+  const puede = sel && !ya.has(sel.i) && (libre || M.puedeElegir(mi, sel.pos, cfg().picks));
 
   return `
     <div class="caja ${mio ? "rayo" : ""}">
@@ -905,10 +906,10 @@ function vistaDraft(){
         ${["TODOS", ...M.POSICIONES].map(p => `<button class="op" data-accion="filtro" data-valor="${p}"
           aria-pressed="${filtro === p}">${p === "TODOS" ? "Todos" : p}</button>`).join("")}
       </div>
-      <input id="buscar" placeholder="Buscar por nombre, club o país" autocomplete="off" spellcheck="false" value="${esc(busqueda)}">
+      <input id="buscar" placeholder="Buscar por nombre o club" autocomplete="off" spellcheck="false" value="${esc(busqueda)}">
       <div class="lista-pozo">
         ${visibles.length ? visibles.map(j => {
-          const ok = !juego() || M.puedeElegir(mi, j.pos, cfg().picks);
+          const ok = !juego() || libre || M.puedeElegir(mi, j.pos, cfg().picks);
           return `<button class="ficha ${ok ? "" : "no"}" data-accion="elegir" data-valor="${j.i}"
             aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j)}</button>`;
         }).join("") : `<p class="chico">No queda nadie con ese filtro.</p>`}

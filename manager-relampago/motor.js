@@ -11,6 +11,8 @@
    resultado, en todos lados.
    ══════════════════════════════════════════════════════════ */
 
+import CSV_DEFECTO, { NOMBRE_BASE } from "./base-chilena.js";
+
 export const POSICIONES = ["POR", "DEF", "MED", "DEL"];
 
 /* Lo mínimo que tiene que tener cada plantel para poder armar cualquier
@@ -87,57 +89,16 @@ export function desempacar(txt) {
            club: p[3] || "", pais: p[4] || "" };
 }
 
-/* ── la base clásica ──────────────────────────────────────────
-   Jugadores inventados, generados siempre con la misma semilla: la base es
-   idéntica en todos los teléfonos sin tener que bajar ningún archivo. Los
-   clubes y países cuentan para la química del once. */
-const NOMBRES = ["Mati", "Nico", "Benja", "Seba", "Pancho", "Cristóbal", "Tomás", "Joaco", "Gonzalo",
-  "Diego", "Felipe", "Iván", "Rodrigo", "Álex", "Bruno", "Lucas", "Martín", "Kevin", "Brayan",
-  "Jhon", "Esteban", "Ignacio", "Claudio", "Marcelo", "Hernán", "Pablo", "Emilio", "Renato",
-  "Gabriel", "Julián", "Óscar", "Víctor", "Wilson", "Yerko", "Franco", "Thiago", "Enzo", "Santi",
-  "Luciano", "Maxi", "Agustín", "Facundo", "Edson", "Jefferson", "Cristian", "Leandro", "Mauro"];
-const APELLIDOS = ["Rojas", "Muñoz", "González", "Pizarro", "Valdivia", "Soto", "Contreras", "Fuentes",
-  "Araya", "Espinoza", "Castillo", "Tapia", "Reyes", "Morales", "Carrasco", "Sepúlveda", "Vidal",
-  "Orellana", "Navarro", "Cáceres", "Paredes", "Quiroga", "Lagos", "Bustos", "Salinas", "Olivares",
-  "Farías", "Jara", "Medina", "Figueroa", "Cortés", "Ibarra", "Vergara", "Riquelme", "Palma",
-  "Mancilla", "Aravena", "Zamorano", "Ponce", "Guzmán", "Toledo", "Villalobos", "Cuevas", "Arancibia",
-  "Saavedra", "Leiva", "Moya", "Pereira", "Alarcón", "Bravo", "Correa", "Herrera", "Ortiz", "Peña"];
-const CLUBES = ["Deportivo Ripio", "Unión Cal", "Atlético Barro", "Real Potrero", "Sportivo Tierra",
-  "Cóndor FC", "Estrella del Sur", "Juventud Minera", "Racing del Puerto", "Club Faro",
-  "Norte Unido", "Huracán Andino", "Social Pampa", "Ferro Pacífico", "San Lorenzo del Cerro",
-  "Everest Chico", "Marítimo", "Rangers del Valle"];
-const PAISES = ["Chile", "Argentina", "Perú", "Uruguay", "Colombia", "Paraguay", "Ecuador", "Bolivia",
-  "México", "Venezuela"];
-
-let clasicaCache = null;
-export function baseClasica() {
-  if (clasicaCache) return clasicaCache;
-  const r = azar("mánager relámpago · base clásica");
-  const usados = new Set();
-  const lista = [];
-  /* Cuántos de cada puesto: una base de fútbol real tiene más o menos esta proporción. */
-  const cupos = { POR: 44, DEF: 130, MED: 130, DEL: 86 };
-  for (const pos of POSICIONES) {
-    for (let i = 0; i < cupos[pos]; i++) {
-      let nombre;
-      do {
-        nombre = NOMBRES[Math.floor(r() * NOMBRES.length)] + " " +
-                 APELLIDOS[Math.floor(r() * APELLIDOS.length)];
-      } while (usados.has(nombre));
-      usados.add(nombre);
-      /* Campana: la mayoría ronda 68, pocos pasan de 85. */
-      const media = Math.round(Math.max(52, Math.min(92,
-        68 + (r() + r() + r() + r() - 2) * 13)));
-      const club = CLUBES[Math.floor(r() * CLUBES.length)];
-      /* Cada club tiene un país "de la casa": la mitad del plantel es de ahí. */
-      const pais = r() < 0.5 ? PAISES[hash(club) % PAISES.length]
-                             : PAISES[Math.floor(r() * PAISES.length)];
-      lista.push({ nombre, pos, media, club, pais });
-    }
-  }
-  clasicaCache = lista;
-  return lista;
+/* ── la base por defecto ──────────────────────────────────────
+   Figuras históricas del fútbol chileno, en base-chilena.js. Es un CSV igual
+   al que se sube a mano, leído con el mismo lector. Viene con el juego, así
+   que es idéntica en todos los teléfonos sin bajar nada aparte. */
+let defectoCache = null;
+export function baseDefecto() {
+  if (!defectoCache) defectoCache = leerBase(CSV_DEFECTO).jugadores;
+  return defectoCache;
 }
+export { NOMBRE_BASE };
 
 /* ── bases propias (CSV o JSON) ───────────────────────────────
    Se aceptan los nombres de columna más comunes, en castellano o en inglés,
@@ -345,17 +306,34 @@ export function puedeElegir(plantel, pos, picksTotales) {
   return faltan <= quedan;
 }
 
+/* ¿Queda en el pozo algún jugador que este plantel pueda sumar sin trabarse?
+   Con una base chica, que se reparte casi entera, puede pasar que no: por
+   ejemplo, que ya no queden arqueros para el último que no tiene. Ahí se
+   levanta la restricción y se puede elegir a cualquiera, antes que dejar el
+   draft trabado para siempre. */
+export function hayOpcion(plantel, pozo, picks, picksTotales) {
+  const ya = tomados(picks);
+  for (let i = 0; i < pozo.length; i++) {
+    if (!ya.has(i) && puedeElegir(plantel, desempacar(pozo[i]).pos, picksTotales)) return true;
+  }
+  return false;
+}
+export function pickValido(plantel, pos, pozo, picks, picksTotales) {
+  return puedeElegir(plantel, pos, picksTotales) || !hayOpcion(plantel, pozo, picks, picksTotales);
+}
+
 /* El piloto automático: si se te acaba el reloj, elige por vos el mejor
    disponible del puesto que más te hace falta. Es determinista a propósito:
    si dos teléfonos lo corren a la vez, eligen al mismo. */
 export function autoPick(plantel, pozo, picks, picksTotales) {
   const ya = tomados(picks);
   const c = contarPos(plantel);
+  const libre = !hayOpcion(plantel, pozo, picks, picksTotales);
   let mejor = -1, mejorPuntos = -Infinity;
   for (let i = 0; i < pozo.length; i++) {
     if (ya.has(i)) continue;
     const j = desempacar(pozo[i]);
-    if (!puedeElegir(plantel, j.pos, picksTotales)) continue;
+    if (libre ? false : !puedeElegir(plantel, j.pos, picksTotales)) continue;
     let puntos = j.media;
     if (c[j.pos] < IDEAL[j.pos]) puntos += 8;
     if (j.pos === "POR" && c.POR >= 1) puntos -= 25;

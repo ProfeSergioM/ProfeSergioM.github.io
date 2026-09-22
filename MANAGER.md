@@ -50,11 +50,11 @@ las `}` de sobra que deja el editor.
 
 Cualquiera lee y escribe sin identificarse, como en los otros juegos. La regla
 cuida la forma del documento: el código no cambia, la ronda es un número
-sensato (el pick más alto posible es 8 equipos × 15 picks = 120) y la sala no
+sensato (el pick más alto posible es 8 equipos × 16 picks = 128) y la sala no
 crece sin límite. El tope de `pozo` evita que alguien meta una base entera en
-el documento: el juego nunca pasa de 150 jugadores en el pozo.
+el documento: el juego nunca pasa de 160 jugadores en el pozo.
 
-Firestore limita cada documento a 1 MB. Un pozo de 150 jugadores escrito como
+Firestore limita cada documento a 1 MB. Un pozo de 160 jugadores escrito como
 texto corto (`nombre|POS|media|club|país`) pesa unos 8 KB, así que sobra lugar.
 
 Lo que la regla **no** puede evitar es que alguien con la consola del
@@ -67,10 +67,12 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
 - `estado`: `sala` → `draft` → `tactica` → `partido` → `tactica` → … → `fin`.
 - `ronda`: durante el draft, el número de pick en curso (desde 0). Desde la
   primera fecha, el número de fecha (desde 0).
-- `config`: `{picks, seg}`. Picks por equipo (11, 13 o 15) y segundos por pick.
+- `config`: `{picks, seg}`. Picks por equipo (12, 14 o 16; por defecto 16) y
+  segundos por pick (12, 20 o 35; por defecto 20).
 - `fuente`: nombre y tamaño de la base de jugadores, para mostrarlo en la sala.
 - `pozo`: la lista de jugadores del draft, como textos `nombre|POS|media|club|país`.
-  Se arma al empezar, desde la base clásica o desde la que subió el anfitrión.
+  Se arma al empezar, desde la base por defecto (figuras históricas del fútbol
+  chileno, en `manager-relampago/base-chilena.js`) o desde la que subió el anfitrión.
   Tiene 100 jugadores, o más si los picks de todos no entran en 100. Por eso
   solo el anfitrión necesita el archivo: los demás leen el pozo de la sala.
 - `orden`: el orden del draft, sorteado al empezar. El draft es en serpiente.
@@ -88,6 +90,15 @@ pozo, los picks y las tácticas del historial, con un azar de semilla fija
 (código de sala, fecha y los dos equipos). Mismos datos, mismo resultado en
 todos lados. El motor está en `manager-relampago/motor.js`, sin nada de
 pantalla ni de red, para poder probarlo solo.
+
+**La base por defecto** es un CSV dentro de `base-chilena.js`, con el mismo
+formato que se sube a mano: nombre, posición, OVR y el club chileno con el que
+más se asocia a cada jugador. El OVR es una valoración de juego, no un dato
+oficial, y se corrige editando esa fila. Tiene que haber al menos 128 jugadores
+y 8 arqueros para que entren 8 DT con 16 picks. Si al final del draft a alguien
+ya no le queda ningún jugador que respete los mínimos por puesto (por ejemplo,
+se acabaron los arqueros), el juego lo deja elegir a cualquiera antes que
+trabar el turno.
 
 **El formato del campeonato sale de cuántos DT hay**: 2 juegan una serie al
 mejor de tres, 3 o 4 una liga ida y vuelta, y de 5 a 8 una liga a una rueda
