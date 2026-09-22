@@ -115,6 +115,15 @@ El juego lee ese documento al arrancar. Si existe, esa base reemplaza a la de
 `base-chilena.js`; si no existe o no se puede leer, se usa la del código. Las
 salas que ya empezaron no cambian, porque su pozo quedó copiado en la sala.
 
+**El modo solo** (vos contra tres rivales de la máquina) no usa Firestore: la
+partida vive en el navegador y se guarda en `localStorage` (`manager-solo`),
+así que se puede cerrar y retomar. Usa exactamente el mismo draft, tácticas y
+simulación que el multijugador; solo cambia dónde se escribe. No tiene relojes.
+Los rivales eligen con el piloto automático más un poco de azar, arman la
+formación que mejor le calza a su plantel y a veces juegan a ganarle el
+piedra, papel o tijera a lo que usaste la fecha anterior. Son cuatro equipos,
+así que se juega una liga ida y vuelta de seis fechas.
+
 **El formato del campeonato sale de cuántos DT hay**: 2 juegan una serie al
 mejor de tres, 3 o 4 una liga ida y vuelta, y de 5 a 8 una liga a una rueda
 con final entre los dos primeros (con penales si empatan).
