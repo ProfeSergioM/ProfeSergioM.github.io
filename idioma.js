@@ -64,6 +64,12 @@
     'La prueba de óvalo que inventaron los gringos: una camioneta arrastra un acoplado abierto y no para nunca, y gana el primero que mete su auto adentro y lo deja quieto. Alcanza la rampa, iguala la velocidad, sube derecho y aguanta las curvas con tres rivales empujando.':
       'The oval stunt the Americans came up with: a pickup tows an open trailer and never stops, and the first driver to get their car inside and hold it still wins. Catch the ramp, match the speed, drive up straight and hang on through the corners with three rivals shoving.',
 
+    // ---- Mánager Relámpago
+    'Football manager para jugar con amigos en veinte minutos. Draft en serpiente desde un pozo de cien jugadores, una táctica por fecha y un campeonato que se arma solo según cuántos son. Podés subir tu propia base de jugadores en CSV o JSON.':
+      'A football manager to play with friends in twenty minutes. Snake draft from a pool of a hundred players, one tactic per matchday and a championship that sets itself up based on how many of you there are. You can upload your own player database as CSV or JSON.',
+    'De 2 a 8': '2 to 8 players',
+    'Base propia': 'Your own database',
+
     'De a 2': 'Two players',
     '2 minutos': '2 minutes',
   };
