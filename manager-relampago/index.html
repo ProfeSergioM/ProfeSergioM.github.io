@@ -577,7 +577,7 @@ function bajarPlantilla(){
 /* ── empezar ─────────────────────────────────────────────── */
 async function empezar(){
   if (!soyMando() || sala.estado !== "sala") return;
-  await baseRemota;
+  await aLoSumo(baseRemota, 2500);
   if (!sala || sala.estado !== "sala") return;
   const ids = listaJug();
   if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
@@ -602,11 +602,25 @@ const RIVALES_CPU = ["Deportivo Cordillera", "Unión Pacífico", "Atlético Desi
   "Sporting Patagonia", "Club Estrecho", "Juventud Altiplano", "Rangers del Maule"];
 const CANTIDAD_CPU = 3;
 
-async function crearSolo(){
+/* Espera una promesa, pero nunca más de ms. */
+const aLoSumo = (p, ms) => Promise.race([p, new Promise(ok => setTimeout(ok, ms))]);
+
+/* El modo solo no espera a la red: la primera conexión con Firestore puede
+   tardar varios segundos en el teléfono, y parecía que el botón se había
+   colgado. Usa la base editada si ya llegó (casi siempre llega mientras se
+   escribe el nombre) y si no, la que viene con el juego. */
+function crearSolo(){
   if (!validarNombre()) return;
-  ocupado = true; pintar();
-  await baseRemota;
-  ocupado = false;
+  try { armarSolo(); }
+  catch (e) {
+    console.error(e);
+    solo = false; salaLocal = null; ref = null; sala = null;
+    avisar("No se pudo armar la partida: " + (e && e.message ? e.message : e));
+    pintar();
+  }
+}
+
+function armarSolo(){
   const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
   const picks = 16;
   const faltan = M.alcanzaBase(base, CANTIDAD_CPU + 1, picks);
@@ -876,9 +890,9 @@ function cajaSolo(){
       <p class="chico">Vos contra tres rivales de la máquina: draft de 16 picks sin reloj, liga ida
         y vuelta de seis fechas. La partida se guarda en este teléfono.</p>
       ${guardada ? `<div class="fila" style="margin-bottom:9px">
-        <button class="verde" data-accion="retomar-solo" ${ocupado ? "disabled" : ""}>Seguir la partida</button></div>` : ""}
-      <button ${guardada ? `class="fantasma"` : ""} data-accion="solo" ${ocupado ? "disabled" : ""}>
-        ${ocupado ? "Armando…" : guardada ? "Empezar otra" : "Contra 3 rivales"}</button>
+        <button class="verde" data-accion="retomar-solo">Seguir la partida</button></div>` : ""}
+      <button ${guardada ? `class="fantasma"` : ""} data-accion="solo">
+        ${guardada ? "Empezar otra" : "Contra 3 rivales"}</button>
     </div>`;
 }
 
