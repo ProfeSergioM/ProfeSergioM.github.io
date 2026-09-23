@@ -5,8 +5,9 @@
 
    club  = el club chileno con el que más se lo asocia (cuenta
            para la química: dos del mismo club rinden un poco más).
-   pais  = solo en los extranjeros que jugaron en la liga chilena;
-           los chilenos lo dejan vacío. Los extranjeros se verificaron
+   pais  = solo en los nacidos fuera de Chile que jugaron en la liga
+           chilena (el país de nacimiento, también en los nacionalizados
+           que jugaron por la Selección); los chilenos lo dejan vacío. Los extranjeros se verificaron
            con búsquedas web (club, posición y nacionalidad).
    media = un único número de 1 a 99, el OVR. Es una valoración
            de juego para comparar épocas, no un dato oficial: se
@@ -246,4 +247,18 @@ Diego Churín;DEL;61;Unión Española;Argentina
 Silvio Fernández;DEL;61;Santiago Wanderers;Uruguay
 Jonathan Benítez;DEL;60;Palestino;Argentina
 Hugo Brizuela;DEL;61;O'Higgins;Paraguay
+Gustavo Canales;DEL;72;Unión Española;Argentina
+Óscar Fabbiani;DEL;78;Palestino;Argentina
+Ernesto Álvarez;DEL;73;Universidad de Chile;Argentina
+Luciano Cabral;MED;69;Coquimbo Unido;Argentina
+Paulo Magalhães;DEF;64;Universidad de Chile;Brasil
+Rodolfo Almeyda;MED;70;Universidad Católica;Argentina
+Franco Bechtholdt;MED;61;Curicó Unido;Argentina
+Nicolás Peranic;POR;63;Deportes Melipilla;Argentina
+Arnaldo Castillo;DEL;64;O'Higgins;Paraguay
+Pedro Pablo Hernández;MED;70;O'Higgins;Argentina
+Marcos González;DEF;67;Universidad de Chile;Brasil
+Gabriel Arias;POR;67;Unión La Calera;Argentina
+Jorge Spedaletti;DEL;72;Universidad de Chile;Argentina
+Fernando de Paul;POR;64;Universidad de Chile;Argentina
 `;

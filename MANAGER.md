@@ -96,12 +96,12 @@ pantalla ni de red, para poder probarlo solo.
 
 **La base por defecto** es un CSV dentro de `base-chilena.js`, con el mismo
 formato que se sube a mano: nombre, posición, OVR, el club chileno con el que
-más se asocia a cada jugador y, en los extranjeros, su país. Son 226: figuras
-chilenas y extranjeros que jugaron en la liga chilena (verificados con
-búsquedas web). La escala de OVR va de unos 58 a 93, abierta para que los
+más se asocia a cada jugador y, en los extranjeros, su país. Son 240: figuras
+chilenas, extranjeros que jugaron en la liga chilena y nacionalizados que
+jugaron por la Selección (estos dos grupos, verificados con búsquedas web). La escala de OVR va de unos 58 a 93, abierta para que los
 modos con tope tengan jugadores. El OVR es una valoración de juego, no un dato
 oficial, y se corrige editando esa fila. Tiene que haber al menos 128 jugadores
-y 8 arqueros para que entren 8 DT con 16 picks (con tope 70 alcanza para 7). Si al final del draft a alguien
+y 8 arqueros para que entren 8 DT con 16 picks (con tope 70 también alcanza). Si al final del draft a alguien
 ya no le queda ningún jugador que respete los mínimos por puesto (por ejemplo,
 se acabaron los arqueros), el juego lo deja elegir a cualquiera antes que
 trabar el turno.
