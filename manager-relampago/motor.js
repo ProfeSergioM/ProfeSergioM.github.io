@@ -366,7 +366,7 @@ export function autoPick(plantel, pozo, picks, picksTotales, ruido) {
 /* ── el once ──────────────────────────────────────────────── */
 /* Fuera de su puesto rinde menos, y un jugador de campo en el arco es un
    desastre. */
-function rindeEn(j, pos) {
+export function rindeEn(j, pos) {
   if (j.pos === pos) return j.media;
   if (pos === "POR" || j.pos === "POR") return j.media * 0.45;
   const vecinos = (j.pos === "MED") || (pos === "MED");
@@ -416,8 +416,19 @@ const media = l => l.length ? l.reduce((s, x) => s + x, 0) / l.length : 40;
 /* Tres números por equipo: cuánto defiende, cuánto maneja la pelota y cuánto
    ataca. Poner más gente en una línea la hace más fuerte, pero cada hombre
    de más en una es uno de menos en otra: ahí está la decisión. */
-export function fuerza(plantel, formacion, estilo) {
-  const { once } = armarOnce(plantel, formacion);
+export function fuerza(plantel, formacion, estilo, descansan) {
+  /* Los que el DT mandó a descansar no entran en el once, salvo que sin ellos
+     no se llegue a once. */
+  let lista = plantel;
+  if (descansan && descansan.length) {
+    const sin = plantel.filter(j => !descansan.includes(j.idx));
+    if (sin.length >= 11) lista = sin;
+  }
+  const { once } = armarOnce(lista, formacion);
+  return fuerzaDeOnce(once, formacion, estilo);
+}
+
+export function fuerzaDeOnce(once, formacion, estilo) {
   const de = pos => once.filter(o => o.en === pos).map(o => o.rinde);
   const f = FORMACIONES[formacion] || FORMACIONES["4-4-2"];
   const q = 1 + quimica(once) / 100;
@@ -432,6 +443,18 @@ export function fuerza(plantel, formacion, estilo) {
     once
   };
 }
+
+/* ── el cansancio ─────────────────────────────────────────────
+   Cada fecha, todos se recuperan un 35 % de lo que arrastran. Encima de eso,
+   el que jugó suma 30 por partido completo (15 por medio) y el que no jugó
+   descansa 25 más. Hasta 20 no se nota; de ahí en más cada punto baja el
+   rendimiento un 0,4 %. Un titular fijo se estanca cerca de 86 (juega un 26 %
+   peor); uno que rota cada tanto anda por la mitad. Con 16 hay que rotar. */
+export const CANSANCIO = { porPartido: 30, conserva: 0.65, descanso: 25, umbral: 20, porPunto: 0.004, tope: 100 };
+export function mermaCansancio(fat) {
+  return Math.max(0, (fat || 0) - CANSANCIO.umbral) * CANSANCIO.porPunto;
+}
+export const MAX_CAMBIOS = 3;
 
 /* ── el partido ─────────────────────────────────────────────
    Se juega minuto a minuto. Además de los goles pueden pasar cosas que
@@ -469,23 +492,40 @@ function elegir(lista, peso, r) {
 const PESO_TARJETA = { POR: 0.15, DEF: 1.4, MED: 1.1, DEL: 0.6 };
 const PESO_GOL = { POR: 0.01, DEF: 0.35, MED: 1.2, DEL: 3.2 };
 
+/* Se juega en dos tiempos. En el entretiempo entran los cambios de cada DT
+   (A.cambios, B.cambios: hasta tres "sale-entra" por índice del pozo) y la
+   fuerza de cada equipo se recalcula con el once nuevo. El primer tiempo no
+   depende de los cambios, así que se puede mostrar antes de que se hagan. */
 export function jugarPartido(A, B, semilla) {
   const r = azar(semilla);
   const ta = A.tactica || {}, tb = B.tactica || {};
-  const fa = fuerza(A.plantel, ta.f, ta.e), fb = fuerza(B.plantel, tb.f, tb.e);
+  const plantel = [A.plantel, B.plantel];
+  const tac = [ta, tb];
+  const fa = fuerza(A.plantel, ta.f, ta.e, ta.d), fb = fuerza(B.plantel, tb.f, tb.e, tb.d);
+  const estilo = [ESTILOS[ta.e] || ESTILOS.eq, ESTILOS[tb.e] || ESTILOS.eq];
   /* La posesión sale del medio campo, y exagerada: dos puntos de media en el
      medio ya se notan en la pelota. */
-  const pa = Math.pow(fa.med, 5) / (Math.pow(fa.med, 5) + Math.pow(fb.med, 5));
-  const x = [
-    Math.min(5, 1.3 * Math.pow(fa.ata / fb.def, 3.2) * Math.sqrt(pa / 0.5)),
-    Math.min(5, 1.3 * Math.pow(fb.ata / fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5))
-  ];
-  const estilo = [ESTILOS[ta.e] || ESTILOS.eq, ESTILOS[tb.e] || ESTILOS.eq];
-  const activos = [fa.once.slice(), fb.once.slice()];
+  let pa = 0.5, x = [1, 1];
+  const tasas = (Fa, Fb) => {
+    pa = Math.pow(Fa.med, 5) / (Math.pow(Fa.med, 5) + Math.pow(Fb.med, 5));
+    x = [
+      Math.min(5, 1.22 * Math.pow(Fa.ata / Fb.def, 3.2) * Math.sqrt(pa / 0.5)),
+      Math.min(5, 1.22 * Math.pow(Fb.ata / Fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5))
+    ];
+  };
+  tasas(fa, fb);
+  const posesion1 = pa, x1 = x.slice();
+
+  const once = [fa.once.slice(), fb.once.slice()];      // los once puestos, con los cambios
+  const activos = [fa.once.slice(), fb.once.slice()];   // los que están en la cancha
   const mod = [1, 1];
   const eventos = [];
   const amonestados = [new Set(), new Set()];
+  const expulsados = [new Set(), new Set()];
+  const lesionados = [new Set(), new Set()];
   const inspirado = [null, null];
+  const jugo = {};                                      // idx → [entra, sale]
+  for (const t of [0, 1]) for (const o of once[t]) jugo[o.j.idx] = [0, 90];
   const ev = (min, lado, tipo, o, extra) => eventos.push(Object.assign(
     { min, lado, tipo, autor: o ? o.j.nombre : "", idx: o ? o.j.idx : null }, extra || {}));
 
@@ -503,8 +543,12 @@ export function jugarPartido(A, B, semilla) {
     }
   }
 
-  const expulsar = (t, o) => {
+  const sacar = (t, o, min) => {
     activos[t] = activos[t].filter(x => x !== o);
+    if (jugo[o.j.idx]) jugo[o.j.idx][1] = min;
+  };
+  const expulsar = (t, o, min) => {
+    sacar(t, o, min); expulsados[t].add(o.j.idx);
     mod[t] *= 0.72; mod[1 - t] *= 1.22;
   };
   const gol = (t, min, o, extra) => {
@@ -513,18 +557,18 @@ export function jugarPartido(A, B, semilla) {
   };
   const goleador = t => elegir(activos[t], o => o.j.media * PESO_GOL[o.en] * (o === inspirado[t] ? 3 : 1), r);
 
-  for (let min = 1; min <= 90; min++) {
+  const minuto = min => {
     for (const t of [0, 1]) {
       if (!activos[t].length) continue;
       if (r() < PROB.amarillas * estilo[t].tarjetas / 90) {
         const o = elegir(activos[t], o => PESO_TARJETA[o.en], r);
         /* El que ya tiene amarilla se cuida: no siempre llega la segunda. */
-        if (amonestados[t].has(o)) { if (r() < 0.4) { ev(min, t, "roja", o, { doble: true }); expulsar(t, o); } }
-        else { amonestados[t].add(o); ev(min, t, "amarilla", o); }
+        if (amonestados[t].has(o.j.idx)) { if (r() < 0.4) { ev(min, t, "roja", o, { doble: true }); expulsar(t, o, min); } }
+        else { amonestados[t].add(o.j.idx); ev(min, t, "amarilla", o); }
       }
       if (r() < PROB.rojaDirecta / 90) {
         const o = elegir(activos[t], o => PESO_TARJETA[o.en], r);
-        if (o) { ev(min, t, "roja", o); expulsar(t, o); }
+        if (o) { ev(min, t, "roja", o); expulsar(t, o, min); }
       }
       if (r() < PROB.lesion / 90) {
         const o = elegir(activos[t], o => o.en === "POR" ? 0.3 : 1, r);
@@ -532,8 +576,9 @@ export function jugarPartido(A, B, semilla) {
           const grave = r() < 0.3;
           const fechas = grave ? 2 + Math.floor(r() * 2) : 1 + Math.floor(r() * 2);
           ev(min, t, "lesion", o, { grave, fechas, merma: grave ? 0.25 : 0.12 });
-          /* Sale y entra un cambio: el equipo se resiente un poco. */
-          activos[t] = activos[t].filter(x => x !== o);
+          /* Sale. Si todavía hay cambios, en el entretiempo se lo puede
+             reemplazar; mientras tanto el equipo se resiente. */
+          sacar(t, o, min); lesionados[t].add(o.j.idx);
           mod[t] *= 0.97;
         }
       }
@@ -553,13 +598,88 @@ export function jugarPartido(A, B, semilla) {
         if (o) gol(t, min, o);
       }
     }
+  };
+
+  for (let min = 1; min <= 45; min++) minuto(min);
+
+  /* Entretiempo: cómo quedó cada equipo, para que el DT decida los cambios. */
+  const medio = [0, 1].map(t => {
+    const enCancha = new Set(once[t].map(o => o.j.idx));
+    return {
+      once: once[t].map(o => ({ idx: o.j.idx, en: o.en })),
+      lesionados: [...lesionados[t]], expulsados: [...expulsados[t]], amonestados: [...amonestados[t]],
+      banco: plantel[t].filter(j => !enCancha.has(j.idx)).map(j => j.idx)
+    };
+  });
+
+  const cambios = [A.cambios, B.cambios];
+  for (const t of [0, 1]) {
+    const usados = new Set();
+    for (const c of (cambios[t] || []).slice(0, MAX_CAMBIOS)) {
+      const [sale, entra] = String(c).split("-").map(Number);
+      const slot = once[t].findIndex(o => o.j.idx === sale);
+      const nuevo = plantel[t].find(j => j.idx === entra);
+      if (slot < 0 || !nuevo || usados.has(entra) || expulsados[t].has(sale)) continue;
+      if (once[t].some(o => o.j.idx === entra)) continue;
+      usados.add(entra);
+      const viejo = once[t][slot];
+      const o = { j: nuevo, en: viejo.en, rinde: rindeEn(nuevo, viejo.en) };
+      if (lesionados[t].has(sale)) mod[t] /= 0.97;       // vuelven a ser once
+      else sacar(t, viejo, 45);
+      once[t][slot] = o;
+      activos[t].push(o);
+      jugo[entra] = [45, 90];
+      ev(46, t, "cambio", o, { sale: viejo.j.nombre });
+    }
   }
+  if (cambios[0] && cambios[0].length || cambios[1] && cambios[1].length)
+    tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
+
+  for (let min = 46; min <= 90; min++) minuto(min);
+
+  const minutos = {};
+  for (const [idx, [e, s]] of Object.entries(jugo)) minutos[idx] = Math.max(0, s - e);
   const goles = eventos.filter(e => e.tipo === "gol");
   return {
     ga: goles.filter(g => g.lado === 0).length, gb: goles.filter(g => g.lado === 1).length,
-    goles, eventos, posesion: Math.round(pa * 100),
-    xa: Math.round(x[0] * 100) / 100, xb: Math.round(x[1] * 100) / 100
+    goles, eventos, medio, minutos,
+    posesion: Math.round(((posesion1 + pa) / 2) * 100),
+    xa: Math.round(x1[0] * 100) / 100, xb: Math.round(x1[1] * 100) / 100
   };
+}
+
+/* Los cambios que hace la máquina en el entretiempo: primero reemplaza a los
+   lesionados, después saca a los más cansados o a los defensores amonestados
+   si en el banco hay alguien que rinda parecido en ese puesto. */
+export function cambiosCPU(medio, disponibles) {
+  const porIdx = new Map(disponibles.map(j => [j.idx, j]));
+  const banco = medio.banco.map(i => porIdx.get(i)).filter(Boolean);
+  const usados = new Set(), out = [];
+  const mejorPara = en => banco.filter(j => !usados.has(j.idx))
+    .sort((a, b) => rindeEn(b, en) - rindeEn(a, en) || a.idx - b.idx)[0];
+  for (const o of medio.once) {
+    if (out.length >= MAX_CAMBIOS || !medio.lesionados.includes(o.idx)) continue;
+    const j = mejorPara(o.en);
+    if (j) { usados.add(j.idx); out.push(o.idx + "-" + j.idx); }
+  }
+  const candidatos = medio.once
+    .filter(o => !medio.lesionados.includes(o.idx) && !medio.expulsados.includes(o.idx) && o.en !== "POR")
+    .map(o => ({ o, j: porIdx.get(o.idx) })).filter(x => x.j)
+    .sort((a, b) => (b.j.fat || 0) - (a.j.fat || 0));
+  for (const { o, j } of candidatos) {
+    if (out.length >= MAX_CAMBIOS) break;
+    const amonestado = medio.amonestados.includes(o.idx) && o.en === "DEF";
+    if ((j.fat || 0) < 40 && !amonestado) continue;
+    const r = mejorPara(o.en);
+    if (r && rindeEn(r, o.en) >= rindeEn(j, o.en) - 4) { usados.add(r.idx); out.push(o.idx + "-" + r.idx); }
+  }
+  return out;
+}
+
+/* Modo con tope: solo entran al draft los jugadores con OVR hasta ese número. */
+export const TOPES = [0, 85, 80, 75, 70];
+export function conTope(base, tope) {
+  return tope ? base.filter(j => j.media <= tope) : base;
 }
 
 /* ── el campeonato ───────────────────────────────────────────
@@ -629,22 +749,33 @@ export function temporada(codigo, orden, pozo, picks, historial) {
   const goleadores = {};
   const tarjetas = {};
   const jornadas = [];
-  const est = {};   // idx → { am, susp, motivo, les, merma }
-  const de = idx => est[idx] || (est[idx] = { am: 0, susp: 0, motivo: "", les: 0, merma: 0 });
+  const est = {};   // idx → { am, susp, motivo, les, merma, fat }
+  const de = idx => est[idx] || (est[idx] = { am: 0, susp: 0, motivo: "", les: 0, merma: 0, fat: 0 });
 
-  /* Los que pueden jugar, con la media ya rebajada si están lesionados. */
+  /* Los que pueden jugar, con la media ya rebajada por lesión y cansancio. */
   const disponibles = id => eq[id]
     .filter(j => !(est[j.idx] && est[j.idx].susp > 0))
     .map(j => {
       const e = est[j.idx];
-      return e && e.les > 0 ? Object.assign({}, j, { media: Math.round(j.media * (1 - e.merma)), merma: e.merma, les: e.les }) : j;
+      if (!e || (!e.les && !e.fat)) return j;
+      const merma = e.les > 0 ? e.merma : 0;
+      const cansancio = mermaCansancio(e.fat);
+      return Object.assign({}, j, {
+        media: Math.max(1, Math.round(j.media * (1 - merma) * (1 - cansancio))),
+        base: j.media, merma, les: e.les, fat: Math.round(e.fat), cansancio
+      });
     });
 
   const tacticaEn = (h, id) => (h && h.t && h.t[id]) || { f: "4-4-2", e: "eq" };
-  const jugar = (h, j, a, b) => jugarPartido(
-    { plantel: disponibles(a), tactica: tacticaEn(h, a) },
-    { plantel: disponibles(b), tactica: tacticaEn(h, b) },
-    codigo + "·" + j + "·" + a + "·" + b);
+  const cambiosEn = (h, id) => (h && h.c && h.c[id]) || [];
+  const jugar = (h, j, a, b) => {
+    const disp = [disponibles(a), disponibles(b)];
+    const res = jugarPartido(
+      { plantel: disp[0], tactica: tacticaEn(h, a), cambios: cambiosEn(h, a) },
+      { plantel: disp[1], tactica: tacticaEn(h, b), cambios: cambiosEn(h, b) },
+      codigo + "·" + j + "·" + a + "·" + b);
+    return Object.assign(res, { disp });
+  };
 
   /* Después de cada fecha: los suspendidos que no jugaron ya cumplieron, las
      lesiones avanzan una fecha, y se anotan las tarjetas y lesiones nuevas. */
@@ -653,6 +784,16 @@ export function temporada(codigo, orden, pozo, picks, historial) {
     for (const id of jugaron) for (const j of eq[id]) {
       const e = est[j.idx];
       if (e && e.susp > 0) { e.susp--; if (!e.susp) e.motivo = ""; }
+    }
+    /* Cansancio: suma por los minutos jugados, y el que no jugó (o su equipo
+       descansó) recupera. */
+    const minutos = {};
+    for (const p of partidos) Object.assign(minutos, p.minutos);
+    for (const id of orden) for (const j of eq[id]) {
+      const m = minutos[j.idx] || 0;
+      const x = de(j.idx);
+      x.fat = Math.max(0, Math.min(CANSANCIO.tope, x.fat * CANSANCIO.conserva +
+        (m > 0 ? CANSANCIO.porPartido * m / 90 : -CANSANCIO.descanso)));
     }
     for (const e of Object.values(est)) if (e.les > 0) { e.les--; if (!e.les) e.merma = 0; }
     for (const p of partidos) for (const e of p.eventos) {
@@ -772,5 +913,9 @@ export function tacticaCPU(plantel, plantelRival, r) {
   } else {
     const x = r(); e = x < 0.5 ? "eq" : x < 0.75 ? "of" : "def";
   }
-  return { f: mejor, e };
+  /* Descansa a los que están muy cansados, si quedan al menos 13 para elegir. */
+  const d = [];
+  const cansados = plantel.filter(j => (j.fat || 0) >= 70).sort((a, b) => b.fat - a.fat);
+  for (const j of cansados) if (plantel.length - d.length > 13) d.push(j.idx);
+  return { f: mejor, e, d };
 }

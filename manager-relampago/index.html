@@ -202,6 +202,7 @@
   .marcador .goles.salta{animation:salta .5s}
   @keyframes salta{0%{transform:scale(1.5);color:var(--rayo)}100%{transform:scale(1)}}
   .minuto{text-align:center;font-size:11.5px;font-weight:800;color:var(--rayo);letter-spacing:.1em}
+  .tag{font-size:11px;font-weight:800;padding:1px 6px;border-radius:6px;background:rgba(0,0,0,.35);white-space:nowrap}
   .relato{list-style:none;margin:8px 0 0;padding:0;font-size:12.5px;color:var(--humo)}
   .relato li{padding:2px 0;display:flex;gap:6px}
   .relato li .m{min-width:26px;color:var(--tiza);font-weight:800}
@@ -267,7 +268,8 @@ const MAX_EQUIPOS  = 8;
 const MAX_SALA     = 16;     // con espectadores
 const MIN_EQUIPOS  = 2;
 const SEG_TACTICA  = 45;
-const SEG_PARTIDO  = 16;     // lo que dura la animación de los 90 minutos
+const SEG_TIEMPO   = 9;      // lo que dura la animación de cada tiempo
+const SEG_ENTRE    = 30;     // en multijugador, cuánto dura el entretiempo
 const SEG_RESUMEN  = 30;     // después del pitazo, cuánto se espera a los que no apretan Seguir
 const GRACIA       = 3;      // los demás esperan un poco más antes de elegir por el dormido
 const ESPERA_RED   = 25000;
@@ -365,7 +367,7 @@ const soyMando  = () => !!sala && sala.anfitrion === yo;
 const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()[id].nombre)) || "Equipo sin DT";
 const dtDe      = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
 const colorDe   = id => COLORES[Math.max(0, orden().indexOf(id)) % COLORES.length];
-const cfg       = () => Object.assign({ picks: 16, seg: 20 }, (sala && sala.config) || {});
+const cfg       = () => Object.assign({ picks: 16, seg: 20, tope: 0 }, (sala && sala.config) || {});
 const totalPicks = () => orden().length * cfg().picks;
 
 /* Lo que sale del motor se recalcula solo cuando cambia algo que lo afecta. */
@@ -383,8 +385,10 @@ function calculos(){
 }
 function tacticaDe(id){
   const t = (sala.tacticas && sala.tacticas[id]) || {};
-  return { f: M.FORMACIONES[t.f] ? t.f : "4-4-2", e: M.ESTILOS[t.e] ? t.e : "eq" };
+  return { f: M.FORMACIONES[t.f] ? t.f : "4-4-2", e: M.ESTILOS[t.e] ? t.e : "eq",
+           d: Array.isArray(t.d) ? t.d.filter(x => Number.isInteger(x)).slice(0, 16) : [] };
 }
+const cambiosDe = id => ((sala.cambios && sala.cambios[id]) || []).filter(c => /^\d+-\d+$/.test(c)).slice(0, M.MAX_CAMBIOS);
 
 /* ── modo solo ───────────────────────────────────────────────
    La partida contra la máquina vive entera en este navegador, sin Firestore.
@@ -543,10 +547,15 @@ async function entrarSala(codigoForzado){
 }
 
 /* ── la base de jugadores ────────────────────────────────── */
-function fuenteElegida(){
-  return (usarPropia && basePropia)
+function baseElegida(){
+  return (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
+}
+function fuenteElegida(tope){
+  const f = (usarPropia && basePropia)
     ? { nombre: basePropia.nombre, n: basePropia.jugadores.length, propia: true }
     : { nombre: M.nombreBaseDefecto(), n: M.baseDefecto().length, propia: false };
+  if (tope) { f.tope = tope; f.n = M.conTope(baseElegida(), tope).length; }
+  return f;
 }
 
 document.getElementById("archivo").addEventListener("change", function(ev){
@@ -587,9 +596,9 @@ async function empezar(){
   const ids = listaJug();
   if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
   if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
-  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
+  const base = M.conTope(baseElegida(), cfg().tope);
   const faltan = M.alcanzaBase(base, ids.length, cfg().picks);
-  if (faltan.length) { avisar("La base no alcanza para " + ids.length + " equipos. Falta: " + faltan.join(", ") + "."); return; }
+  if (faltan.length) { avisar("Con " + (cfg().tope ? "OVR hasta " + cfg().tope : "esta base") + " no alcanza para " + ids.length + " equipos. Falta: " + faltan.join(", ") + "."); return; }
   const semilla = sala.codigo + "·" + Date.now();
   const r = M.azar(semilla);
   const ordenDraft = ids.map(id => [r(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
@@ -598,7 +607,7 @@ async function empezar(){
   escribir({
     estado: "draft", ronda: 0, orden: ordenDraft,
     pozo: M.armarPozo(base, ids.length, cfg().picks, semilla),
-    fuente: fuenteElegida(), picks: {}, tacticas, listos: {}, historial: []
+    fuente: fuenteElegida(cfg().tope), picks: {}, tacticas, listos: {}, cambios: {}, historial: []
   });
 }
 
@@ -606,6 +615,7 @@ async function empezar(){
 const RIVALES_CPU = ["Deportivo Cordillera", "Unión Pacífico", "Atlético Desierto", "Real Araucanía",
   "Sporting Patagonia", "Club Estrecho", "Juventud Altiplano", "Rangers del Maule"];
 const CANTIDAD_CPU = 3;
+let topeSolo = Number(leer("manager-tope-solo")) || 0;
 
 /* Espera una promesa, pero nunca más de ms. */
 const aLoSumo = (p, ms) => Promise.race([p, new Promise(ok => setTimeout(ok, ms))]);
@@ -626,10 +636,10 @@ function crearSolo(){
 }
 
 function armarSolo(){
-  const base = (usarPropia && basePropia) ? basePropia.jugadores : M.baseDefecto();
+  const base = M.conTope(baseElegida(), topeSolo);
   const picks = 16;
   const faltan = M.alcanzaBase(base, CANTIDAD_CPU + 1, picks);
-  if (faltan.length) { avisar("La base no alcanza para cuatro equipos. Falta: " + faltan.join(", ") + "."); pintar(); return; }
+  if (faltan.length) { avisar("Con " + (topeSolo ? "OVR hasta " + topeSolo : "esta base") + " no alcanza para cuatro equipos. Falta: " + faltan.join(", ") + "."); pintar(); return; }
   let codigo = "";
   for (let i = 0; i < 4; i++) codigo += LETRAS[Math.floor(Math.random() * LETRAS.length)];
   const semilla = codigo + "·" + Date.now();
@@ -643,9 +653,9 @@ function armarSolo(){
   for (const id of ids) tacticas[id] = { f: "4-4-2", e: "eq" };
   salaLocal = {
     codigo, solo: true, estado: "draft", ronda: 0, anfitrion: yo, jugadores: js,
-    config: { picks, seg: 0 }, fuente: fuenteElegida(), orden: ordenDraft,
+    config: { picks, seg: 0, tope: topeSolo }, fuente: fuenteElegida(topeSolo), orden: ordenDraft,
     pozo: M.armarPozo(base, ids.length, picks, semilla),
-    picks: {}, tacticas, listos: {}, historial: []
+    picks: {}, tacticas, listos: {}, cambios: {}, historial: []
   };
   arrancarSolo();
 }
@@ -706,17 +716,26 @@ function moverCPU(){
     }
     const todos = orden().every(id => sala.listos && sala.listos[id]);
     if (todos && !cierreHecho) { cierreHecho = true; cerrarTacticas(j); }
-  } else if (st === "partido") {
+  } else if (st === "primer" || st === "partido") {
     if (!cpuHecho) {
       cpuHecho = true;
       const cambios = {};
-      for (const id of orden().filter(esCPU)) cambios["listos." + id] = true;
+      const jor = calculos().temp.jornadas[sala.ronda];
+      for (const id of orden().filter(esCPU)) {
+        cambios["listos." + id] = true;
+        if (st !== "primer" || !jor) continue;
+        const p = jor.partidos.find(p => p.a === id || p.b === id);
+        if (p) { const l = p.a === id ? 0 : 1; cambios["cambios." + id] = M.cambiosCPU(p.medio[l], p.disp[l]); }
+      }
       escribir(cambios);
       return;
     }
     const todos = orden().every(id => sala.listos && sala.listos[id]);
-    const animado = Date.now() - inicioFase >= SEG_PARTIDO * 1000;
-    if (todos && animado && !cierreHecho) { cierreHecho = true; siguienteJornada(sala.ronda); }
+    const animado = Date.now() - inicioFase >= SEG_TIEMPO * 1000;
+    if (todos && animado && !cierreHecho) {
+      cierreHecho = true;
+      if (st === "primer") cerrarEntretiempo(sala.ronda); else siguienteJornada(sala.ronda);
+    }
   }
 }
 
@@ -764,11 +783,31 @@ async function cerrarTacticas(j){
       const tt = {};
       for (const id of d.orden) {
         const x = (d.tacticas && d.tacticas[id]) || {};
-        tt[id] = { f: M.FORMACIONES[x.f] ? x.f : "4-4-2", e: M.ESTILOS[x.e] ? x.e : "eq" };
+        tt[id] = { f: M.FORMACIONES[x.f] ? x.f : "4-4-2", e: M.ESTILOS[x.e] ? x.e : "eq",
+                   d: Array.isArray(x.d) ? x.d.filter(v => Number.isInteger(v)).slice(0, 16) : [] };
       }
-      t.update(ref, { estado: "partido", listos: {}, historial: (d.historial || []).concat([{ t: tt }]) });
+      t.update(ref, { estado: "primer", listos: {}, cambios: {}, historial: (d.historial || []).concat([{ t: tt }]) });
     }));
   } catch (e) { avisar(explicarError(e, "cerrar la jornada")); }
+}
+
+/* Al final del entretiempo, los cambios de cada uno quedan congelados en el
+   historial de la fecha y arranca el segundo tiempo. */
+async function cerrarEntretiempo(j){
+  try {
+    await conReloj(transaccion(async function(t){
+      const s = await t.get(ref);
+      const d = s.data();
+      if (!d || d.estado !== "primer" || d.ronda !== j) return;
+      const c = {};
+      for (const id of d.orden) {
+        c[id] = ((d.cambios && d.cambios[id]) || []).filter(x => /^\d+-\d+$/.test(x)).slice(0, M.MAX_CAMBIOS);
+      }
+      const historial = (d.historial || []).slice();
+      historial[j] = Object.assign({}, historial[j], { c });
+      t.update(ref, { estado: "partido", listos: {}, historial });
+    }));
+  } catch (e) { avisar(explicarError(e, "empezar el segundo tiempo")); }
 }
 
 async function siguienteJornada(j){
@@ -810,8 +849,10 @@ function alCambiar(antes){
     const seg = solo ? 0
               : sala.estado === "draft" ? cfg().seg
               : sala.estado === "tactica" ? SEG_TACTICA
-              : sala.estado === "partido" ? SEG_PARTIDO + SEG_RESUMEN : 0;
+              : sala.estado === "primer" ? SEG_TIEMPO + SEG_ENTRE
+              : sala.estado === "partido" ? SEG_TIEMPO + SEG_RESUMEN : 0;
     finFase = seg ? inicioFase + seg * 1000 : 0;
+    ultimoMin = -1; saleSel = null;
     if (sala.estado === "draft" && M.turnoDe(orden(), sala.ronda) === yo && navigator.vibrate) {
       try { navigator.vibrate([90, 60, 90]); } catch (e) {}
     }
@@ -836,10 +877,13 @@ function revisarFase(){
   } else if (st === "tactica") {
     const todos = orden().every(id => sala.listos && sala.listos[id]);
     if (!disparado && (todos || Date.now() >= finFase)) { disparado = true; cerrarTacticas(sala.ronda); }
-  } else if (st === "partido") {
+  } else if (st === "primer" || st === "partido") {
     const todos = orden().every(id => sala.listos && sala.listos[id]);
-    const animado = Date.now() - inicioFase >= SEG_PARTIDO * 1000;
-    if (!disparado && animado && (todos || Date.now() >= finFase)) { disparado = true; siguienteJornada(sala.ronda); }
+    const animado = Date.now() - inicioFase >= SEG_TIEMPO * 1000;
+    if (!disparado && animado && (todos || Date.now() >= finFase)) {
+      disparado = true;
+      if (st === "primer") cerrarEntretiempo(sala.ronda); else siguienteJornada(sala.ronda);
+    }
   }
 }
 
@@ -847,11 +891,11 @@ setInterval(function(){
   if (!sala) return;
   const r = document.getElementById("reloj");
   if (r && finFase) {
-    const q = Math.max(0, sala.estado === "partido" ? quedan() : quedan());
+    const q = Math.max(0, quedan());
     r.textContent = q;
     r.classList.toggle("poco", q <= 5);
   }
-  if (sala.estado === "partido") animarPartidos();
+  if (sala.estado === "primer" || sala.estado === "partido") animarPartidos();
   revisarFase();
 }, 250);
 
@@ -866,7 +910,7 @@ function pintar(){
 
   if (!sala) app.innerHTML = vistaPortada();
   else app.innerHTML = cabecera() + ({
-    sala: vistaSala, draft: vistaDraft, tactica: vistaTactica, partido: vistaPartido, fin: vistaFin
+    sala: vistaSala, draft: vistaDraft, tactica: vistaTactica, primer: vistaPartido, partido: vistaPartido, fin: vistaFin
   }[sala.estado] || vistaSala)();
 
   if (foco) {
@@ -878,7 +922,7 @@ function pintar(){
   }
   const lista2 = document.querySelector(".lista-pozo");
   if (lista2) lista2.scrollTop = scroll;
-  if (sala && sala.estado === "partido") animarPartidos(true);
+  if (sala && (sala.estado === "primer" || sala.estado === "partido")) animarPartidos(true);
 }
 
 function titulo(){
@@ -887,11 +931,18 @@ function titulo(){
 
 function cajaSolo(){
   const guardada = hayPartidaSolo();
+  const topes = M.TOPES.map(tp => {
+    const alcanza = !M.alcanzaBase(M.conTope(baseElegida(), tp), CANTIDAD_CPU + 1, 16).length;
+    return `<button class="op" data-accion="tope-solo" data-valor="${tp}" aria-pressed="${topeSolo === tp}" ${alcanza ? "" : "disabled"}>
+      ${tp ? "≤" + tp : "Libre"}${alcanza ? "" : "<small>no alcanza</small>"}</button>`;
+  }).join("");
   return `<div class="caja rayo">
       <span class="et">Un jugador</span>
       <h2>Jugar solo</h2>
       <p class="chico">Vos contra tres rivales de la máquina: draft de 16 picks sin reloj, liga ida
         y vuelta de seis fechas. La partida se guarda en este teléfono.</p>
+      <h3>OVR máximo</h3>
+      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">${topes}</div>
       ${guardada ? `<div class="fila" style="margin-bottom:9px">
         <button class="verde" data-accion="retomar-solo">Seguir la partida</button></div>` : ""}
       <button ${guardada ? `class="fantasma"` : ""} data-accion="solo">
@@ -956,6 +1007,8 @@ function vistaPortada(){
         <li><b>Pasan cosas.</b> Tarjetas (la roja o tres amarillas suspenden una fecha),
           lesiones que bajan el rendimiento por un par de fechas, penales, goles anulados,
           lluvia y tardes inspiradas. El once se arma solo con los que están disponibles.</li>
+        <li><b>Cambios y cansancio.</b> En el entretiempo hay hasta tres cambios. Cada partido
+          cansa y el cansado rinde menos: hay que rotar el plantel a lo largo del torneo.</li>
         <li><b>Liga todos contra todos.</b> Los partidos se simulan en vivo en todos los
           teléfonos a la vez. Gana el que termina arriba en la tabla.</li>
       </ol></div>
@@ -985,7 +1038,7 @@ function vistaSala(){
   const fmt = M.formato(Math.max(2, ids.length));
   const fechas = M.totalFechas(ids.length >= 2 ? ids : ["a", "b"]);
   const minutos = Math.round((ids.length * c.picks * c.seg * 0.55 +
-    fechas * (SEG_TACTICA * 0.7 + SEG_PARTIDO + 8)) / 60);
+    fechas * (SEG_TACTICA * 0.7 + SEG_TIEMPO * 2 + SEG_ENTRE * 0.6 + 8)) / 60);
 
   return `
     <div class="caja rayo" style="text-align:center">
@@ -1016,7 +1069,7 @@ function vistaSala(){
       <h2>Reglas de la partida</h2>
       ${mando ? "" : `<p class="chico">Las elige ${esc(dtDe(sala.anfitrion))}.</p>`}
       <h3>Base de jugadores</h3>
-      <p><b>${esc(f.nombre)}</b> <span class="chico">· ${f.n} jugadores${f.propia ? " · subida por el que arma" : " históricos, cada uno con su club"}</span></p>
+      <p><b>${esc(f.nombre)}</b> <span class="chico">· ${(usarPropia && basePropia && mando) ? basePropia.jugadores.length : f.propia ? f.n : M.baseDefecto().length} jugadores${f.propia ? " · subida por el que arma" : " históricos, cada uno con su club"}</span></p>
       ${mando ? `
         <div class="opciones dos">
           <button class="op" data-accion="base" data-valor="clasica" aria-pressed="${!f.propia}">Leyendas chilenas<small>${M.baseDefecto().length} históricos</small></button>
@@ -1034,6 +1087,13 @@ function vistaSala(){
           cualquier juego (GK, CB, CAM, ST, POR, DFC, MC, DC…) y los nombres de columna en
           inglés de las bases más comunes. Solo tu teléfono necesita el archivo.</p>` : ""}
 
+      <h3>OVR máximo</h3>
+      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">${M.TOPES.map(tp => {
+        const alcanza = !M.alcanzaBase(M.conTope(baseElegida(), tp), Math.max(2, ids.length), c.picks).length;
+        return `<button class="op" data-accion="config" data-campo="tope" data-valor="${tp}" aria-pressed="${c.tope === tp}"
+          ${mando && alcanza ? "" : "disabled"}>${tp ? "≤" + tp : "Libre"}${alcanza ? "" : "<small>no alcanza</small>"}</button>`;
+      }).join("")}</div>
+      <p class="chico">${c.tope ? "Solo entran al draft los jugadores con OVR hasta " + c.tope + ": " + M.conTope(baseElegida(), c.tope).length + " disponibles." : "Entran todos los jugadores de la base."}</p>
       <h3>Picks por equipo</h3>
       <div class="opciones">${opcion("picks", 12, "12", "1 suplente")}${opcion("picks", 14, "14", "3 suplentes")}${opcion("picks", 16, "16", "5 suplentes")}</div>
       <h3>Tiempo por pick</h3>
@@ -1159,8 +1219,8 @@ function rivalDe(id, j){
 function canchaHTML(once){
   const filas = ["DEL", "MED", "DEF", "POR"].map(pos => {
     const de = once.filter(o => o.en === pos);
-    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos || o.j.merma ? "fuera" : ""}">
-      <b>${Math.round(o.rinde)}</b><span>${o.j.merma ? "🩹 " : ""}${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
+    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos || o.j.merma || o.j.cansancio >= 0.1 ? "fuera" : ""}">
+      <b>${Math.round(o.rinde)}</b><span>${o.j.merma ? "🩹 " : o.j.cansancio >= 0.1 ? "⚡ " : ""}${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
       ${o.j.pos !== pos ? `<span style="color:var(--rojo)">${o.j.pos}</span>` : ""}</div>`).join("")}</div>`;
   });
   return `<div class="cancha">${filas.join("")}</div>`;
@@ -1187,11 +1247,13 @@ function vistaTactica(){
 
   let cuerpo = "";
   if (juego()) {
-    const mia = M.fuerza(temp.proximo[yo].disponibles, t.f, t.e);
+    const disp = temp.proximo[yo].disponibles;
+    const mia = M.fuerza(disp, t.f, t.e, t.d);
+    const enOnce = new Set(mia.once.map(o => o.j.idx));
     /* Del rival se muestra lo que usó la fecha pasada: su táctica de hoy es secreta. */
     const previa = rival && sala.historial.length ? (sala.historial[sala.historial.length - 1].t || {})[rival] : null;
     const tr = previa || { f: "4-4-2", e: "eq" };
-    const suya = rival ? M.fuerza(temp.proximo[rival].disponibles, tr.f, tr.e) : null;
+    const suya = rival ? M.fuerza(temp.proximo[rival].disponibles, tr.f, tr.e, tr.d) : null;
     const bajasHTML = (id, titulo) => {
       const x = temp.proximo[id];
       if (!x.bajas.length && !x.alLimite.length) return "";
@@ -1219,11 +1281,27 @@ function vistaTactica(){
           <small>${esc(e.detalle)}</small></button>`).join("")}</div>
         ${bajasHTML(yo, "Tus bajas")}
         ${canchaHTML(mia.once)}
+        <details ${abiertos.has("descanso") ? "open" : ""} data-id="descanso"><summary>Plantel y descanso
+          <span class="chico" style="font-weight:600">${t.d.length ? t.d.length + " descansan" : "nadie descansa"}</span></summary>
+          <p class="chico" style="margin:6px 0">El once se arma solo con los mejores según cómo están hoy. Mandá a descansar
+            a los cansados para que recuperen: cada partido completo cansa, y cada fecha sin jugar descansa.</p>
+          ${disp.slice().sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media).map(j => {
+            const descansa = t.d.includes(j.idx);
+            return `<div class="ficha" style="padding:5px 0">
+              <span class="pos ${j.pos}">${j.pos}</span>
+              <span class="quien"><b>${esc(j.nombre)}</b><small>${enOnce.has(j.idx) ? "Titular" : descansa ? "Descansa" : "Suplente"}
+                ${j.base && j.base !== j.media ? " · " + j.base + " → " + j.media : ""}</small></span>
+              ${j.cansancio >= 0.05 ? `<span class="tag">⚡ −${Math.round(j.cansancio * 100)}%</span>` : ""}
+              ${j.merma ? `<span class="tag">🩹</span>` : ""}
+              <button class="op mini" style="width:auto" data-accion="descansa" data-valor="${j.idx}" aria-pressed="${descansa}">${descansa ? "Descansa" : "Juega"}</button>
+            </div>`;
+          }).join("")}
+        </details>
         <div class="barras">
           ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
         </div>
         <p class="chico" style="margin:8px 0 0">Química del once: <b>+${mia.quimica}%</b>${suya ? ` · en rojo, el rival con lo que usó la última vez` : ""}.
-          Los números en rojo en la cancha son jugadores fuera de su puesto o lesionados.</p>
+          En rojo en la cancha: fuera de su puesto, lesionados (🩹) o cansados (⚡).</p>
         ${rival ? bajasHTML(rival, "Bajas del rival") : ""}
         <div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="listo">${listo ? "Listo · cambiar algo" : "Listo para jugar"}</button></div>
       </div>`;
@@ -1243,7 +1321,8 @@ function vistaTactica(){
 
 /* ── partido ─────────────────────────────────────────────── */
 function minutoActual(){
-  return Math.min(90, Math.floor((Date.now() - inicioFase) / (SEG_PARTIDO * 1000) * 90));
+  const parte = Math.min(45, Math.floor((Date.now() - inicioFase) / (SEG_TIEMPO * 1000) * 45));
+  return sala.estado === "primer" ? parte : 45 + parte;
 }
 
 /* Cómo se cuenta cada evento en el relato del partido. */
@@ -1259,6 +1338,7 @@ function relato(e){
     case "figura": return "⭐ " + n + " está inspirado";
     case "arquero": return "🧱 " + n + " tiene la tarde de su vida";
     case "lluvia": return "🌧️ Llueve: cancha pesada, cuesta hacer goles";
+    case "cambio": return "🔁 Entra " + n + " por " + esc(e.sale);
     default: return n;
   }
 }
@@ -1274,7 +1354,8 @@ function partidoHTML(p, k, min){
       <div class="goles" data-g="${k}">${ga.length} - ${gb.length}</div>
       <div class="eq b"><span>${esc(nombreDe(p.b))}</span><span class="punto" style="background:${colorDe(p.b)}"></span></div>
     </div>
-    <div class="minuto">${min >= 90 ? (p.penales ? "PENALES " + p.penales[0] + " - " + p.penales[1] : "FINAL") : min + "'"}</div>
+    <div class="minuto">${min >= 90 ? (p.penales ? "PENALES " + p.penales[0] + " - " + p.penales[1] : "FINAL")
+      : sala.estado === "primer" && min >= 45 ? "ENTRETIEMPO" : min + "'"}</div>
     ${vistos.length ? `<ul class="relato">${vistos.map(e => `<li class="${e.lado === 0 ? "a" : e.lado === 1 ? "b" : "c"} ${e.tipo}">
       <span class="m">${e.min ? e.min + "'" : ""}</span>${relato(e)}</li>`).join("")}</ul>` : ""}
     ${min >= 90 ? `<div class="posesion"><i style="width:${p.posesion}%"></i></div>
@@ -1291,15 +1372,29 @@ function vistaPartido(){
   if (!jor) return `<div class="caja"><p>Cargando la fecha…</p></div>`;
   const min = minutoActual();
   const terminado = min >= 90;
+  const entretiempo = sala.estado === "primer" && min >= 45;
   const partidos = jor.partidos.slice().sort((x, y) => ((y.a === yo || y.b === yo) - (x.a === yo || x.b === yo)));
   const listo = !!(sala.listos && sala.listos[yo]);
   const esperando = orden().filter(id => !(sala.listos && sala.listos[id]));
+  const mio = partidos.find(p => p.a === yo || p.b === yo);
+  if (entretiempo) return `
+    <div class="caja">
+      <div class="cabezal">
+        <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">Entretiempo</h2></div>
+        ${relojHTML()}
+      </div>
+      <p class="chico" style="margin:0">${esperando.length ? "Faltan: " + esperando.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") : "Arranca el segundo tiempo."}</p>
+    </div>
+    <div id="partidos">${partidos.map((p, k) => partidoHTML(p, k, min)).join("")}</div>
+    ${mio && juego() ? cambiosHTML(mio, mio.a === yo ? 0 : 1) : ""}
+    ${juego() ? `<div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="listo">
+      ${listo ? "Listo · cambiar algo" : "Listo, segundo tiempo"}</button></div>` : ""}`;
   /* Durante los 90 minutos, la tabla es la de antes de la fecha. */
   const tabla = terminado ? temp.tabla : tablaHasta(j);
   return `
     <div class="caja">
       <div class="cabezal">
-        <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${terminado ? "Resultados" : "En juego"}</h2></div>
+        <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${terminado ? "Resultados" : sala.estado === "primer" ? "Primer tiempo" : "Segundo tiempo"}</h2></div>
         ${terminado ? `${relojHTML()}` : ""}
       </div>
     </div>
@@ -1308,6 +1403,44 @@ function vistaPartido(){
     <div class="caja" id="tabla-partido"><h3 style="margin-top:0">Tabla${terminado ? "" : " antes de la fecha"}</h3>${tablaHTML(tabla)}</div>
     ${terminado && juego() ? `<div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="seguir" ${listo ? "disabled" : ""}>
       ${listo ? "Esperando a " + esc(esperando.map(nombreDe).join(", ") || "nadie") : j + 1 >= M.totalFechas(orden()) ? "Ver al campeón" : j + 1 === temp.liga ? "Seguir a la final" : "Seguir a la fecha " + (j + 2)}</button></div>` : ""}`;
+}
+
+/* El panel del entretiempo: tocás al que sale y después al que entra. */
+function cambiosHTML(p, lado){
+  const m = p.medio[lado];
+  const porIdx = new Map(p.disp[lado].map(j => [j.idx, j]));
+  const hechos = cambiosDe(yo).map(c => c.split("-").map(Number));
+  const salen = new Set(hechos.map(c => c[0])), entran = new Set(hechos.map(c => c[1]));
+  const quedan = M.MAX_CAMBIOS - hechos.length;
+  const etiqueta = j => [
+    j.cansancio >= 0.05 ? `<span class="tag">⚡ −${Math.round(j.cansancio * 100)}%</span>` : "",
+    j.merma ? `<span class="tag">🩹</span>` : ""].join("");
+  const fila = (j, en, extra, accion, activo, marcado) => `<button class="ficha ${activo ? "" : "no"}" ${accion ? `data-accion="${accion}" data-valor="${j.idx}"` : ""}
+      aria-pressed="${!!marcado}" ${activo ? "" : "disabled"}>
+      <span class="pos ${en}">${en}</span>
+      <span class="quien"><b>${esc(j.nombre)}</b><small>${extra}</small></span>${etiqueta(j)}
+      <span class="med">${Math.round(M.rindeEn(j, en))}</span></button>`;
+  const cancha = m.once.map(o => {
+    const j = porIdx.get(o.idx);
+    if (!j) return "";
+    const exp = m.expulsados.includes(o.idx), les = m.lesionados.includes(o.idx);
+    const ya = salen.has(o.idx);
+    const extra = exp ? "🟥 expulsado, no se puede reemplazar" : les ? "🩹 salió lesionado: reemplazalo para volver a ser once"
+      : ya ? "sale en el entretiempo" : m.amonestados.includes(o.idx) ? "🟨 amonestado" : (j.club || "");
+    return fila(j, o.en, extra, "sale", !exp && !ya && quedan > 0, saleSel === o.idx);
+  }).join("");
+  const enSlot = saleSel != null ? (m.once.find(o => o.idx === saleSel) || {}).en : null;
+  const banco = m.banco.map(i => porIdx.get(i)).filter(j => j && !entran.has(j.idx))
+    .sort((a, b) => enSlot ? M.rindeEn(b, enSlot) - M.rindeEn(a, enSlot) : b.media - a.media)
+    .map(j => fila(j, enSlot || j.pos, enSlot ? "entra de " + enSlot : (j.club || ""), "entra", saleSel != null, false)).join("");
+  return `<div class="caja rayo">
+      <h2>Cambios · ${hechos.length}/${M.MAX_CAMBIOS}</h2>
+      ${hechos.length ? `<ul class="feed">${hechos.map(([a, b], i) => `<li>🔁 Entra <b>${esc((porIdx.get(b) || {}).nombre)}</b>
+        por ${esc((porIdx.get(a) || {}).nombre)} <button class="fantasma mini" data-accion="deshacer-cambio" data-valor="${i}">Quitar</button></li>`).join("")}</ul>` : ""}
+      <p class="chico">${quedan ? (saleSel == null ? "Tocá al que sale." : "Ahora tocá al que entra. El número es lo que rinde en ese puesto.") : "Ya hiciste los tres cambios."}</p>
+      <h3>En la cancha</h3>${cancha}
+      ${saleSel != null ? `<h3>Banco</h3>${banco || `<p class="chico">No queda nadie en el banco.</p>`}` : ""}
+    </div>`;
 }
 
 function etiquetaFecha(j){
@@ -1323,9 +1456,9 @@ function tablaHasta(j){
 
 /* Cada cuarto de segundo avanza el reloj de los partidos. Solo se redibuja
    todo cuando entra un gol o cuando termina, para no hacer parpadear nada. */
-let ultimoMin = -1;
+let ultimoMin = -1, saleSel = null;
 function animarPartidos(forzado){
-  if (!sala || sala.estado !== "partido") return;
+  if (!sala || (sala.estado !== "partido" && sala.estado !== "primer")) return;
   const min = minutoActual();
   if (!forzado && min === ultimoMin) return;
   const antes = ultimoMin;
@@ -1336,7 +1469,8 @@ function animarPartidos(forzado){
   if (!jor) return;
   const nuevo = e => e.min > antes && e.min <= min;
   const hubo = jor.partidos.some(p => p.eventos.some(nuevo));
-  if (hubo || (min >= 90 && antes < 90)) {
+  const pausa = sala.estado === "primer" && min >= 45 && antes < 45;
+  if (hubo || pausa || (min >= 90 && antes < 90)) {
     /* Los partidos se muestran con el propio primero: mismo orden que en vistaPartido. */
     const orden = jor.partidos.slice().sort((x, y) => ((y.a === yo || y.b === yo) - (x.a === yo || x.b === yo)));
     pintar();
@@ -1394,6 +1528,7 @@ app.addEventListener("click", function(ev){
   if (!b || b.disabled) return;
   const a = b.dataset.accion, v = b.dataset.valor;
   if (a === "crear") crearSala();
+  else if (a === "tope-solo") { topeSolo = Number(v) || 0; anotar("manager-tope-solo", String(topeSolo)); pintar(); }
   else if (a === "solo") { if (solo) salirDeLaSala(); crearSolo(); }
   else if (a === "retomar-solo") retomarSolo();
   else if (a === "entrar") entrarSala();
@@ -1430,6 +1565,22 @@ app.addEventListener("click", function(ev){
   else if (a === "estilo") escribir({ ["tacticas." + yo + ".e"]: v, ["listos." + yo]: false });
   else if (a === "listo") escribir({ ["listos." + yo]: !(sala.listos && sala.listos[yo]) });
   else if (a === "seguir") escribir({ ["listos." + yo]: true });
+  else if (a === "sale") { saleSel = saleSel === Number(v) ? null : Number(v); pintar(); }
+  else if (a === "entra") {
+    if (saleSel == null) return;
+    const lista = cambiosDe(yo).concat([saleSel + "-" + v]).slice(0, M.MAX_CAMBIOS);
+    saleSel = null;
+    escribir({ ["cambios." + yo]: lista, ["listos." + yo]: false });
+  }
+  else if (a === "deshacer-cambio") {
+    const lista = cambiosDe(yo).filter((c, i) => i !== Number(v));
+    escribir({ ["cambios." + yo]: lista, ["listos." + yo]: false });
+  }
+  else if (a === "descansa") {
+    const d = tacticaDe(yo).d;
+    const x = Number(v);
+    escribir({ ["tacticas." + yo + ".d"]: d.includes(x) ? d.filter(y => y !== x) : d.concat([x]), ["listos." + yo]: false });
+  }
   else if (a === "revancha") revancha();
 });
 

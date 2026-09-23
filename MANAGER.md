@@ -64,7 +64,8 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
 
 ## Cómo se juega la partida por dentro
 
-- `estado`: `sala` → `draft` → `tactica` → `partido` → `tactica` → … → `fin`.
+- `estado`: `sala` → `draft` → `tactica` → `primer` → `partido` → `tactica` → … → `fin`.
+  `primer` es el primer tiempo más el entretiempo; `partido`, el segundo tiempo y el resumen.
 - `ronda`: durante el draft, el número de pick en curso (desde 0). Desde la
   primera fecha, el número de fecha (desde 0).
 - `config`: `{picks, seg}`. Picks por equipo (12, 14 o 16; por defecto 16) y
@@ -81,9 +82,11 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
   pueden elegir en el mismo turno.
 - `tacticas`: mapa `id → {f: formación, e: estilo}`. Es la táctica de la
   fecha en curso.
-- `listos`: quién apretó "Listo" en la fecha o "Seguir" después del partido.
+- `listos`: quién apretó "Listo" en la fecha, en el entretiempo o "Seguir" después del partido.
+- `cambios`: mapa `id → ["sale-entra", …]` (índices del pozo, hasta tres) del entretiempo en curso.
 - `historial`: una entrada por fecha jugada, con las tácticas congeladas
-  (`{t: {id: {f, e}}}`).
+  (`{t: {id: {f, e, d}}, c: {id: ["sale-entra"]}}`). `d` son los que el DT mandó a
+  descansar; `c`, los cambios del entretiempo.
 
 **Los partidos no se escriben nunca.** Cada teléfono los simula a partir del
 pozo, los picks y las tácticas del historial, con un azar de semilla fija
@@ -132,6 +135,18 @@ lluvia, un jugador inspirado o un arquero en su noche. Todo sale de la semilla
 del partido, así que sigue siendo idéntico en todos los teléfonos. El once se
 arma solo con los disponibles. El estilo (defensivo, equilibrado, ofensivo) es
 un trueque entre ataque y defensa; el defensivo además hace más faltas.
+
+**Entretiempo y cansancio.** El partido se corta a los 45: cada DT puede hacer
+hasta tres cambios (en multijugador hay 30 segundos) y el segundo tiempo se
+juega con la fuerza recalculada. El primer tiempo no depende de los cambios, por
+eso se puede mostrar antes. Cada jugador arrastra cansancio: todos recuperan un
+35 % por fecha, el que jugó suma 30 por partido completo y el que no jugó
+descansa 25 más; pasado 20, cada punto le baja un 0,4 % el rendimiento. En la
+charla técnica se puede mandar a descansar a quien se quiera.
+
+**OVR máximo.** La sala (y el modo solo) puede limitar el draft a jugadores con
+OVR hasta 85, 80, 75 o 70. Si con ese tope la base no alcanza para los DT que
+hay, la opción aparece deshabilitada.
 
 **El formato del campeonato sale de cuántos DT hay**: 2 juegan una serie al
 mejor de tres, 3 o 4 una liga ida y vuelta, y de 5 a 8 una liga a una rueda
