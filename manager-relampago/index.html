@@ -216,6 +216,7 @@
   .relato li.c{justify-content:center}
   .relato li.gol{color:var(--tiza);font-weight:700}
   .relato li.roja{color:#ffb3c0}
+  .relato li.cambio{color:var(--cielo);font-weight:600}
   .posesion{height:5px;border-radius:4px;background:var(--rojo);margin-top:8px;overflow:hidden}
   .posesion i{display:block;height:100%;background:var(--cielo)}
   .detalle{font-size:11.5px;color:var(--humo);text-align:center;margin-top:4px}
@@ -385,7 +386,7 @@ const totalPicks = () => orden().length * cfg().picks;
 let cacheClave = "", cacheTemp = null, cachePl = null;
 function calculos(){
   const clave = JSON.stringify([sala.codigo, sala.orden, (sala.pozo || []).length,
-    sala.picks, (sala.historial || []).length]);
+    sala.picks, sala.historial || []]);   // el historial entero: los cambios se agregan a una fecha ya abierta
   if (clave !== cacheClave) {
     cacheClave = clave;
     cachePl = M.planteles(orden(), sala.picks || {}, sala.pozo || []);
