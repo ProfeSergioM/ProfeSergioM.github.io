@@ -614,66 +614,93 @@ export function jugarPartido(A, B, semilla) {
     }
   };
 
-  for (let min = 1; min <= 45; min++) minuto(min);
-
-  /* Entretiempo. Los que jugaron el primer tiempo llegan con más cansancio
-     y rinden menos en el segundo: es el motivo principal para cambiar. */
-  const fatiga = {};
-  for (const t of [0, 1]) {
-    for (const j of plantel[t]) fatiga[j.idx] = j.fat || 0;
-    once[t] = once[t].map(o => {
-      if (!activos[t].includes(o)) return o;
-      const antes = o.j.fat || 0;
-      const ahora = Math.min(CANSANCIO.tope, antes + CANSANCIO.porPartido / 2);
-      fatiga[o.j.idx] = ahora;
-      const factor = (1 - mermaCansancio(ahora)) / (1 - mermaCansancio(antes));
-      const nuevo = Object.assign({}, o, { rinde: o.rinde * factor });
-      activos[t] = activos[t].map(x => x === o ? nuevo : x);
-      if (inspirado[t] === o) inspirado[t] = nuevo;
-      return nuevo;
-    });
-  }
-  const medio = [0, 1].map(t => {
+  /* Cómo está un equipo en un corte (el entretiempo o una lesión), para que
+     el DT decida los cambios. La fatiga que se muestra es la de ese minuto. */
+  const foto = (t, min) => {
     const enCancha = new Set(once[t].map(o => o.j.idx));
+    const fatiga = {};
+    for (const j of plantel[t]) fatiga[j.idx] = Math.round(j.fat || 0);
+    for (const o of once[t]) if (activos[t].includes(o) && jugo[o.j.idx]) {
+      const jugados = min - jugo[o.j.idx][0];
+      fatiga[o.j.idx] = Math.round(Math.min(CANSANCIO.tope, (o.j.fat || 0) + CANSANCIO.porPartido * jugados / 90));
+    }
     return {
+      min, usados: usados[t],
       once: once[t].map(o => ({ idx: o.j.idx, en: o.en, rinde: Math.round(o.rinde) })),
       lesionados: [...lesionados[t]], expulsados: [...expulsados[t]], amonestados: [...amonestados[t]],
-      banco: plantel[t].filter(j => !enCancha.has(j.idx)).map(j => j.idx),
-      fatiga: Object.fromEntries(plantel[t].map(j => [j.idx, Math.round(fatiga[j.idx])]))
+      banco: plantel[t].filter(j => !enCancha.has(j.idx) && !entraron[t].has(j.idx)).map(j => j.idx),
+      fatiga
     };
-  });
+  };
 
-  const cambios = [A.cambios, B.cambios];
-  for (const t of [0, 1]) {
-    const usados = new Set();
-    for (const c of (cambios[t] || []).slice(0, MAX_CAMBIOS)) {
-      const [sale, entra] = String(c).split("-").map(Number);
-      const slot = once[t].findIndex(o => o.j.idx === sale);
-      const nuevo = plantel[t].find(j => j.idx === entra);
-      if (slot < 0 || !nuevo || usados.has(entra) || expulsados[t].has(sale)) continue;
-      if (once[t].some(o => o.j.idx === entra)) continue;
-      usados.add(entra);
+  /* Los cambios vienen como "minuto:sale-entra" (sin minuto, es el entretiempo).
+     Se aplican al final de ese minuto, hasta tres por equipo en total. */
+  const lista = [A.cambios, B.cambios].map(l => (l || []).map(c => {
+    const m = String(c).match(/^(?:(\d+):)?(\d+)-(\d+)$/);
+    return m ? { min: m[1] ? Number(m[1]) : 45, sale: Number(m[2]), entra: Number(m[3]) } : null;
+  }).filter(Boolean));
+  const usados = [0, 0];
+  const entraron = [new Set(), new Set()];
+  const aplicar = min => {
+    let hubo = false;
+    for (const t of [0, 1]) for (const c of lista[t]) {
+      if (c.min !== min || usados[t] >= MAX_CAMBIOS) continue;
+      const slot = once[t].findIndex(o => o.j.idx === c.sale);
+      const nuevo = plantel[t].find(j => j.idx === c.entra);
+      if (slot < 0 || !nuevo || entraron[t].has(c.entra) || expulsados[t].has(c.sale)) continue;
+      if (once[t].some(o => o.j.idx === c.entra)) continue;
+      usados[t]++; entraron[t].add(c.entra);
       const viejo = once[t][slot];
       const o = { j: nuevo, en: viejo.en, rinde: rindeEn(nuevo, viejo.en) };
-      if (lesionados[t].has(sale)) mod[t] /= 0.97;       // vuelven a ser once
-      else sacar(t, viejo, 45);
+      if (lesionados[t].has(c.sale)) mod[t] /= 0.97;       // vuelven a ser once
+      else sacar(t, viejo, min);
       once[t][slot] = o;
       activos[t].push(o);
-      jugo[entra] = [45, 90];
-      ev(46, t, "cambio", o, { sale: viejo.j.nombre });
+      jugo[c.entra] = [min, 90];
+      ev(min === 45 ? 46 : min, t, "cambio", o, { sale: viejo.j.nombre, desde: nuevo.pos, en: viejo.en });
+      hubo = true;
+    }
+    return hubo;
+  };
+
+  const cortes = {};
+  for (let min = 1; min <= 90; min++) {
+    const antes = eventos.length;
+    minuto(min);
+    if (min === 45) {
+      /* Entretiempo. Los que jugaron el primer tiempo llegan con más
+         cansancio y rinden menos en el segundo: el motivo principal para
+         cambiar. */
+      for (const t of [0, 1]) {
+        once[t] = once[t].map(o => {
+          if (!activos[t].includes(o)) return o;
+          const previa = o.j.fat || 0;
+          const ahora = Math.min(CANSANCIO.tope, previa + CANSANCIO.porPartido / 2);
+          const factor = (1 - mermaCansancio(ahora)) / (1 - mermaCansancio(previa));
+          const nuevo = Object.assign({}, o, { rinde: o.rinde * factor });
+          activos[t] = activos[t].map(x => x === o ? nuevo : x);
+          if (inspirado[t] === o) inspirado[t] = nuevo;
+          return nuevo;
+        });
+      }
+      cortes[45] = [foto(0, 45), foto(1, 45)];
+      aplicar(45);
+      /* El segundo tiempo se juega con la fuerza recalculada. */
+      tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
+    } else if (min < 90 && eventos.slice(antes).some(e => e.tipo === "lesion")) {
+      /* Una lesión: el DT puede hacer el cambio en ese mismo minuto. */
+      cortes[min] = [foto(0, min), foto(1, min)];
+      if (aplicar(min)) tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
     }
   }
-  /* El segundo tiempo se juega con la fuerza recalculada: cambios y cansancio. */
-  tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
-
-  for (let min = 46; min <= 90; min++) minuto(min);
+  const medio = cortes[45];
 
   const minutos = {};
   for (const [idx, [e, s]] of Object.entries(jugo)) minutos[idx] = Math.max(0, s - e);
   const goles = eventos.filter(e => e.tipo === "gol");
   return {
     ga: goles.filter(g => g.lado === 0).length, gb: goles.filter(g => g.lado === 1).length,
-    goles, eventos, medio, minutos,
+    goles, eventos, medio, cortes, minutos,
     posesion: Math.round(((posesion1 + pa) / 2) * 100),
     xa: Math.round(x1[0] * 100) / 100, xb: Math.round(x1[1] * 100) / 100
   };
@@ -686,10 +713,11 @@ export function cambiosCPU(medio, disponibles) {
   const porIdx = new Map(disponibles.map(j => [j.idx, j]));
   const banco = medio.banco.map(i => porIdx.get(i)).filter(Boolean);
   const usados = new Set(), out = [];
+  const tope = MAX_CAMBIOS - (medio.usados || 0);
   const mejorPara = en => banco.filter(j => !usados.has(j.idx))
     .sort((a, b) => rindeEn(b, en) - rindeEn(a, en) || a.idx - b.idx)[0];
   for (const o of medio.once) {
-    if (out.length >= MAX_CAMBIOS || !medio.lesionados.includes(o.idx)) continue;
+    if (out.length >= tope || !medio.lesionados.includes(o.idx)) continue;
     const j = mejorPara(o.en);
     if (j) { usados.add(j.idx); out.push(o.idx + "-" + j.idx); }
   }
@@ -698,7 +726,7 @@ export function cambiosCPU(medio, disponibles) {
     .map(o => ({ o, j: porIdx.get(o.idx) })).filter(x => x.j)
     .sort((a, b) => (medio.fatiga[b.o.idx] || 0) - (medio.fatiga[a.o.idx] || 0));
   for (const { o, j } of candidatos) {
-    if (out.length >= MAX_CAMBIOS) break;
+    if (out.length >= tope) break;
     const amonestado = medio.amonestados.includes(o.idx) && o.en === "DEF";
     if ((medio.fatiga[o.idx] || 0) < 50 && !amonestado) continue;
     const r = mejorPara(o.en);
@@ -706,6 +734,18 @@ export function cambiosCPU(medio, disponibles) {
     if (r && rindeEn(r, o.en) >= actual - 3) { usados.add(r.idx); out.push(o.idx + "-" + r.idx); }
   }
   return out;
+}
+
+/* El cambio inmediato que hace la máquina cuando se le lesiona alguien: entra
+   el que mejor rinde en ese puesto, si le quedan cambios. */
+export function cambioLesionCPU(corte, disponibles, lesionado) {
+  if (corte.usados >= MAX_CAMBIOS) return [];
+  const o = corte.once.find(x => x.idx === lesionado);
+  if (!o) return [];
+  const porIdx = new Map(disponibles.map(j => [j.idx, j]));
+  const j = corte.banco.map(i => porIdx.get(i)).filter(Boolean)
+    .sort((a, b) => rindeEn(b, o.en) - rindeEn(a, o.en) || a.idx - b.idx)[0];
+  return j ? [lesionado + "-" + j.idx] : [];
 }
 
 /* Modo con tope: solo entran al draft los jugadores con OVR hasta ese número. */

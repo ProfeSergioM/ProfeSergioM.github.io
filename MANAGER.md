@@ -64,8 +64,11 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
 
 ## Cómo se juega la partida por dentro
 
-- `estado`: `sala` → `draft` → `tactica` → `primer` → `partido` → `tactica` → … → `fin`.
-  `primer` es el primer tiempo más el entretiempo; `partido`, el segundo tiempo y el resumen.
+- `estado`: `sala` → `draft` → `tactica` → `partido` → `tactica` → … → `fin`.
+- `tramo`: durante el partido, el minuto donde arranca el tramo en curso. El
+  partido se corta en el entretiempo y en cada lesión de un equipo al que le
+  quedan cambios; todos los teléfonos calculan el mismo corte a partir de la
+  sala.
 - `ronda`: durante el draft, el número de pick en curso (desde 0). Desde la
   primera fecha, el número de fecha (desde 0).
 - `config`: `{picks, seg}`. Picks por equipo (12, 14 o 16; por defecto 16) y
@@ -83,10 +86,11 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
 - `tacticas`: mapa `id → {f: formación, e: estilo}`. Es la táctica de la
   fecha en curso.
 - `listos`: quién apretó "Listo" en la fecha, en el entretiempo o "Seguir" después del partido.
-- `cambios`: mapa `id → ["sale-entra", …]` (índices del pozo, hasta tres) del entretiempo en curso.
+- `cambios`: mapa `id → ["sale-entra", …]` (índices del pozo) decididos en el corte en curso.
 - `historial`: una entrada por fecha jugada, con las tácticas congeladas
-  (`{t: {id: {f, e, d}}, c: {id: ["sale-entra"]}}`). `d` son los que el DT mandó a
-  descansar; `c`, los cambios del entretiempo.
+  (`{t: {id: {f, e, d, x}}, c: {id: ["minuto:sale-entra"]}}`). `x` es el once
+  elegido (vacío, automático), `d` los que descansan y `c` los cambios con el
+  minuto en que entraron (45 es el entretiempo; otro minuto, una lesión).
 
 **Los partidos no se escriben nunca.** Cada teléfono los simula a partir del
 pozo, los picks y las tácticas del historial, con un azar de semilla fija
@@ -139,8 +143,11 @@ del partido, así que sigue siendo idéntico en todos los teléfonos. El once se
 arma solo con los disponibles. El estilo (defensivo, equilibrado, ofensivo) es
 un trueque entre ataque y defensa; el defensivo además hace más faltas.
 
-**Entretiempo y cansancio.** El partido se corta a los 45: cada DT puede hacer
-hasta tres cambios (en multijugador hay 30 segundos) y el segundo tiempo se
+**Entretiempo, lesiones y cansancio.** El partido se corta a los 45 y cada vez
+que se lesiona alguien de un equipo con cambios disponibles (en multijugador,
+30 segundos para el entretiempo y 20 para una lesión). Hay tres cambios en
+total por partido. Al elegir un suplente se ve su posición original y, si entra
+en otra, cómo le cambia el OVR y el segundo tiempo se
 juega con la fuerza recalculada. El primer tiempo no depende de los cambios, por
 eso se puede mostrar antes. Cada jugador arrastra cansancio: todos recuperan un
 35 % por fecha, el que jugó suma 30 por partido completo y el que no jugó
