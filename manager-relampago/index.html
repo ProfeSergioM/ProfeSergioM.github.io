@@ -245,6 +245,10 @@
   #aviso.bien{background:var(--pasto);color:var(--tinta)}
   input[type=file]{display:none}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+  /* El botón "Proyectos" (volver.js) va arriba de la página y se va con el
+     scroll: flotando tapaba botones del draft y del entretiempo. Ocupa el
+     espacio que deja el padding superior del body. */
+  #volver-portada{position:absolute!important}
 </style>
 </head>
 <body>
