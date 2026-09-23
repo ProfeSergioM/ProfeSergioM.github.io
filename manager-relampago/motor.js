@@ -509,8 +509,8 @@ export function jugarPartido(A, B, semilla) {
   const tasas = (Fa, Fb) => {
     pa = Math.pow(Fa.med, 5) / (Math.pow(Fa.med, 5) + Math.pow(Fb.med, 5));
     x = [
-      Math.min(5, 1.22 * Math.pow(Fa.ata / Fb.def, 3.2) * Math.sqrt(pa / 0.5)),
-      Math.min(5, 1.22 * Math.pow(Fb.ata / Fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5))
+      Math.min(5, 1.08 * Math.pow(Fa.ata / Fb.def, 3.2) * Math.sqrt(pa / 0.5)),
+      Math.min(5, 1.08 * Math.pow(Fb.ata / Fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5))
     ];
   };
   tasas(fa, fb);
