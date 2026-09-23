@@ -33,16 +33,13 @@ export const FORMACIONES = {
   "3-4-3": { DEF: 3, MED: 4, DEL: 3 }
 };
 
+/* El estilo es un trueque simple: lo que se gana arriba se pierde atrás. El
+   defensivo además hace más faltas, así que se llena de tarjetas. */
 export const ESTILOS = {
-  def: { nombre: "Defensivo",  ata: 0.92, def: 1.08 },
-  eq:  { nombre: "Equilibrado", ata: 1.00, def: 1.00 },
-  of:  { nombre: "Ofensivo",   ata: 1.08, def: 0.92 }
+  def: { nombre: "Defensivo",   ata: 0.90, def: 1.10, tarjetas: 1.25, detalle: "+defensa, −ataque, más tarjetas" },
+  eq:  { nombre: "Equilibrado", ata: 1.00, def: 1.00, tarjetas: 1.00, detalle: "sin ajustes" },
+  of:  { nombre: "Ofensivo",    ata: 1.10, def: 0.90, tarjetas: 0.90, detalle: "+ataque, −defensa" }
 };
-/* Piedra, papel o tijera: el defensivo castiga al que se va arriba
-   (contragolpe), el ofensivo le gana al equilibrado (lo encierra) y el
-   equilibrado desarma al defensivo (tiene paciencia). */
-const LE_GANA = { def: "of", of: "eq", eq: "def" };
-const BONO_ESTILO = 1.10;
 
 /* ── azar con semilla ─────────────────────────────────────── */
 export function hash(txt) {
@@ -436,7 +433,42 @@ export function fuerza(plantel, formacion, estilo) {
   };
 }
 
-/* ── el partido ───────────────────────────────────────────── */
+/* ── el partido ─────────────────────────────────────────────
+   Se juega minuto a minuto. Además de los goles pueden pasar cosas que
+   cambian el partido y las fechas siguientes:
+     tarjetas     la segunda amarilla es roja; la roja deja al equipo con diez
+                  (ataca menos y le llegan más) y suspende una fecha. Tres
+                  amarillas acumuladas en el campeonato también suspenden una.
+     lesiones     el jugador sale, y las próximas fechas rinde menos.
+     penales      a favor, que se pueden errar.
+     goles en contra y goles anulados por el VAR.
+     antes del partido: lluvia (menos goles), un jugador inspirado (su equipo
+     ataca más y él patea más) o un arquero en su noche (le llegan menos).
+   Todo sale de la semilla del partido: mismos datos, mismos eventos en
+   todos los teléfonos. */
+const PROB = {
+  amarillas: 1.7,      // por equipo y partido, en promedio
+  rojaDirecta: 0.025,
+  lesion: 0.13,
+  penal: 0.10,
+  penalConvertido: 0.76,
+  enContra: 0.03,      // de cada gol
+  anulado: 0.04,       // de cada gol
+  lluvia: 0.10,
+  figura: 0.08,
+  arquero: 0.07
+};
+
+function elegir(lista, peso, r) {
+  const total = lista.reduce((s, x) => s + peso(x), 0);
+  if (!total) return lista[0] || null;
+  let x = r() * total;
+  for (const o of lista) { x -= peso(o); if (x <= 0) return o; }
+  return lista[lista.length - 1];
+}
+const PESO_TARJETA = { POR: 0.15, DEF: 1.4, MED: 1.1, DEL: 0.6 };
+const PESO_GOL = { POR: 0.01, DEF: 0.35, MED: 1.2, DEL: 3.2 };
+
 export function jugarPartido(A, B, semilla) {
   const r = azar(semilla);
   const ta = A.tactica || {}, tb = B.tactica || {};
@@ -444,29 +476,90 @@ export function jugarPartido(A, B, semilla) {
   /* La posesión sale del medio campo, y exagerada: dos puntos de media en el
      medio ya se notan en la pelota. */
   const pa = Math.pow(fa.med, 5) / (Math.pow(fa.med, 5) + Math.pow(fb.med, 5));
-  let xa = 1.3 * Math.pow(fa.ata / fb.def, 3.2) * Math.sqrt(pa / 0.5);
-  let xb = 1.3 * Math.pow(fb.ata / fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5);
-  if (LE_GANA[ta.e] === tb.e) xa *= BONO_ESTILO;
-  if (LE_GANA[tb.e] === ta.e) xb *= BONO_ESTILO;
-  xa = Math.min(5, xa); xb = Math.min(5, xb);
+  const x = [
+    Math.min(5, 1.3 * Math.pow(fa.ata / fb.def, 3.2) * Math.sqrt(pa / 0.5)),
+    Math.min(5, 1.3 * Math.pow(fb.ata / fa.def, 3.2) * Math.sqrt((1 - pa) / 0.5))
+  ];
+  const estilo = [ESTILOS[ta.e] || ESTILOS.eq, ESTILOS[tb.e] || ESTILOS.eq];
+  const activos = [fa.once.slice(), fb.once.slice()];
+  const mod = [1, 1];
+  const eventos = [];
+  const amonestados = [new Set(), new Set()];
+  const inspirado = [null, null];
+  const ev = (min, lado, tipo, o, extra) => eventos.push(Object.assign(
+    { min, lado, tipo, autor: o ? o.j.nombre : "", idx: o ? o.j.idx : null }, extra || {}));
 
-  const goles = [];
-  for (let min = 1; min <= 90; min++) {
-    if (r() < xa / 90) goles.push({ min, lado: 0, autor: goleador(fa.once, r) });
-    if (r() < xb / 90) goles.push({ min, lado: 1, autor: goleador(fb.once, r) });
+  /* Antes de empezar. */
+  let clima = 1;
+  if (r() < PROB.lluvia) { clima = 0.8; ev(0, -1, "lluvia", null); }
+  for (const t of [0, 1]) {
+    if (r() < PROB.figura) {
+      const o = elegir(activos[t].filter(o => o.en === "DEL" || o.en === "MED"), o => o.j.media, r);
+      if (o) { inspirado[t] = o; mod[t] *= 1.12; ev(0, t, "figura", o); }
+    }
+    if (r() < PROB.arquero) {
+      const o = activos[t].find(o => o.en === "POR");
+      if (o) { mod[1 - t] *= 0.8; ev(0, t, "arquero", o); }
+    }
   }
-  const ga = goles.filter(g => g.lado === 0).length;
-  const gb = goles.length - ga;
-  return { ga, gb, goles, posesion: Math.round(pa * 100), xa: Math.round(xa * 100) / 100, xb: Math.round(xb * 100) / 100,
-           bono: LE_GANA[ta.e] === tb.e ? 0 : LE_GANA[tb.e] === ta.e ? 1 : -1 };
-}
 
-function goleador(once, r) {
-  const peso = o => o.j.media * ({ POR: 0.01, DEF: 0.35, MED: 1.2, DEL: 3.2 })[o.en];
-  const total = once.reduce((s, o) => s + peso(o), 0);
-  let x = r() * total;
-  for (const o of once) { x -= peso(o); if (x <= 0) return o.j.nombre; }
-  return once.length ? once[once.length - 1].j.nombre : "?";
+  const expulsar = (t, o) => {
+    activos[t] = activos[t].filter(x => x !== o);
+    mod[t] *= 0.72; mod[1 - t] *= 1.22;
+  };
+  const gol = (t, min, o, extra) => {
+    if (r() < PROB.anulado) { ev(min, t, "anulado", o); return; }
+    ev(min, t, "gol", o, extra);
+  };
+  const goleador = t => elegir(activos[t], o => o.j.media * PESO_GOL[o.en] * (o === inspirado[t] ? 3 : 1), r);
+
+  for (let min = 1; min <= 90; min++) {
+    for (const t of [0, 1]) {
+      if (!activos[t].length) continue;
+      if (r() < PROB.amarillas * estilo[t].tarjetas / 90) {
+        const o = elegir(activos[t], o => PESO_TARJETA[o.en], r);
+        /* El que ya tiene amarilla se cuida: no siempre llega la segunda. */
+        if (amonestados[t].has(o)) { if (r() < 0.4) { ev(min, t, "roja", o, { doble: true }); expulsar(t, o); } }
+        else { amonestados[t].add(o); ev(min, t, "amarilla", o); }
+      }
+      if (r() < PROB.rojaDirecta / 90) {
+        const o = elegir(activos[t], o => PESO_TARJETA[o.en], r);
+        if (o) { ev(min, t, "roja", o); expulsar(t, o); }
+      }
+      if (r() < PROB.lesion / 90) {
+        const o = elegir(activos[t], o => o.en === "POR" ? 0.3 : 1, r);
+        if (o) {
+          const grave = r() < 0.3;
+          const fechas = grave ? 2 + Math.floor(r() * 2) : 1 + Math.floor(r() * 2);
+          ev(min, t, "lesion", o, { grave, fechas, merma: grave ? 0.25 : 0.12 });
+          /* Sale y entra un cambio: el equipo se resiente un poco. */
+          activos[t] = activos[t].filter(x => x !== o);
+          mod[t] *= 0.97;
+        }
+      }
+      if (r() < PROB.penal / 90) {
+        const o = activos[t].filter(o => o.en !== "POR").sort((p, q) => q.j.media - p.j.media)[0];
+        if (o) {
+          if (r() < PROB.penalConvertido) gol(t, min, o, { penal: true });
+          else ev(min, t, "penalErrado", o);
+        }
+      }
+      if (r() < x[t] * mod[t] * clima / 90) {
+        if (r() < PROB.enContra) {
+          const o = elegir(activos[1 - t].filter(o => o.en === "DEF"), () => 1, r) || activos[1 - t][0];
+          if (o) { gol(t, min, o, { enContra: true }); continue; }
+        }
+        const o = goleador(t);
+        if (o) gol(t, min, o);
+      }
+    }
+  }
+  const goles = eventos.filter(e => e.tipo === "gol");
+  return {
+    ga: goles.filter(g => g.lado === 0).length, gb: goles.filter(g => g.lado === 1).length,
+    goles, eventos, posesion: Math.round(pa * 100),
+    xa: Math.round(x[0] * 100) / 100, xb: Math.round(x[1] * 100) / 100
+  };
 }
 
 /* ── el campeonato ───────────────────────────────────────────
@@ -521,7 +614,11 @@ export function descansa(orden, fecha) {
 /* Juega todas las jornadas que ya están cerradas en el historial y arma la
    tabla. historial[j].t = { id: {f, e} } son las tácticas con que se jugó.
    La final, si la hay, no suma a la tabla: se agrega como una fecha más
-   apenas termina la liga, con los dos primeros. */
+   apenas termina la liga, con los dos primeros.
+
+   Las fechas se juegan en orden porque lo que pasa en una pesa en la
+   siguiente: el suspendido no juega y el lesionado rinde menos. Ese estado
+   se arrastra jugador por jugador (por su índice en el pozo). */
 export function temporada(codigo, orden, pozo, picks, historial) {
   const eq = planteles(orden, picks, pozo);
   const fmt = formato(orden.length);
@@ -530,16 +627,55 @@ export function temporada(codigo, orden, pozo, picks, historial) {
   const tabla = {};
   for (const id of orden) tabla[id] = { id, pj: 0, g: 0, e: 0, p: 0, gf: 0, gc: 0, pts: 0, forma: [] };
   const goleadores = {};
+  const tarjetas = {};
   const jornadas = [];
+  const est = {};   // idx → { am, susp, motivo, les, merma }
+  const de = idx => est[idx] || (est[idx] = { am: 0, susp: 0, motivo: "", les: 0, merma: 0 });
+
+  /* Los que pueden jugar, con la media ya rebajada si están lesionados. */
+  const disponibles = id => eq[id]
+    .filter(j => !(est[j.idx] && est[j.idx].susp > 0))
+    .map(j => {
+      const e = est[j.idx];
+      return e && e.les > 0 ? Object.assign({}, j, { media: Math.round(j.media * (1 - e.merma)), merma: e.merma, les: e.les }) : j;
+    });
+
   const tacticaEn = (h, id) => (h && h.t && h.t[id]) || { f: "4-4-2", e: "eq" };
   const jugar = (h, j, a, b) => jugarPartido(
-    { plantel: eq[a], tactica: tacticaEn(h, a) },
-    { plantel: eq[b], tactica: tacticaEn(h, b) },
+    { plantel: disponibles(a), tactica: tacticaEn(h, a) },
+    { plantel: disponibles(b), tactica: tacticaEn(h, b) },
     codigo + "·" + j + "·" + a + "·" + b);
-  const contarGoles = (res, a, b) => {
-    for (const g of res.goles) {
-      const k = g.autor + "|" + (g.lado === 0 ? a : b);
-      goleadores[k] = (goleadores[k] || 0) + 1;
+
+  /* Después de cada fecha: los suspendidos que no jugaron ya cumplieron, las
+     lesiones avanzan una fecha, y se anotan las tarjetas y lesiones nuevas. */
+  const cerrarFecha = (partidos) => {
+    const jugaron = new Set(partidos.flatMap(p => [p.a, p.b]));
+    for (const id of jugaron) for (const j of eq[id]) {
+      const e = est[j.idx];
+      if (e && e.susp > 0) { e.susp--; if (!e.susp) e.motivo = ""; }
+    }
+    for (const e of Object.values(est)) if (e.les > 0) { e.les--; if (!e.les) e.merma = 0; }
+    for (const p of partidos) for (const e of p.eventos) {
+      if (e.idx == null) continue;
+      const dueño = e.lado === 0 ? p.a : p.b;
+      if (e.tipo === "amarilla") {
+        const x = de(e.idx);
+        x.am++;
+        tarjetas[e.idx] = tarjetas[e.idx] || { nombre: e.autor, de: dueño, am: 0, ro: 0 };
+        tarjetas[e.idx].am++;
+        if (x.am >= 3) { x.am = 0; x.susp = 1; x.motivo = "3 amarillas"; }
+      } else if (e.tipo === "roja") {
+        const x = de(e.idx);
+        x.susp = 1; x.motivo = e.doble ? "doble amarilla" : "roja directa";
+        tarjetas[e.idx] = tarjetas[e.idx] || { nombre: e.autor, de: dueño, am: 0, ro: 0 };
+        tarjetas[e.idx].ro++;
+      } else if (e.tipo === "lesion") {
+        const x = de(e.idx);
+        x.les = Math.max(x.les, e.fechas); x.merma = Math.max(x.merma, e.merma);
+      } else if (e.tipo === "gol" && !e.enContra) {
+        const k = e.autor + "|" + dueño;
+        goleadores[k] = (goleadores[k] || 0) + 1;
+      }
     }
   };
 
@@ -549,9 +685,9 @@ export function temporada(codigo, orden, pozo, picks, historial) {
       const res = jugar(hist[j], j, a, b);
       anotar(tabla[a], res.ga, res.gb);
       anotar(tabla[b], res.gb, res.ga);
-      contarGoles(res, a, b);
       return Object.assign({ a, b }, res);
     });
+    cerrarFecha(partidos);
     jornadas.push({ partidos, descansa: descansa(orden, fechas[j]) });
   }
   const posiciones = Object.values(tabla).sort(ordenTabla);
@@ -562,11 +698,10 @@ export function temporada(codigo, orden, pozo, picks, historial) {
     fechas.push([[a, b]]);
     if (hist[liga]) {
       const res = jugar(hist[liga], liga, a, b);
-      contarGoles(res, a, b);
       /* Empate: penales. Pesa un poco quién tiene mejor arquero. */
       if (res.ga === res.gb) {
         const r = azar(codigo + "·penales·" + a + "·" + b);
-        const arq = id => Math.max(0, ...eq[id].filter(x => x.pos === "POR").map(x => x.media));
+        const arq = id => Math.max(0, ...disponibles(id).filter(x => x.pos === "POR").map(x => x.media));
         const pa = 0.5 + (arq(a) - arq(b)) / 200;
         let pa5 = 0, pb5 = 0;
         for (let k = 0; k < 5; k++) { if (r() < 0.75 - (arq(b) - 70) / 200) pa5++; if (r() < 0.75 - (arq(a) - 70) / 200) pb5++; }
@@ -575,8 +710,25 @@ export function temporada(codigo, orden, pozo, picks, historial) {
       }
       const ganaA = res.ga > res.gb || (res.penales && res.penales[0] > res.penales[1]);
       final = Object.assign({ a, b, gana: ganaA ? a : b }, res);
-      jornadas.push({ partidos: [Object.assign({ a, b }, res)], descansa: orden.filter(id => id !== a && id !== b), final: true });
+      const partido = Object.assign({ a, b }, res);
+      cerrarFecha([partido]);
+      jornadas.push({ partidos: [partido], descansa: orden.filter(id => id !== a && id !== b), final: true });
     }
+  }
+
+  /* Cómo llega cada equipo a la próxima fecha: quién puede jugar, quién no y
+     quién está a una amarilla de la suspensión. */
+  const proximo = {};
+  for (const id of orden) {
+    const bajas = [], alLimite = [];
+    for (const j of eq[id]) {
+      const e = est[j.idx];
+      if (!e) continue;
+      if (e.susp > 0) bajas.push({ nombre: j.nombre, pos: j.pos, tipo: "susp", motivo: e.motivo });
+      else if (e.les > 0) bajas.push({ nombre: j.nombre, pos: j.pos, tipo: "lesion", fechas: e.les, merma: e.merma });
+      if (e.am === 2 && !(e.susp > 0)) alLimite.push({ nombre: j.nombre, pos: j.pos });
+    }
+    proximo[id] = { disponibles: disponibles(id), bajas, alLimite };
   }
 
   const terminada = hist.length >= liga + (fmt.final ? 1 : 0);
@@ -584,7 +736,9 @@ export function temporada(codigo, orden, pozo, picks, historial) {
   const artilleros = Object.entries(goleadores)
     .map(([k, n]) => ({ nombre: k.split("|")[0], de: k.split("|")[1], goles: n }))
     .sort((a, b) => b.goles - a.goles || (a.nombre < b.nombre ? -1 : 1));
-  return { tabla: posiciones, jornadas, fechas, artilleros, formato: fmt, liga, final, campeon };
+  const amonestados = Object.values(tarjetas)
+    .sort((a, b) => (b.ro * 3 + b.am) - (a.ro * 3 + a.am) || (a.nombre < b.nombre ? -1 : 1));
+  return { tabla: posiciones, jornadas, fechas, artilleros, amonestados, proximo, formato: fmt, liga, final, campeon };
 }
 
 function anotar(fila, gf, gc) {
@@ -598,19 +752,25 @@ function ordenTabla(a, b) {
 }
 
 /* ── los rivales de la máquina ────────────────────────────────
-   Eligen la formación que mejor le calza a su plantel y un estilo con algo de
-   azar. Si ya vieron al rival, a veces juegan a ganarle el piedra, papel o
-   tijera con lo que usó la fecha pasada. */
-const CONTRA = { of: "def", eq: "of", def: "eq" };
-export function tacticaCPU(plantel, estiloPrevioRival, r) {
-  let mejor = "4-4-2", mejorSuma = -Infinity;
+   Eligen la formación que mejor le calza a lo que tienen disponible, y el
+   estilo según cómo se ven contra el rival: si son más fuertes salen a
+   atacar, si son más débiles se cierran. Con algo de azar, para que no sean
+   del todo previsibles. */
+export function tacticaCPU(plantel, plantelRival, r) {
+  let mejor = "4-4-2", mejorSuma = -Infinity, mia = null;
   for (const f of Object.keys(FORMACIONES)) {
     const x = fuerza(plantel, f, "eq");
     const suma = x.def + x.med + x.ata + r() * 3;
-    if (suma > mejorSuma) { mejorSuma = suma; mejor = f; }
+    if (suma > mejorSuma) { mejorSuma = suma; mejor = f; mia = x; }
   }
-  let e;
-  if (estiloPrevioRival && r() < 0.45) e = CONTRA[estiloPrevioRival];
-  else { const x = r(); e = x < 0.45 ? "eq" : x < 0.75 ? "of" : "def"; }
+  let e = "eq";
+  if (plantelRival && plantelRival.length) {
+    const rv = fuerza(plantelRival, "4-4-2", "eq");
+    const d = (mia.def + mia.med + mia.ata) - (rv.def + rv.med + rv.ata);
+    const x = r();
+    e = d > 5 ? (x < 0.6 ? "of" : "eq") : d < -5 ? (x < 0.6 ? "def" : "eq") : (x < 0.6 ? "eq" : x < 0.8 ? "of" : "def");
+  } else {
+    const x = r(); e = x < 0.5 ? "eq" : x < 0.75 ? "of" : "def";
+  }
   return { f: mejor, e };
 }

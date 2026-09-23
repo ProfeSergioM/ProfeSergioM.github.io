@@ -120,9 +120,18 @@ partida vive en el navegador y se guarda en `localStorage` (`manager-solo`),
 así que se puede cerrar y retomar. Usa exactamente el mismo draft, tácticas y
 simulación que el multijugador; solo cambia dónde se escribe. No tiene relojes.
 Los rivales eligen con el piloto automático más un poco de azar, arman la
-formación que mejor le calza a su plantel y a veces juegan a ganarle el
-piedra, papel o tijera a lo que usaste la fecha anterior. Son cuatro equipos,
+formación que mejor le calza a su plantel, y salen a atacar o se cierran según
+cómo se ven contra el rival. Son cuatro equipos,
 así que se juega una liga ida y vuelta de seis fechas.
+
+**Los partidos traen eventos** que se arrastran de fecha en fecha: tarjetas
+(la segunda amarilla es roja; la roja deja al equipo con diez y suspende una
+fecha, y tres amarillas acumuladas también), lesiones que bajan el rendimiento
+por una a tres fechas, penales, goles en contra, goles anulados por el VAR,
+lluvia, un jugador inspirado o un arquero en su noche. Todo sale de la semilla
+del partido, así que sigue siendo idéntico en todos los teléfonos. El once se
+arma solo con los disponibles. El estilo (defensivo, equilibrado, ofensivo) es
+un trueque entre ataque y defensa; el defensivo además hace más faltas.
 
 **El formato del campeonato sale de cuántos DT hay**: 2 juegan una serie al
 mejor de tres, 3 o 4 una liga ida y vuelta, y de 5 a 8 una liga a una rueda

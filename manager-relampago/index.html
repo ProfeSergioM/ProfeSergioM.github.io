@@ -202,8 +202,13 @@
   .marcador .goles.salta{animation:salta .5s}
   @keyframes salta{0%{transform:scale(1.5);color:var(--rayo)}100%{transform:scale(1)}}
   .minuto{text-align:center;font-size:11.5px;font-weight:800;color:var(--rayo);letter-spacing:.1em}
-  .goleo{font-size:12.5px;color:var(--humo);display:grid;grid-template-columns:1fr 1fr;gap:0 10px;margin-top:6px}
-  .goleo div:nth-child(2){text-align:right}
+  .relato{list-style:none;margin:8px 0 0;padding:0;font-size:12.5px;color:var(--humo)}
+  .relato li{padding:2px 0;display:flex;gap:6px}
+  .relato li .m{min-width:26px;color:var(--tiza);font-weight:800}
+  .relato li.b{flex-direction:row-reverse;text-align:right}
+  .relato li.c{justify-content:center}
+  .relato li.gol{color:var(--tiza);font-weight:700}
+  .relato li.roja{color:#ffb3c0}
   .posesion{height:5px;border-radius:4px;background:var(--rojo);margin-top:8px;overflow:hidden}
   .posesion i{display:block;height:100%;background:var(--cielo)}
   .detalle{font-size:11.5px;color:var(--humo);text-align:center;margin-top:4px}
@@ -687,12 +692,11 @@ function moverCPU(){
     const j = sala.ronda;
     if (!cpuHecho) {
       cpuHecho = true;
-      const { pl } = calculos();
+      const { temp } = calculos();
       const cambios = {};
-      const previo = sala.historial.length ? sala.historial[sala.historial.length - 1].t : null;
       for (const id of orden().filter(esCPU)) {
         const rival = rivalDe(id, j);
-        const t = M.tacticaCPU(pl[id] || [], previo && rival && previo[rival] ? previo[rival].e : null,
+        const t = M.tacticaCPU(temp.proximo[id].disponibles, rival ? temp.proximo[rival].disponibles : null,
                                M.azar(sala.codigo + "·tactica·" + j + "·" + id));
         cambios["tacticas." + id] = t;
         cambios["listos." + id] = true;
@@ -811,7 +815,6 @@ function alCambiar(antes){
     if (sala.estado === "draft" && M.turnoDe(orden(), sala.ronda) === yo && navigator.vibrate) {
       try { navigator.vibrate([90, 60, 90]); } catch (e) {}
     }
-    if (sala.estado === "partido") { golesVistos = {}; }
     if (sala.estado !== "draft") { filtro = "TODOS"; busqueda = ""; }
   }
 }
@@ -948,9 +951,11 @@ function vistaPortada(){
           vuelta en cada vuelta. Si se te acaba el reloj, elige el piloto automático.</li>
         <li><b>Plantel completo.</b> Hace falta al menos 1 arquero, 3 defensas, 3 medios y
           1 delantero. El draft no te deja elegir algo que te impida llegar a eso.</li>
-        <li><b>Una táctica por fecha.</b> Formación y estilo. El defensivo le gana al ofensivo
-          de contragolpe, el ofensivo encierra al equilibrado y el equilibrado desarma al
-          defensivo. Los del mismo club o país suman química.</li>
+        <li><b>Una táctica por fecha.</b> Formación y estilo. Lo que ganás arriba lo perdés
+          atrás, y el defensivo hace más faltas. Los del mismo club suman química.</li>
+        <li><b>Pasan cosas.</b> Tarjetas (la roja o tres amarillas suspenden una fecha),
+          lesiones que bajan el rendimiento por un par de fechas, penales, goles anulados,
+          lluvia y tardes inspiradas. El once se arma solo con los que están disponibles.</li>
         <li><b>Liga todos contra todos.</b> Los partidos se simulan en vivo en todos los
           teléfonos a la vez. Gana el que termina arriba en la tabla.</li>
       </ol></div>
@@ -1154,8 +1159,8 @@ function rivalDe(id, j){
 function canchaHTML(once){
   const filas = ["DEL", "MED", "DEF", "POR"].map(pos => {
     const de = once.filter(o => o.en === pos);
-    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos ? "fuera" : ""}">
-      <b>${Math.round(o.rinde)}</b><span>${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
+    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos || o.j.merma ? "fuera" : ""}">
+      <b>${Math.round(o.rinde)}</b><span>${o.j.merma ? "🩹 " : ""}${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
       ${o.j.pos !== pos ? `<span style="color:var(--rojo)">${o.j.pos}</span>` : ""}</div>`).join("")}</div>`;
   });
   return `<div class="cancha">${filas.join("")}</div>`;
@@ -1182,11 +1187,21 @@ function vistaTactica(){
 
   let cuerpo = "";
   if (juego()) {
-    const mia = M.fuerza(pl[yo] || [], t.f, t.e);
+    const mia = M.fuerza(temp.proximo[yo].disponibles, t.f, t.e);
     /* Del rival se muestra lo que usó la fecha pasada: su táctica de hoy es secreta. */
     const previa = rival && sala.historial.length ? (sala.historial[sala.historial.length - 1].t || {})[rival] : null;
     const tr = previa || { f: "4-4-2", e: "eq" };
-    const suya = rival ? M.fuerza(pl[rival] || [], tr.f, tr.e) : null;
+    const suya = rival ? M.fuerza(temp.proximo[rival].disponibles, tr.f, tr.e) : null;
+    const bajasHTML = (id, titulo) => {
+      const x = temp.proximo[id];
+      if (!x.bajas.length && !x.alLimite.length) return "";
+      return `<h3>${titulo}</h3><ul class="feed">
+        ${x.bajas.map(b => `<li>${b.tipo === "susp" ? "🟥" : "🩹"} <b>${esc(b.nombre)}</b> <span class="pos ${b.pos}" style="width:auto;padding:1px 5px">${b.pos}</span>
+          ${b.tipo === "susp" ? "suspendido esta fecha (" + esc(b.motivo) + ")"
+            : "lesionado: rinde " + Math.round(b.merma * 100) + "% menos " + (b.fechas === 1 ? "esta fecha" : "las próximas " + b.fechas + " fechas")}</li>`).join("")}
+        ${x.alLimite.map(b => `<li>🟨 <b>${esc(b.nombre)}</b> tiene 2 amarillas: con una más se pierde la fecha siguiente</li>`).join("")}
+      </ul>`;
+    };
     const barra = (et, a, b) => `<span>${et}</span>
       <span class="r"><i style="width:${Math.max(4, Math.min(100, (a - 45) * 2.2))}%"></i>
         ${b != null ? `<i class="otro" style="width:${Math.max(4, Math.min(100, (b - 45) * 2.2))}%"></i>` : ""}</span>
@@ -1201,13 +1216,15 @@ function vistaTactica(){
         <div class="opciones">${Object.keys(M.FORMACIONES).map(f => `<button class="op" data-accion="formacion" data-valor="${f}" aria-pressed="${t.f === f}">${f}</button>`).join("")}</div>
         <h3>Estilo</h3>
         <div class="opciones">${Object.entries(M.ESTILOS).map(([k, e]) => `<button class="op" data-accion="estilo" data-valor="${k}" aria-pressed="${t.e === k}">${e.nombre}
-          <small>${{ def: "gana al ofensivo", eq: "gana al defensivo", of: "gana al equilibrado" }[k]}</small></button>`).join("")}</div>
+          <small>${esc(e.detalle)}</small></button>`).join("")}</div>
+        ${bajasHTML(yo, "Tus bajas")}
         ${canchaHTML(mia.once)}
         <div class="barras">
           ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
         </div>
         <p class="chico" style="margin:8px 0 0">Química del once: <b>+${mia.quimica}%</b>${suya ? ` · en rojo, el rival con lo que usó la última vez` : ""}.
-          Los números en rojo en la cancha son jugadores fuera de su puesto.</p>
+          Los números en rojo en la cancha son jugadores fuera de su puesto o lesionados.</p>
+        ${rival ? bajasHTML(rival, "Bajas del rival") : ""}
         <div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="listo">${listo ? "Listo · cambiar algo" : "Listo para jugar"}</button></div>
       </div>`;
   }
@@ -1225,14 +1242,31 @@ function vistaTactica(){
 }
 
 /* ── partido ─────────────────────────────────────────────── */
-let golesVistos = {};
 function minutoActual(){
   return Math.min(90, Math.floor((Date.now() - inicioFase) / (SEG_PARTIDO * 1000) * 90));
+}
+
+/* Cómo se cuenta cada evento en el relato del partido. */
+function relato(e){
+  const n = esc(e.autor);
+  switch (e.tipo) {
+    case "gol": return "⚽ " + n + (e.penal ? " (penal)" : e.enContra ? " (en contra)" : "");
+    case "anulado": return "❌ Gol de " + n + " anulado por el VAR";
+    case "penalErrado": return "🧤 " + n + " erra el penal";
+    case "amarilla": return "🟨 " + n;
+    case "roja": return (e.doble ? "🟨🟥 " : "🟥 ") + n + (e.doble ? " (doble amarilla)" : "") + ", se quedan con diez";
+    case "lesion": return "🩹 " + n + (e.grave ? " se lesiona feo" : " sale tocado");
+    case "figura": return "⭐ " + n + " está inspirado";
+    case "arquero": return "🧱 " + n + " tiene la tarde de su vida";
+    case "lluvia": return "🌧️ Llueve: cancha pesada, cuesta hacer goles";
+    default: return n;
+  }
 }
 
 function partidoHTML(p, k, min){
   const ga = p.goles.filter(g => g.lado === 0 && g.min <= min);
   const gb = p.goles.filter(g => g.lado === 1 && g.min <= min);
+  const vistos = p.eventos.filter(e => e.min <= min);
   const mio = p.a === yo || p.b === yo;
   return `<div class="partido ${mio ? "mio" : ""}" data-partido="${k}">
     <div class="marcador">
@@ -1241,13 +1275,12 @@ function partidoHTML(p, k, min){
       <div class="eq b"><span>${esc(nombreDe(p.b))}</span><span class="punto" style="background:${colorDe(p.b)}"></span></div>
     </div>
     <div class="minuto">${min >= 90 ? (p.penales ? "PENALES " + p.penales[0] + " - " + p.penales[1] : "FINAL") : min + "'"}</div>
-    <div class="goleo"><div>${ga.map(g => `<div>${g.min}' ${esc(g.autor)}</div>`).join("")}</div>
-      <div>${gb.map(g => `<div>${esc(g.autor)} ${g.min}'</div>`).join("")}</div></div>
+    ${vistos.length ? `<ul class="relato">${vistos.map(e => `<li class="${e.lado === 0 ? "a" : e.lado === 1 ? "b" : "c"} ${e.tipo}">
+      <span class="m">${e.min ? e.min + "'" : ""}</span>${relato(e)}</li>`).join("")}</ul>` : ""}
     ${min >= 90 ? `<div class="posesion"><i style="width:${p.posesion}%"></i></div>
       <div class="detalle">Posesión ${p.posesion}% - ${100 - p.posesion}% ·
         ${esc(sala.historial[sala.ronda].t[p.a].f)} ${M.ESTILOS[sala.historial[sala.ronda].t[p.a].e].nombre.toLowerCase()} vs
-        ${esc(sala.historial[sala.ronda].t[p.b].f)} ${M.ESTILOS[sala.historial[sala.ronda].t[p.b].e].nombre.toLowerCase()}
-        ${p.bono === 0 ? "· el estilo favoreció a " + esc(nombreDe(p.a)) : p.bono === 1 ? "· el estilo favoreció a " + esc(nombreDe(p.b)) : ""}</div>` : ""}
+        ${esc(sala.historial[sala.ronda].t[p.b].f)} ${M.ESTILOS[sala.historial[sala.ronda].t[p.b].e].nombre.toLowerCase()}</div>` : ""}
   </div>`;
 }
 
@@ -1301,11 +1334,15 @@ function animarPartidos(forzado){
   const { temp } = calculos();
   const jor = temp.jornadas[sala.ronda];
   if (!jor) return;
-  const hubo = jor.partidos.some(p => p.goles.some(g => g.min > antes && g.min <= min));
+  const nuevo = e => e.min > antes && e.min <= min;
+  const hubo = jor.partidos.some(p => p.eventos.some(nuevo));
   if (hubo || (min >= 90 && antes < 90)) {
+    /* Los partidos se muestran con el propio primero: mismo orden que en vistaPartido. */
+    const orden = jor.partidos.slice().sort((x, y) => ((y.a === yo || y.b === yo) - (x.a === yo || x.b === yo)));
     pintar();
-    if (hubo) document.querySelectorAll(".partido").forEach(function(el){
-      const g = el.querySelector(".goles");
+    orden.forEach(function(p, k){
+      if (!p.goles.some(nuevo)) return;
+      const g = document.querySelector('.goles[data-g="' + k + '"]');
       if (g) { g.classList.remove("salta"); void g.offsetWidth; g.classList.add("salta"); }
     });
   } else {
@@ -1337,6 +1374,10 @@ function vistaFin(){
       ${top.map(g => `<li><span class="punto" style="background:${colorDe(g.de)}"></span>
         <div><div class="nom">${esc(g.nombre)}</div><div class="sub">${esc(nombreDe(g.de))}</div></div>
         <div class="der titular" style="font-size:22px;color:var(--tiza)">${g.goles}</div></li>`).join("")}</ul></div>` : ""}
+    ${temp.amonestados.length ? `<div class="caja"><h3 style="margin-top:0">Los más amonestados</h3><ul class="gente">
+      ${temp.amonestados.slice(0, 3).map(g => `<li><span class="punto" style="background:${colorDe(g.de)}"></span>
+        <div><div class="nom">${esc(g.nombre)}</div><div class="sub">${esc(nombreDe(g.de))}</div></div>
+        <div class="der">${g.am ? "🟨 " + g.am : ""} ${g.ro ? " 🟥 " + g.ro : ""}</div></li>`).join("")}</ul></div>` : ""}
     <div class="caja"><h3 style="margin-top:0">Los planteles</h3>
       ${orden().map(id => `<details ${abiertos.has(id) ? "open" : ""} data-id="${esc(id)}">
         <summary><span class="punto" style="background:${colorDe(id)}"></span>${esc(nombreDe(id))}</summary>
