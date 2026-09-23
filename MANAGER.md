@@ -145,7 +145,10 @@ juega con la fuerza recalculada. El primer tiempo no depende de los cambios, por
 eso se puede mostrar antes. Cada jugador arrastra cansancio: todos recuperan un
 35 % por fecha, el que jugó suma 30 por partido completo y el que no jugó
 descansa 25 más; pasado 20, cada punto le baja un 0,4 % el rendimiento. En la
-charla técnica se puede mandar a descansar a quien se quiera.
+charla técnica se elige el once: se toca un titular en la cancha y después al
+suplente que entra (queda en `tacticas.id.x`, los 11 índices del pozo; vacío es
+once automático). En el entretiempo, los que jugaron el primer tiempo suman 15
+de cansancio y rinden menos en el segundo; el panel de cambios lo muestra.
 
 **OVR máximo.** La sala (y el modo solo) puede limitar el draft a jugadores con
 OVR hasta 85, 80, 75 o 70. Si con ese tope la base no alcanza para los DT que

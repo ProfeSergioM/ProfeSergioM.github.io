@@ -416,16 +416,30 @@ const media = l => l.length ? l.reduce((s, x) => s + x, 0) / l.length : 40;
 /* Tres números por equipo: cuánto defiende, cuánto maneja la pelota y cuánto
    ataca. Poner más gente en una línea la hace más fuerte, pero cada hombre
    de más en una es uno de menos en otra: ahí está la decisión. */
-export function fuerza(plantel, formacion, estilo, descansan) {
-  /* Los que el DT mandó a descansar no entran en el once, salvo que sin ellos
-     no se llegue a once. */
+export function fuerza(plantel, formacion, estilo, descansan, titulares) {
+  return fuerzaDeOnce(elegirOnce(plantel, formacion, descansan, titulares), formacion, estilo);
+}
+
+/* El once del partido. Si el DT eligió titulares, juegan esos (los que estén
+   disponibles) y, si faltan, se completa con los mejores del resto. Si no,
+   se arma solo con los mejores, sin los que mandó a descansar (salvo que sin
+   ellos no se llegue a once). */
+export function elegirOnce(plantel, formacion, descansan, titulares) {
+  if (titulares && titulares.length) {
+    const elegidos = plantel.filter(j => titulares.includes(j.idx)).slice(0, 11);
+    if (elegidos.length < 11) {
+      const resto = plantel.filter(j => !titulares.includes(j.idx) && !(descansan || []).includes(j.idx))
+        .sort((a, b) => b.media - a.media || a.idx - b.idx);
+      elegidos.push(...resto.slice(0, 11 - elegidos.length));
+    }
+    return armarOnce(elegidos, formacion).once;
+  }
   let lista = plantel;
   if (descansan && descansan.length) {
     const sin = plantel.filter(j => !descansan.includes(j.idx));
     if (sin.length >= 11) lista = sin;
   }
-  const { once } = armarOnce(lista, formacion);
-  return fuerzaDeOnce(once, formacion, estilo);
+  return armarOnce(lista, formacion).once;
 }
 
 export function fuerzaDeOnce(once, formacion, estilo) {
@@ -501,7 +515,7 @@ export function jugarPartido(A, B, semilla) {
   const ta = A.tactica || {}, tb = B.tactica || {};
   const plantel = [A.plantel, B.plantel];
   const tac = [ta, tb];
-  const fa = fuerza(A.plantel, ta.f, ta.e, ta.d), fb = fuerza(B.plantel, tb.f, tb.e, tb.d);
+  const fa = fuerza(A.plantel, ta.f, ta.e, ta.d, ta.x), fb = fuerza(B.plantel, tb.f, tb.e, tb.d, tb.x);
   const estilo = [ESTILOS[ta.e] || ESTILOS.eq, ESTILOS[tb.e] || ESTILOS.eq];
   /* La posesión sale del medio campo, y exagerada: dos puntos de media en el
      medio ya se notan en la pelota. */
@@ -602,13 +616,30 @@ export function jugarPartido(A, B, semilla) {
 
   for (let min = 1; min <= 45; min++) minuto(min);
 
-  /* Entretiempo: cómo quedó cada equipo, para que el DT decida los cambios. */
+  /* Entretiempo. Los que jugaron el primer tiempo llegan con más cansancio
+     y rinden menos en el segundo: es el motivo principal para cambiar. */
+  const fatiga = {};
+  for (const t of [0, 1]) {
+    for (const j of plantel[t]) fatiga[j.idx] = j.fat || 0;
+    once[t] = once[t].map(o => {
+      if (!activos[t].includes(o)) return o;
+      const antes = o.j.fat || 0;
+      const ahora = Math.min(CANSANCIO.tope, antes + CANSANCIO.porPartido / 2);
+      fatiga[o.j.idx] = ahora;
+      const factor = (1 - mermaCansancio(ahora)) / (1 - mermaCansancio(antes));
+      const nuevo = Object.assign({}, o, { rinde: o.rinde * factor });
+      activos[t] = activos[t].map(x => x === o ? nuevo : x);
+      if (inspirado[t] === o) inspirado[t] = nuevo;
+      return nuevo;
+    });
+  }
   const medio = [0, 1].map(t => {
     const enCancha = new Set(once[t].map(o => o.j.idx));
     return {
-      once: once[t].map(o => ({ idx: o.j.idx, en: o.en })),
+      once: once[t].map(o => ({ idx: o.j.idx, en: o.en, rinde: Math.round(o.rinde) })),
       lesionados: [...lesionados[t]], expulsados: [...expulsados[t]], amonestados: [...amonestados[t]],
-      banco: plantel[t].filter(j => !enCancha.has(j.idx)).map(j => j.idx)
+      banco: plantel[t].filter(j => !enCancha.has(j.idx)).map(j => j.idx),
+      fatiga: Object.fromEntries(plantel[t].map(j => [j.idx, Math.round(fatiga[j.idx])]))
     };
   });
 
@@ -632,8 +663,8 @@ export function jugarPartido(A, B, semilla) {
       ev(46, t, "cambio", o, { sale: viejo.j.nombre });
     }
   }
-  if (cambios[0] && cambios[0].length || cambios[1] && cambios[1].length)
-    tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
+  /* El segundo tiempo se juega con la fuerza recalculada: cambios y cansancio. */
+  tasas(fuerzaDeOnce(once[0], ta.f, ta.e), fuerzaDeOnce(once[1], tb.f, tb.e));
 
   for (let min = 46; min <= 90; min++) minuto(min);
 
@@ -665,13 +696,14 @@ export function cambiosCPU(medio, disponibles) {
   const candidatos = medio.once
     .filter(o => !medio.lesionados.includes(o.idx) && !medio.expulsados.includes(o.idx) && o.en !== "POR")
     .map(o => ({ o, j: porIdx.get(o.idx) })).filter(x => x.j)
-    .sort((a, b) => (b.j.fat || 0) - (a.j.fat || 0));
+    .sort((a, b) => (medio.fatiga[b.o.idx] || 0) - (medio.fatiga[a.o.idx] || 0));
   for (const { o, j } of candidatos) {
     if (out.length >= MAX_CAMBIOS) break;
     const amonestado = medio.amonestados.includes(o.idx) && o.en === "DEF";
-    if ((j.fat || 0) < 40 && !amonestado) continue;
+    if ((medio.fatiga[o.idx] || 0) < 50 && !amonestado) continue;
     const r = mejorPara(o.en);
-    if (r && rindeEn(r, o.en) >= rindeEn(j, o.en) - 4) { usados.add(r.idx); out.push(o.idx + "-" + r.idx); }
+    const actual = o.rinde != null ? o.rinde : rindeEn(j, o.en);
+    if (r && rindeEn(r, o.en) >= actual - 3) { usados.add(r.idx); out.push(o.idx + "-" + r.idx); }
   }
   return out;
 }

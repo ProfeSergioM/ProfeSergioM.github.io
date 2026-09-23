@@ -169,6 +169,10 @@
     background:rgba(6,12,24,.78);border-radius:8px;padding:4px 3px}
   .chapa b{display:block;font-family:Anton,sans-serif;font-size:17px;font-weight:400}
   .chapa.fuera b{color:var(--rojo)}
+  button.chapa{font-family:Inter,sans-serif;text-transform:none;letter-spacing:0;color:var(--tiza);
+    box-shadow:none;width:auto;border:1.5px solid transparent;cursor:pointer}
+  button.chapa:active{transform:none;box-shadow:none}
+  .chapa.elegida{border-color:var(--rayo);background:rgba(255,196,46,.3)}
   .chapa span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   .barras{display:grid;grid-template-columns:44px 1fr 34px 34px;gap:5px 8px;align-items:center;font-size:13px}
@@ -386,7 +390,8 @@ function calculos(){
 function tacticaDe(id){
   const t = (sala.tacticas && sala.tacticas[id]) || {};
   return { f: M.FORMACIONES[t.f] ? t.f : "4-4-2", e: M.ESTILOS[t.e] ? t.e : "eq",
-           d: Array.isArray(t.d) ? t.d.filter(x => Number.isInteger(x)).slice(0, 16) : [] };
+           d: Array.isArray(t.d) ? t.d.filter(x => Number.isInteger(x)).slice(0, 16) : [],
+           x: Array.isArray(t.x) ? t.x.filter(x => Number.isInteger(x)).slice(0, 11) : [] };
 }
 const cambiosDe = id => ((sala.cambios && sala.cambios[id]) || []).filter(c => /^\d+-\d+$/.test(c)).slice(0, M.MAX_CAMBIOS);
 
@@ -784,7 +789,8 @@ async function cerrarTacticas(j){
       for (const id of d.orden) {
         const x = (d.tacticas && d.tacticas[id]) || {};
         tt[id] = { f: M.FORMACIONES[x.f] ? x.f : "4-4-2", e: M.ESTILOS[x.e] ? x.e : "eq",
-                   d: Array.isArray(x.d) ? x.d.filter(v => Number.isInteger(v)).slice(0, 16) : [] };
+                   d: Array.isArray(x.d) ? x.d.filter(v => Number.isInteger(v)).slice(0, 16) : [],
+                   x: Array.isArray(x.x) ? x.x.filter(v => Number.isInteger(v)).slice(0, 11) : [] };
       }
       t.update(ref, { estado: "primer", listos: {}, cambios: {}, historial: (d.historial || []).concat([{ t: tt }]) });
     }));
@@ -852,7 +858,7 @@ function alCambiar(antes){
               : sala.estado === "primer" ? SEG_TIEMPO + SEG_ENTRE
               : sala.estado === "partido" ? SEG_TIEMPO + SEG_RESUMEN : 0;
     finFase = seg ? inicioFase + seg * 1000 : 0;
-    ultimoMin = -1; saleSel = null;
+    ultimoMin = -1; saleSel = null; titSel = null;
     if (sala.estado === "draft" && M.turnoDe(orden(), sala.ronda) === yo && navigator.vibrate) {
       try { navigator.vibrate([90, 60, 90]); } catch (e) {}
     }
@@ -1216,12 +1222,15 @@ function rivalDe(id, j){
   return null;
 }
 
-function canchaHTML(once){
+function canchaHTML(once, editable){
   const filas = ["DEL", "MED", "DEF", "POR"].map(pos => {
     const de = once.filter(o => o.en === pos);
-    return `<div class="linea-c">${de.map(o => `<div class="chapa ${o.j.pos !== pos || o.j.merma || o.j.cansancio >= 0.1 ? "fuera" : ""}">
-      <b>${Math.round(o.rinde)}</b><span>${o.j.merma ? "🩹 " : o.j.cansancio >= 0.1 ? "⚡ " : ""}${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
-      ${o.j.pos !== pos ? `<span style="color:var(--rojo)">${o.j.pos}</span>` : ""}</div>`).join("")}</div>`;
+    return `<div class="linea-c">${de.map(o => {
+      const clase = `chapa ${o.j.pos !== pos || o.j.merma || o.j.cansancio >= 0.1 ? "fuera" : ""} ${editable && titSel === o.j.idx ? "elegida" : ""}`;
+      const dentro = `<b>${Math.round(o.rinde)}</b><span>${o.j.merma ? "🩹 " : o.j.cansancio >= 0.1 ? "⚡ " : ""}${esc(o.j.nombre.split(" ").slice(-1)[0])}</span>
+        ${o.j.pos !== pos ? `<span style="color:var(--rojo)">${o.j.pos}</span>` : ""}`;
+      return editable ? `<button class="${clase}" data-accion="titular" data-valor="${o.j.idx}">${dentro}</button>` : `<div class="${clase}">${dentro}</div>`;
+    }).join("")}</div>`;
   });
   return `<div class="cancha">${filas.join("")}</div>`;
 }
@@ -1248,8 +1257,10 @@ function vistaTactica(){
   let cuerpo = "";
   if (juego()) {
     const disp = temp.proximo[yo].disponibles;
-    const mia = M.fuerza(disp, t.f, t.e, t.d);
+    const mia = M.fuerza(disp, t.f, t.e, t.d, t.x);
     const enOnce = new Set(mia.once.map(o => o.j.idx));
+    const idxDisp = new Set(disp.map(j => j.idx));
+    const noEstan = t.x.filter(i => !idxDisp.has(i)).map(i => M.desempacar(sala.pozo[i]).nombre);
     /* Del rival se muestra lo que usó la fecha pasada: su táctica de hoy es secreta. */
     const previa = rival && sala.historial.length ? (sala.historial[sala.historial.length - 1].t || {})[rival] : null;
     const tr = previa || { f: "4-4-2", e: "eq" };
@@ -1280,23 +1291,23 @@ function vistaTactica(){
         <div class="opciones">${Object.entries(M.ESTILOS).map(([k, e]) => `<button class="op" data-accion="estilo" data-valor="${k}" aria-pressed="${t.e === k}">${e.nombre}
           <small>${esc(e.detalle)}</small></button>`).join("")}</div>
         ${bajasHTML(yo, "Tus bajas")}
-        ${canchaHTML(mia.once)}
-        <details ${abiertos.has("descanso") ? "open" : ""} data-id="descanso"><summary>Plantel y descanso
-          <span class="chico" style="font-weight:600">${t.d.length ? t.d.length + " descansan" : "nadie descansa"}</span></summary>
-          <p class="chico" style="margin:6px 0">El once se arma solo con los mejores según cómo están hoy. Mandá a descansar
-            a los cansados para que recuperen: cada partido completo cansa, y cada fecha sin jugar descansa.</p>
-          ${disp.slice().sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media).map(j => {
-            const descansa = t.d.includes(j.idx);
-            return `<div class="ficha" style="padding:5px 0">
-              <span class="pos ${j.pos}">${j.pos}</span>
-              <span class="quien"><b>${esc(j.nombre)}</b><small>${enOnce.has(j.idx) ? "Titular" : descansa ? "Descansa" : "Suplente"}
-                ${j.base && j.base !== j.media ? " · " + j.base + " → " + j.media : ""}</small></span>
-              ${j.cansancio >= 0.05 ? `<span class="tag">⚡ −${Math.round(j.cansancio * 100)}%</span>` : ""}
-              ${j.merma ? `<span class="tag">🩹</span>` : ""}
-              <button class="op mini" style="width:auto" data-accion="descansa" data-valor="${j.idx}" aria-pressed="${descansa}">${descansa ? "Descansa" : "Juega"}</button>
-            </div>`;
-          }).join("")}
-        </details>
+        <h3>Tu once ${t.x.length ? "· elegido por vos" : "· automático"}</h3>
+        <p class="chico" style="margin:0 0 4px">${titSel != null ? "Ahora tocá al suplente que entra." :
+          "Tocá un titular en la cancha y después al suplente que entra. El número es lo que rinde hoy en ese puesto."}</p>
+        ${noEstan.length ? `<p class="chico" style="color:#ffb3c0;margin:0 0 4px">No están disponibles: ${esc(noEstan.join(", "))}. Entró el mejor del resto.</p>` : ""}
+        ${canchaHTML(mia.once, true)}
+        <h3>Suplentes</h3>
+        ${disp.filter(j => !enOnce.has(j.idx)).sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media).map(j => {
+          const slot = titSel != null ? (mia.once.find(o => o.j.idx === titSel) || {}).en : null;
+          return `<button class="ficha" data-accion="suplente" data-valor="${j.idx}" ${titSel == null ? "disabled" : ""}>
+            <span class="pos ${slot || j.pos}">${slot || j.pos}</span>
+            <span class="quien"><b>${esc(j.nombre)}</b><small>${esc(j.pos)}${j.base && j.base !== j.media ? " · " + j.base + " → " + j.media : ""}</small></span>
+            ${j.cansancio >= 0.05 ? `<span class="tag">⚡ −${Math.round(j.cansancio * 100)}%</span>` : ""}
+            ${j.merma ? `<span class="tag">🩹</span>` : ""}
+            <span class="med">${Math.round(slot ? M.rindeEn(j, slot) : j.media)}</span></button>`;
+        }).join("")}
+        ${t.x.length ? `<button class="fantasma" style="margin:6px 0 10px" data-accion="once-auto">Volver al once automático</button>` : ""}
+        <p class="chico" style="margin:6px 0 10px">Cada partido cansa (⚡) y el cansado rinde menos; cada fecha en el banco recupera. Rotá.</p>
         <div class="barras">
           ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
         </div>
@@ -1412,32 +1423,36 @@ function cambiosHTML(p, lado){
   const hechos = cambiosDe(yo).map(c => c.split("-").map(Number));
   const salen = new Set(hechos.map(c => c[0])), entran = new Set(hechos.map(c => c[1]));
   const quedan = M.MAX_CAMBIOS - hechos.length;
+  const fat = i => m.fatiga ? (m.fatiga[i] || 0) : 0;
   const etiqueta = j => [
-    j.cansancio >= 0.05 ? `<span class="tag">⚡ −${Math.round(j.cansancio * 100)}%</span>` : "",
+    fat(j.idx) > M.CANSANCIO.umbral ? `<span class="tag">⚡ ${fat(j.idx)}</span>` : "",
     j.merma ? `<span class="tag">🩹</span>` : ""].join("");
-  const fila = (j, en, extra, accion, activo, marcado) => `<button class="ficha ${activo ? "" : "no"}" ${accion ? `data-accion="${accion}" data-valor="${j.idx}"` : ""}
+  const fila = (j, en, extra, accion, activo, marcado, rinde) => `<button class="ficha ${activo ? "" : "no"}" ${accion ? `data-accion="${accion}" data-valor="${j.idx}"` : ""}
       aria-pressed="${!!marcado}" ${activo ? "" : "disabled"}>
       <span class="pos ${en}">${en}</span>
       <span class="quien"><b>${esc(j.nombre)}</b><small>${extra}</small></span>${etiqueta(j)}
-      <span class="med">${Math.round(M.rindeEn(j, en))}</span></button>`;
+      <span class="med">${Math.round(rinde)}</span></button>`;
   const cancha = m.once.map(o => {
     const j = porIdx.get(o.idx);
     if (!j) return "";
     const exp = m.expulsados.includes(o.idx), les = m.lesionados.includes(o.idx);
     const ya = salen.has(o.idx);
+    const cansado = fat(o.idx) >= 60 ? "muy cansado: rinde bastante menos en el 2º tiempo"
+      : fat(o.idx) >= 40 ? "cansado: rinde algo menos en el 2º tiempo" : "";
     const extra = exp ? "🟥 expulsado, no se puede reemplazar" : les ? "🩹 salió lesionado: reemplazalo para volver a ser once"
-      : ya ? "sale en el entretiempo" : m.amonestados.includes(o.idx) ? "🟨 amonestado" : (j.club || "");
-    return fila(j, o.en, extra, "sale", !exp && !ya && quedan > 0, saleSel === o.idx);
+      : ya ? "sale en el entretiempo" : [m.amonestados.includes(o.idx) ? "🟨 amonestado" : "", cansado].filter(Boolean).join(" · ") || (j.club || "");
+    return fila(j, o.en, extra, "sale", !exp && !ya && quedan > 0, saleSel === o.idx, o.rinde != null ? o.rinde : M.rindeEn(j, o.en));
   }).join("");
   const enSlot = saleSel != null ? (m.once.find(o => o.idx === saleSel) || {}).en : null;
   const banco = m.banco.map(i => porIdx.get(i)).filter(j => j && !entran.has(j.idx))
     .sort((a, b) => enSlot ? M.rindeEn(b, enSlot) - M.rindeEn(a, enSlot) : b.media - a.media)
-    .map(j => fila(j, enSlot || j.pos, enSlot ? "entra de " + enSlot : (j.club || ""), "entra", saleSel != null, false)).join("");
+    .map(j => fila(j, enSlot || j.pos, enSlot ? "entra de " + enSlot : (j.club || ""), "entra", saleSel != null, false,
+                   M.rindeEn(j, enSlot || j.pos))).join("");
   return `<div class="caja rayo">
       <h2>Cambios · ${hechos.length}/${M.MAX_CAMBIOS}</h2>
       ${hechos.length ? `<ul class="feed">${hechos.map(([a, b], i) => `<li>🔁 Entra <b>${esc((porIdx.get(b) || {}).nombre)}</b>
         por ${esc((porIdx.get(a) || {}).nombre)} <button class="fantasma mini" data-accion="deshacer-cambio" data-valor="${i}">Quitar</button></li>`).join("")}</ul>` : ""}
-      <p class="chico">${quedan ? (saleSel == null ? "Tocá al que sale." : "Ahora tocá al que entra. El número es lo que rinde en ese puesto.") : "Ya hiciste los tres cambios."}</p>
+      <p class="chico">${quedan ? (saleSel == null ? "Tocá al que sale. El número es lo que rendiría en el 2º tiempo; ⚡ es el cansancio acumulado." : "Ahora tocá al que entra. El número es lo que rinde en ese puesto.") : "Ya hiciste los tres cambios."}</p>
       <h3>En la cancha</h3>${cancha}
       ${saleSel != null ? `<h3>Banco</h3>${banco || `<p class="chico">No queda nadie en el banco.</p>`}` : ""}
     </div>`;
@@ -1456,7 +1471,7 @@ function tablaHasta(j){
 
 /* Cada cuarto de segundo avanza el reloj de los partidos. Solo se redibuja
    todo cuando entra un gol o cuando termina, para no hacer parpadear nada. */
-let ultimoMin = -1, saleSel = null;
+let ultimoMin = -1, saleSel = null, titSel = null;
 function animarPartidos(forzado){
   if (!sala || (sala.estado !== "partido" && sala.estado !== "primer")) return;
   const min = minutoActual();
@@ -1576,6 +1591,17 @@ app.addEventListener("click", function(ev){
     const lista = cambiosDe(yo).filter((c, i) => i !== Number(v));
     escribir({ ["cambios." + yo]: lista, ["listos." + yo]: false });
   }
+  else if (a === "titular") { titSel = titSel === Number(v) ? null : Number(v); pintar(); }
+  else if (a === "suplente") {
+    if (titSel == null) return;
+    const t = tacticaDe(yo);
+    const disp = calculos().temp.proximo[yo].disponibles;
+    const actual = M.fuerza(disp, t.f, t.e, t.d, t.x).once.map(o => o.j.idx);
+    const x = actual.map(i => i === titSel ? Number(v) : i);
+    titSel = null;
+    escribir({ ["tacticas." + yo + ".x"]: x, ["listos." + yo]: false });
+  }
+  else if (a === "once-auto") { titSel = null; escribir({ ["tacticas." + yo + ".x"]: [], ["tacticas." + yo + ".d"]: [], ["listos." + yo]: false }); }
   else if (a === "descansa") {
     const d = tacticaDe(yo).d;
     const x = Number(v);

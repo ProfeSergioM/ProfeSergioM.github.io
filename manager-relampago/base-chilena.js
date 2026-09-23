@@ -247,7 +247,7 @@ Diego Churín;DEL;61;Unión Española;Argentina
 Silvio Fernández;DEL;61;Santiago Wanderers;Uruguay
 Jonathan Benítez;DEL;60;Palestino;Argentina
 Hugo Brizuela;DEL;61;O'Higgins;Paraguay
-Gustavo Canales;DEL;72;Unión Española;Argentina
+Gustavo Canales;DEL;72;Universidad de Chile;Argentina
 Óscar Fabbiani;DEL;78;Palestino;Argentina
 Ernesto Álvarez;DEL;73;Universidad de Chile;Argentina
 Luciano Cabral;MED;69;Coquimbo Unido;Argentina
@@ -261,4 +261,5 @@ Marcos González;DEF;67;Universidad de Chile;Brasil
 Gabriel Arias;POR;67;Unión La Calera;Argentina
 Jorge Spedaletti;DEL;72;Universidad de Chile;Argentina
 Fernando de Paul;POR;64;Universidad de Chile;Argentina
+Miiko Albornoz;DEF;61;Colo-Colo;Suecia
 `;
