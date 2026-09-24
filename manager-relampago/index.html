@@ -191,6 +191,8 @@
   td{padding:7px 4px;text-align:right;border-top:1px solid var(--linea)}
   th:nth-child(2),td:nth-child(2){text-align:left}
   td.pts{font-family:Anton,sans-serif;font-size:19px}
+  td,th{padding-left:3px;padding-right:3px}
+  @media (max-width:420px){.col-forma{display:none}}
   tr.mio td{background:rgba(255,196,46,.1)}
   .forma{display:inline-flex;gap:2px}
   .forma i{width:7px;height:7px;border-radius:50%;display:inline-block}
@@ -1299,13 +1301,15 @@ function canchaHTML(once, editable){
 }
 
 function tablaHTML(tabla){
-  return `<table><thead><tr><th>#</th><th>Equipo</th><th>PJ</th><th>DG</th><th>Forma</th><th>Pts</th></tr></thead>
+  return `<table><thead><tr><th>#</th><th>Equipo</th><th title="Partidos jugados">PJ</th><th title="Goles a favor">GF</th>
+      <th title="Goles en contra">GC</th><th title="Diferencia de gol">DG</th><th class="col-forma">Forma</th><th>Pts</th></tr></thead>
     <tbody>${tabla.map((f, i) => `<tr class="${f.id === yo ? "mio" : ""}">
       <td>${i + 1}</td>
       <td><span class="punto" style="display:inline-block;background:${colorDe(f.id)};margin-right:6px;vertical-align:-1px"></span>${esc(nombreDe(f.id))}</td>
-      <td>${f.pj}</td><td>${f.gf - f.gc > 0 ? "+" : ""}${f.gf - f.gc}</td>
-      <td><span class="forma">${f.forma.slice(-4).map(x => `<i class="${x}"></i>`).join("")}</span></td>
-      <td class="pts">${f.pts}</td></tr>`).join("")}</tbody></table>`;
+      <td>${f.pj}</td><td>${f.gf}</td><td>${f.gc}</td><td>${f.gf - f.gc > 0 ? "+" : ""}${f.gf - f.gc}</td>
+      <td class="col-forma"><span class="forma">${f.forma.slice(-4).map(x => `<i class="${x}"></i>`).join("")}</span></td>
+      <td class="pts">${f.pts}</td></tr>`).join("")}</tbody></table>
+    <p class="chico" style="margin:6px 0 0;font-size:11.5px">PJ jugados · GF goles a favor · GC goles en contra · DG diferencia · Pts: 3 por ganar, 1 por empatar</p>`;
 }
 
 function vistaTactica(){
