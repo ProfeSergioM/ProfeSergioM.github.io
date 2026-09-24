@@ -94,6 +94,16 @@
     border:1.5px solid rgba(238,243,250,.3);box-shadow:none}
   button.mini{width:auto;font-size:14px;padding:6px 11px 5px;box-shadow:none}
   .fila{display:flex;gap:9px}
+  button.grande{font-size:30px;padding:14px 16px 11px}
+  .guia{position:sticky;top:0;z-index:6;margin:0 0 12px;padding:10px 12px;border-radius:12px;
+    background:rgba(18,33,59,.96);border:1.5px solid rgba(111,195,255,.55);font-weight:700;font-size:14.5px;
+    box-shadow:0 8px 20px rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+  .guia b{color:var(--cielo)}
+  .tip{border-color:rgba(111,195,255,.6);background:linear-gradient(170deg,#15304f,#10233d)}
+  .tip p{font-size:14px;line-height:1.5}
+  .reco{font-size:11px;font-weight:800;color:var(--tinta);background:var(--rayo);border-radius:6px;padding:1px 6px;white-space:nowrap}
+  .veloc{display:flex;gap:6px;margin-top:8px}
+  .veloc button{flex:1}
   .fila > *{flex:1}
 
   .codigazo{font-family:Anton,sans-serif;font-size:clamp(46px,15vw,66px);
@@ -156,6 +166,8 @@
 
   .flota{position:sticky;bottom:10px;z-index:5;margin-top:10px}
   .flota button{box-shadow:0 4px 0 #B3840E,0 10px 30px rgba(0,0,0,.6)}
+  .flota button:disabled{background:#2A3650;color:rgba(238,243,250,.6)}
+  .flota .fila button{font-size:19px}
 
   /* la cancha chica de la táctica */
   .cancha{position:relative;border-radius:12px;overflow:hidden;padding:10px 6px;margin:6px 0 10px;
@@ -177,6 +189,14 @@
   .chapa.elegida{border-color:var(--rayo);background:rgba(255,196,46,.3)}
   .chapa span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
+  .por-que{font-size:15px;line-height:1.5;border-color:rgba(255,196,46,.5)}
+  .por-que b{color:var(--rayo)}
+  .resumen{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:rgba(0,0,0,.28);border-radius:10px;
+    padding:9px 12px;margin:10px 0 4px;font-size:14px}
+  .resumen b{font-family:Anton,sans-serif;font-size:22px;font-weight:400;margin-left:4px}
+  .resumen strong{margin-left:auto;color:var(--rayo)}
+  .resumen.bien strong{color:var(--pasto)}
+  .resumen.mal strong{color:var(--rojo)}
   .barras{display:grid;grid-template-columns:44px 1fr 34px 34px;gap:5px 8px;align-items:center;font-size:13px}
   .barras .r{height:9px;background:rgba(0,0,0,.35);border-radius:6px;position:relative;overflow:hidden}
   .barras .r i{position:absolute;left:0;top:0;bottom:0;background:var(--pasto);border-radius:6px}
@@ -378,7 +398,7 @@ const listaJug  = () => Object.keys(jugadores()).sort(function (a, b) {
 const orden     = () => (sala && sala.orden) || [];
 const juego     = () => orden().includes(yo);
 const soyMando  = () => !!sala && sala.anfitrion === yo;
-const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()[id].nombre)) || "Equipo sin DT";
+const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()[id].nombre)) || "Equipo";
 const dtDe      = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
 const colorDe   = id => COLORES[Math.max(0, orden().indexOf(id)) % COLORES.length];
 const cfg       = () => Object.assign({ picks: 16, seg: 20, tope: 0 }, (sala && sala.config) || {});
@@ -609,11 +629,11 @@ async function empezar(){
   await aLoSumo(baseRemota, 2500);
   if (!sala || sala.estado !== "sala") return;
   const ids = listaJug();
-  if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos DT."); return; }
+  if (ids.length < MIN_EQUIPOS) { avisar("Hacen falta al menos dos jugadores."); return; }
   if (ids.length > MAX_EQUIPOS) { avisar("Son más de ocho: sacá a alguien antes de empezar."); return; }
   const base = M.conTope(baseElegida(), cfg().tope);
   const faltan = M.alcanzaBase(base, ids.length, cfg().picks);
-  if (faltan.length) { avisar("Con " + (cfg().tope ? "OVR hasta " + cfg().tope : "esta base") + " no alcanza para " + ids.length + " equipos. Falta: " + faltan.join(", ") + "."); return; }
+  if (faltan.length) { avisar("Con " + (cfg().tope ? "nivel hasta " + cfg().tope : "esta base") + " no alcanzan los jugadores para " + ids.length + " equipos."); return; }
   const semilla = sala.codigo + "·" + Date.now();
   const r = M.azar(semilla);
   const ordenDraft = ids.map(id => [r(), id]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
@@ -678,7 +698,7 @@ function armarSolo(){
   const base = M.conTope(baseElegida(), topeSolo);
   const picks = 16;
   const faltan = M.alcanzaBase(base, CANTIDAD_CPU + 1, picks);
-  if (faltan.length) { avisar("Con " + (topeSolo ? "OVR hasta " + topeSolo : "esta base") + " no alcanza para cuatro equipos. Falta: " + faltan.join(", ") + "."); pintar(); return; }
+  if (faltan.length) { avisar("Con " + (topeSolo ? "nivel hasta " + topeSolo : "esta base") + " no alcanzan los jugadores para cuatro equipos."); pintar(); return; }
   let codigo = "";
   for (let i = 0; i < 4; i++) codigo += LETRAS[Math.floor(Math.random() * LETRAS.length)];
   const semilla = codigo + "·" + Date.now();
@@ -717,6 +737,7 @@ function hayPartidaSolo(){
   catch (e) { return false; }
 }
 
+const NOMBRE_POS = { POR: ["arquero", "arqueros"], DEF: ["defensa", "defensas"], MED: ["mediocampista", "mediocampistas"], DEL: ["delantero", "delanteros"] };
 const esCPU = id => !!(jugadores()[id] && jugadores()[id].cpu);
 
 /* Lo que hacen los rivales de la máquina en cada fase. Se llama con cada
@@ -966,7 +987,7 @@ function pintar(){
   const scroll = lista ? lista.scrollTop : 0;
 
   if (!sala) app.innerHTML = vistaPortada();
-  else app.innerHTML = cabecera() + ({
+  else app.innerHTML = cabecera() + guiaHTML() + consejoHTML() + ({
     sala: vistaSala, draft: vistaDraft, tactica: vistaTactica, partido: vistaPartido, fin: vistaFin
   }[sala.estado] || vistaSala)();
 
@@ -982,45 +1003,129 @@ function pintar(){
   if (sala && sala.estado === "partido") animarPartidos(true);
 }
 
+/* ── qué hacer ahora ──────────────────────────────────────────
+   Una sola instrucción, arriba y siempre a la vista, según la fase. */
+function guiaTexto(){
+  const st = sala.estado;
+  if (st === "sala") return soyMando()
+    ? (listaJug().length < MIN_EQUIPOS ? "Pasales el código a tus amigos y esperá que entren." : "Cuando estén todos, apretá <b>Empezar</b> abajo.")
+    : "Esperá que " + esc(dtDe(sala.anfitrion)) + " empiece la partida.";
+  if (st === "draft") {
+    if (!juego()) return "Estás mirando cómo eligen.";
+    if (M.turnoDe(orden(), sala.ronda) !== yo) return "Elige " + esc(nombreDe(M.turnoDe(orden(), sala.ronda))) + ". Mientras, mirá la lista.";
+    return "<b>Te toca.</b> Tocá un jugador de la lista y apretá <b>Elegir</b>, o dejá que elija el juego.";
+  }
+  if (st === "tactica") {
+    if (!juego()) return "Los entrenadores están eligiendo cómo jugar.";
+    return sala.listos && sala.listos[yo] ? "Listo. Esperando a los demás."
+      : "Elegí la formación y el estilo, revisá tu once y apretá <b>Listo para jugar</b>.";
+  }
+  if (st === "partido") {
+    const P = parada(), min = minutoActual();
+    if (min >= 90) return juego() && !(sala.listos && sala.listos[yo]) ? "Terminó. Mirá los resultados y apretá <b>Seguir</b>." : "Terminó la fecha.";
+    if (min >= P.hasta && P.tipo === "entretiempo") return juego() ? "Entretiempo: podés hacer cambios. Después apretá <b>Listo, segundo tiempo</b>." : "Entretiempo.";
+    if (min >= P.hasta && P.tipo === "lesion") return P.lesiones.some(l => l.id === yo)
+      ? "<b>Se lesionó un jugador tuyo.</b> Elegí quién entra o seguí con diez." : "Pausa por una lesión: decide el otro entrenador.";
+    return "Se juega el partido. Mirá el relato.";
+  }
+  if (st === "fin") return "Terminó el torneo.";
+  return "";
+}
+function guiaHTML(){
+  const t = guiaTexto();
+  return t ? `<div class="guia">👉 ${t}</div>` : "";
+}
+
+/* ── consejos de la primera vez ──────────────────────────────
+   Aparecen una sola vez por navegador, en el momento en que sirven. */
+const CONSEJOS = {
+  draft: "Esto es la <b>elección de jugadores</b>. Por turnos, cada uno suma un jugador a su equipo hasta tener 16. " +
+    "El número grande es el <b>nivel</b>: más alto, mejor. Los marcados con ⭐ son los que más te convienen ahora. " +
+    "Si no conocés a nadie, apretá <b>Elegir por mí</b>.",
+  tactica: "Antes de cada partido decidís cómo jugar. La <b>formación</b> reparte a tus 11 entre defensa, medio y ataque " +
+    "(4-4-2: cuatro defensas, cuatro medios, dos delanteros). El <b>estilo</b> cambia ataque por defensa. " +
+    "Arriba ves si sos favorito. Cuando estés conforme, apretá <b>Listo para jugar</b>.",
+  partido: "El partido se juega solo: mirá el relato (goles, tarjetas, lesiones). Se detiene en el entretiempo para que hagas cambios.",
+  entretiempo: "Podés hacer <b>hasta 3 cambios</b> en todo el partido. Los que jugaron están cansados (⚡) y rinden menos: " +
+    "cambiarlos por suplentes frescos suele convenir. Tocá al que sale y después al que entra.",
+  lesion: "Se lesionó un jugador y tu equipo quedó con diez. Si elegís un suplente, entra ahora mismo (gasta uno de tus 3 cambios).",
+  cansancio: "Tus jugadores se <b>cansan</b> (⚡, la barra bajo cada uno) y el cansado rinde menos. Los que descansan una fecha se recuperan: " +
+    "tocá un titular y cambialo por un suplente para rotar."
+};
+let consejosVistos = {};
+try { consejosVistos = JSON.parse(leer("manager-consejos") || "{}") || {}; } catch (e) { consejosVistos = {}; }
+function consejoActual(){
+  if (!sala || !juego()) return null;
+  const st = sala.estado;
+  if (st === "draft") return "draft";
+  if (st === "tactica") return sala.ronda >= 1 && consejosVistos.tactica ? "cansancio" : "tactica";
+  if (st === "partido") {
+    const P = parada(), min = minutoActual();
+    if (min >= P.hasta && P.tipo === "entretiempo") return "entretiempo";
+    if (min >= P.hasta && P.tipo === "lesion" && P.lesiones.some(l => l.id === yo)) return "lesion";
+    if (min < P.hasta) return "partido";
+  }
+  return null;
+}
+function consejoHTML(){
+  const k = consejoActual();
+  if (!k || consejosVistos[k]) return "";
+  return `<div class="caja tip"><span class="et" style="background:var(--cielo)">💡 Primera vez</span>
+    <p>${CONSEJOS[k]}</p><button class="cielo mini" data-accion="consejo-ok" data-valor="${k}">Entendido</button></div>`;
+}
+
 function titulo(){
   return `<h1>Mánager<br><span>Relámpago</span></h1>`;
 }
 
+function opcionesTope(accion, actual, equipos, picks, deshabilitado){
+  return `<div class="opciones" style="grid-template-columns:repeat(5,1fr)">${M.TOPES.map(tp => {
+    const alcanza = !M.alcanzaBase(M.conTope(baseElegida(), tp), equipos, picks).length;
+    return `<button class="op" data-accion="${accion}" ${accion === "config" ? `data-campo="tope"` : ""} data-valor="${tp}"
+      aria-pressed="${actual === tp}" ${alcanza && !deshabilitado ? "" : "disabled"}>${tp ? "Hasta " + tp : "Todos"}${alcanza ? "" : "<small>no alcanza</small>"}</button>`;
+  }).join("")}</div>`;
+}
+
 function cajaSolo(){
   const guardada = hayPartidaSolo();
-  const topes = M.TOPES.map(tp => {
-    const alcanza = !M.alcanzaBase(M.conTope(baseElegida(), tp), CANTIDAD_CPU + 1, 16).length;
-    return `<button class="op" data-accion="tope-solo" data-valor="${tp}" aria-pressed="${topeSolo === tp}" ${alcanza ? "" : "disabled"}>
-      ${tp ? "≤" + tp : "Libre"}${alcanza ? "" : "<small>no alcanza</small>"}</button>`;
-  }).join("");
   return `<div class="caja rayo">
-      <span class="et">Un jugador</span>
-      <h2>Jugar solo</h2>
-      <p class="chico">Vos contra tres rivales de la máquina: draft de 16 picks sin reloj, liga ida
-        y vuelta de seis fechas. La partida se guarda en este teléfono.</p>
-      <h3>OVR máximo</h3>
-      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">${topes}</div>
+      <span class="et">Un jugador · unos 15 minutos</span>
+      <h2>Jugar contra la máquina</h2>
+      <p class="chico">Armás tu equipo eligiendo leyendas del fútbol chileno, de a uno por turno contra tres
+        rivales, y después juegan un torneo de seis fechas. Gana el que termina primero en la tabla.</p>
       ${guardada ? `<div class="fila" style="margin-bottom:9px">
-        <button class="verde" data-accion="retomar-solo">Seguir la partida</button></div>` : ""}
-      <button ${guardada ? `class="fantasma"` : ""} data-accion="solo">
-        ${guardada ? "Empezar otra" : "Contra 3 rivales"}</button>
+        <button class="verde" data-accion="retomar-solo">Seguir mi partida</button></div>` : ""}
+      <button ${guardada ? `class="fantasma"` : `class="grande"`} data-accion="solo">${guardada ? "Empezar otra" : "Jugar ahora"}</button>
+      <details style="margin-top:10px" ${abiertos.has("opc-solo") ? "open" : ""} data-id="opc-solo"><summary>Opciones</summary>
+        <h3>Sin cracks</h3>
+        <p class="chico" style="margin:0 0 6px">Para una partida distinta: solo entran jugadores de nivel hasta el número que elijas.</p>
+        ${opcionesTope("tope-solo", topeSolo, CANTIDAD_CPU + 1, 16)}
+      </details>
     </div>`;
 }
 
 function vistaPortada(){
   if (!db) return `<header>${titulo()}</header>
     <div class="caja roja"><h2>Sin conexión</h2>
-    <p class="chico">El multijugador necesita internet. Probá recargar la página, o jugá solo.</p></div>
-    <div class="caja"><span class="et">Paso 1</span>
-      <input id="nombre" maxlength="14" placeholder="Tu nombre de DT" autocomplete="off"
+    <p class="chico">Jugar con amigos necesita internet. Contra la máquina se puede igual.</p></div>
+    <div class="caja"><input id="nombre" maxlength="14" placeholder="Tu nombre" autocomplete="off"
              spellcheck="false" value="${esc(miNombre)}"></div>
     ${cajaSolo()}`;
   const invitado = !!desdeUrl;
   const retomar = salaGuardada && salaGuardada !== desdeUrl && miNombre;
+  const amigos = `<div class="caja${invitado ? " rayo" : ""}">
+      <span class="et">${invitado ? "Te invitaron a jugar" : "Con amigos · de 2 a 8"}</span>
+      <h2>${invitado ? "Entrar a la sala" : "Jugar con amigos"}</h2>
+      <p class="chico">Cada uno desde su teléfono. Si te pasaron un código, escribilo acá:</p>
+      <input id="codigo" class="codigo" maxlength="4" placeholder="ABCD" autocomplete="off"
+             spellcheck="false" value="${esc(codigoTecleado)}">
+      <button class="cielo" data-accion="entrar" ${ocupado ? "disabled" : ""}>${ocupado ? "Entrando…" : "Entrar"}</button>
+      ${invitado ? "" : `<p class="chico" style="margin:12px 0 8px">O armá vos una sala y pasales el código:</p>
+      <button class="fantasma" data-accion="crear" ${ocupado ? "disabled" : ""}>${ocupado ? "Creando…" : "Crear sala"}</button>`}
+    </div>`;
   return `
     <header>${titulo()}
-      <p class="bajada">Draft en vivo con leyendas del fútbol chileno, una táctica por fecha
-        y un campeonato corto contra tus amigos.</p>
+      <p class="bajada">Armá tu equipo con leyendas del fútbol chileno y ganá un torneo corto.</p>
     </header>
 
     ${retomar ? `<div class="caja rayo"><span class="et">Quedaste a medias</span>
@@ -1028,48 +1133,26 @@ function vistaPortada(){
         Volver a la sala ${esc(salaGuardada)}</button></div>` : ""}
 
     <div class="caja">
-      <span class="et">Paso 1</span>
-      <input id="nombre" maxlength="14" placeholder="Tu nombre de DT" autocomplete="off"
-             spellcheck="false" value="${esc(miNombre)}">
-      <p class="chico">Así te van a ver los demás en la tabla.</p>
+      <input id="nombre" maxlength="14" placeholder="Tu nombre" autocomplete="off"
+             spellcheck="false" value="${esc(miNombre)}" style="margin-bottom:0">
     </div>
 
-    ${invitado ? "" : cajaSolo()}
+    ${invitado ? amigos + cajaSolo() : cajaSolo() + amigos}
 
-    <div class="caja${invitado ? " rayo" : ""}">
-      <span class="et">${invitado ? "Te invitaron a jugar" : "Si te pasaron un código"}</span>
-      <h2>Entrar a una sala</h2>
-      <input id="codigo" class="codigo" maxlength="4" placeholder="ABCD" autocomplete="off"
-             spellcheck="false" value="${esc(codigoTecleado)}">
-      <button class="cielo" data-accion="entrar" ${ocupado ? "disabled" : ""}>${ocupado ? "Entrando…" : "Entrar"}</button>
-    </div>
-
-    <div class="caja">
-      <span class="et">Si armás vos la partida</span>
-      <h2>Crear una sala</h2>
-      <p class="chico">Vas a elegir la base de jugadores, cuántos picks tiene cada uno y
-        cuánto dura cada turno. Podés subir tu propia base en CSV o JSON.</p>
-      <button data-accion="crear" ${ocupado ? "disabled" : ""}>${ocupado ? "Creando…" : "Crear sala"}</button>
-    </div>
-
-    <div class="caja">
-      <span class="et gris">Cómo se juega</span>
+    <details class="caja" ${abiertos.has("como") ? "open" : ""} data-id="como"><summary>¿Cómo se juega?</summary>
       <div class="ayuda"><ol>
-        <li><b>Draft en serpiente.</b> Cada uno elige un jugador por turno, y el orden se da
-          vuelta en cada vuelta. Si se te acaba el reloj, elige el piloto automático.</li>
-        <li><b>Plantel completo.</b> Hace falta al menos 1 arquero, 3 defensas, 3 medios y
-          1 delantero. El draft no te deja elegir algo que te impida llegar a eso.</li>
-        <li><b>Una táctica por fecha.</b> Formación y estilo. Lo que ganás arriba lo perdés
-          atrás, y el defensivo hace más faltas. Los del mismo club suman química.</li>
-        <li><b>Pasan cosas.</b> Tarjetas (la roja o tres amarillas suspenden una fecha),
-          lesiones que bajan el rendimiento por un par de fechas, penales, goles anulados,
-          lluvia y tardes inspiradas. El once se arma solo con los que están disponibles.</li>
-        <li><b>Cambios y cansancio.</b> En el entretiempo hay hasta tres cambios. Cada partido
-          cansa y el cansado rinde menos: hay que rotar el plantel a lo largo del torneo.</li>
-        <li><b>Liga todos contra todos.</b> Los partidos se simulan en vivo en todos los
-          teléfonos a la vez. Gana el que termina arriba en la tabla.</li>
+        <li><b>Armás el equipo.</b> Por turnos, cada uno elige un jugador de la lista hasta tener 16.
+          El número de cada jugador es su nivel: más alto, mejor. Necesitás al menos 1 arquero,
+          3 defensas, 3 medios y 1 delantero.</li>
+        <li><b>Antes de cada partido</b> elegís la formación (cuántos defienden, cuántos juegan en
+          el medio y cuántos atacan), el estilo (más ataque o más defensa) y tus once titulares.</li>
+        <li><b>El partido se juega solo</b> y lo ves en vivo. En el entretiempo podés hacer hasta
+          tres cambios, y si se lesiona alguien, podés reemplazarlo en el momento.</li>
+        <li><b>Cuidá el plantel.</b> Los que juegan se cansan (⚡) y rinden menos: conviene rotar.
+          Las tarjetas rojas y las lesiones también dejan jugadores afuera.</li>
+        <li><b>Gana el torneo</b> el que termina primero en la tabla. Ganar da 3 puntos y empatar, 1.</li>
       </ol></div>
-    </div>`;
+    </details>`;
 }
 
 function cabecera(){
@@ -1107,7 +1190,7 @@ function vistaSala(){
     </div>
 
     <div class="caja">
-      <h2>DT en la sala · ${ids.length}/${MAX_EQUIPOS}</h2>
+      <h2>Jugadores en la sala · ${ids.length}/${MAX_EQUIPOS}</h2>
       <ul class="gente">${ids.map((id, i) => `<li>
         <span class="punto" style="background:${COLORES[i % COLORES.length]}"></span>
         <div><div class="nom">${esc(dtDe(id))}</div>
@@ -1144,27 +1227,23 @@ function vistaSala(){
           cualquier juego (GK, CB, CAM, ST, POR, DFC, MC, DC…) y los nombres de columna en
           inglés de las bases más comunes. Solo tu teléfono necesita el archivo.</p>` : ""}
 
-      <h3>OVR máximo</h3>
-      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">${M.TOPES.map(tp => {
-        const alcanza = !M.alcanzaBase(M.conTope(baseElegida(), tp), Math.max(2, ids.length), c.picks).length;
-        return `<button class="op" data-accion="config" data-campo="tope" data-valor="${tp}" aria-pressed="${c.tope === tp}"
-          ${mando && alcanza ? "" : "disabled"}>${tp ? "≤" + tp : "Libre"}${alcanza ? "" : "<small>no alcanza</small>"}</button>`;
-      }).join("")}</div>
-      <p class="chico">${c.tope ? "Solo entran al draft los jugadores con OVR hasta " + c.tope + ": " + M.conTope(baseElegida(), c.tope).length + " disponibles." : "Entran todos los jugadores de la base."}</p>
-      <h3>Picks por equipo</h3>
+      <h3>Sin cracks</h3>
+      ${opcionesTope("config", c.tope, Math.max(2, ids.length), c.picks, !mando)}
+      <p class="chico">${c.tope ? "Solo se pueden elegir jugadores de nivel hasta " + c.tope + ": hay " + M.conTope(baseElegida(), c.tope).length + "." : "Se pueden elegir todos los jugadores de la base."}</p>
+      <h3>Jugadores por equipo</h3>
       <div class="opciones">${opcion("picks", 12, "12", "1 suplente")}${opcion("picks", 14, "14", "3 suplentes")}${opcion("picks", 16, "16", "5 suplentes")}</div>
-      <h3>Tiempo por pick</h3>
+      <h3>Tiempo para elegir en cada turno</h3>
       <div class="opciones">${opcion("seg", 12, "12 s", "a lo loco")}${opcion("seg", 20, "20 s", "normal")}${opcion("seg", 35, "35 s", "con calma")}</div>
       <h3>Campeonato</h3>
       <p style="margin-bottom:4px"><b>${esc(fmt.nombre)}</b> <span class="chico">· ${fechas} fechas</span></p>
-      <p class="chico">${esc(fmt.detalle)} El formato se ajusta solo a cuántos DT hay:
+      <p class="chico">${esc(fmt.detalle)} El formato se ajusta solo a cuántos son:
         2 juegan una serie, de 3 a 4 una liga ida y vuelta, y de 5 a 8 una liga con final.
-        Con ${ids.length < 2 ? "dos" : ids.length} DT, unos ${Math.max(5, minutos)} minutos en total.
-        El draft sale de un pozo de ${Math.max(M.TAM_POZO, Math.ceil(Math.max(2, ids.length) * c.picks * 1.25))} jugadores.</p>
+        Con ${ids.length < 2 ? "dos" : ids.length}, unos ${Math.max(5, minutos)} minutos en total.
+        Se elige de una lista de ${Math.max(M.TAM_POZO, Math.ceil(Math.max(2, ids.length) * c.picks * 1.25))} jugadores.</p>
     </div>
 
     ${mando ? `<div class="flota"><button class="verde" data-accion="empezar" ${ids.length < MIN_EQUIPOS ? "disabled" : ""}>
-        ${ids.length < MIN_EQUIPOS ? "Esperando rivales…" : "Empezar el draft"}</button></div>`
+        ${ids.length < MIN_EQUIPOS ? "Esperando rivales…" : "Empezar: elegir jugadores"}</button></div>`
       : `<div class="caja"><p class="chico" style="margin:0">Esperando que ${esc(dtDe(sala.anfitrion))} empiece.
         ${sala.anfitrion && !jugadores()[sala.anfitrion] ? "" : ""}</p>
         <button class="fantasma" style="margin-top:10px" data-accion="mando">Tomar el mando</button></div>`}`;
@@ -1211,13 +1290,15 @@ function vistaDraft(){
   for (let k = n + 1; k < Math.min(total, n + 5); k++) proximos.push(M.turnoDe(orden(), k));
 
   const sel = elegido != null ? pozo[elegido] : null;
+  const falta = M.faltantes(mi);
+  const reco = juego() ? new Set(M.recomendados(mi, sala.pozo, sala.picks, cfg().picks, 3)) : new Set();
   const libre = juego() && !M.hayOpcion(mi, sala.pozo, sala.picks, cfg().picks);
   const puede = sel && !ya.has(sel.i) && (libre || M.puedeElegir(mi, sel.pos, cfg().picks));
 
   return `
     <div class="caja ${mio ? "rayo" : ""}">
       <div class="cabezal">
-        <div><span class="et ${mio ? "" : "gris"}">Pick ${n + 1} de ${total} · vuelta ${Math.floor(n / orden().length) + 1}</span>
+        <div><span class="et ${mio ? "" : "gris"}">Turno ${n + 1} de ${total} · vuelta ${Math.floor(n / orden().length) + 1}</span>
           <h2 style="margin:0">${mio ? "¡Te toca elegir!" : "Elige " + esc(nombreDe(turno))}</h2></div>
         ${relojHTML()}
       </div>
@@ -1225,7 +1306,9 @@ function vistaDraft(){
     </div>
 
     ${juego() ? `<div class="caja">
-      <h3 style="margin-top:0">Tu plantel · ${mi.length}/${cfg().picks}</h3>
+      <h3 style="margin-top:0">Tu equipo · ${mi.length} de ${cfg().picks}</h3>
+      ${Object.keys(falta).length ? `<p style="margin:0 0 6px"><b>Necesitás:</b> ${Object.entries(falta).map(([p, k]) => k + " " + NOMBRE_POS[p][k === 1 ? 0 : 1]).join(", ")}.</p>`
+        : `<p class="chico" style="margin:0 0 6px">Ya tenés lo mínimo en cada puesto: ahora sumá calidad o suplentes.</p>`}
       <div class="conteo">${M.POSICIONES.map(p =>
         `<span class="${c[p] < M.MINIMOS[p] ? "falta" : ""}">${p} ${c[p]}${c[p] < M.MINIMOS[p] ? " de " + M.MINIMOS[p] : ""}</span>`).join("")}</div>
       ${mi.length ? `<details ${abiertos.has("yo") ? "open" : ""} data-id="yo"><summary>Ver mis jugadores</summary>
@@ -1243,14 +1326,16 @@ function vistaDraft(){
         ${visibles.length ? visibles.map(j => {
           const ok = !juego() || libre || M.puedeElegir(mi, j.pos, cfg().picks);
           return `<button class="ficha ${ok ? "" : "no"}" data-accion="elegir" data-valor="${j.i}"
-            aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j)}</button>`;
+            aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j, reco.has(j.i) ? `<span class="reco">⭐ te conviene</span>` : "")}</button>`;
         }).join("") : `<p class="chico">No queda nadie con ese filtro.</p>`}
       </div>
-      ${mio ? `<div class="flota"><button data-accion="pick" ${puede ? "" : "disabled"}>
-        ${sel ? (puede ? "Fichar a " + esc(sel.nombre) : "No podés sumar otro " + sel.pos) : "Tocá un jugador"}</button></div>` : ""}
+      ${mio ? `<div class="flota"><div class="fila">
+        <button data-accion="pick" ${puede ? "" : "disabled"} style="flex:2">
+          ${sel ? (puede ? "Elegir a " + esc(sel.nombre) : "No podés sumar otro " + sel.pos) : "Tocá un jugador"}</button>
+        <button class="cielo" data-accion="pick-auto" style="flex:1;font-size:16px">Elegir por mí</button></div></div>` : ""}
     </div>
 
-    ${ultimos.length ? `<div class="caja"><h3 style="margin-top:0">Últimos picks</h3><ul class="feed">${ultimos.join("")}</ul></div>` : ""}
+    ${ultimos.length ? `<div class="caja"><h3 style="margin-top:0">Últimas elecciones</h3><ul class="feed">${ultimos.join("")}</ul></div>` : ""}
 
     <div class="caja"><h3 style="margin-top:0">Los planteles</h3>
       ${orden().filter(id => id !== yo).map(id => {
@@ -1342,6 +1427,11 @@ function vistaTactica(){
         ${x.alLimite.map(b => `<li>🟨 <b>${esc(b.nombre)}</b> tiene 2 amarillas: con una más se pierde la fecha siguiente</li>`).join("")}
       </ul>`;
     };
+    const total = f => (f.def + f.med + f.ata) / 3;
+    const dif = suya ? total(mia) - total(suya) : 0;
+    const resumen = rival ? `<div class="resumen ${dif > 2.5 ? "bien" : dif < -2.5 ? "mal" : ""}">
+        <span>Tu equipo <b>${Math.round(total(mia))}</b></span><span>Rival <b>${Math.round(total(suya))}</b></span>
+        <strong>${dif > 2.5 ? "Sos favorito" : dif < -2.5 ? "El rival es favorito" : "Partido parejo"}</strong></div>` : "";
     const barra = (et, a, b) => `<span>${et}</span>
       <span class="r"><i style="width:${Math.max(4, Math.min(100, (a - 45) * 2.2))}%"></i>
         ${b != null ? `<i class="otro" style="width:${Math.max(4, Math.min(100, (b - 45) * 2.2))}%"></i>` : ""}</span>
@@ -1357,14 +1447,15 @@ function vistaTactica(){
         <h3>Estilo</h3>
         <div class="opciones">${Object.entries(M.ESTILOS).map(([k, e]) => `<button class="op" data-accion="estilo" data-valor="${k}" aria-pressed="${t.e === k}">${e.nombre}
           <small>${esc(e.detalle)}</small></button>`).join("")}</div>
+        ${resumen}
         ${bajasHTML(yo, "Tus bajas")}
         <h3>Tu once ${t.x.length ? "· elegido por vos" : "· automático"}</h3>
         <p class="chico" style="margin:0 0 4px">${titSel != null ? "Ahora tocá al suplente que entra." :
-          "Tocá un titular en la cancha y después al suplente que entra. El número es lo que rinde hoy en ese puesto."}</p>
+          "Para cambiar a un titular, tocalo en la cancha. El número es su nivel hoy en ese puesto: baja si está cansado (⚡), lesionado o fuera de su puesto (en rojo)."}</p>
         ${noEstan.length ? `<p class="chico" style="color:#ffb3c0;margin:0 0 4px">No están disponibles: ${esc(noEstan.join(", "))}. Entró el mejor del resto.</p>` : ""}
         ${canchaHTML(mia.once, true)}
-        <h3>Suplentes</h3>
-        ${disp.filter(j => !enOnce.has(j.idx)).sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media).map(j => {
+        ${titSel == null ? "" : `<h3>Elegí quién entra</h3>`}
+        ${titSel == null ? "" : disp.filter(j => !enOnce.has(j.idx)).sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media).map(j => {
           const slot = titSel != null ? (mia.once.find(o => o.j.idx === titSel) || {}).en : null;
           return `<button class="ficha" data-accion="suplente" data-valor="${j.idx}" ${titSel == null ? "disabled" : ""}>
             <span class="pos ${j.pos}">${j.pos}</span>
@@ -1375,14 +1466,18 @@ function vistaTactica(){
             <span class="med">${Math.round(slot ? M.rindeEn(j, slot) : j.media)}</span></button>`;
         }).join("")}
         ${t.x.length ? `<button class="fantasma" style="margin:6px 0 10px" data-accion="once-auto">Volver al once automático</button>` : ""}
-        <p class="chico" style="margin:6px 0 10px">⚡ es el cansancio acumulado (la barra bajo cada titular). Cada partido
-          completo suma 30 y cada fecha recupera; desde 20 empieza a restar rendimiento. Rotá.</p>
-        <div class="barras">
-          ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
-        </div>
-        <p class="chico" style="margin:8px 0 0">Química del once: <b>+${mia.quimica}%</b>${suya ? ` · en rojo, el rival con lo que usó la última vez` : ""}.
-          En rojo en la cancha: fuera de su puesto, lesionados (🩹) o cansados (⚡).</p>
-        ${rival ? bajasHTML(rival, "Bajas del rival") : ""}
+        <details ${abiertos.has("detalle-rival") ? "open" : ""} data-id="detalle-rival" style="margin-top:8px"><summary>Ver más: comparación línea por línea</summary>
+          <p class="chico" style="margin:6px 0">Verde: tu equipo. Rojo: el rival, con la táctica que usó la fecha pasada.
+            DEF es cuánto defienden, MED cuánto manejan la pelota y ATA cuánto atacan.</p>
+          <div class="barras">
+            ${barra("DEF", mia.def, suya && suya.def)}${barra("MED", mia.med, suya && suya.med)}${barra("ATA", mia.ata, suya && suya.ata)}
+          </div>
+          <p class="chico" style="margin:8px 0 0">Química: <b>+${mia.quimica}%</b>. Los jugadores del mismo club se entienden
+            y rinden un poco más juntos.</p>
+          <p class="chico" style="margin:6px 0 0">⚡ es el cansancio: cada partido completo suma 30 y cada fecha recupera;
+            desde 20 empieza a restar rendimiento.</p>
+          ${rival ? bajasHTML(rival, "Bajas del rival") : ""}
+        </details>
         <div class="flota"><button class="${listo ? "fantasma" : "verde"}" data-accion="listo">${listo ? "Listo · cambiar algo" : "Listo para jugar"}</button></div>
       </div>`;
   }
@@ -1400,9 +1495,47 @@ function vistaTactica(){
 }
 
 /* ── partido ─────────────────────────────────────────────── */
+/* En el modo solo se puede ver el partido más lento o saltar al próximo corte.
+   En multijugador no: todos los teléfonos tienen que ir al mismo ritmo. */
+let lento = leer("manager-lento") === "1";
+const segTiempo = () => solo && lento ? SEG_TIEMPO * 2 : SEG_TIEMPO;
 function minutoActual(){
   const P = parada();
-  return P.desde + Math.min(P.hasta - P.desde, Math.floor((Date.now() - inicioFase) / (SEG_TIEMPO * 1000) * 45));
+  return P.desde + Math.min(P.hasta - P.desde, Math.floor((Date.now() - inicioFase) / (segTiempo() * 1000) * 45));
+}
+
+/* Por qué salió así el partido, en una frase: lo que más pesó. */
+function porQue(p, lado){
+  const otro = 1 - lado;
+  const mios = lado === 0 ? p.ga : p.gb, suyos = lado === 0 ? p.gb : p.ga;
+  const res = mios > suyos ? "gano" : mios < suyos ? "perdio" : "empate";
+  const ev = p.eventos;
+  const de = (tipo, l) => ev.filter(e => e.tipo === tipo && e.lado === l);
+  const ape = n => esc(String(n).split(" ").slice(-1)[0]);
+  const razones = [];
+  const rojaMia = de("roja", lado)[0], rojaSuya = de("roja", otro)[0];
+  if (rojaMia && res !== "gano") razones.push("la roja a " + ape(rojaMia.autor) + " te dejó con diez");
+  if (rojaSuya && res !== "perdio") razones.push("el rival jugó con diez por la roja a " + ape(rojaSuya.autor));
+  const golesDe = {};
+  for (const g of de("gol", lado)) if (!g.enContra) golesDe[g.autor] = (golesDe[g.autor] || 0) + 1;
+  const crack = Object.entries(golesDe).sort((a, b) => b[1] - a[1])[0];
+  if (crack && crack[1] >= 2 && res !== "perdio") razones.push(ape(crack[0]) + " hizo " + crack[1] + " goles");
+  const pos = lado === 0 ? p.posesion : 100 - p.posesion;
+  if (pos >= 58 && res !== "perdio") razones.push("tu medio dominó la pelota (" + pos + "%)");
+  if (pos <= 42 && res !== "gano") razones.push("el rival tuvo la pelota (" + (100 - pos) + "%)");
+  const arqMio = de("arquero", lado)[0], arqSuyo = de("arquero", otro)[0];
+  if (arqSuyo && res !== "gano") razones.push("el arquero rival, " + ape(arqSuyo.autor) + ", atajó todo");
+  if (arqMio && res !== "perdio") razones.push("tu arquero, " + ape(arqMio.autor) + ", atajó todo");
+  const errado = de("penalErrado", lado)[0];
+  if (errado && res !== "gano") razones.push(ape(errado.autor) + " erró un penal");
+  const xm = lado === 0 ? p.xa : p.xb, xs = lado === 0 ? p.xb : p.xa;
+  if (res === "gano" && xm < xs * 0.8) razones.push("le ganaste a un rival que en la previa era mejor");
+  if (res === "perdio" && xm > xs * 1.25) razones.push("eras favorito, pero no entró");
+  if (ev.some(e => e.tipo === "lluvia") && mios + suyos <= 1) razones.push("la lluvia trabó el partido");
+  if (!razones.length) razones.push(res === "gano" ? "tu ataque pudo más que su defensa"
+    : res === "perdio" ? "su ataque pudo más que tu defensa" : "fue un partido parejo");
+  const titulo = res === "gano" ? "Ganaste" : res === "perdio" ? "Perdiste" : "Empataste";
+  return `<b>${titulo} ${mios}-${suyos}:</b> ${razones.slice(0, 2).join(" y ")}.`;
 }
 
 /* Cómo se cuenta cada evento en el relato del partido. */
@@ -1485,7 +1618,12 @@ function vistaPartido(){
         <div><span class="et">${esc(etiquetaFecha(j))}</span><h2 style="margin:0">${terminado ? "Resultados" : min < 45 ? "Primer tiempo" : "Segundo tiempo"}</h2></div>
         ${terminado ? `${relojHTML()}` : ""}
       </div>
+      ${solo && !terminado ? `<div class="veloc">
+        <button class="op" data-accion="lento" aria-pressed="${lento}">🐢 Más lento</button>
+        <button class="op" data-accion="saltar">⏭ Saltar ${P.hasta === 90 ? "al final" : P.tipo === "entretiempo" ? "al entretiempo" : "a la pausa"}</button>
+      </div>` : ""}
     </div>
+    ${terminado && mio ? `<div class="caja por-que">${porQue(mio, mio.a === yo ? 0 : 1)}</div>` : ""}
     ${lista}
     ${jor.descansa.length && !jor.final ? `<p class="chico">Descansa: ${jor.descansa.map(id => esc(nombreDe(id))).join(", ")}.</p>` : ""}
     <div class="caja" id="tabla-partido"><h3 style="margin-top:0">Tabla${terminado ? "" : " antes de la fecha"}</h3>${tablaHTML(tabla)}</div>
@@ -1499,7 +1637,7 @@ function vistaPartido(){
 function entraComo(j, en){
   const rinde = Math.round(M.rindeEn(j, en));
   return { rinde, texto: j.pos === en ? "juega de " + en + (j.base && j.base !== j.media ? " · hoy " + j.media + " (base " + j.base + ")" : "")
-    : j.pos + " → " + en + " · OVR " + j.media + " → " + rinde };
+    : j.pos + " → " + en + " · nivel " + j.media + " → " + rinde };
 }
 
 /* El cambio inmediato cuando se lesiona uno de los tuyos. */
@@ -1623,7 +1761,7 @@ function vistaFin(){
       <span class="et">Campeón</span>
       <h2>${esc(nombreDe(cid))}</h2>
       <p class="chico">${gane ? (solo ? "Le ganaste a la máquina." : "Sos el campeón. Que lo sepa todo el grupo.")
-        : esCPU(cid) ? "Esta vez ganó la máquina." : "DT: " + esc(dtDe(cid)) + "."}
+        : esCPU(cid) ? "Esta vez ganó la máquina." : "Lo dirigió " + esc(dtDe(cid)) + "."}
         ${fi ? `Ganó la final ${fi.gana === fi.a ? fi.ga + " a " + fi.gb : fi.gb + " a " + fi.ga}${fi.penales ? " y en penales " + Math.max(...fi.penales) + " a " + Math.min(...fi.penales) : ""}
           contra ${esc(nombreDe(fi.gana === fi.a ? fi.b : fi.a))}`
           : `Hizo ${campeon.pts} puntos, ${campeon.g} ganados, ${campeon.gf} goles a favor`}.</p>
@@ -1680,6 +1818,23 @@ app.addEventListener("click", function(ev){
   else if (a === "empezar") empezar();
   else if (a === "filtro") { filtro = v; pintar(); }
   else if (a === "elegir") { elegido = Number(v); pintar(); }
+  else if (a === "lento") {
+    const P = parada(), m = minutoActual();
+    lento = !lento; anotar("manager-lento", lento ? "1" : "0");
+    inicioFase = Date.now() - (m - P.desde) / 45 * segTiempo() * 1000;
+    pintar();
+  }
+  else if (a === "saltar") { inicioFase = Date.now() - 3600 * 1000; animarPartidos(); pintar(); }
+  else if (a === "consejo-ok") {
+    consejosVistos[v] = 1;
+    anotar("manager-consejos", JSON.stringify(consejosVistos));
+    pintar();
+  }
+  else if (a === "pick-auto") {
+    const n = sala.ronda;
+    const idx = M.recomendados(calculos().pl[yo] || [], sala.pozo, sala.picks, cfg().picks, 1)[0];
+    if (idx != null) { elegido = null; hacerPick(n, idx); }
+  }
   else if (a === "pick") {
     if (elegido == null) return;
     const n = sala.ronda;

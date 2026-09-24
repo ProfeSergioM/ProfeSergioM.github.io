@@ -172,6 +172,23 @@ esperan tres segundos más antes de elegir por un dormido. En la charla técnica
 son 45 segundos, y al que no tocó nada le queda un 4-4-2 equilibrado. Después
 del partido se espera treinta segundos a los que no apretan "Seguir".
 
+## Ayudas para entender el juego
+
+- **Qué hacer ahora:** una franja fija arriba con una sola instrucción según la fase.
+- **Consejos de primera vez:** aparecen una sola vez por navegador (`manager-consejos` en
+  `localStorage`), en el draft, la primera charla técnica, el primer partido, el
+  primer entretiempo, la primera lesión propia y cuando empieza a pesar el cansancio.
+- **Draft:** muestra lo que falta por puesto, marca con ⭐ los tres que más convienen
+  (`M.recomendados`, el mismo puntaje del piloto automático) y tiene "Elegir por mí".
+- **Charla técnica:** arriba, formación, estilo, un resumen ("Sos favorito") y el once;
+  la comparación línea por línea, la química y las bajas del rival van en "Ver más".
+- **Resultado:** una frase con el porqué (rojas, posesión, goleador, arqueros, penal
+  errado, sorpresa), armada con los eventos del partido.
+- **Velocidad:** en el modo solo, "Más lento" y "Saltar al próximo corte". En
+  multijugador no, porque todos los teléfonos tienen que ir al mismo ritmo.
+- **Palabras:** "nivel" en vez de OVR, "turno" en vez de pick, "Sin cracks" para el
+  modo con tope.
+
 ## Cómo comprobar que funciona
 
 Abrí <https://profesergiom.github.io/manager-relampago/> y creá una sala:

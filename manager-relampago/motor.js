@@ -344,10 +344,22 @@ export function pickValido(plantel, pos, pozo, picks, picksTotales) {
    disponible del puesto que más te hace falta. Es determinista a propósito:
    si dos teléfonos lo corren a la vez, eligen al mismo. */
 export function autoPick(plantel, pozo, picks, picksTotales, ruido) {
+  const lista = puntajes(plantel, pozo, picks, picksTotales, ruido);
+  return lista.length ? lista[0].i : -1;
+}
+
+/* Los que más le convienen a este plantel, del mejor al peor: el nivel, más
+   un plus si llena un puesto que falta. Lo usan el piloto automático y las
+   recomendaciones del draft. */
+export function recomendados(plantel, pozo, picks, picksTotales, n) {
+  return puntajes(plantel, pozo, picks, picksTotales).slice(0, n || 3).map(x => x.i);
+}
+
+function puntajes(plantel, pozo, picks, picksTotales, ruido) {
   const ya = tomados(picks);
   const c = contarPos(plantel);
   const libre = !hayOpcion(plantel, pozo, picks, picksTotales);
-  let mejor = -1, mejorPuntos = -Infinity;
+  const out = [];
   for (let i = 0; i < pozo.length; i++) {
     if (ya.has(i)) continue;
     const j = desempacar(pozo[i]);
@@ -358,9 +370,17 @@ export function autoPick(plantel, pozo, picks, picksTotales, ruido) {
     /* Los rivales de la máquina no eligen siempre al mejor: un poco de ruido
        hace que cada draft contra ellos sea distinto y deja pasar alguna ganga. */
     if (ruido) puntos += ruido() * 7;
-    if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = i; }
+    out.push({ i, puntos });
   }
-  return mejor;
+  return out.sort((a, b) => b.puntos - a.puntos || a.i - b.i);
+}
+
+/* Lo que le falta a un plantel para cumplir los mínimos por puesto. */
+export function faltantes(plantel) {
+  const c = contarPos(plantel);
+  const out = {};
+  for (const p of POSICIONES) if (c[p] < MINIMOS[p]) out[p] = MINIMOS[p] - c[p];
+  return out;
 }
 
 /* ── el once ──────────────────────────────────────────────── */
