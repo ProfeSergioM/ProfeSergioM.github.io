@@ -101,6 +101,10 @@
   .guia b{color:var(--cielo)}
   .tip{border-color:rgba(111,195,255,.6);background:linear-gradient(170deg,#15304f,#10233d)}
   .tip p{font-size:14px;line-height:1.5}
+  .etapas{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}
+  .etapas span{font-size:12px;font-weight:800;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.28);color:var(--humo)}
+  .etapas span.hecha{color:var(--pasto)}
+  .etapas span.ahora{background:var(--rayo);color:var(--tinta)}
   .reco{font-size:11px;font-weight:800;color:var(--tinta);background:var(--rayo);border-radius:6px;padding:1px 6px;white-space:nowrap}
   .veloc{display:flex;gap:6px;margin-top:8px}
   .veloc button{flex:1}
@@ -402,7 +406,6 @@ const nombreDe  = id => (jugadores()[id] && (jugadores()[id].club || jugadores()
 const dtDe      = id => (jugadores()[id] && jugadores()[id].nombre) || "alguien";
 const colorDe   = id => COLORES[Math.max(0, orden().indexOf(id)) % COLORES.length];
 const cfg       = () => Object.assign({ picks: 16, seg: 20, tope: 0 }, (sala && sala.config) || {});
-const totalPicks = () => orden().length * cfg().picks;
 
 /* Lo que sale del motor se recalcula solo cuando cambia algo que lo afecta. */
 let cacheClave = "", cacheTemp = null, cachePl = null;
@@ -640,7 +643,7 @@ async function empezar(){
   const tacticas = {};
   for (const id of ids) tacticas[id] = { f: "4-4-2", e: "eq" };
   escribir({
-    estado: "draft", ronda: 0, orden: ordenDraft,
+    estado: "draft", ronda: 0, orden: ordenDraft, draft: M.iniciarDraft(ordenDraft),
     pozo: M.armarPozo(base, ids.length, cfg().picks, semilla),
     fuente: fuenteElegida(cfg().tope), picks: {}, tacticas, listos: {}, cambios: {}, historial: []
   });
@@ -711,7 +714,7 @@ function armarSolo(){
   const tacticas = {};
   for (const id of ids) tacticas[id] = { f: "4-4-2", e: "eq" };
   salaLocal = {
-    codigo, solo: true, estado: "draft", ronda: 0, anfitrion: yo, jugadores: js,
+    codigo, solo: true, estado: "draft", ronda: 0, anfitrion: yo, jugadores: js, draft: M.iniciarDraft(ordenDraft),
     config: { picks, seg: 0, tope: topeSolo }, fuente: fuenteElegida(topeSolo), orden: ordenDraft,
     pozo: M.armarPozo(base, ids.length, picks, semilla),
     picks: {}, tacticas, listos: {}, cambios: {}, historial: []
@@ -747,17 +750,17 @@ let cpuHecho = false, cierreHecho = false;
 function moverCPU(){
   const st = sala.estado;
   if (st === "draft") {
+    if (!sala.draft) return;
     const n = sala.ronda;
-    const id = M.turnoDe(orden(), n);
+    const id = turnoActual();
     if (!esCPU(id) || cpuHecho) return;
     cpuHecho = true;
-    /* Un respiro antes de cada pick, para que se vea el draft pasar. */
+    /* Un respiro antes de cada elección, para que se vea el draft pasar. */
     setTimeout(function(){
       if (!solo || !sala || sala.estado !== "draft" || sala.ronda !== n) return;
       const pl = calculos().pl[id] || [];
-      const idx = M.autoPick(pl, sala.pozo, sala.picks, cfg().picks, M.azar(sala.codigo + "·pick·" + n));
-      if (idx >= 0) hacerPick(n, idx);
-    }, 650);
+      accionDraft(n, M.decisionCPU(pl, sala.draft.fase, sala.pozo, sala.picks, cfg().picks, M.azar(sala.codigo + "·pick·" + n)));
+    }, 550);
   } else if (st === "tactica") {
     const j = sala.ronda;
     if (!cpuHecho) {
@@ -805,37 +808,52 @@ function moverCPU(){
 }
 
 /* ── el draft ────────────────────────────────────────────── */
-/* El pick va en una transacción que comprueba el número de pick: si el
-   piloto automático de otro teléfono se adelantó, este pick no pisa nada. */
-async function hacerPick(n, idx){
+/* De quién es el turno. Lo guarda la sala: con etapas y "Terminar" ya no se
+   puede deducir del número de elección. */
+const turnoActual = () => (sala && sala.draft) ? sala.draft.turno : M.turnoDe(orden(), sala.ronda);
+
+/* Cada acción del draft (elegir o terminar la etapa) va en una transacción que
+   comprueba el número de paso: si el piloto automático de otro teléfono se
+   adelantó, esta acción no pisa nada. */
+async function accionDraft(n, acc){
   if (!ref) return false;
   try {
     return await conReloj(transaccion(async function(t){
       const s = await t.get(ref);
       const d = s.data();
-      if (!d || d.estado !== "draft" || d.ronda !== n) return false;
-      if (M.tomados(d.picks).has(idx)) return false;
-      const total = d.orden.length * Object.assign({ picks: 16 }, d.config).picks;
-      const id = M.turnoDe(d.orden, n);
-      const pl = M.planteles(d.orden, d.picks, d.pozo)[id];
-      const j = M.desempacar(d.pozo[idx]);
-      if (!M.pickValido(pl, j.pos, d.pozo, d.picks, total / d.orden.length)) return false;
-      const fin = n + 1 >= total;
-      t.update(ref, Object.assign({ ["picks." + n]: idx },
-        fin ? { estado: "tactica", ronda: 0, listos: {} } : { ronda: n + 1 }));
+      if (!d || d.estado !== "draft" || d.ronda !== n || !d.draft) return false;
+      const total = Object.assign({ picks: 16 }, d.config).picks;
+      const dr = d.draft, quien = dr.turno, pos = M.FASES[dr.fase];
+      const pl = M.planteles(d.orden, d.picks, d.pozo)[quien] || [];
+      let picks = d.picks || {}, estado = dr;
+      if (acc.pick != null) {
+        if (M.tomados(picks).has(acc.pick)) return false;
+        if (M.desempacar(d.pozo[acc.pick]).pos !== pos || !M.puedeSumar(pl, dr.fase, total)) return false;
+        picks = Object.assign({}, picks, { [n]: { i: acc.pick, d: quien } });
+      } else {
+        const obligado = M.puedeSumar(pl, dr.fase, total) && M.disponiblesDe(d.pozo, picks, pos).length;
+        if (!M.puedeTerminar(pl, dr.fase, total) && obligado) return false;
+        estado = Object.assign({}, dr, { fin: Object.assign({}, dr.fin, { [quien]: true }) });
+      }
+      const nuevo = M.avanzarDraft(estado, d.orden, picks, d.pozo, total);
+      const cambios = nuevo ? { ronda: n + 1, draft: nuevo } : { estado: "tactica", ronda: 0, listos: {}, draft: estado };
+      if (acc.pick != null) cambios["picks." + n] = { i: acc.pick, d: quien };
+      t.update(ref, cambios);
       return true;
     }));
   } catch (e) {
-    avisar(explicarError(e, "guardar el pick"));
+    avisar(explicarError(e, "guardar la elección"));
     return false;
   }
 }
 
+/* Cuando se acaba el reloj: si todavía le falta el mínimo del puesto, elige el
+   mejor disponible; si no, termina la etapa. */
 function pickAutomatico(n){
-  const id = M.turnoDe(orden(), n);
-  const pl = calculos().pl[id] || [];
-  const idx = M.autoPick(pl, sala.pozo, sala.picks, cfg().picks);
-  if (idx >= 0) hacerPick(n, idx);
+  const id = turnoActual();
+  const d = M.decisionCPU(calculos().pl[id] || [], sala.draft.fase, sala.pozo, sala.picks, cfg().picks);
+  const aunNo = d.pick != null && M.puedeTerminar(calculos().pl[id] || [], sala.draft.fase, cfg().picks);
+  accionDraft(n, aunNo ? { terminar: true } : d);
 }
 
 /* ── jornadas ────────────────────────────────────────────── */
@@ -923,7 +941,7 @@ function alCambiar(antes){
               : sala.estado === "partido" ? segTramo() : 0;
     finFase = seg ? inicioFase + seg * 1000 : 0;
     ultimoMin = -1; saleSel = null; titSel = null;
-    if (sala.estado === "draft" && M.turnoDe(orden(), sala.ronda) === yo && navigator.vibrate) {
+    if (sala.estado === "draft" && turnoActual() === yo && navigator.vibrate) {
       try { navigator.vibrate([90, 60, 90]); } catch (e) {}
     }
     if (sala.estado !== "draft") { filtro = "TODOS"; busqueda = ""; }
@@ -945,8 +963,9 @@ function revisarFase(){
   if (solo) { moverCPU(); return; }
   const st = sala.estado;
   if (st === "draft") {
+    if (!sala.draft) return;
     const n = sala.ronda;
-    const mio = M.turnoDe(orden(), n) === yo;
+    const mio = turnoActual() === yo;
     const q = (finFase - Date.now()) / 1000;
     if (!disparado && (q <= 0 && mio || q <= -GRACIA)) { disparado = true; pickAutomatico(n); }
     /* Si la transacción no pasó (se adelantó otro), probamos de nuevo más tarde. */
@@ -1011,9 +1030,13 @@ function guiaTexto(){
     ? (listaJug().length < MIN_EQUIPOS ? "Pasales el código a tus amigos y esperá que entren." : "Cuando estén todos, apretá <b>Empezar</b> abajo.")
     : "Esperá que " + esc(dtDe(sala.anfitrion)) + " empiece la partida.";
   if (st === "draft") {
+    if (!sala.draft) return "";
     if (!juego()) return "Estás mirando cómo eligen.";
-    if (M.turnoDe(orden(), sala.ronda) !== yo) return "Elige " + esc(nombreDe(M.turnoDe(orden(), sala.ronda))) + ". Mientras, mirá la lista.";
-    return "<b>Te toca.</b> Tocá un jugador de la lista y apretá <b>Elegir</b>, o dejá que elija el juego.";
+    const pos = M.FASES[sala.draft.fase];
+    if (turnoActual() !== yo) return sala.draft.fin[yo]
+      ? "Ya terminaste los " + NOMBRE_POS[pos][1] + ". Esperá que terminen los demás."
+      : "Elige " + esc(nombreDe(turnoActual())) + ". Mientras, mirá la lista.";
+    return "<b>Te toca.</b> Elegí un " + NOMBRE_POS[pos][0] + " de la lista, o apretá <b>Terminar</b> si ya tenés suficientes.";
   }
   if (st === "tactica") {
     if (!juego()) return "Los entrenadores están eligiendo cómo jugar.";
@@ -1039,9 +1062,9 @@ function guiaHTML(){
 /* ── consejos de la primera vez ──────────────────────────────
    Aparecen una sola vez por navegador, en el momento en que sirven. */
 const CONSEJOS = {
-  draft: "Esto es la <b>elección de jugadores</b>. Por turnos, cada uno suma un jugador a su equipo hasta tener 16. " +
-    "El número grande es el <b>nivel</b>: más alto, mejor. Los marcados con ⭐ son los que más te convienen ahora. " +
-    "Si no conocés a nadie, apretá <b>Elegir por mí</b>.",
+  draft: "Esto es la <b>elección de jugadores</b>, por puesto: primero arqueros, después defensas, mediocampistas y delanteros. " +
+    "Por turnos, cada uno suma un jugador; cuando creas que tenés suficientes de ese puesto, apretá <b>Terminar</b>. " +
+    "El número grande es el <b>nivel</b>: más alto, mejor. Los ⭐ son los mejores que quedan. Si no conocés a nadie, apretá <b>Elegir por mí</b>.",
   tactica: "Antes de cada partido decidís cómo jugar. La <b>formación</b> reparte a tus 11 entre defensa, medio y ataque " +
     "(4-4-2: cuatro defensas, cuatro medios, dos delanteros). El <b>estilo</b> cambia ataque por defensa. " +
     "Arriba ves si sos favorito. Cuando estés conforme, apretá <b>Listo para jugar</b>.",
@@ -1264,90 +1287,89 @@ function contarPos(pl){
 
 function vistaDraft(){
   const n = sala.ronda;
-  const total = totalPicks();
-  const turno = M.turnoDe(orden(), n);
-  const mio = turno === yo;
+  const d = sala.draft;
+  if (!d) return `<div class="caja roja"><h2>Partida de una versión anterior</h2>
+    <p class="chico">La elección de jugadores cambió y esta partida quedó a mitad de camino. Salí y empezá otra.</p></div>`;
+  const total = cfg().picks;
+  const pos = M.FASES[d.fase];
+  const turno = d.turno;
+  const mio = turno === yo && juego();
   const { pl } = calculos();
   const mi = pl[yo] || [];
-  const ya = M.tomados(sala.picks);
   const c = contarPos(mi);
-  const pozo = (sala.pozo || []).map((t, i) => Object.assign({ i }, M.desempacar(t)));
   const q = busqueda.trim().toLowerCase();
-  const visibles = pozo.filter(j => !ya.has(j.i) && (filtro === "TODOS" || j.pos === filtro) &&
-    (!q || (j.nombre + " " + j.club + " " + j.pais).toLowerCase().includes(q)));
+  const libres = M.disponiblesDe(sala.pozo, sala.picks, pos).map(i => Object.assign({ i }, M.desempacar(sala.pozo[i])));
+  const visibles = libres.filter(j => !q || (j.nombre + " " + j.club + " " + j.pais).toLowerCase().includes(q))
+    .sort((a, b) => b.media - a.media || a.i - b.i);
+  const reco = juego() && !d.fin[yo] ? new Set(M.mejoresDelPuesto(sala.pozo, sala.picks, pos, 3)) : new Set();
+  const puedeSumar = juego() && M.puedeSumar(mi, d.fase, total);
+  const puedeTerminar = juego() && M.puedeTerminar(mi, d.fase, total);
+  const sel = elegido != null ? libres.find(j => j.i === elegido) : null;
+  const plural = NOMBRE_POS[pos][1];
 
-  /* Los últimos picks, del más nuevo al más viejo. */
-  const ultimos = [];
-  for (let k = n - 1; k >= 0 && ultimos.length < 4; k--) {
-    const idx = sala.picks[k];
-    if (idx == null) continue;
-    const j = M.desempacar(sala.pozo[idx]);
-    ultimos.push(`<li><b>${esc(nombreDe(M.turnoDe(orden(), k)))}</b> se llevó a ${esc(j.nombre)}
-      <span class="pos ${j.pos}" style="width:auto;padding:1px 5px">${j.pos} ${j.media}</span></li>`);
-  }
-  /* Quiénes vienen después. */
-  const proximos = [];
-  for (let k = n + 1; k < Math.min(total, n + 5); k++) proximos.push(M.turnoDe(orden(), k));
-
-  const sel = elegido != null ? pozo[elegido] : null;
-  const falta = M.faltantes(mi);
-  const reco = juego() ? new Set(M.recomendados(mi, sala.pozo, sala.picks, cfg().picks, 3)) : new Set();
-  const libre = juego() && !M.hayOpcion(mi, sala.pozo, sala.picks, cfg().picks);
-  const puede = sel && !ya.has(sel.i) && (libre || M.puedeElegir(mi, sel.pos, cfg().picks));
+  /* Las últimas elecciones, de la más nueva a la más vieja. */
+  const ultimos = Object.keys(sala.picks || {}).map(Number).sort((a, b) => b - a).slice(0, 4).map(k => {
+    const v = sala.picks[k];
+    const quien = v && typeof v === "object" ? v.d : M.turnoDe(orden(), k);
+    const j = M.desempacar(sala.pozo[v && typeof v === "object" ? v.i : v]);
+    return `<li><b>${esc(nombreDe(quien))}</b> se llevó a ${esc(j.nombre)}
+      <span class="pos ${j.pos}" style="width:auto;padding:1px 5px">${j.pos} ${j.media}</span></li>`;
+  });
 
   return `
     <div class="caja ${mio ? "rayo" : ""}">
       <div class="cabezal">
-        <div><span class="et ${mio ? "" : "gris"}">Turno ${n + 1} de ${total} · vuelta ${Math.floor(n / orden().length) + 1}</span>
-          <h2 style="margin:0">${mio ? "¡Te toca elegir!" : "Elige " + esc(nombreDe(turno))}</h2></div>
+        <div><span class="et ${mio ? "" : "gris"}">Etapa ${d.fase + 1} de 4 · ${plural}</span>
+          <h2 style="margin:0">${mio ? "¡Te toca elegir!" : d.fin[yo] && juego() ? "Terminaste esta etapa" : "Elige " + esc(nombreDe(turno))}</h2></div>
         ${relojHTML()}
       </div>
-      <p class="chico" style="margin:4px 0 0">Después: ${proximos.map(id => esc(id === yo ? "vos" : nombreDe(id))).join(", ") || "se termina el draft"}</p>
+      <div class="etapas">${M.FASES.map((p, k) => `<span class="${k < d.fase ? "hecha" : k === d.fase ? "ahora" : ""}">${k < d.fase ? "✓ " : ""}${NOMBRE_POS[p][1]}</span>`).join("")}</div>
+      <p class="chico" style="margin:6px 0 0">Se elige por puesto: primero arqueros, después defensas, mediocampistas
+        y delanteros. Cada uno elige por turnos y aprieta <b>Terminar</b> cuando tiene suficientes.</p>
     </div>
 
     ${juego() ? `<div class="caja">
-      <h3 style="margin-top:0">Tu equipo · ${mi.length} de ${cfg().picks}</h3>
-      ${Object.keys(falta).length ? `<p style="margin:0 0 6px"><b>Necesitás:</b> ${Object.entries(falta).map(([p, k]) => k + " " + NOMBRE_POS[p][k === 1 ? 0 : 1]).join(", ")}.</p>`
-        : `<p class="chico" style="margin:0 0 6px">Ya tenés lo mínimo en cada puesto: ahora sumá calidad o suplentes.</p>`}
-      <div class="conteo">${M.POSICIONES.map(p =>
-        `<span class="${c[p] < M.MINIMOS[p] ? "falta" : ""}">${p} ${c[p]}${c[p] < M.MINIMOS[p] ? " de " + M.MINIMOS[p] : ""}</span>`).join("")}</div>
+      <h3 style="margin-top:0">Tu equipo · ${mi.length} de ${total} como máximo</h3>
+      <p style="margin:0 0 6px">Tenés <b>${c[pos]} ${c[pos] === 1 ? NOMBRE_POS[pos][0] : plural}</b>.
+        ${c[pos] < M.MIN_FASE[pos] ? `Necesitás al menos ${M.MIN_FASE[pos]}.` : puedeSumar ? `Podés sumar más o terminar.` : `Ya no te entran más de este puesto.`}</p>
+      ${d.fase === M.FASES.length - 1 && mi.length < M.minPlantel(total) ? `<p class="chico" style="margin:0 0 6px">Para terminar necesitás al menos ${M.minPlantel(total)} jugadores en total, contando suplentes.</p>` : ""}
+      <div class="conteo">${M.POSICIONES.map(p => `<span class="${p === pos ? "falta" : ""}">${p} ${c[p]}</span>`).join("")}</div>
       ${mi.length ? `<details ${abiertos.has("yo") ? "open" : ""} data-id="yo"><summary>Ver mis jugadores</summary>
         ${mi.slice().sort((a, b) => M.POSICIONES.indexOf(a.pos) - M.POSICIONES.indexOf(b.pos) || b.media - a.media)
           .map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("")}</details>` : ""}
     </div>` : ""}
 
     <div class="caja">
-      <div class="opciones" style="grid-template-columns:repeat(5,1fr)">
-        ${["TODOS", ...M.POSICIONES].map(p => `<button class="op" data-accion="filtro" data-valor="${p}"
-          aria-pressed="${filtro === p}">${p === "TODOS" ? "Todos" : p}</button>`).join("")}
-      </div>
+      <h3 style="margin-top:0">${plural[0].toUpperCase() + plural.slice(1)} disponibles · ${libres.length}</h3>
       <input id="buscar" placeholder="Buscar por nombre o club" autocomplete="off" spellcheck="false" value="${esc(busqueda)}">
       <div class="lista-pozo">
-        ${visibles.length ? visibles.map(j => {
-          const ok = !juego() || libre || M.puedeElegir(mi, j.pos, cfg().picks);
-          return `<button class="ficha ${ok ? "" : "no"}" data-accion="elegir" data-valor="${j.i}"
-            aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j, reco.has(j.i) ? `<span class="reco">⭐ te conviene</span>` : "")}</button>`;
-        }).join("") : `<p class="chico">No queda nadie con ese filtro.</p>`}
+        ${visibles.length ? visibles.map(j => `<button class="ficha" data-accion="elegir" data-valor="${j.i}"
+            aria-pressed="${elegido === j.i}" ${juego() ? "" : "disabled"}>${fichaHTML(j, reco.has(j.i) ? `<span class="reco">⭐ te conviene</span>` : "")}</button>`).join("")
+          : `<p class="chico">No queda nadie${q ? " con esa búsqueda" : ""}.</p>`}
       </div>
-      ${mio ? `<div class="flota"><div class="fila">
-        <button data-accion="pick" ${puede ? "" : "disabled"} style="flex:2">
-          ${sel ? (puede ? "Elegir a " + esc(sel.nombre) : "No podés sumar otro " + sel.pos) : "Tocá un jugador"}</button>
-        <button class="cielo" data-accion="pick-auto" style="flex:1;font-size:16px">Elegir por mí</button></div></div>` : ""}
+      ${mio ? `<div class="flota">
+        <div class="fila">
+          <button data-accion="pick" ${sel && puedeSumar ? "" : "disabled"} style="flex:2">
+            ${sel ? "Elegir a " + esc(sel.nombre) : puedeSumar ? "Tocá un jugador" : "No te entran más"}</button>
+          <button class="cielo" data-accion="pick-auto" style="flex:1;font-size:16px" ${puedeSumar && libres.length ? "" : "disabled"}>Elegir por mí</button>
+        </div>
+        <button class="verde" data-accion="terminar" style="margin-top:8px" ${puedeTerminar ? "" : "disabled"}>
+          ${puedeTerminar ? "✓ Terminar " + plural : "Mínimo " + M.MIN_FASE[pos] + " " + (M.MIN_FASE[pos] === 1 ? NOMBRE_POS[pos][0] : plural)
+            + (d.fase === M.FASES.length - 1 && mi.length < M.minPlantel(total) ? " y " + M.minPlantel(total) + " en total" : "")}</button>
+      </div>` : ""}
     </div>
 
-    ${ultimos.length ? `<div class="caja"><h3 style="margin-top:0">Últimas elecciones</h3><ul class="feed">${ultimos.join("")}</ul></div>` : ""}
+    <div class="caja"><h3 style="margin-top:0">Cómo van · ${plural}</h3>
+      <ul class="gente">${orden().map(id => {
+        const cc = contarPos(pl[id] || []);
+        return `<li><span class="punto" style="background:${colorDe(id)}"></span>
+          <div><div class="nom">${esc(nombreDe(id))}${id === yo ? " (vos)" : ""}</div>
+            <div class="sub">${(pl[id] || []).length} jugadores · ${M.POSICIONES.map(x => x + " " + cc[x]).join(" ")}</div></div>
+          <div class="der">${d.fin[id] ? `<span class="sello ok">Terminó</span>` : id === turno ? `<span class="sello yo">Elige</span>` : ""}</div></li>`;
+      }).join("")}</ul>
+    </div>
 
-    <div class="caja"><h3 style="margin-top:0">Los planteles</h3>
-      ${orden().filter(id => id !== yo).map(id => {
-        const p = pl[id] || [];
-        const cc = contarPos(p);
-        return `<details ${abiertos.has(id) ? "open" : ""} data-id="${esc(id)}">
-          <summary><span class="punto" style="background:${colorDe(id)}"></span>${esc(nombreDe(id))}
-            <span class="chico" style="font-weight:600">${p.length} · ${M.POSICIONES.map(x => x + " " + cc[x]).join(" ")}</span></summary>
-          ${p.map(j => `<div class="ficha">${fichaHTML(j)}</div>`).join("") || `<p class="chico">Todavía nada.</p>`}
-        </details>`;
-      }).join("")}
-    </div>`;
+    ${ultimos.length ? `<div class="caja"><h3 style="margin-top:0">Últimas elecciones</h3><ul class="feed">${ultimos.join("")}</ul></div>` : ""}`;
 }
 
 /* ── táctica ─────────────────────────────────────────────── */
@@ -1831,15 +1853,15 @@ app.addEventListener("click", function(ev){
     pintar();
   }
   else if (a === "pick-auto") {
-    const n = sala.ronda;
-    const idx = M.recomendados(calculos().pl[yo] || [], sala.pozo, sala.picks, cfg().picks, 1)[0];
-    if (idx != null) { elegido = null; hacerPick(n, idx); }
+    const idx = M.mejoresDelPuesto(sala.pozo, sala.picks, M.FASES[sala.draft.fase], 1)[0];
+    if (idx != null) { elegido = null; accionDraft(sala.ronda, { pick: idx }); }
   }
+  else if (a === "terminar") { elegido = null; accionDraft(sala.ronda, { terminar: true }); }
   else if (a === "pick") {
     if (elegido == null) return;
     const n = sala.ronda;
     b.disabled = true;
-    hacerPick(n, elegido).then(function(ok){ if (!ok && sala && sala.ronda === n) { avisar("Ese pick no pasó. Probá con otro."); pintar(); } });
+    accionDraft(n, { pick: elegido }).then(function(ok){ if (!ok && sala && sala.ronda === n) { avisar("No se pudo elegir a ese jugador. Probá con otro."); pintar(); } });
   }
   else if (a === "formacion") escribir({ ["tacticas." + yo + ".f"]: v, ["listos." + yo]: false });
   else if (a === "estilo") escribir({ ["tacticas." + yo + ".e"]: v, ["listos." + yo]: false });

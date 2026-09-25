@@ -79,10 +79,20 @@ juego entre amigos: el que hace trampa así se está haciendo trampa solo.
   chileno, en `manager-relampago/base-chilena.js`) o desde la que subió el anfitrión.
   Tiene 100 jugadores, o más si los picks de todos no entran en 100. Por eso
   solo el anfitrión necesita el archivo: los demás leen el pozo de la sala.
-- `orden`: el orden del draft, sorteado al empezar. El draft es en serpiente.
-- `picks`: mapa `número de pick → índice en el pozo`. Se escribe con una
-  transacción que comprueba que `ronda` sea ese pick, así dos teléfonos no
-  pueden elegir en el mismo turno.
+- `orden`: el orden del draft, sorteado al empezar.
+- `draft`: `{fase, turno, dir, fin}`. El draft va por puestos: fase 0 arqueros,
+  1 defensas, 2 mediocampistas, 3 delanteros. En cada fase se elige en serpiente
+  (`turno` es quién elige, `dir` el sentido) y cada uno aprieta "Terminar" cuando
+  tiene suficientes de ese puesto (`fin[id]`). Hay un mínimo por puesto (1, 4, 4 y 2)
+  y un máximo (3, 7, 7 y 5); nadie puede pasarse del plantel máximo (`config.picks`)
+  ni dejar sin lugar los mínimos de las etapas que vienen, y en la última hay que
+  llegar a 13 jugadores en total. Al que ya no puede sumar se lo termina solo.
+  Cuando terminaron todos, sigue la etapa siguiente desde la otra punta.
+- `picks`: mapa `número de paso → {i: índice en el pozo, d: quién lo eligió}`.
+  Cada acción (elegir o terminar) va en una transacción que comprueba que `ronda`
+  sea ese paso, así dos teléfonos no pueden actuar en el mismo turno. Si se
+  acaba el reloj, el piloto automático elige el mejor del puesto si todavía falta
+  el mínimo, o termina la etapa si no.
 - `tacticas`: mapa `id → {f: formación, e: estilo}`. Es la táctica de la
   fecha en curso.
 - `listos`: quién apretó "Listo" en la fecha, en el entretiempo o "Seguir" después del partido.

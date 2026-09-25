@@ -291,20 +291,120 @@ export function turnoDe(orden, n) {
   return orden[vuelta % 2 === 0 ? i : e - 1 - i];
 }
 
-/* picks: { "0": índice en el pozo, "1": ... } → plantel de cada uno */
+/* picks: { "n": {i: índice en el pozo, d: quién lo eligió} } → plantel de cada
+   uno. (Las salas viejas guardaban solo el índice y el dueño salía del orden
+   en serpiente; se siguen leyendo.) */
+const idxDe = v => (v && typeof v === "object") ? v.i : v;
 export function planteles(orden, picks, pozo) {
   const out = {};
   for (const id of orden) out[id] = [];
   const nums = Object.keys(picks || {}).map(Number).filter(n => n >= 0).sort((a, b) => a - b);
   for (const n of nums) {
-    const id = turnoDe(orden, n);
-    const idx = picks[n];
+    const v = picks[n];
+    const id = (v && typeof v === "object") ? v.d : turnoDe(orden, n);
+    const idx = idxDe(v);
     if (out[id] && pozo[idx] != null) out[id].push(Object.assign({ idx }, desempacar(pozo[idx])));
   }
   return out;
 }
 export function tomados(picks) {
-  return new Set(Object.values(picks || {}));
+  return new Set(Object.values(picks || {}).map(idxDe));
+}
+
+/* ── el draft por puestos ─────────────────────────────────────
+   Se elige por etapas: primero arqueros, después defensas, mediocampistas y
+   delanteros. En cada etapa se va por turnos en serpiente; cada uno aprieta
+   "Terminar" cuando cree que tiene suficientes de ese puesto (con un mínimo
+   para poder armar el once) y la etapa sigue entre los que faltan. Nadie
+   puede pasarse del plantel máximo ni dejar sin lugar los mínimos de las
+   etapas que vienen. */
+export const FASES = ["POR", "DEF", "MED", "DEL"];
+export const MIN_FASE = { POR: 1, DEF: 4, MED: 4, DEL: 2 };
+export const MAX_FASE = { POR: 3, DEF: 7, MED: 7, DEL: 5 };
+export const minPlantel = total => Math.min(13, total);
+
+const reservaDespues = fase => FASES.slice(fase + 1).reduce((s, p) => s + MIN_FASE[p], 0);
+export function disponiblesDe(pozo, picks, pos) {
+  const ya = tomados(picks);
+  const out = [];
+  for (let i = 0; i < pozo.length; i++) if (!ya.has(i) && desempacar(pozo[i]).pos === pos) out.push(i);
+  return out;
+}
+/* ¿Puede sumar otro jugador del puesto de esta etapa? */
+export function puedeSumar(plantel, fase, total) {
+  const pos = FASES[fase];
+  return contarPos(plantel)[pos] < MAX_FASE[pos] && plantel.length + 1 + reservaDespues(fase) <= total;
+}
+/* ¿Puede dar por terminada la etapa? */
+export function puedeTerminar(plantel, fase, total) {
+  const pos = FASES[fase];
+  if (contarPos(plantel)[pos] < MIN_FASE[pos]) return false;
+  return fase < FASES.length - 1 || plantel.length >= minPlantel(total);
+}
+
+export function iniciarDraft(orden) {
+  return { fase: 0, turno: orden[0], dir: 1, fin: {} };
+}
+
+/* Después de cada elección o "Terminar": quién sigue. Termina solo al que ya
+   no puede sumar (o si no quedan jugadores de ese puesto); cuando terminaron
+   todos, pasa a la etapa siguiente, que arranca desde la otra punta. Devuelve
+   null cuando se completó el draft. */
+export function avanzarDraft(d, orden, picks, pozo, total) {
+  const pl = planteles(orden, picks, pozo);
+  let fase = d.fase, dir = d.dir, turno = d.turno;
+  let fin = Object.assign({}, d.fin);
+  for (let vueltas = 0; vueltas < FASES.length + 1; vueltas++) {
+    const quedan = disponiblesDe(pozo, picks, FASES[fase]).length;
+    for (const id of orden) if (!fin[id] && (!quedan || !puedeSumar(pl[id], fase, total))) fin[id] = true;
+    if (orden.some(id => !fin[id])) break;
+    fase++;
+    if (fase >= FASES.length) return null;
+    fin = {};
+    dir = -dir;
+    turno = dir === 1 ? orden[0] : orden[orden.length - 1];
+    const q2 = disponiblesDe(pozo, picks, FASES[fase]).length;
+    for (const id of orden) if (!q2 || !puedeSumar(pl[id], fase, total)) fin[id] = true;
+    if (orden.some(id => !fin[id])) {
+      if (fin[turno]) turno = siguienteEnSerpiente(orden, turno, dir, fin).turno;
+      return { fase, turno, dir, fin };
+    }
+  }
+  const sig = siguienteEnSerpiente(orden, turno, dir, fin);
+  return { fase, turno: sig.turno, dir: sig.dir, fin };
+}
+
+/* Serpiente: al llegar a una punta, el de la punta elige de nuevo y se da la
+   vuelta. Se saltea a los que ya terminaron la etapa. */
+function siguienteEnSerpiente(orden, turno, dir, fin) {
+  let i = orden.indexOf(turno);
+  for (let k = 0; k < orden.length * 2 + 2; k++) {
+    let j = i + dir;
+    if (j < 0 || j >= orden.length) { dir = -dir; j = i; }
+    i = j;
+    if (!fin[orden[i]]) return { turno: orden[i], dir };
+  }
+  return { turno, dir };
+}
+
+/* Los mejores disponibles del puesto, del mejor al peor (con algo de azar si
+   se pasa ruido: así eligen los rivales de la máquina). */
+export function mejoresDelPuesto(pozo, picks, pos, n, ruido) {
+  return disponiblesDe(pozo, picks, pos)
+    .map(i => ({ i, p: desempacar(pozo[i]).media + (ruido ? ruido() * 6 : 0) }))
+    .sort((a, b) => b.p - a.p || a.i - b.i).slice(0, n || 3).map(x => x.i);
+}
+
+/* Cuántos de cada puesto quiere la máquina (y el piloto automático cuando se
+   acaba el reloj con el mínimo cumplido: ahí termina). */
+export const OBJETIVO_CPU = { POR: 2, DEF: 5, MED: 5, DEL: 4 };
+export function decisionCPU(plantel, fase, pozo, picks, total, ruido) {
+  const pos = FASES[fase];
+  const c = contarPos(plantel)[pos];
+  const hay = disponiblesDe(pozo, picks, pos).length > 0;
+  const quiere = c < OBJETIVO_CPU[pos] || !puedeTerminar(plantel, fase, total);
+  if (hay && quiere && puedeSumar(plantel, fase, total)) return { pick: mejoresDelPuesto(pozo, picks, pos, 1, ruido)[0] };
+  return { terminar: true };
 }
 function contarPos(plantel) {
   const c = { POR: 0, DEF: 0, MED: 0, DEL: 0 };
