@@ -17,11 +17,9 @@ Qué hace
 3. `resumen`: imprime y guarda un resumen por volcán (última detección, máximo
    de los últimos días, tendencia) en datos/estado.json y datos/resumen.md.
 4. `todo`: los tres pasos anteriores en orden. Es lo que corre GitHub Actions.
-5. `importar`: carga datos históricos desde un CSV externo sin pisar lo que ya
-   existe. Formatos: `mendoza` (registro_vrp_consolidado.csv del proyecto
-   MendozaVolcanic/Mirova-v1, lecturas de latest.php desde enero de 2026) y
-   `mirova` (CSV exportado del archivo oficial MIROVA Dataset,
-   https://www.mirovaweb.it/ARCHIVE/Explore_Archive.php, 2000 en adelante).
+5. `importar`: carga el histórico de un volcán desde el CSV "Raw data" del
+   archivo oficial MIROVA Dataset (https://www.mirovaweb.it/ARCHIVE/Explore_Archive.php)
+   sin pisar lo que ya existe.
 
 Sólo depende de la biblioteca estándar; matplotlib es opcional y se usa
 únicamente en `graficar`.
@@ -32,8 +30,7 @@ Uso
     python mirova/mirova_monitor.py --volcanes Villarrica,Lascar actualizar
     python mirova/mirova_monitor.py graficar --dias 30 365
     python mirova/mirova_monitor.py resumen --dias 30
-    python mirova/mirova_monitor.py importar --formato mendoza registro_vrp_consolidado.csv
-    python mirova/mirova_monitor.py --volcanes Villarrica importar --formato mirova Villarrica.csv
+    python mirova/mirova_monitor.py --volcanes Villarrica importar Villarrica_MIROVA_Raw_data.csv
 """
 
 from __future__ import annotations
@@ -95,7 +92,7 @@ COLUMNAS = [
     "dentro_radio",     # 1 si distancia_km <= limite_km del volcán
     "clasificacion",    # escala logarítmica de Coppola et al. (2016)
     "capturado_utc",    # cuándo lo leyó este monitor
-    "origen",           # latest.php | mendoza | mirova-archivo
+    "origen",           # latest.php | mirova-archivo
 ]
 
 FORMATOS_FECHA = (
@@ -473,28 +470,6 @@ def cmd_actualizar(raiz: Path, volcanes: list[Volcan], *, con_imagenes: bool, ar
 # Importación de históricos
 
 
-def _clave_nombre(texto: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", texto.lower())
-
-
-def _leer_mendoza(ruta: Path) -> dict[str, list[dict]]:
-    """registro_vrp_consolidado.csv de MendozaVolcanic/Mirova-v1: una fila por
-    lectura de latest.php con Fecha_Satelite_UTC, Volcan, Sensor, VRP_MW y
-    Distancia_km. Devuelve registros agrupados por nombre de volcán normalizado."""
-    por_volcan: dict[str, list[dict]] = {}
-    with ruta.open(encoding="utf-8", errors="replace", newline="") as f:
-        for r in csv.DictReader(f):
-            fecha = _parsear_fecha(r.get("Fecha_Satelite_UTC", ""))
-            vrp = _numero(r.get("VRP_MW", ""))
-            if fecha is None or vrp is None:
-                continue
-            dist = _numero(r.get("Distancia_km", ""))
-            sensor = SENSORES.get(r.get("Sensor", "").strip().upper(), r.get("Sensor", "").strip() or "DESCONOCIDO")
-            por_volcan.setdefault(_clave_nombre(r.get("Volcan", "")), []).append(
-                {"fecha": fecha, "vrp_mw": vrp, "distancia_km": dist if dist is not None else float("nan"), "sensor": sensor})
-    return por_volcan
-
-
 # Códigos de sensor del archivo MIROVA (ReadMe v1): 1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20.
 SENSOR_ARCHIVO = {"1": "MODIS", "2": "MODIS", "3": "VIIRS750", "4": "VIIRS750", "5": "VIIRS750"}
 
@@ -552,21 +527,15 @@ def _leer_archivo_mirova(ruta: Path) -> list[dict]:
     return registros
 
 
-def cmd_importar(raiz: Path, volcanes: list[Volcan], formato: str, archivo: Path) -> dict:
+def cmd_importar(raiz: Path, volcanes: list[Volcan], archivo: Path) -> dict:
+    """Carga un CSV "Raw data" del MIROVA Dataset (un solo volcán) en datos/."""
     ahora = datetime.now(timezone.utc)
     resultado = {}
-    if formato == "mendoza":
-        por_volcan = _leer_mendoza(archivo)
-        origen = "mendoza"
-    elif formato == "mirova":
-        if len(volcanes) != 1:
-            raise SystemExit("El archivo MIROVA es de un solo volcán: indica cuál con --volcanes.")
-        por_volcan = {_clave_nombre(volcanes[0].nombre): _leer_archivo_mirova(archivo)}
-        origen = "mirova-archivo"
-    else:
-        raise SystemExit(f"Formato desconocido: {formato}")
+    if len(volcanes) != 1:
+        raise SystemExit("El archivo MIROVA es de un solo volcán: indica cuál con --volcanes.")
+    origen = "mirova-archivo"
     for v in volcanes:
-        nuevos = por_volcan.get(_clave_nombre(v.nombre)) or por_volcan.get(_clave_nombre(v.mirova_name)) or []
+        nuevos = _leer_archivo_mirova(archivo)
         ruta = ruta_csv(raiz, v)
         existentes = leer_csv(ruta)
         for r in existentes:
@@ -829,9 +798,8 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("resumen", help="resumen por volcán (estado.json y resumen.md)")
     r.add_argument("--dias", type=int, default=30)
 
-    i = sub.add_parser("importar", help="cargar histórico desde un CSV externo (rellena huecos, no pisa)")
+    i = sub.add_parser("importar", help="cargar el histórico de un volcán desde el CSV Raw data del MIROVA Dataset (rellena huecos, no pisa)")
     i.add_argument("archivo", type=Path)
-    i.add_argument("--formato", choices=["mendoza", "mirova"], required=True)
 
     t = sub.add_parser("todo", help="actualizar + graficar + resumen")
     t.add_argument("--sin-imagenes", action="store_true")
@@ -857,7 +825,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "resumen":
         cmd_resumen(raiz, volcanes, args.dias)
     elif args.cmd == "importar":
-        cmd_importar(raiz, volcanes, args.formato, args.archivo)
+        cmd_importar(raiz, volcanes, args.archivo)
     elif args.cmd == "todo":
         cmd_actualizar(raiz, volcanes, con_imagenes=not args.sin_imagenes, archivar=args.archivar_imagenes)
         cmd_graficar(raiz, volcanes, args.dias)
