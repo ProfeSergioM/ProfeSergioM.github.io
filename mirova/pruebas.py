@@ -207,6 +207,8 @@ class Integracion(unittest.TestCase):
             llamadas.append(url)
             if "data_availability" in url:
                 return "data_id,min_date,max_date\nMODIS_NRT,2026-08-01,2026-10-05\nVIIRS_SNPP_NRT,2026-08-01,2026-10-05\nMODIS_SP,2000-11-01,2026-07-31\n", {}
+            if "/MODIS_SP/" in url:
+                raise AssertionError("MODIS_SP no cubre octubre de 2026 y no debe consultarse: " + url)
             if "VIIRS_SNPP_NRT" in url:
                 raise HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b"Invalid date range"))
             if "MODIS_NRT" in url:
@@ -217,13 +219,14 @@ class Integracion(unittest.TestCase):
         mm.descargar = falso_descargar
         try:
             hasta = datetime(2026, 10, 5, tzinfo=timezone.utc)
-            r = mm.cmd_firms(self.tmp, volcanes, hasta - timedelta(days=6), hasta, ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA21_NRT"], " abcdef0123456789abcdef0123456789\n")
+            r = mm.cmd_firms(self.tmp, volcanes, hasta - timedelta(days=6), hasta, ["MODIS_SP", "VIIRS_NOAA21_NRT"], " abcdef0123456789abcdef0123456789\n", nrt_recientes=True)
         finally:
             mm.descargar = original
         self.assertEqual(r["Villarrica"]["nuevas"], 1)
         self.assertTrue(any("data_availability/csv/abcdef0123456789abcdef0123456789/ALL" in u for u in llamadas), "la clave se limpia de espacios")
         self.assertFalse(any("VIIRS_NOAA21_NRT" in u for u in llamadas), "las fuentes que FIRMS no lista se omiten")
-        self.assertTrue(any("/MODIS_NRT/" in u and "/7/2026-09-29" in u for u in llamadas), "un tramo de 7 días desde la fecha inicial")
+        self.assertTrue(any("/MODIS_NRT/" in u and "/5/2026-09-29" in u for u in llamadas), "primer tramo de 5 días")
+        self.assertTrue(any("/MODIS_NRT/" in u and "/2/2026-10-04" in u for u in llamadas), "segundo tramo con los 2 días restantes")
         f = [x for x in mm.leer_csv(self.tmp / "datos" / "Villarrica.csv") if x["origen"] == "firms"][0]
         self.assertEqual((f["sensor"], f["vrp_mw"], f["fecha_utc"]), ("MODIS", 4.0, "2026-10-01T04:10:00"))
         with self.assertRaises(SystemExit):

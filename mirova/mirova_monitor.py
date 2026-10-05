@@ -77,9 +77,9 @@ DETALLE_URL = f"{BASE_URL}/NRT/volcanoDetails_MIR.php?volcano_id={{volcano_id}}"
 FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{clave}/{fuente}/{area}/{dias}/{fecha}"
 FIRMS_DISPONIBILIDAD = "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/{clave}/ALL"
 FIRMS_FUENTES_NRT = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"]
-FIRMS_FUENTES_SP = ["MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP"]
+FIRMS_FUENTES_SP = ["MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP"]
 FIRMS_RADIO_KM = 25.0   # radio alrededor del volcán dentro del cual se consideran los píxeles
-FIRMS_TRAMO_DIAS = 10   # máximo que admite la API por consulta
+FIRMS_TRAMO_DIAS = 5    # máximo que admite la API por consulta (respuesta "Expects [1..5]")
 
 USER_AGENT = (
     "mirova-monitor/1.0 (seguimiento academico de anomalias termicas; "
@@ -645,9 +645,11 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
               nrt_recientes: bool = False) -> dict:
     """Descarga píxeles FIRMS alrededor de cada volcán, en tramos de hasta 10 días, y los agrega por pasada.
 
-    Con `nrt_recientes`, los tramos de los últimos 90 días consultan además las
-    fuentes NRT, porque el procesamiento estándar (SP) llega con dos o tres
-    meses de retraso. Una misma pasada presente en ambas se guarda una sola vez."""
+    Con `nrt_recientes`, se añaden las fuentes NRT a las indicadas. En cada
+    tramo sólo se consultan las fuentes cuyo rango de fechas, según el endpoint
+    de disponibilidad de FIRMS, cubre ese tramo: el procesamiento estándar (SP)
+    termina meses antes de hoy y el NRT empieza donde aquél acaba. Una misma
+    pasada presente en ambas se guarda una sola vez."""
     import math
     ahora_dt = datetime.now(timezone.utc)
     clave = (clave or "").strip().strip('"').strip("'")
@@ -657,11 +659,18 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
         log.warning("La clave FIRMS no tiene el formato esperado (32 caracteres hexadecimales); largo recibido: %d", len(clave))
     # Diagnóstico: el endpoint de disponibilidad valida la clave y lista las fuentes con sus fechas.
     disponibles: set[str] = set()
+    rangos: dict[str, tuple[str, str]] = {}
+    if nrt_recientes:
+        fuentes = list(fuentes) + [x for x in FIRMS_FUENTES_NRT if x not in fuentes]
     try:
         disp, _ = descargar(FIRMS_DISPONIBILIDAD.format(clave=clave))
         lineas = [l for l in disp.strip().splitlines() if l.strip()]
         log.info("FIRMS disponibilidad (%d fuentes): %s", max(len(lineas) - 1, 0), " | ".join(lineas[1:12]))
-        disponibles = {l.split(",")[0].strip() for l in lineas[1:]}
+        for l in lineas[1:]:
+            partes = [x.strip() for x in l.split(",")]
+            if len(partes) >= 3:
+                rangos[partes[0]] = (partes[1], partes[2])
+        disponibles = set(rangos)
         faltan = [f for f in fuentes if f not in disponibles]
         if disponibles and faltan:
             log.warning("Fuentes no listadas por FIRMS, se omiten: %s", ", ".join(faltan))
@@ -683,9 +692,9 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
         f = desde
         while f <= hasta:
             dias = min(FIRMS_TRAMO_DIAS, (hasta - f).days + 1)
-            fuentes_tramo = list(fuentes)
-            if nrt_recientes and (ahora_dt - f).days <= 90:
-                fuentes_tramo += [x for x in FIRMS_FUENTES_NRT if x not in fuentes_tramo and (not disponibles or x in disponibles)]
+            ini, fin = f.strftime("%Y-%m-%d"), (f + timedelta(days=dias - 1)).strftime("%Y-%m-%d")
+            # Sólo las fuentes cuyo rango disponible se solapa con el tramo.
+            fuentes_tramo = [x for x in fuentes if x not in rangos or (rangos[x][0] <= fin and rangos[x][1] >= ini)]
             for fuente in fuentes_tramo:
                 url = FIRMS_API.format(clave=clave, fuente=fuente, area=area, dias=dias, fecha=f.strftime("%Y-%m-%d"))
                 try:

@@ -120,11 +120,11 @@ extender la serie hacia atrás hay tres vías:
      ```
 
      `--historico` usa las fuentes de procesamiento estándar (`MODIS_SP`,
-     `VIIRS_*_SP`), que son las definitivas, y para los últimos 90 días suma
-     las de tiempo casi real (`*_NRT`), porque el procesamiento estándar
-     llega con dos o tres meses de retraso; sin él usa sólo las NRT. La API admite tramos de
-     10 días y 5 000 consultas cada 10 minutos; para un volcán y 19 meses son
-     unas 230 consultas. Si la clave se guarda como secreto `FIRMS_MAP_KEY`
+     `VIIRS_*_SP`), que son las definitivas, y suma las de tiempo casi real
+     (`*_NRT`) donde aquéllas terminan; en cada tramo sólo consulta las fuentes
+     cuyo rango de fechas, según FIRMS, lo cubre. Sin él usa sólo las NRT. La API admite tramos de
+     5 días y 5 000 consultas cada 10 minutos; para un volcán y 10 meses son
+     unas 200 consultas. Si la clave se guarda como secreto `FIRMS_MAP_KEY`
      del repositorio, el workflow trae además los últimos 7 días en cada
      corrida, y desde la pestaña Actions se puede lanzar una carga histórica
      indicando `firms_desde` y, opcionalmente, `firms_hasta`.
