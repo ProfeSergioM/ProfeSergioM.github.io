@@ -614,7 +614,12 @@ def agrupar_firms(pixeles: list[dict], v: Volcan, radio_km: float = FIRMS_RADIO_
     if v.lat != v.lat:
         raise SystemExit(f"{v.nombre} no tiene lat/lon en volcanes.json; hacen falta para FIRMS.")
     por_pasada: dict[tuple, list[tuple[float, float]]] = {}
+    vistos: set[tuple] = set()  # un mismo píxel puede llegar por dos fuentes (SP y NRT) o dos tramos
     for px in pixeles:
+        huella = (px["fecha"], px["satelite"], round(px["lat"], 4), round(px["lon"], 4))
+        if huella in vistos:
+            continue
+        vistos.add(huella)
         d = distancia_km(v.lat, v.lon, px["lat"], px["lon"])
         if d <= radio_km:
             por_pasada.setdefault((px["fecha"], px["satelite"], px["sensor"]), []).append((d, px["frp"]))
