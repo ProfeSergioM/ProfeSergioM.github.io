@@ -1,0 +1,124 @@
+{
+ "generado_utc": "2026-10-05T12:25:23",
+ "dias_ventana": 30,
+ "volcanes": {
+  "Villarrica": {
+   "volcano_id": "357120",
+   "archivo_csv": "datos/Villarrica.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
+   "limite_km": 5.0,
+   "lecturas_totales": 3,
+   "lecturas_ventana": 3,
+   "anomalias_ventana": 0,
+   "detecciones_fuera_radio_ventana": 0,
+   "ultima_anomalia": null,
+   "maximo_ventana": null,
+   "tendencia": "sin anomalías",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1
+    }
+   },
+   "figuras": [
+    "Villarrica_COMB_Dist.png",
+    "Villarrica_COMB_VRP.png",
+    "Villarrica_COMB_logVRP.png",
+    "Villarrica_MODIS_Latest10NTI.png",
+    "Villarrica_VIIRS375_Latest10NTI.png",
+    "Villarrica_VIIRS750_Latest10NTI.png"
+   ],
+   "grafico": "graficos/Villarrica_serie.png"
+  },
+  "Lascar": {
+   "volcano_id": "355100",
+   "archivo_csv": "datos/Lascar.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100",
+   "limite_km": 5.0,
+   "lecturas_totales": 3,
+   "lecturas_ventana": 3,
+   "anomalias_ventana": 0,
+   "detecciones_fuera_radio_ventana": 0,
+   "ultima_anomalia": null,
+   "maximo_ventana": null,
+   "tendencia": "sin anomalías",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:45:00",
+     "lecturas": 1
+    }
+   },
+   "figuras": [
+    "Lascar_COMB_Dist.png",
+    "Lascar_COMB_VRP.png",
+    "Lascar_COMB_logVRP.png",
+    "Lascar_MODIS_Latest10NTI.png",
+    "Lascar_VIIRS375_Latest10NTI.png",
+    "Lascar_VIIRS750_Latest10NTI.png"
+   ],
+   "grafico": "graficos/Lascar_serie.png"
+  },
+  "Nevados de Chillan": {
+   "volcano_id": "357070",
+   "archivo_csv": "datos/Nevados_de_Chillan.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070",
+   "limite_km": 5.0,
+   "lecturas_totales": 3,
+   "lecturas_ventana": 3,
+   "anomalias_ventana": 3,
+   "detecciones_fuera_radio_ventana": 0,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-05T07:50:00",
+    "vrp_mw": 3.5,
+    "sensor": "MODIS",
+    "distancia_km": 1.0
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-10-05T06:48:01",
+    "vrp_mw": 4.71,
+    "sensor": "VIIRS375",
+    "clasificacion": "baja"
+   },
+   "tendencia": "anomalías recientes sin antecedente en la ventana",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1
+    }
+   },
+   "figuras": [
+    "Nevados_de_Chillan_COMB_Dist.png",
+    "Nevados_de_Chillan_COMB_VRP.png",
+    "Nevados_de_Chillan_COMB_logVRP.png",
+    "Nevados_de_Chillan_MODIS_Latest10NTI.png",
+    "Nevados_de_Chillan_VIIRS375_Latest10NTI.png",
+    "Nevados_de_Chillan_VIIRS750_Latest10NTI.png"
+   ],
+   "grafico": "graficos/Nevados_de_Chillan_serie.png"
+  }
+ }
+}

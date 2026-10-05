@@ -1,0 +1,38 @@
+{
+ "Villarrica_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 11:24:57 GMT",
+  "bytes": 105835,
+  "capturado_utc": "2026-10-05T12:25:01"
+ },
+ "Villarrica_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 11:25:04 GMT",
+  "bytes": 138989,
+  "capturado_utc": "2026-10-05T12:25:03"
+ },
+ "Villarrica_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 11:25:14 GMT",
+  "bytes": 106196,
+  "capturado_utc": "2026-10-05T12:25:04"
+ },
+ "Villarrica_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Villarrica/Villarrica_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 11:24:43 GMT",
+  "bytes": 99311,
+  "capturado_utc": "2026-10-05T12:25:05"
+ },
+ "Villarrica_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Villarrica/Villarrica_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 10:32:24 GMT",
+  "bytes": 236356,
+  "capturado_utc": "2026-10-05T12:25:06"
+ },
+ "Villarrica_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Villarrica/Villarrica_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 10:39:55 GMT",
+  "bytes": 381248,
+  "capturado_utc": "2026-10-05T12:25:08"
+ }
+}
