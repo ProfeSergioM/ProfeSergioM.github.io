@@ -740,6 +740,16 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2025-11-20T04:42:00,357110,Llaima,VIIRS750,7.978,24.57,0,no volcanica,2026-10-05T18:06:10,mirova-archivo,0
 2025-11-26T04:30:00,357110,Llaima,VIIRS375,0.4588,19.88,0,no volcanica,2026-10-05T18:06:10,mirova-archivo,0
 2025-12-13T05:30:00,357110,Llaima,VIIRS375,0.3133,24.79,0,no volcanica,2026-10-05T18:06:10,mirova-archivo,0
+2026-01-04T17:59:00,357110,Llaima,VIIRS375,4.88,19.37,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-01-04T18:49:00,357110,Llaima,VIIRS375,6.16,19.12,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-04-08T19:28:00,357110,Llaima,VIIRS375,18.72,23.42,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-04-09T19:08:00,357110,Llaima,VIIRS375,3.67,24.42,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-04-29T17:52:00,357110,Llaima,VIIRS375,0.22,11.19,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-05-01T19:47:00,357110,Llaima,VIIRS375,6.32,24.79,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-05-18T17:48:00,357110,Llaima,VIIRS375,2.84,23.74,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-05-20T20:48:00,357110,Llaima,MODIS,8.7,23.72,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-09-07T19:15:00,357110,Llaima,VIIRS375,3.95,20.47,0,fuera de radio,2026-10-05T18:38:44,firms,
+2026-09-07T19:32:00,357110,Llaima,VIIRS375,6.83,20.91,0,fuera de radio,2026-10-05T18:38:44,firms,
 2026-10-05T06:48:01,357110,Llaima,VIIRS375,0,0.00,1,sin anomalia,2026-10-05T18:30:43,latest.php,
 2026-10-05T06:48:01,357110,Llaima,VIIRS750,0,0.00,1,sin anomalia,2026-10-05T18:30:43,latest.php,
 2026-10-05T13:45:00,357110,Llaima,MODIS,0,0.00,1,sin anomalia,2026-10-05T18:30:43,latest.php,
