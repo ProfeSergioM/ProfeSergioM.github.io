@@ -14,7 +14,7 @@ hora y deja el resultado publicado en
 
 | Salida | Contenido |
 | --- | --- |
-| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato (`latest.php` o `mirova-archivo`). Nunca se duplican filas. |
+| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato (`latest.php`, `mirova-archivo` o `firms`). Nunca se duplican filas. |
 | `datos/estado.json`, `datos/resumen.md` | Resumen por volcán: última anomalía, máximo de la ventana, tendencia y conteos. |
 | `graficos/<Volcan>_serie.png` | Serie temporal propia, tres paneles (30 días, 1 año y serie completa), escala logarítmica, un marcador por sensor, con líneas de tendencia por sensor y general. |
 | `fuentes/` | Exportaciones originales del MIROVA Dataset cargadas con `importar` (licencia CC BY 4.0, Universidad de Turín). |
@@ -61,7 +61,7 @@ python -m unittest mirova/pruebas.py        # pruebas sin red
 Los volcanes se eligen con `--volcanes`, con la variable de entorno
 `MIROVA_VOLCANES` o con el campo `seguimiento` de `volcanes.json`. El valor
 `todos` sigue los once volcanes de la lista y es el valor configurado. Para agregar otro volcán basta con
-añadir su entrada en `volcanes.json`: el `volcano_id` es el número que MIROVA
+añadir su entrada en `volcanes.json`, con sus coordenadas del Global Volcanism Program para FIRMS: el `volcano_id` es el número que MIROVA
 usa en `?volcano_id=` y coincide con el número del Global Volcanism Program del
 Smithsonian; el `mirova_name` es el texto exacto que aparece en las rutas de
 `OUTPUTweb` (por ejemplo `ChillanNevadosde`).
@@ -69,7 +69,7 @@ Smithsonian; el `mirova_name` es el texto exacto que aparece en las rutas de
 ## Datos históricos
 
 El monitor sólo ve lo que MIROVA publica desde que empezó a correr. Para
-extender la serie hacia atrás hay dos vías:
+extender la serie hacia atrás hay tres vías:
 
 1. **MIROVA Dataset (oficial, licencia CC BY 4.0).** Cubre 2000 a 2025 para
    170 volcanes con MODIS y VIIRS. Se exporta un CSV por volcán desde
@@ -90,7 +90,49 @@ extender la serie hacia atrás hay dos vías:
    de enero de 2008 a marzo de 2025, con el CSV original guardado en
    `fuentes/` para reproducibilidad. Queda un hueco sin datos entre marzo de
    2025 y el inicio de este monitor, el 5 de octubre de 2026.
-2. **Pedir la serie al equipo MIROVA** (diego.coppola@unito.it), que entrega
+2. **NASA FIRMS, independiente de MIROVA.** Entrega cada píxel activo de
+   MODIS (desde 2000) y VIIRS en S-NPP, NOAA-20 y NOAA-21 (375 m, desde 2012)
+   con su potencia radiativa (FRP, en MW), para cualquier área y fecha, sin
+   hueco en 2025 y 2026. Hay dos maneras de cargarlo:
+
+   - **Por API**, con una clave gratuita de
+     [firms.modaps.eosdis.nasa.gov/api/map_key](https://firms.modaps.eosdis.nasa.gov/api/map_key/):
+
+     ```bash
+     export FIRMS_MAP_KEY=...
+     python mirova/mirova_monitor.py firms --desde 2025-03-07 --hasta 2026-10-05 --historico
+     python mirova/mirova_monitor.py firms --dias 7          # últimos días, fuentes NRT
+     ```
+
+     `--historico` usa las fuentes de procesamiento estándar (`MODIS_SP`,
+     `VIIRS_*_SP`), que son las definitivas; sin él usa las de tiempo casi
+     real (`*_NRT`), que cubren los últimos meses. La API admite tramos de
+     10 días y 5 000 consultas cada 10 minutos; para un volcán y 19 meses son
+     unas 230 consultas. Si la clave se guarda como secreto `FIRMS_MAP_KEY`
+     del repositorio, el workflow trae además los últimos 7 días en cada
+     corrida.
+   - **Por archivo**, descargando el CSV desde la página "Archive Download"
+     de FIRMS (cuenta gratuita, llega por correo) y cargándolo con
+     `python mirova/mirova_monitor.py importar <archivo>.csv`; el formato se
+     reconoce por el encabezado y un mismo archivo puede cubrir varios
+     volcanes.
+
+   Los píxeles se agrupan por pasada (fecha, satélite y sensor) sumando el
+   FRP de los que están a menos de 25 km del volcán, con la distancia del
+   píxel más cercano al cráter, imitando la lectura por pasada de MIROVA.
+   Las filas quedan con origen `firms`.
+
+   **Salvedad científica.** FIRMS reporta FRP, calculada con el algoritmo de
+   incendios sobre cada píxel; MIROVA reporta VRP, calculada con el método
+   MIR sobre el conjunto de píxeles anómalos y con un umbral propio. Son la
+   misma magnitud física y suelen correlacionar bien en actividad sostenida,
+   pero no son intercambiables número a número y FIRMS detecta menos
+   anomalías débiles. Por eso los datos de FIRMS se dibujan con rombos y su
+   propia tendencia gris, no entran en las tendencias ni en los conteos de
+   MIROVA, y el panel los etiqueta como FRP. Sirven para evaluar el
+   comportamiento a largo plazo y cubrir huecos, no para comparar valores
+   exactos con MIROVA.
+3. **Pedir la serie al equipo MIROVA** (diego.coppola@unito.it), que entrega
    series completas por volcán para fines de investigación.
 
 Una importación nunca pisa filas existentes: sólo rellena fechas y sensores

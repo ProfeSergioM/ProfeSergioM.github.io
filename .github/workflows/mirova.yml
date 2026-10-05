@@ -51,6 +51,9 @@ jobs:
       - name: Actualizar datos, gráficos y resumen
         env:
           MIROVA_VOLCANES: ${{ github.event.inputs.volcanes }}
+          # Opcional: con este secreto definido, cada corrida también trae de
+          # NASA FIRMS los píxeles activos de los últimos 7 días (origen "firms").
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
         run: python mirova/mirova_monitor.py todo
 
       - name: Guardar cambios

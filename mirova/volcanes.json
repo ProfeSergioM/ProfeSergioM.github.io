@@ -1,5 +1,5 @@
 {
-  "_comentario": "volcano_id es el número que usa MIROVA en ?volcano_id=; coincide con el número del Global Volcanism Program (Smithsonian). mirova_name es el texto exacto que MIROVA usa en las rutas OUTPUTweb/. limite_km es el radio alrededor del cráter dentro del cual una anomalía se considera del volcán (criterio OVDAS). 'seguimiento' lista los volcanes que el monitor sigue por defecto; 'todos' sigue la lista completa.",
+  "_comentario": "volcano_id es el número que usa MIROVA en ?volcano_id=; coincide con el número del Global Volcanism Program (Smithsonian). mirova_name es el texto exacto que MIROVA usa en las rutas OUTPUTweb/. limite_km es el radio alrededor del cráter dentro del cual una anomalía se considera del volcán (criterio OVDAS). 'seguimiento' lista los volcanes que el monitor sigue por defecto; 'todos' sigue la lista completa. lat y lon son las del Global Volcanism Program (Smithsonian), las mismas que MIROVA usa como centro del volcán; se usan para calcular distancias de los píxeles de FIRMS.",
   "seguimiento": [
     "todos"
   ],
@@ -8,67 +8,89 @@
       "volcano_id": 355030,
       "mirova_name": "Isluga",
       "nombre": "Isluga",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -19.15,
+      "lon": -68.83
     },
     {
       "volcano_id": 355100,
       "mirova_name": "Lascar",
       "nombre": "Lascar",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -23.369,
+      "lon": -67.732
     },
     {
       "volcano_id": 355120,
       "mirova_name": "Lastarria",
       "nombre": "Lastarria",
-      "limite_km": 3.0
+      "limite_km": 3.0,
+      "lat": -25.168,
+      "lon": -68.507
     },
     {
       "volcano_id": 357010,
       "mirova_name": "Tupungatito",
       "nombre": "Tupungatito",
-      "limite_km": 7.0
+      "limite_km": 7.0,
+      "lat": -33.4,
+      "lon": -69.8
     },
     {
       "volcano_id": 357040,
       "mirova_name": "PlanchonPeteroa",
       "nombre": "Planchon-Peteroa",
-      "limite_km": 3.0
+      "limite_km": 3.0,
+      "lat": -35.24,
+      "lon": -70.568
     },
     {
       "volcano_id": 357070,
       "mirova_name": "ChillanNevadosde",
       "nombre": "Nevados de Chillan",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -36.863,
+      "lon": -71.377
     },
     {
       "volcano_id": 357090,
       "mirova_name": "Copahue",
       "nombre": "Copahue",
-      "limite_km": 4.0
+      "limite_km": 4.0,
+      "lat": -37.856,
+      "lon": -71.183
     },
     {
       "volcano_id": 357110,
       "mirova_name": "Llaima",
       "nombre": "Llaima",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -38.692,
+      "lon": -71.729
     },
     {
       "volcano_id": 357120,
       "mirova_name": "Villarrica",
       "nombre": "Villarrica",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -39.42,
+      "lon": -71.93
     },
     {
       "volcano_id": 357150,
       "mirova_name": "PuyehueCordonCaulle",
       "nombre": "Puyehue-Cordon Caulle",
-      "limite_km": 20.0
+      "limite_km": 20.0,
+      "lat": -40.59,
+      "lon": -72.117
     },
     {
       "volcano_id": 358041,
       "mirova_name": "Chaiten",
       "nombre": "Chaiten",
-      "limite_km": 5.0
+      "limite_km": 5.0,
+      "lat": -42.833,
+      "lon": -72.646
     }
   ]
 }

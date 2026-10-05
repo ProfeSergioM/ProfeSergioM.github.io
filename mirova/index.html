@@ -36,6 +36,7 @@
   .leyenda .nulo::before { background: var(--nulo); width: 2px; border: none; }
   .leyenda .linea-sensor::before { width: 22px; height: 0; border: none; border-top: 2px dashed var(--viirs750); vertical-align: 3px; }
   .leyenda .linea-general::before { width: 22px; height: 0; border: none; border-top: 3px solid var(--tinta); vertical-align: 3px; }
+  .leyenda .firms::before { background: #999; border-color: #555; transform: rotate(45deg); width: 9px; height: 9px; }
   .leyenda .nota::before { content: none; }
   .leyenda .nota { flex-basis: 100%; font-size: 0.82rem; }
   table { border-collapse: collapse; width: 100%; font-size: 0.9rem; background: var(--panel); }
@@ -81,13 +82,14 @@
     <span class="modis">MODIS (1 km)</span><span class="viirs750">VIIRS 750 m</span><span class="viirs375">VIIRS 375 m</span>
     <span class="fuera">Fuera del radio del cráter</span><span class="nulo">Observación sin anomalía (en la línea inferior)</span>
     <span class="linea-sensor">Tendencia por sensor</span><span class="linea-general">Tendencia general</span>
+    <span class="firms" id="leyenda-firms" hidden>FIRMS (FRP, no VRP): rombos con el color del sensor y tendencia gris discontinua</span>
     <span class="nota">Tendencias: mediana móvil del log de VRP, ventana de <b id="ancho-mediana">7</b> días, solo detecciones dentro del radio.</span>
   </div>
   <div class="grafico"><canvas id="grafico" role="img" aria-label="VRP en escala logarítmica contra el tiempo"></canvas></div>
 
   <h2>Últimas lecturas</h2>
   <div class="tabla-env"><table id="tabla"><thead><tr>
-    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th><th>Origen</th>
+    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th><th>Magnitud</th><th>Origen</th>
   </tr></thead><tbody></tbody></table></div>
 
   <h2>Figuras oficiales de MIROVA</h2>
@@ -183,7 +185,7 @@
 
   function dibujarTarjetas(v) {
     const w = ventana();
-    const anom = w.filter(r => r.vrp > 0 && r.dentro);
+    const anom = w.filter(r => r.vrp > 0 && r.dentro && r.origen !== 'firms');
     const ultima = anom.length ? anom[anom.length - 1] : null;
     const max = anom.length ? anom.reduce((a, b) => (b.vrp > a.vrp ? b : a)) : null;
     const info = (estado.volcanes || {})[v.nombre] || {};
@@ -200,19 +202,28 @@
   function dibujarGrafico(v) {
     const w = ventana();
     const datasets = [];
+    const firms = w.filter(r => r.origen === 'firms');
+    const wm = w.filter(r => r.origen !== 'firms');
     for (const [sensor, e] of Object.entries(ESTILO)) {
-      const pts = w.filter(r => r.sensor === sensor);
+      const pts = wm.filter(r => r.sensor === sensor);
       const dentro = pts.filter(r => r.vrp > 0 && r.dentro), fuera = pts.filter(r => r.vrp > 0 && !r.dentro), nulos = pts.filter(r => r.vrp <= 0);
       const base = { pointStyle: e.forma, pointRadius: 6, pointHoverRadius: 9, showLine: false, borderWidth: 1.5 };
       if (dentro.length) datasets.push({ ...base, label: e.etiqueta, data: dentro.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: e.color, borderColor: '#000' });
       if (fuera.length) datasets.push({ ...base, label: `${e.etiqueta}, fuera de ${v.limite_km} km`, data: fuera.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: 'transparent', borderColor: e.color });
       if (nulos.length) datasets.push({ ...base, label: `${e.etiqueta}, sin anomalía`, pointStyle: 'line', pointRotation: 90, pointRadius: 6, data: nulos.map(r => ({ x: r.t, y: PISO, r })), borderColor: css('--nulo'), backgroundColor: css('--nulo') });
     }
+    for (const [sensor, e] of Object.entries(ESTILO)) {
+      const pts = firms.filter(r => r.sensor === sensor && r.vrp > 0);
+      const dentro = pts.filter(r => r.dentro), fuera = pts.filter(r => !r.dentro);
+      const base = { pointStyle: 'rectRot', pointRadius: 6, pointHoverRadius: 9, showLine: false, borderWidth: 1.2 };
+      if (dentro.length) datasets.push({ ...base, label: `FIRMS ${e.etiqueta}`, data: dentro.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: e.color, borderColor: '#555' });
+      if (fuera.length) datasets.push({ ...base, label: `FIRMS ${e.etiqueta}, fuera del radio`, data: fuera.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: 'transparent', borderColor: e.color });
+    }
     const ahora = Date.now();
     const xmin = dias ? ahora - dias * 864e5 : (filas.length ? filas[0].t - 864e5 : ahora - 30 * 864e5);
-    // Tendencias (mediana móvil del log de VRP) con detecciones dentro del radio.
+    // Tendencias (mediana móvil del log de VRP) con detecciones MIROVA dentro del radio.
     const ancho = ventanaMediana(dias || Math.ceil((ahora - xmin) / 864e5));
-    const validas = w.filter(r => r.vrp > 0 && r.dentro).map(r => ({ x: r.t, y: r.vrp, sensor: r.sensor }));
+    const validas = wm.filter(r => r.vrp > 0 && r.dentro).map(r => ({ x: r.t, y: r.vrp, sensor: r.sensor }));
     const lineaBase = { type: 'line', pointRadius: 0, pointHoverRadius: 0, spanGaps: false, tension: 0.2, fill: false, order: -1 };
     for (const [sensor, e] of Object.entries(ESTILO)) {
       const l = tendencia(validas.filter(p => p.sensor === sensor), ancho, xmin, ahora);
@@ -226,7 +237,13 @@
       datasets.push({ ...lineaBase, label: 'halo', data: g, borderColor: '#fff', borderWidth: 6, order: -1.5 });
       datasets.push({ ...lineaBase, label: `Tendencia general (mediana móvil de ${ancho} días)`, data: g, borderColor: '#000', borderWidth: 3, order: -2 });
     }
+    const gf = tendencia(firms.filter(r => r.vrp > 0 && r.dentro).map(r => ({ x: r.t, y: r.vrp })), ancho, xmin, ahora);
+    if (gf.some(p => p.y !== null)) {
+      datasets.push({ ...lineaBase, label: 'halo', data: gf, borderColor: '#fff', borderWidth: 5, order: -0.5 });
+      datasets.push({ ...lineaBase, label: `Tendencia FIRMS (FRP, mediana móvil de ${ancho} días)`, data: gf, borderColor: '#555', borderWidth: 2.2, borderDash: [6, 3], order: -1 });
+    }
     $('#ancho-mediana').textContent = ancho;
+    $('#leyenda-firms').hidden = !filas.some(r => r.origen === 'firms');
     const ymax = Math.max(10, ...w.filter(r => r.vrp > 0).map(r => r.vrp)) * 3;
     if (chart) chart.destroy();
     chart = new Chart($('#grafico'), {
@@ -246,7 +263,8 @@
           legend: { display: false },
           tooltip: { filter: (c) => c.raw && c.raw.r, callbacks: { label: (c) => {
             const r = c.raw.r;
-            return `${fmtFecha(r.t)} UTC · ${r.sensor} · ${r.vrp > 0 ? r.vrp + ' MW' : 'sin anomalía'}${isNaN(r.dist) ? '' : ' · ' + r.dist + ' km del cráter'}`;
+            const mag = r.origen === 'firms' ? 'FRP (FIRMS)' : 'VRP';
+            return `${fmtFecha(r.t)} UTC · ${r.sensor} · ${r.vrp > 0 ? mag + ' ' + r.vrp + ' MW' : 'sin anomalía'}${isNaN(r.dist) ? '' : ' · ' + r.dist + ' km del cráter'}`;
           } } },
         },
       },
@@ -255,8 +273,8 @@
 
   function dibujarTabla() {
     const ult = filas.slice(-25).reverse();
-    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td><td>${r.origen}</td></tr>`).join('')
-      || '<tr><td colspan="7">Sin lecturas todavía.</td></tr>';
+    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td><td>${r.origen === 'firms' ? 'FRP' : 'VRP'}</td><td>${r.origen}</td></tr>`).join('')
+      || '<tr><td colspan="8">Sin lecturas todavía.</td></tr>';
   }
 
   function dibujarFiguras(v) {

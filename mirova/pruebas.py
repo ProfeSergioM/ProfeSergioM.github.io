@@ -135,6 +135,53 @@ class Integracion(unittest.TestCase):
         f = filas["2021-07-01T05:00:00"]
         self.assertEqual((f["sensor"], f["vrp_mw"], f["clasificacion"], f["origen"]), ("VIIRS750", 15.0, "moderada", "mirova-archivo"))
 
+    def test_distancia_haversine(self):
+        # Villarrica (-39.42, -71.93) a Llaima (-38.692, -71.729): unos 83 km.
+        self.assertAlmostEqual(mm.distancia_km(-39.42, -71.93, -38.692, -71.729), 82.7, delta=1.5)
+        self.assertEqual(mm.distancia_km(-36.863, -71.377, -36.863, -71.377), 0.0)
+
+    def test_importar_firms_agrupa_por_pasada(self):
+        """CSV de FIRMS con píxeles de dos volcanes; se agrupan por pasada y se filtran por distancia."""
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Villarrica", "Llaima"])
+        csv_ext = self.tmp / "fire_archive_SV-C2_1.csv"
+        csv_ext.write_text(
+            "latitude,longitude,bright_ti4,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_ti5,frp,daynight\n"
+            "-39.421,-71.931,345.2,0.39,0.36,2025-06-10,0548,N,VIIRS,n,2.0NRT,290.1,3.5,N\n"   # Villarrica, misma pasada
+            "-39.425,-71.936,331.0,0.39,0.36,2025-06-10,0548,N,VIIRS,n,2.0NRT,289.0,1.5,N\n"   # Villarrica, misma pasada
+            "-39.421,-71.931,340.0,0.39,0.36,2025-06-10,0630,N20,VIIRS,n,2.0NRT,290.0,2.0,N\n"  # Villarrica, otra pasada (NOAA-20)
+            "-39.27,-72.09,320.0,0.39,0.36,2025-06-10,0548,N,VIIRS,l,2.0NRT,285.0,0.8,N\n"     # lago Villarrica, 22 km: no se suma al cráter
+            "-39.27,-72.09,320.0,0.39,0.36,2025-06-12,0548,N,VIIRS,l,2.0NRT,285.0,0.8,N\n"     # sólo lago: lectura fuera de radio
+            "-38.692,-71.729,330.0,1.0,1.0,2025-06-11,0410,Terra,MODIS,80,6.1,295.0,12.0,N\n"  # Llaima, MODIS
+            "-30.0,-71.0,330.0,1.0,1.0,2025-06-11,0410,Aqua,MODIS,80,6.1,295.0,50.0,D\n", encoding="utf-8")  # lejos de todo
+        r = mm.cmd_importar(self.tmp, volcanes, csv_ext)
+        self.assertEqual((r["Villarrica"]["agregadas"], r["Llaima"]["agregadas"]), (3, 1))
+        vil = {(f["fecha_utc"], f["sensor"]): f for f in mm.leer_csv(self.tmp / "datos" / "Villarrica.csv") if f["origen"] == "firms"}
+        f = vil[("2025-06-10T05:48:00", "VIIRS375")]
+        self.assertAlmostEqual(f["vrp_mw"], 5.0, "FRP sumado sobre los píxeles de la pasada dentro de 25 km")
+        self.assertLess(f["distancia_km"], 0.2, "distancia del píxel más cercano al cráter")
+        self.assertTrue(f["dentro_radio"])
+        self.assertEqual(vil[("2025-06-10T06:30:00", "VIIRS375")]["vrp_mw"], 2.0)
+        lago = vil[("2025-06-12T05:48:00", "VIIRS375")]
+        self.assertEqual((lago["vrp_mw"], lago["dentro_radio"], lago["clasificacion"]), (0.8, False, "fuera de radio"))
+        lla = [f for f in mm.leer_csv(self.tmp / "datos" / "Llaima.csv") if f["origen"] == "firms"]
+        self.assertEqual((lla[0]["sensor"], lla[0]["vrp_mw"]), ("MODIS", 12.0))
+        # Un segundo volcán lejano al píxel de Aqua no recibe nada
+        self.assertFalse((self.tmp / "datos" / "Isluga.csv").exists())
+        # El resumen y el gráfico separan FIRMS de MIROVA
+        estado = mm.cmd_resumen(self.tmp, volcanes, 10000)
+        self.assertEqual(estado["volcanes"]["Villarrica"]["anomalias_ventana"], 0, "FIRMS no cuenta como anomalía MIROVA")
+        self.assertEqual(estado["volcanes"]["Villarrica"]["firms_ventana"], 2, "sólo las pasadas dentro del radio")
+        salidas = mm.cmd_graficar(self.tmp, volcanes, [30, 0])
+        self.assertTrue(salidas[0].exists())
+
+    def test_leer_firms_tolera_codigos_de_satelite(self):
+        px = mm._leer_firms("latitude,longitude,acq_date,acq_time,satellite,instrument,frp\n"
+                            "-39.42,-71.93,2025-01-01,130,T,MODIS,1.0\n"
+                            "-39.42,-71.93,2025-01-01,0130,1,VIIRS,1.0\n"
+                            "-39.42,-71.93,2025-01-01,0130,N21,VIIRS,x\n")
+        self.assertEqual([(p["sensor"], p["fecha"].strftime("%H:%M")) for p in px], [("MODIS", "01:30"), ("VIIRS375", "01:30")])
+        self.assertEqual(mm._leer_firms("UTC,VRP\n2025-01-01 00:00:00,1\n"), [], "no es FIRMS")
+
     def test_volcan_desconocido(self):
         with self.assertRaises(SystemExit):
             mm.elegir_volcanes(self.todos, self.seg, ["Vesubio"])

@@ -17,9 +17,21 @@ Qué hace
 3. `resumen`: imprime y guarda un resumen por volcán (última detección, máximo
    de los últimos días, tendencia) en datos/estado.json y datos/resumen.md.
 4. `todo`: los tres pasos anteriores en orden. Es lo que corre GitHub Actions.
-5. `importar`: carga el histórico de un volcán desde el CSV "Raw data" del
-   archivo oficial MIROVA Dataset (https://www.mirovaweb.it/ARCHIVE/Explore_Archive.php)
-   sin pisar lo que ya existe.
+5. `importar`: carga un histórico sin pisar lo que ya existe, desde el CSV
+   "Raw data" del archivo oficial MIROVA Dataset
+   (https://www.mirovaweb.it/ARCHIVE/Explore_Archive.php) o desde un CSV de
+   NASA FIRMS (píxeles activos MODIS y VIIRS con su FRP). El formato se
+   reconoce por el encabezado.
+6. `firms`: descarga por la API de FIRMS los píxeles activos alrededor de cada
+   volcán para un rango de fechas (clave gratuita en FIRMS_MAP_KEY) y los
+   agrega por pasada. En `todo` se ejecuta para los últimos días si la clave
+   está definida.
+
+FIRMS entrega FRP (potencia radiativa del píxel, algoritmo de incendios) y
+MIROVA entrega VRP (método MIR sobre el conjunto de píxeles anómalos). Miden
+lo mismo físicamente pero no son intercambiables número a número; por eso los
+datos de FIRMS se guardan con origen "firms", se dibujan con otro marcador y
+no entran en las tendencias de MIROVA.
 
 Sólo depende de la biblioteca estándar; matplotlib es opcional y se usa
 únicamente en `graficar`.
@@ -31,6 +43,8 @@ Uso
     python mirova/mirova_monitor.py graficar --dias 30 365
     python mirova/mirova_monitor.py resumen --dias 30
     python mirova/mirova_monitor.py --volcanes Villarrica importar Villarrica_MIROVA_Raw_data.csv
+    python mirova/mirova_monitor.py importar fire_archive_SV-C2_123456.csv          # CSV de FIRMS, todos los volcanes
+    FIRMS_MAP_KEY=... python mirova/mirova_monitor.py firms --desde 2025-03-07 --hasta 2026-10-05 --historico
 """
 
 from __future__ import annotations
@@ -59,6 +73,12 @@ BASE_URL = "https://www.mirovaweb.it"
 LATEST_URL = f"{BASE_URL}/NRT/latest.php"
 OUTPUT_URL = f"{BASE_URL}/OUTPUTweb/MIROVA"
 DETALLE_URL = f"{BASE_URL}/NRT/volcanoDetails_MIR.php?volcano_id={{volcano_id}}"
+
+FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{clave}/{fuente}/{area}/{dias}/{fecha}"
+FIRMS_FUENTES_NRT = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"]
+FIRMS_FUENTES_SP = ["MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP"]
+FIRMS_RADIO_KM = 25.0   # radio alrededor del volcán dentro del cual se consideran los píxeles
+FIRMS_TRAMO_DIAS = 10   # máximo que admite la API por consulta
 
 USER_AGENT = (
     "mirova-monitor/1.0 (seguimiento academico de anomalias termicas; "
@@ -92,7 +112,7 @@ COLUMNAS = [
     "dentro_radio",     # 1 si distancia_km <= limite_km del volcán
     "clasificacion",    # escala logarítmica de Coppola et al. (2016)
     "capturado_utc",    # cuándo lo leyó este monitor
-    "origen",           # latest.php | mirova-archivo
+    "origen",           # latest.php | mirova-archivo | firms (FRP, no VRP)
 ]
 
 FORMATOS_FECHA = (
@@ -116,6 +136,8 @@ class Volcan:
     mirova_name: str
     nombre: str
     limite_km: float
+    lat: float = float("nan")   # coordenadas del Global Volcanism Program
+    lon: float = float("nan")
 
     @property
     def archivo(self) -> str:
@@ -131,7 +153,8 @@ def cargar_config(ruta: Path) -> tuple[list[Volcan], list[str]]:
     with ruta.open(encoding="utf-8") as f:
         cfg = json.load(f)
     volcanes = [
-        Volcan(str(v["volcano_id"]), v["mirova_name"], v["nombre"], float(v["limite_km"]))
+        Volcan(str(v["volcano_id"]), v["mirova_name"], v["nombre"], float(v["limite_km"]),
+               float(v.get("lat", "nan")), float(v.get("lon", "nan")))
         for v in cfg["volcanes"]
     ]
     return volcanes, list(cfg.get("seguimiento", []))
@@ -527,28 +550,141 @@ def _leer_archivo_mirova(ruta: Path) -> list[dict]:
     return registros
 
 
-def cmd_importar(raiz: Path, volcanes: list[Volcan], archivo: Path) -> dict:
-    """Carga un CSV "Raw data" del MIROVA Dataset (un solo volcán) en datos/."""
+def distancia_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Distancia sobre la esfera (haversine), en km."""
+    import math
+    f1, f2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin((f2 - f1) / 2) ** 2 + math.cos(f1) * math.cos(f2) * math.sin(dl / 2) ** 2
+    return 2 * 6371.0 * math.asin(math.sqrt(a))
+
+
+def _leer_firms(texto: str) -> list[dict]:
+    """Píxeles activos de un CSV de FIRMS (descarga de archivo o respuesta de la
+    API). Columnas usadas: latitude, longitude, acq_date, acq_time (HHMM UTC),
+    satellite, instrument, frp (MW), daynight. Las demás se ignoran."""
+    import io
+    lector = csv.DictReader(io.StringIO(texto))
+    campos = {c.strip().lower(): c for c in (lector.fieldnames or [])}
+    if "frp" not in campos or "acq_date" not in campos:
+        return []
+    pixeles = []
+    for r in lector:
+        try:
+            lat, lon, frp = float(r[campos["latitude"]]), float(r[campos["longitude"]]), float(r[campos["frp"]])
+            hhmm = r[campos["acq_time"]].strip().zfill(4)
+            fecha = datetime.strptime(f"{r[campos['acq_date']].strip()} {hhmm[:2]}:{hhmm[2:]}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        except (KeyError, ValueError):
+            continue
+        instrumento = (r.get(campos.get("instrument", ""), "") or "").strip().upper()
+        satelite = (r.get(campos.get("satellite", ""), "") or "").strip()
+        pixeles.append({"fecha": fecha, "lat": lat, "lon": lon, "frp": frp, "satelite": satelite,
+                        "sensor": "MODIS" if "MODIS" in instrumento or satelite in ("Terra", "Aqua", "T", "A") else "VIIRS375",
+                        "dia": (r.get(campos.get("daynight", ""), "") or "").strip().upper() == "D"})
+    return pixeles
+
+
+def agrupar_firms(pixeles: list[dict], v: Volcan, radio_km: float = FIRMS_RADIO_KM) -> list[dict]:
+    """Convierte píxeles en una lectura por pasada (fecha, satélite, sensor).
+
+    Si en la pasada hay píxeles dentro del radio del cráter (`limite_km`), la
+    lectura es la suma de su FRP y la distancia del más cercano: una anomalía
+    del volcán. Si sólo hay píxeles entre `limite_km` y `radio_km`, la lectura
+    es la suma de ésos con su distancia mínima, y quedará marcada fuera de
+    radio, como hace MIROVA con incendios cercanos. Así un incendio a 20 km no
+    infla la lectura del cráter de la misma pasada."""
+    if v.lat != v.lat:
+        raise SystemExit(f"{v.nombre} no tiene lat/lon en volcanes.json; hacen falta para FIRMS.")
+    por_pasada: dict[tuple, list[tuple[float, float]]] = {}
+    for px in pixeles:
+        d = distancia_km(v.lat, v.lon, px["lat"], px["lon"])
+        if d <= radio_km:
+            por_pasada.setdefault((px["fecha"], px["satelite"], px["sensor"]), []).append((d, px["frp"]))
+    pasadas = []
+    for (fecha, _sat, sensor), pxs in por_pasada.items():
+        cerca = [(d, f) for d, f in pxs if d <= v.limite_km]
+        usados = cerca or pxs
+        pasadas.append({"fecha": fecha, "sensor": sensor, "vrp_mw": sum(f for _, f in usados),
+                        "distancia_km": min(d for d, _ in usados), "pixeles": len(usados)})
+    return sorted(pasadas, key=lambda p: p["fecha"])
+
+
+def _guardar_importados(raiz: Path, v: Volcan, nuevos: list[dict], origen: str, ahora: datetime) -> tuple[int, int]:
+    ruta = ruta_csv(raiz, v)
+    existentes = leer_csv(ruta)
+    for r in existentes:
+        r.pop("fecha", None)
+        r["vrp_mw"] = f"{r['vrp_mw']:.4g}"
+        r["distancia_km"] = "" if r["distancia_km"] != r["distancia_km"] else f"{r['distancia_km']:.2f}"
+        r["dentro_radio"] = "1" if r["dentro_radio"] else "0"
+    unidos, agregados = integrar(v, nuevos, existentes, ahora, origen=origen)
+    if agregados:
+        escribir_csv(ruta, unidos)
+    return agregados, len(unidos)
+
+
+def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: datetime, fuentes: list[str], clave: str) -> dict:
+    """Descarga píxeles FIRMS alrededor de cada volcán, en tramos de hasta 10 días, y los agrega por pasada."""
+    import math
+    if not clave:
+        raise SystemExit("Falta la clave de FIRMS: define FIRMS_MAP_KEY (gratuita en https://firms.modaps.eosdis.nasa.gov/api/map_key/).")
     ahora = datetime.now(timezone.utc)
     resultado = {}
-    if len(volcanes) != 1:
-        raise SystemExit("El archivo MIROVA es de un solo volcán: indica cuál con --volcanes.")
-    origen = "mirova-archivo"
     for v in volcanes:
-        nuevos = _leer_archivo_mirova(archivo)
-        ruta = ruta_csv(raiz, v)
-        existentes = leer_csv(ruta)
-        for r in existentes:
-            r.pop("fecha", None)
-            r["vrp_mw"] = f"{r['vrp_mw']:.4g}"
-            r["distancia_km"] = "" if r["distancia_km"] != r["distancia_km"] else f"{r['distancia_km']:.2f}"
-            r["dentro_radio"] = "1" if r["dentro_radio"] else "0"
-        unidos, agregados = integrar(v, nuevos, existentes, ahora, origen=origen)
-        if agregados:
-            escribir_csv(ruta, unidos)
+        dlat = FIRMS_RADIO_KM / 111.0
+        dlon = dlat / max(math.cos(math.radians(v.lat)), 0.1)
+        area = f"{v.lon - dlon:.3f},{v.lat - dlat:.3f},{v.lon + dlon:.3f},{v.lat + dlat:.3f}"
+        pixeles: list[dict] = []
+        consultas = 0
+        f = desde
+        while f <= hasta:
+            dias = min(FIRMS_TRAMO_DIAS, (hasta - f).days + 1)
+            for fuente in fuentes:
+                url = FIRMS_API.format(clave=clave, fuente=fuente, area=area, dias=dias, fecha=f.strftime("%Y-%m-%d"))
+                try:
+                    texto, _ = descargar(url)
+                    consultas += 1
+                except HTTPError as e:
+                    log.warning("FIRMS %s %s %s: HTTP %s", v.nombre, fuente, f.date(), e.code)
+                    continue
+                except URLError as e:
+                    log.warning("FIRMS %s %s %s: %s", v.nombre, fuente, f.date(), e)
+                    continue
+                finally:
+                    time.sleep(0.15)
+                if texto.lower().startswith("invalid") or "map_key" in texto.lower()[:200]:
+                    raise SystemExit(f"FIRMS rechazó la consulta: {texto[:160]}")
+                pixeles.extend(_leer_firms(texto))
+            f += timedelta(days=dias)
+        pasadas = agrupar_firms(pixeles, v)
+        agregados, total = _guardar_importados(raiz, v, pasadas, "firms", ahora)
+        log.info("%-22s FIRMS %s a %s: %d consultas, %d píxeles, %d pasadas, %d nuevas (total %d)",
+                 v.nombre, desde.date(), hasta.date(), consultas, len(pixeles), len(pasadas), agregados, total)
+        resultado[v.nombre] = {"pixeles": len(pixeles), "pasadas": len(pasadas), "nuevas": agregados, "total": total}
+    return resultado
+
+
+def cmd_importar(raiz: Path, volcanes: list[Volcan], archivo: Path) -> dict:
+    """Carga un CSV externo en datos/. Si el encabezado trae `frp` y `acq_date`
+    es un CSV de FIRMS (puede cubrir varios volcanes); si no, es el "Raw data"
+    del MIROVA Dataset, que es de un solo volcán."""
+    ahora = datetime.now(timezone.utc)
+    resultado = {}
+    texto = archivo.read_text(encoding="utf-8", errors="replace")
+    cabecera = texto.split("\n", 1)[0].lower()
+    es_firms = "frp" in cabecera and "acq_date" in cabecera
+    if es_firms:
+        pixeles = _leer_firms(texto)
+        log.info("CSV de FIRMS: %d píxeles", len(pixeles))
+    elif len(volcanes) != 1:
+        raise SystemExit("El archivo MIROVA es de un solo volcán: indica cuál con --volcanes.")
+    for v in volcanes:
+        nuevos = agrupar_firms(pixeles, v) if es_firms else _leer_archivo_mirova(archivo)
+        origen = "firms" if es_firms else "mirova-archivo"
+        agregados, total = _guardar_importados(raiz, v, nuevos, origen, ahora)
         rango = (min(n["fecha"] for n in nuevos).strftime("%Y-%m-%d"), max(n["fecha"] for n in nuevos).strftime("%Y-%m-%d")) if nuevos else ("", "")
-        log.info("%-22s en archivo: %5d (%s a %s) | agregadas: %5d | total ahora: %5d", v.nombre, len(nuevos), *rango, agregados, len(unidos))
-        resultado[v.nombre] = {"en_archivo": len(nuevos), "agregadas": agregados, "total": len(unidos)}
+        log.info("%-22s %s: %5d lecturas (%s a %s) | agregadas: %5d | total ahora: %5d", v.nombre, origen, len(nuevos), *rango, agregados, total)
+        resultado[v.nombre] = {"en_archivo": len(nuevos), "agregadas": agregados, "total": total, "origen": origen}
     return resultado
 
 
@@ -563,7 +699,9 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
     lineas = [f"# Resumen MIROVA ({ahora:%Y-%m-%d %H:%M} UTC)", "",
               f"Ventana de análisis: últimos {dias} días. VRP en MW. Fuente: MIROVA, Universidad de Turín.", ""]
     for v in volcanes:
-        filas = leer_csv(ruta_csv(raiz, v))
+        todas = leer_csv(ruta_csv(raiz, v))
+        filas = [r for r in todas if r["origen"] != "firms"]
+        firms = [r for r in _ventana([r for r in todas if r["origen"] == "firms"], dias, ahora) if r["vrp_mw"] > 0 and r["dentro_radio"]]
         ventana = _ventana(filas, dias, ahora)
         anomalias = [r for r in ventana if r["vrp_mw"] > 0 and r["dentro_radio"]]
         fuera = [r for r in ventana if r["vrp_mw"] > 0 and not r["dentro_radio"]]
@@ -574,13 +712,13 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
         seg = [r["vrp_mw"] for r in anomalias if r["fecha"] >= mitad]
         if prim and seg:
             med1, med2 = sorted(prim)[len(prim) // 2], sorted(seg)[len(seg) // 2]
-            tendencia = "en aumento" if med2 > 1.5 * med1 else "en descenso" if med2 < med1 / 1.5 else "estable"
+            texto_tend = "en aumento" if med2 > 1.5 * med1 else "en descenso" if med2 < med1 / 1.5 else "estable"
         elif seg:
-            tendencia = "anomalías recientes sin antecedente en la ventana"
+            texto_tend = "anomalías recientes sin antecedente en la ventana"
         elif prim:
-            tendencia = "sin anomalías en la segunda mitad de la ventana"
+            texto_tend = "sin anomalías en la segunda mitad de la ventana"
         else:
-            tendencia = "sin anomalías"
+            texto_tend = "sin anomalías"
         por_sensor = {}
         for r in filas:
             s = por_sensor.setdefault(r["sensor"], {"ultima_lectura_utc": None, "lecturas": 0})
@@ -592,7 +730,8 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
             "archivo_csv": f"datos/{v.archivo}.csv",
             "url_mirova": v.url_detalle,
             "limite_km": v.limite_km,
-            "lecturas_totales": len(filas),
+            "lecturas_totales": len(todas),
+            "lecturas_firms": sum(1 for r in todas if r["origen"] == "firms"),
             "lecturas_ventana": len(ventana),
             "anomalias_ventana": len(anomalias),
             "detecciones_fuera_radio_ventana": len(fuera),
@@ -600,7 +739,11 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
                                                             "sensor": ultima["sensor"], "distancia_km": ultima["distancia_km"]},
             "maximo_ventana": None if maximo is None else {"fecha_utc": maximo["fecha_utc"], "vrp_mw": maximo["vrp_mw"],
                                                            "sensor": maximo["sensor"], "clasificacion": maximo["clasificacion"]},
-            "tendencia": tendencia,
+            "tendencia": texto_tend,
+            "firms_ventana": len(firms),
+            "firms_ultima": None if not firms else {"fecha_utc": max(firms, key=lambda r: r["fecha"])["fecha_utc"],
+                                                     "frp_mw": max(firms, key=lambda r: r["fecha"])["vrp_mw"]},
+            "firms_maximo_mw": max((r["vrp_mw"] for r in firms), default=None),
             "sensores": por_sensor,
             "figuras": sorted(p.name for p in (raiz / "imagenes" / v.archivo).glob("*.png")) if (raiz / "imagenes" / v.archivo).exists() else [],
             "grafico": f"graficos/{v.archivo}_serie.png" if (raiz / "graficos" / f"{v.archivo}_serie.png").exists() else None,
@@ -615,7 +758,11 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
             lineas.append(f"- Sin anomalías dentro de {v.limite_km:g} km en la ventana.")
         if fuera:
             lineas.append(f"- Detecciones fuera del radio (probables fuentes no volcánicas): {len(fuera)}.")
-        lineas.append(f"- Tendencia (mediana segunda mitad vs. primera mitad): {tendencia}.")
+        lineas.append(f"- Tendencia (mediana segunda mitad vs. primera mitad): {texto_tend}.")
+        if firms:
+            u = max(firms, key=lambda r: r["fecha"])
+            lineas.append(f"- FIRMS (FRP, independiente de MIROVA): {len(firms)} pasadas con píxeles activos dentro del radio; "
+                          f"última {u['fecha_utc']} UTC, {u['vrp_mw']:g} MW; máximo {max(r['vrp_mw'] for r in firms):g} MW.")
         lineas.append(f"- Página MIROVA: {v.url_detalle}")
         lineas.append("")
     (raiz / "datos").mkdir(parents=True, exist_ok=True)
@@ -713,6 +860,8 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
                 ventana = _ventana(filas, d, ahora)
                 etiqueta_x = f"Fecha (UTC), últimos {d} días"
             piso = 0.01  # MW: donde se dibujan las observaciones sin anomalía
+            firms = [r for r in ventana if r["origen"] == "firms"]
+            ventana = [r for r in ventana if r["origen"] != "firms"]
             for sensor, est in ESTILO_SENSOR.items():
                 pts = [r for r in ventana if r["sensor"] == sensor]
                 nulos = [r for r in pts if r["vrp_mw"] <= 0]
@@ -729,6 +878,14 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
                     eje.plot([r["fecha"] for r in dentro], [r["vrp_mw"] for r in dentro], linestyle="none",
                              marker=est["marker"], color=est["color"], markersize=8,
                              markeredgecolor="black", markeredgewidth=0.6)
+            # FIRMS (FRP): rombos con el color del sensor, llenos dentro del radio.
+            for sensor, est in ESTILO_SENSOR.items():
+                pts = [r for r in firms if r["sensor"] == sensor and r["vrp_mw"] > 0]
+                for grupo, relleno in (([r for r in pts if r["dentro_radio"]], True), ([r for r in pts if not r["dentro_radio"]], False)):
+                    if grupo:
+                        eje.plot([r["fecha"] for r in grupo], [r["vrp_mw"] for r in grupo], linestyle="none", marker="D",
+                                 markersize=6.5, markerfacecolor=est["color"] if relleno else "none",
+                                 markeredgecolor="0.3" if relleno else est["color"], markeredgewidth=0.9, alpha=0.85)
             # Tendencias: mediana móvil del log de VRP, por sensor y general,
             # sólo con detecciones dentro del radio del cráter.
             desde, ancho = ahora - timedelta(days=d), ventana_mediana(d)
@@ -742,10 +899,15 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
             if general:
                 eje.plot([t for t, _ in general], [v if v is not None else float("nan") for _, v in general],
                          linestyle="-", color="black", linewidth=3.0, zorder=6, path_effects=borde)
+            firms_dentro = [(r["fecha"], r["vrp_mw"]) for r in firms if r["vrp_mw"] > 0 and r["dentro_radio"]]
+            lf = tendencia(firms_dentro, ancho, desde, ahora)
+            if lf and any(v is not None for _, v in lf):
+                eje.plot([t for t, _ in lf], [v if v is not None else float("nan") for _, v in lf],
+                         linestyle=(0, (4, 2)), color="0.35", linewidth=2.2, zorder=5, path_effects=borde)
             eje.text(0.02, 0.97, f"mediana móvil: {ancho} días", transform=eje.transAxes, ha="left", va="top",
                      fontsize=12, color="0.25", bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="0.7", alpha=0.9))
             eje.set_yscale("log")
-            eje.set_ylim(piso * 0.6, max([r["vrp_mw"] for r in ventana if r["vrp_mw"] > 0] + [10]) * 3)
+            eje.set_ylim(piso * 0.6, max([r["vrp_mw"] for r in ventana + firms if r["vrp_mw"] > 0] + [10]) * 3)
             eje.set_xlim(desde, ahora)
             eje.axhline(piso, color="0.55", linewidth=0.8, linestyle=":")
             eje.set_ylabel(r"$\mathrm{VRP}\ [\mathrm{MW}]$")
@@ -760,6 +922,9 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
         asas = [Line2D([], [], linestyle=e["ls"], linewidth=1.6, marker=e["marker"], color=e["color"], markersize=9,
                        markeredgecolor="black", markeredgewidth=0.6, label=f"{e['label']} y su tendencia") for e in ESTILO_SENSOR.values()]
         asas.append(Line2D([], [], linestyle="-", linewidth=2.8, color="black", label="Tendencia general"))
+        if any(r["origen"] == "firms" for r in filas):
+            asas.append(Line2D([], [], linestyle=(0, (4, 2)), linewidth=2.2, color="0.35", marker="D", markersize=7,
+                               markerfacecolor="0.6", markeredgecolor="0.3", label="FIRMS (FRP, no VRP) y su tendencia"))
         asas.append(Line2D([], [], linestyle="none", marker="o", markerfacecolor="none", markeredgecolor="0.3",
                            markersize=9, label=f"Fuera de {v.limite_km:g} km del cráter"))
         asas.append(Line2D([], [], linestyle="none", marker="|", color="0.55", markersize=10,
@@ -801,7 +966,14 @@ def main(argv: list[str] | None = None) -> int:
     i = sub.add_parser("importar", help="cargar el histórico de un volcán desde el CSV Raw data del MIROVA Dataset (rellena huecos, no pisa)")
     i.add_argument("archivo", type=Path)
 
-    t = sub.add_parser("todo", help="actualizar + graficar + resumen")
+    fr = sub.add_parser("firms", help="descargar píxeles activos de NASA FIRMS por API (requiere FIRMS_MAP_KEY)")
+    fr.add_argument("--desde", help="YYYY-MM-DD (por defecto, hace --dias días)")
+    fr.add_argument("--hasta", help="YYYY-MM-DD (por defecto, hoy)")
+    fr.add_argument("--dias", type=int, default=7, help="días hacia atrás si no se da --desde")
+    fr.add_argument("--historico", action="store_true", help="usar las fuentes SP (procesamiento estándar) en vez de NRT")
+    fr.add_argument("--fuentes", help="lista separada por comas; sobreescribe la elección NRT/SP")
+
+    t = sub.add_parser("todo", help="actualizar + graficar + resumen (+ firms de los últimos días si hay FIRMS_MAP_KEY)")
     t.add_argument("--sin-imagenes", action="store_true")
     t.add_argument("--archivar-imagenes", action="store_true")
     t.add_argument("--dias", nargs="+", type=int, default=[30, 365, 0], help="ventanas en días; 0 = toda la serie")
@@ -826,8 +998,17 @@ def main(argv: list[str] | None = None) -> int:
         cmd_resumen(raiz, volcanes, args.dias)
     elif args.cmd == "importar":
         cmd_importar(raiz, volcanes, args.archivo)
+    elif args.cmd == "firms":
+        hoy = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        hasta = datetime.strptime(args.hasta, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.hasta else hoy
+        desde = datetime.strptime(args.desde, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.desde else hasta - timedelta(days=args.dias - 1)
+        fuentes = [f for f in args.fuentes.split(",") if f] if args.fuentes else (FIRMS_FUENTES_SP if args.historico else FIRMS_FUENTES_NRT)
+        cmd_firms(raiz, volcanes, desde, hasta, fuentes, os.environ.get("FIRMS_MAP_KEY", ""))
     elif args.cmd == "todo":
         cmd_actualizar(raiz, volcanes, con_imagenes=not args.sin_imagenes, archivar=args.archivar_imagenes)
+        if os.environ.get("FIRMS_MAP_KEY"):
+            hoy = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            cmd_firms(raiz, volcanes, hoy - timedelta(days=6), hoy, FIRMS_FUENTES_NRT, os.environ["FIRMS_MAP_KEY"])
         cmd_graficar(raiz, volcanes, args.dias)
         cmd_resumen(raiz, volcanes, min([d for d in args.dias if d > 0] or [30]))
     return 0
