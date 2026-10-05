@@ -1,0 +1,65 @@
+name: Seguimiento MIROVA
+
+# Lee las últimas detecciones de MIROVA, acumula la serie temporal por volcán,
+# regenera los gráficos y guarda todo en el repositorio (y por lo tanto en
+# GitHub Pages: https://profesergiom.github.io/mirova/).
+#
+# MIROVA publica cada pasada entre 1 y 4 horas después de la adquisición y
+# latest.php conserva varias filas recientes por volcán, así que correr cada
+# 3 horas es suficiente para no perder detecciones. Si se quiere mayor
+# frecuencia, basta con cambiar el cron (mínimo razonable: cada hora).
+
+on:
+  schedule:
+    - cron: "23 */3 * * *"
+  workflow_dispatch:
+    inputs:
+      volcanes:
+        description: "Volcanes a seguir, separados por comas (vacío = lista de volcanes.json; 'todos' = los 11)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mirova
+  cancel-in-progress: false
+
+jobs:
+  seguimiento:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: mirova/requirements.txt
+
+      - run: pip install -r mirova/requirements.txt
+
+      - name: Pruebas sin red
+        run: python -m unittest mirova/pruebas.py
+
+      - name: Actualizar datos, gráficos y resumen
+        env:
+          MIROVA_VOLCANES: ${{ github.event.inputs.volcanes }}
+        run: python mirova/mirova_monitor.py todo
+
+      - name: Guardar cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mirova/datos mirova/imagenes mirova/graficos
+          if git diff --cached --quiet; then
+            echo "Sin cambios nuevos."
+            exit 0
+          fi
+          git commit -m "MIROVA: actualización automática $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin HEAD:"${{ github.ref_name }}"
