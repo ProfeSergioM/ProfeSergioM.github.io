@@ -75,6 +75,7 @@ OUTPUT_URL = f"{BASE_URL}/OUTPUTweb/MIROVA"
 DETALLE_URL = f"{BASE_URL}/NRT/volcanoDetails_MIR.php?volcano_id={{volcano_id}}"
 
 FIRMS_API = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{clave}/{fuente}/{area}/{dias}/{fecha}"
+FIRMS_DISPONIBILIDAD = "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv/{clave}/ALL"
 FIRMS_FUENTES_NRT = ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"]
 FIRMS_FUENTES_SP = ["MODIS_SP", "VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_NOAA21_SP"]
 FIRMS_RADIO_KM = 25.0   # radio alrededor del volcán dentro del cual se consideran los píxeles
@@ -664,14 +665,21 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
             dias = min(FIRMS_TRAMO_DIAS, (hasta - f).days + 1)
             fuentes_tramo = list(fuentes)
             if nrt_recientes and (ahora_dt - f).days <= 90:
-                fuentes_tramo += [x for x in FIRMS_FUENTES_NRT if x not in fuentes_tramo]
+                fuentes_tramo += [x for x in FIRMS_FUENTES_NRT if x not in fuentes_tramo and (not disponibles or x in disponibles)]
             for fuente in fuentes_tramo:
                 url = FIRMS_API.format(clave=clave, fuente=fuente, area=area, dias=dias, fecha=f.strftime("%Y-%m-%d"))
                 try:
                     texto, _ = descargar(url)
                     consultas += 1
                 except HTTPError as e:
-                    log.warning("FIRMS %s %s %s: HTTP %s", v.nombre, fuente, f.date(), e.code)
+                    cuerpo = e.read().decode("utf-8", errors="replace").strip()[:200] if hasattr(e, "read") else ""
+                    if errores_mostrados < 5:
+                        log.warning("FIRMS %s %s %s: HTTP %s %s | URL sin clave: %s", v.nombre, fuente, f.date(), e.code, cuerpo,
+                                    url.replace(clave, "<clave>"))
+                        errores_mostrados += 1
+                    elif errores_mostrados == 5:
+                        log.warning("(más errores HTTP de FIRMS omitidos del registro)")
+                        errores_mostrados += 1
                     continue
                 except URLError as e:
                     log.warning("FIRMS %s %s %s: %s", v.nombre, fuente, f.date(), e)
