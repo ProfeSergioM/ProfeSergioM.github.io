@@ -16,7 +16,8 @@ hora y deja el resultado publicado en
 | --- | --- |
 | `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato. Nunca se duplican filas. |
 | `datos/estado.json`, `datos/resumen.md` | Resumen por volcán: última anomalía, máximo de la ventana, tendencia y conteos. |
-| `graficos/<Volcan>_serie.png` | Serie temporal propia, dos paneles (30 días y 1 año), escala logarítmica, un marcador por sensor. |
+| `graficos/<Volcan>_serie.png` | Serie temporal propia, tres paneles (30 días, 1 año y serie completa), escala logarítmica, un marcador por sensor. |
+| `fuentes/` | Exportaciones originales del MIROVA Dataset cargadas con `importar` (licencia CC BY 4.0, Universidad de Turín). |
 | `imagenes/<Volcan>/*.png` | Copias locales de las figuras oficiales de MIROVA (VRP, log VRP, distancia, últimas 10 detecciones). Se descargan sólo cuando cambian. |
 | `index.html` | Panel web interactivo que lee los CSV y muestra la serie, las últimas lecturas y las figuras oficiales. |
 
@@ -44,7 +45,7 @@ hora y deja el resultado publicado en
 pip install -r mirova/requirements.txt      # sólo matplotlib; el resto es biblioteca estándar
 python mirova/mirova_monitor.py todo        # actualizar + graficar + resumen
 python mirova/mirova_monitor.py --volcanes Villarrica,355100 actualizar
-python mirova/mirova_monitor.py graficar --dias 30 365
+python mirova/mirova_monitor.py graficar --dias 30 365 0   # 0 = toda la serie
 python mirova/mirova_monitor.py resumen --dias 30
 python -m unittest mirova/pruebas.py        # pruebas sin red
 ```
@@ -72,10 +73,15 @@ extender la serie hacia atrás hay tres vías, de mejor a peor:
    python mirova/mirova_monitor.py --volcanes Villarrica importar --formato mirova Villarrica.csv
    ```
 
-   El importador reconoce las columnas por nombre (fecha UTC, VRP en W,
-   sensor como código 1 a 4 o como nombre, distancia en m) y convierte a MW
-   y km. Ese archivo contiene sólo detecciones, no observaciones sin
-   anomalía, y la versión 1 es sólo nocturna.
+   El importador reconoce las columnas de la exportación "Raw data"
+   (`timeUTC`, `Satellite` 1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20; `Resolution`
+   1000, 750 o 375; `VRP` en W; `Max_Dist` en m; `Dayflag`) y convierte a MW y
+   km. Ese archivo contiene sólo detecciones, no observaciones sin anomalía,
+   incluye pasadas diurnas (`Dayflag` 1) y en la versión actual termina en
+   marzo de 2025. Para Nevados de Chillán ya está cargado: 4 531 detecciones
+   de enero de 2008 a marzo de 2025, con el CSV original guardado en
+   `fuentes/` para reproducibilidad. Queda un hueco sin datos entre marzo de
+   2025 y el 10 de enero de 2026, que ninguna de las fuentes públicas cubre.
 2. **Registro público del proyecto MendozaVolcanic/Mirova-v1.** Lecturas de
    `latest.php` para los 11 volcanes chilenos desde el 10 de enero de 2026,
    con el mismo significado que las nuestras. Ya está cargado en este

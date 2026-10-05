@@ -1,4 +1,4 @@
-# Resumen MIROVA (2026-10-05 14:26 UTC)
+# Resumen MIROVA (2026-10-05 14:31 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
@@ -43,7 +43,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357040
 
 ## Nevados de Chillan (ID 357070)
-- Lecturas acumuladas: 3892; en la ventana: 514.
+- Lecturas acumuladas: 8423; en la ventana: 514.
 - Última anomalía dentro de 5 km: 2026-10-05T07:50:00 UTC, 3.5 MW (MODIS).
 - Máximo de la ventana: 7.86 MW el 2026-10-05T05:48:02 UTC, intensidad baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 7.

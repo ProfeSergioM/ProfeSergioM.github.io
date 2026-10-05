@@ -500,10 +500,12 @@ SENSOR_ARCHIVO = {"1": "MODIS", "2": "MODIS", "3": "VIIRS750", "4": "VIIRS750", 
 
 
 def _leer_archivo_mirova(ruta: Path) -> list[dict]:
-    """CSV de un solo volcán exportado del MIROVA Dataset (v1 o v2.5). Las columnas
-    se reconocen por nombre: fecha (UTC/Date), VRP (en W salvo que el encabezado
-    diga MW), Sensor (código numérico o nombre), distancia (m salvo que diga km)
-    y, si existe, resolución (375/750) para separar los productos VIIRS."""
+    """CSV de un solo volcán exportado del MIROVA Dataset (Explore_Archive.php,
+    "Raw data"). Encabezado real (v2.5): id, timeUTC, IDvolc, Dayflag, Satellite
+    (1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20), Resolution (1000/750/375), SatZen,
+    SatAzi, Npix, Tot_Lmir_hot, Tot_Lmir_bk, VRP (W), LAT, LON, Max_Dist (m),
+    Volc_Name, Volc_LAT, Volc_LON, class. Las columnas se reconocen por nombre
+    para tolerar la versión 1 (UTC, Sensor, Dist) y variantes en MW o km."""
     with ruta.open(encoding="utf-8", errors="replace", newline="") as f:
         muestra = f.read(4096)
         f.seek(0)
@@ -690,7 +692,13 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
         filas = leer_csv(ruta_csv(raiz, v))
         fig, ejes = plt.subplots(1, len(dias), figsize=(7.5 * len(dias), 5.2), squeeze=False)
         for eje, d in zip(ejes[0], dias):
-            ventana = _ventana(filas, d, ahora)
+            if d <= 0:  # 0 = toda la serie disponible
+                ventana = filas
+                d = max(1, (ahora - min(r["fecha"] for r in filas)).days + 1) if filas else 365
+                etiqueta_x = "Fecha (UTC), serie completa"
+            else:
+                ventana = _ventana(filas, d, ahora)
+                etiqueta_x = f"Fecha (UTC), últimos {d} días"
             piso = 0.01  # MW: donde se dibujan las observaciones sin anomalía
             for sensor, est in ESTILO_SENSOR.items():
                 pts = [r for r in ventana if r["sensor"] == sensor]
@@ -713,7 +721,7 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
             eje.set_xlim(ahora - timedelta(days=d), ahora)
             eje.axhline(piso, color="0.55", linewidth=0.8, linestyle=":")
             eje.set_ylabel(r"$\mathrm{VRP}\ [\mathrm{MW}]$")
-            eje.set_xlabel(f"Fecha (UTC), últimos {d} días")
+            eje.set_xlabel(etiqueta_x)
             eje.grid(True, which="major", alpha=0.3)
             eje.grid(True, which="minor", axis="y", alpha=0.12)
             loc = mdates.AutoDateLocator(minticks=4, maxticks=7)
@@ -755,7 +763,7 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--html-local", type=Path, help="(pruebas) leer latest.php desde un archivo en vez de la red")
 
     g = sub.add_parser("graficar", help="generar series temporales propias")
-    g.add_argument("--dias", nargs="+", type=int, default=[30, 365])
+    g.add_argument("--dias", nargs="+", type=int, default=[30, 365, 0], help="ventanas en días; 0 = toda la serie")
 
     r = sub.add_parser("resumen", help="resumen por volcán (estado.json y resumen.md)")
     r.add_argument("--dias", type=int, default=30)
@@ -767,7 +775,7 @@ def main(argv: list[str] | None = None) -> int:
     t = sub.add_parser("todo", help="actualizar + graficar + resumen")
     t.add_argument("--sin-imagenes", action="store_true")
     t.add_argument("--archivar-imagenes", action="store_true")
-    t.add_argument("--dias", nargs="+", type=int, default=[30, 365])
+    t.add_argument("--dias", nargs="+", type=int, default=[30, 365, 0], help="ventanas en días; 0 = toda la serie")
 
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verboso else logging.INFO,
@@ -792,7 +800,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "todo":
         cmd_actualizar(raiz, volcanes, con_imagenes=not args.sin_imagenes, archivar=args.archivar_imagenes)
         cmd_graficar(raiz, volcanes, args.dias)
-        cmd_resumen(raiz, volcanes, max(min(args.dias), 1))
+        cmd_resumen(raiz, volcanes, min([d for d in args.dias if d > 0] or [30]))
     return 0
 
 

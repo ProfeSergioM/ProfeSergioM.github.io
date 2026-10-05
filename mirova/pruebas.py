@@ -126,6 +126,25 @@ class Integracion(unittest.TestCase):
         with self.assertRaises(SystemExit):
             mm.cmd_importar(self.tmp, mm.elegir_volcanes(self.todos, self.seg, ["Lascar", "Isluga"]), "mirova", csv_ext)
 
+    def test_importar_archivo_mirova_v25(self):
+        """Encabezado real de la exportación 'Raw data' de Explore_Archive.php."""
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Nevados de Chillan"])
+        csv_ext = self.tmp / "raw.csv"
+        csv_ext.write_text(
+            "id,timeUTC,IDvolc,Dayflag,Satellite,Resolution,SatZen,SatAzi,Npix,Tot_Lmir_hot,Tot_Lmir_bk,VRP,LAT,LON,Max_Dist,Volc_Name,Volc_LAT,Volc_LON,class\n"
+            '64430,"2008-01-17 03:45:01",357070,0,1,1000,16.9,-100.8,1,0.287,0.251,673713.8,-36.863,-71.376,0,"Chillán, Nevados de",-36.863,-71.377,1\n'
+            '69413,"2025-03-05 05:30:03",357070,0,3,375,19.5,102.6,4,1.678,0.765,2310759.3,-36.835,-71.521,13463.5,"Chillán, Nevados de",-36.863,-71.377,1\n'
+            '69000,"2021-07-01 05:00:00",357070,1,4,750,10.0,100.0,2,0.5,0.3,15000000,-36.863,-71.377,1414.21,"Chillán, Nevados de",-36.863,-71.377,1\n', encoding="utf-8")
+        r = mm.cmd_importar(self.tmp, volcanes, "mirova", csv_ext)
+        self.assertEqual(r["Nevados de Chillan"]["agregadas"], 3)
+        filas = {f["fecha_utc"]: f for f in mm.leer_csv(self.tmp / "datos" / "Nevados_de_Chillan.csv")}
+        f = filas["2008-01-17T03:45:01"]
+        self.assertEqual((f["sensor"], round(f["vrp_mw"], 4), f["distancia_km"], f["clasificacion"]), ("MODIS", 0.6737, 0.0, "muy baja"))
+        f = filas["2025-03-05T05:30:03"]
+        self.assertEqual((f["sensor"], round(f["distancia_km"], 2), f["dentro_radio"], f["clasificacion"]), ("VIIRS375", 13.46, False, "fuera de radio"))
+        f = filas["2021-07-01T05:00:00"]
+        self.assertEqual((f["sensor"], f["vrp_mw"], f["clasificacion"], f["origen"]), ("VIIRS750", 15.0, "moderada", "mirova-archivo"))
+
     def test_volcan_desconocido(self):
         with self.assertRaises(SystemExit):
             mm.elegir_volcanes(self.todos, self.seg, ["Vesubio"])
