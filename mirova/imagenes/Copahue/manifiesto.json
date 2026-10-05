@@ -1,0 +1,38 @@
+{
+ "Copahue_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:30:24 GMT",
+  "bytes": 111275,
+  "capturado_utc": "2026-10-05T14:25:52"
+ },
+ "Copahue_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:30:26 GMT",
+  "bytes": 143380,
+  "capturado_utc": "2026-10-05T14:25:53"
+ },
+ "Copahue_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 12:30:34 GMT",
+  "bytes": 113259,
+  "capturado_utc": "2026-10-05T14:25:54"
+ },
+ "Copahue_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 11:21:53 GMT",
+  "bytes": 99814,
+  "capturado_utc": "2026-10-05T14:25:55"
+ },
+ "Copahue_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:15:49 GMT",
+  "bytes": 250349,
+  "capturado_utc": "2026-10-05T14:25:56"
+ },
+ "Copahue_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:30:15 GMT",
+  "bytes": 403277,
+  "capturado_utc": "2026-10-05T14:25:58"
+ }
+}

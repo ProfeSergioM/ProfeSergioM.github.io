@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-05T14:24:13",
+ "generado_utc": "2026-10-05T14:26:30",
  "dias_ventana": 30,
  "volcanes": {
   "Isluga": {
@@ -38,7 +38,14 @@
      "lecturas": 923
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Isluga_COMB_Dist.png",
+    "Isluga_COMB_VRP.png",
+    "Isluga_COMB_logVRP.png",
+    "Isluga_MODIS_Latest10NTI.png",
+    "Isluga_VIIRS375_Latest10NTI.png",
+    "Isluga_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Isluga_serie.png"
   },
   "Lascar": {
@@ -123,7 +130,14 @@
      "lecturas": 965
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Lastarria_COMB_Dist.png",
+    "Lastarria_COMB_VRP.png",
+    "Lastarria_COMB_logVRP.png",
+    "Lastarria_MODIS_Latest10NTI.png",
+    "Lastarria_VIIRS375_Latest10NTI.png",
+    "Lastarria_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Lastarria_serie.png"
   },
   "Tupungatito": {
@@ -162,7 +176,14 @@
      "lecturas": 952
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Tupungatito_COMB_Dist.png",
+    "Tupungatito_COMB_VRP.png",
+    "Tupungatito_COMB_logVRP.png",
+    "Tupungatito_MODIS_Latest10NTI.png",
+    "Tupungatito_VIIRS375_Latest10NTI.png",
+    "Tupungatito_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Tupungatito_serie.png"
   },
   "Planchon-Peteroa": {
@@ -201,7 +222,14 @@
      "lecturas": 1108
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Planchon_Peteroa_COMB_Dist.png",
+    "Planchon_Peteroa_COMB_VRP.png",
+    "Planchon_Peteroa_COMB_logVRP.png",
+    "Planchon_Peteroa_MODIS_Latest10NTI.png",
+    "Planchon_Peteroa_VIIRS375_Latest10NTI.png",
+    "Planchon_Peteroa_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Planchon_Peteroa_serie.png"
   },
   "Nevados de Chillan": {
@@ -286,7 +314,14 @@
      "lecturas": 1136
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Copahue_COMB_Dist.png",
+    "Copahue_COMB_VRP.png",
+    "Copahue_COMB_logVRP.png",
+    "Copahue_MODIS_Latest10NTI.png",
+    "Copahue_VIIRS375_Latest10NTI.png",
+    "Copahue_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Copahue_serie.png"
   },
   "Llaima": {
@@ -325,7 +360,14 @@
      "lecturas": 1143
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Llaima_COMB_Dist.png",
+    "Llaima_COMB_VRP.png",
+    "Llaima_COMB_logVRP.png",
+    "Llaima_MODIS_Latest10NTI.png",
+    "Llaima_VIIRS375_Latest10NTI.png",
+    "Llaima_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Llaima_serie.png"
   },
   "Villarrica": {
@@ -410,7 +452,14 @@
      "lecturas": 1182
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Puyehue_Cordon_Caulle_COMB_Dist.png",
+    "Puyehue_Cordon_Caulle_COMB_VRP.png",
+    "Puyehue_Cordon_Caulle_COMB_logVRP.png",
+    "Puyehue_Cordon_Caulle_MODIS_Latest10NTI.png",
+    "Puyehue_Cordon_Caulle_VIIRS375_Latest10NTI.png",
+    "Puyehue_Cordon_Caulle_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Puyehue_Cordon_Caulle_serie.png"
   },
   "Chaiten": {
@@ -449,7 +498,14 @@
      "lecturas": 1494
     }
    },
-   "figuras": [],
+   "figuras": [
+    "Chaiten_COMB_Dist.png",
+    "Chaiten_COMB_VRP.png",
+    "Chaiten_COMB_logVRP.png",
+    "Chaiten_MODIS_Latest10NTI.png",
+    "Chaiten_VIIRS375_Latest10NTI.png",
+    "Chaiten_VIIRS750_Latest10NTI.png"
+   ],
    "grafico": "graficos/Chaiten_serie.png"
   }
  }

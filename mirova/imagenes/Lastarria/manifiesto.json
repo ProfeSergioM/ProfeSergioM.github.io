@@ -1,0 +1,38 @@
+{
+ "Lastarria_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:26:56 GMT",
+  "bytes": 144936,
+  "capturado_utc": "2026-10-05T14:25:26"
+ },
+ "Lastarria_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:27:03 GMT",
+  "bytes": 160320,
+  "capturado_utc": "2026-10-05T14:25:27"
+ },
+ "Lastarria_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 12:27:15 GMT",
+  "bytes": 128716,
+  "capturado_utc": "2026-10-05T14:25:29"
+ },
+ "Lastarria_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Lastarria/Lastarria_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 09:59:38 GMT",
+  "bytes": 96480,
+  "capturado_utc": "2026-10-05T14:25:30"
+ },
+ "Lastarria_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Lastarria/Lastarria_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:12:21 GMT",
+  "bytes": 240169,
+  "capturado_utc": "2026-10-05T14:25:31"
+ },
+ "Lastarria_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Lastarria/Lastarria_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:26:42 GMT",
+  "bytes": 384378,
+  "capturado_utc": "2026-10-05T14:25:32"
+ }
+}

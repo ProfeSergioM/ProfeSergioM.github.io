@@ -1,0 +1,38 @@
+{
+ "Planchon_Peteroa_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 14:11:04 GMT",
+  "bytes": 124918,
+  "capturado_utc": "2026-10-05T14:25:40"
+ },
+ "Planchon_Peteroa_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 14:11:12 GMT",
+  "bytes": 160988,
+  "capturado_utc": "2026-10-05T14:25:41"
+ },
+ "Planchon_Peteroa_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 14:11:21 GMT",
+  "bytes": 124202,
+  "capturado_utc": "2026-10-05T14:25:42"
+ },
+ "Planchon_Peteroa_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 14:10:47 GMT",
+  "bytes": 103200,
+  "capturado_utc": "2026-10-05T14:25:43"
+ },
+ "Planchon_Peteroa_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:13:35 GMT",
+  "bytes": 243292,
+  "capturado_utc": "2026-10-05T14:25:44"
+ },
+ "Planchon_Peteroa_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:28:06 GMT",
+  "bytes": 399926,
+  "capturado_utc": "2026-10-05T14:25:45"
+ }
+}

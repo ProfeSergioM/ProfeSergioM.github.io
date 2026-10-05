@@ -1,0 +1,38 @@
+{
+ "Puyehue_Cordon_Caulle_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:38:19 GMT",
+  "bytes": 126482,
+  "capturado_utc": "2026-10-05T14:26:12"
+ },
+ "Puyehue_Cordon_Caulle_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:38:24 GMT",
+  "bytes": 154371,
+  "capturado_utc": "2026-10-05T14:26:13"
+ },
+ "Puyehue_Cordon_Caulle_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 12:38:39 GMT",
+  "bytes": 114082,
+  "capturado_utc": "2026-10-05T14:26:14"
+ },
+ "Puyehue_Cordon_Caulle_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 11:25:56 GMT",
+  "bytes": 95916,
+  "capturado_utc": "2026-10-05T14:26:15"
+ },
+ "Puyehue_Cordon_Caulle_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:22:02 GMT",
+  "bytes": 234770,
+  "capturado_utc": "2026-10-05T14:26:16"
+ },
+ "Puyehue_Cordon_Caulle_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:38:06 GMT",
+  "bytes": 385272,
+  "capturado_utc": "2026-10-05T14:26:17"
+ }
+}

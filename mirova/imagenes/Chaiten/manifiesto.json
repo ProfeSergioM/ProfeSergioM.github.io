@@ -1,0 +1,38 @@
+{
+ "Chaiten_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:39:48 GMT",
+  "bytes": 104053,
+  "capturado_utc": "2026-10-05T14:26:18"
+ },
+ "Chaiten_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:39:51 GMT",
+  "bytes": 138937,
+  "capturado_utc": "2026-10-05T14:26:19"
+ },
+ "Chaiten_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 12:40:00 GMT",
+  "bytes": 105475,
+  "capturado_utc": "2026-10-05T14:26:20"
+ },
+ "Chaiten_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Chaiten/Chaiten_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 11:27:03 GMT",
+  "bytes": 97588,
+  "capturado_utc": "2026-10-05T14:26:21"
+ },
+ "Chaiten_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Chaiten/Chaiten_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:23:21 GMT",
+  "bytes": 221382,
+  "capturado_utc": "2026-10-05T14:26:22"
+ },
+ "Chaiten_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Chaiten/Chaiten_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:39:30 GMT",
+  "bytes": 366915,
+  "capturado_utc": "2026-10-05T14:26:23"
+ }
+}

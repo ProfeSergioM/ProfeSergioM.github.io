@@ -1,0 +1,38 @@
+{
+ "Llaima_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_VRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:31:38 GMT",
+  "bytes": 103995,
+  "capturado_utc": "2026-10-05T14:25:59"
+ },
+ "Llaima_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_logVRP.png",
+  "last_modified": "Mon, 05 Oct 2026 12:31:44 GMT",
+  "bytes": 133720,
+  "capturado_utc": "2026-10-05T14:26:00"
+ },
+ "Llaima_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_Dist.png",
+  "last_modified": "Mon, 05 Oct 2026 12:31:57 GMT",
+  "bytes": 107203,
+  "capturado_utc": "2026-10-05T14:26:01"
+ },
+ "Llaima_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Llaima/Llaima_MODIS_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 11:23:13 GMT",
+  "bytes": 97691,
+  "capturado_utc": "2026-10-05T14:26:02"
+ },
+ "Llaima_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Llaima/Llaima_VIIRS750_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:16:54 GMT",
+  "bytes": 225278,
+  "capturado_utc": "2026-10-05T14:26:03"
+ },
+ "Llaima_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Llaima/Llaima_VIIRS375_Latest10NTI.png",
+  "last_modified": "Mon, 05 Oct 2026 12:31:24 GMT",
+  "bytes": 380376,
+  "capturado_utc": "2026-10-05T14:26:04"
+ }
+}
