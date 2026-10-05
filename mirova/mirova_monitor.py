@@ -944,7 +944,7 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
             asas.append(Line2D([], [], linestyle=(0, (4, 2)), linewidth=2.2, color="0.35", marker="D", markersize=7,
                                markerfacecolor="0.6", markeredgecolor="0.3", label="FIRMS (FRP, no VRP) y su tendencia"))
         asas.append(Line2D([], [], linestyle="none", marker="o", markerfacecolor="none", markeredgecolor="0.3",
-                           markersize=9, label=f"Fuera de {v.limite_km:g} km del cráter"))
+                           markersize=9, label=f"No atribuida al volcán (a más de {v.limite_km:g} km o descartada por MIROVA)"))
         asas.append(Line2D([], [], linestyle="none", marker="|", color="0.55", markersize=10,
                            markeredgewidth=1.2, label="Observación sin anomalía"))
         fig.legend(handles=asas, loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1.0),
