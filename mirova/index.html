@@ -80,7 +80,7 @@
   <h2>Serie temporal</h2>
   <div class="leyenda">
     <span class="modis">MODIS (1 km)</span><span class="viirs750">VIIRS 750 m</span><span class="viirs375">VIIRS 375 m</span>
-    <span class="fuera">Fuera del radio del cráter</span><span class="nulo">Observación sin anomalía (en la línea inferior)</span>
+    <span class="fuera">No atribuida al volcán (lejos del cráter o descartada por MIROVA)</span><span class="nulo">Observación sin anomalía (en la línea inferior)</span>
     <span class="linea-sensor">Tendencia por sensor</span><span class="linea-general">Tendencia general</span>
     <span class="firms" id="leyenda-firms" hidden>FIRMS (FRP, no VRP): rombos con el color del sensor y tendencia gris discontinua</span>
     <span class="nota">Tendencias: mediana móvil del log de VRP, ventana de <b id="ancho-mediana">7</b> días, solo detecciones dentro del radio.</span>
@@ -89,7 +89,7 @@
 
   <h2>Últimas lecturas</h2>
   <div class="tabla-env"><table id="tabla"><thead><tr>
-    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th><th>Magnitud</th><th>Origen</th>
+    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Atribuida al volcán</th><th>Intensidad</th><th>Magnitud</th><th>Origen</th>
   </tr></thead><tbody></tbody></table></div>
 
   <h2>Figuras oficiales de MIROVA</h2>
@@ -273,7 +273,7 @@
 
   function dibujarTabla() {
     const ult = filas.slice(-25).reverse();
-    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td><td>${r.origen === 'firms' ? 'FRP' : 'VRP'}</td><td>${r.origen}</td></tr>`).join('')
+    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : (r.clas === 'no volcanica' ? 'no (MIROVA: no volcánica)' : 'no')) : ''}</td><td>${r.clas}</td><td>${r.origen === 'firms' ? 'FRP' : 'VRP'}</td><td>${r.origen}</td></tr>`).join('')
       || '<tr><td colspan="8">Sin lecturas todavía.</td></tr>';
   }
 

@@ -14,10 +14,10 @@ hora y deja el resultado publicado en
 
 | Salida | Contenido |
 | --- | --- |
-| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato (`latest.php`, `mirova-archivo` o `firms`). Nunca se duplican filas. |
+| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad, el origen del dato (`latest.php`, `mirova-archivo` o `firms`) y la etiqueta `class` de MIROVA cuando existe. Nunca se duplican filas. |
 | `datos/estado.json`, `datos/resumen.md` | Resumen por volcán: última anomalía, máximo de la ventana, tendencia y conteos. |
 | `graficos/<Volcan>_serie.png` | Serie temporal propia, tres paneles (30 días, 1 año y serie completa), escala logarítmica, un marcador por sensor, con líneas de tendencia por sensor y general. |
-| `fuentes/` | Exportaciones originales del MIROVA Dataset cargadas con `importar` (licencia CC BY 4.0, Universidad de Turín). |
+| `fuentes/` | Subconjunto chileno del MIROVA Dataset v2.5 de OSF cargado con `importar` (licencia CC BY 4.0, Universidad de Turín; DOI 10.17605/OSF.IO/ZM62W). |
 | `imagenes/<Volcan>/*.png` | Copias locales de las figuras oficiales de MIROVA (VRP, log VRP, distancia, últimas 10 detecciones). Se descargan sólo cuando cambian. |
 | `index.html` | Panel web interactivo que lee los CSV y muestra la serie, las últimas lecturas y las figuras oficiales. |
 
@@ -81,15 +81,30 @@ extender la serie hacia atrás hay tres vías:
    python mirova/mirova_monitor.py --volcanes Villarrica importar Villarrica_MIROVA_Raw_data.csv
    ```
 
-   El importador reconoce las columnas de la exportación "Raw data"
-   (`timeUTC`, `Satellite` 1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20; `Resolution`
-   1000, 750 o 375; `VRP` en W; `Max_Dist` en m; `Dayflag`) y convierte a MW y
-   km. Ese archivo contiene sólo detecciones, no observaciones sin anomalía,
-   incluye pasadas diurnas (`Dayflag` 1) y en la versión actual termina en
-   marzo de 2025. Para Nevados de Chillán ya está cargado: 4 531 detecciones
-   de enero de 2008 a marzo de 2025, con el CSV original guardado en
-   `fuentes/` para reproducibilidad. Queda un hueco sin datos entre marzo de
-   2025 y el inicio de este monitor, el 5 de octubre de 2026.
+   El importador reconoce las columnas del archivo (`timeUTC`, `IDvolc`,
+   `Satellite` 1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20; `Resolution` 1000, 750 o
+   375; `VRP` en W; `Max_Dist` en m; `Dayflag`; `class`) y convierte a MW y
+   km. Sirve tanto para la exportación de un volcán del panel web como para
+   el archivo global `VRP_GLOBAL_ARCHIVE_2025.csv` de OSF, que trae los 170
+   volcanes y se filtra por `IDvolc`. Ese archivo contiene sólo detecciones,
+   no observaciones sin anomalía, e incluye pasadas diurnas (`Dayflag` 1).
+
+   **Ya está cargado** el archivo OSF v2.5 (versión de febrero de 2026, que
+   llega hasta diciembre de 2025) para los diez volcanes chilenos que
+   contiene; Tupungatito no está entre los 170 del archivo. El subconjunto
+   chileno (48 360 filas) queda en `fuentes/VRP_GLOBAL_ARCHIVE_2025_Chile.csv`
+   para reproducibilidad. Entre diciembre de 2025 y el inicio de este monitor
+   (5 de octubre de 2026) no hay datos de MIROVA; FIRMS cubre ese tramo.
+
+   **Etiqueta `class`.** MIROVA clasifica automáticamente cada detección como
+   volcánica (1) o no volcánica (0, por ejemplo incendios), y el panel web de
+   MIROVA exporta por defecto sólo las de clase 1. Aquí se cargan ambas y la
+   etiqueta se guarda en la columna `clase_mirova`. Una detección de clase 0
+   nunca se atribuye al volcán aunque esté dentro del radio: queda con
+   `dentro_radio = 0` y clasificación "no volcanica", se dibuja hueca y no
+   entra en tendencias ni conteos. La columna `dentro_radio` significa, en
+   rigor, "anomalía atribuida al volcán": a menos de `limite_km` del cráter y
+   no descartada por MIROVA.
 2. **NASA FIRMS, independiente de MIROVA.** Entrega cada píxel activo de
    MODIS (desde 2000) y VIIRS en S-NPP, NOAA-20 y NOAA-21 (375 m, desde 2012)
    con su potencia radiativa (FRP, en MW), para cualquier área y fecha, sin

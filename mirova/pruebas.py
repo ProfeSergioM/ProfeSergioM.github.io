@@ -135,6 +135,28 @@ class Integracion(unittest.TestCase):
         f = filas["2021-07-01T05:00:00"]
         self.assertEqual((f["sensor"], f["vrp_mw"], f["clasificacion"], f["origen"]), ("VIIRS750", 15.0, "moderada", "mirova-archivo"))
 
+    def test_importar_archivo_global_osf(self):
+        """VRP_GLOBAL_ARCHIVE_2025.csv de OSF: varios volcanes, fecha dd/mm/aaaa HH:MM, class 0 y 1, fechas NULL."""
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Lascar", "Villarrica", "Isluga"])
+        csv_ext = self.tmp / "VRP_GLOBAL_ARCHIVE_2025.csv"
+        csv_ext.write_text(
+            "id,timeUTC,IDvolc,Dayflag,Satellite,Resolution,SatZen,SatAzi,Npix,Tot_Lmir_hot,Tot_Lmir_bk,VRP,LAT,LON,Max_Dist,Volc_Name,Volc_LAT,Volc_LON,class\n"
+            "1,25/02/2000 03:10,355100,0,1,1000,10,10,2,0.5,0.4,2500000,-23.37,-67.73,1000,Lascar,-23.369,-67.732,1\n"
+            "2,13/12/2025 05:30,355100,0,4,375,10,10,1,0.3,0.2,80000,-23.37,-67.73,2900,Lascar,-23.369,-67.732,0\n"
+            "3,NULL,355100,0,4,375,10,10,1,0.3,0.2,80000,-23.37,-67.73,0,Lascar,-23.369,-67.732,1\n"
+            "4,02/04/2000 04:00,357120,0,2,1000,10,10,1,0.3,0.2,900000,-39.42,-71.93,0,Villarrica,-39.42,-71.93,1\n"
+            "5,02/04/2000 04:00,264020,0,2,1000,10,10,1,0.3,0.2,900000,-8.34,115.5,0,Agung,-8.342,115.508,1\n", encoding="utf-8")
+        r = mm.cmd_importar(self.tmp, volcanes, csv_ext)
+        self.assertEqual((r["Lascar"]["agregadas"], r["Villarrica"]["agregadas"], r["Isluga"]["agregadas"]), (2, 1, 0))
+        las = {f["fecha_utc"]: f for f in mm.leer_csv(self.tmp / "datos" / "Lascar.csv")}
+        f = las["2000-02-25T03:10:00"]
+        self.assertEqual((f["sensor"], f["vrp_mw"], f["dentro_radio"], f["clasificacion"], f["clase_mirova"]), ("MODIS", 2.5, True, "baja", "1"))
+        f = las["2025-12-13T05:30:00"]
+        self.assertEqual((f["sensor"], f["distancia_km"], f["dentro_radio"], f["clasificacion"], f["clase_mirova"]), ("VIIRS375", 2.9, False, "no volcanica", "0"),
+                         "a 2.9 km pero marcada no volcánica por MIROVA: no se atribuye al volcán")
+        estado = mm.cmd_resumen(self.tmp, volcanes, 20000)
+        self.assertEqual(estado["volcanes"]["Lascar"]["anomalias_ventana"], 1)
+
     def test_distancia_haversine(self):
         # Villarrica (-39.42, -71.93) a Llaima (-38.692, -71.729): unos 83 km.
         self.assertAlmostEqual(mm.distancia_km(-39.42, -71.93, -38.692, -71.729), 82.7, delta=1.5)

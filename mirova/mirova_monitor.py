@@ -113,6 +113,7 @@ COLUMNAS = [
     "clasificacion",    # escala logarítmica de Coppola et al. (2016)
     "capturado_utc",    # cuándo lo leyó este monitor
     "origen",           # latest.php | mirova-archivo | firms (FRP, no VRP)
+    "clase_mirova",     # etiqueta class del archivo MIROVA: 1 volcánica, 0 no volcánica, vacío si no aplica
 ]
 
 FORMATOS_FECHA = (
@@ -121,6 +122,7 @@ FORMATOS_FECHA = (
     "%Y-%m-%d %H:%M:%S",
     "%Y-%m-%dT%H:%M:%S",
     "%d/%m/%Y %H:%M:%S",
+    "%d/%m/%Y %H:%M",
 )
 
 log = logging.getLogger("mirova")
@@ -343,6 +345,7 @@ def leer_csv(ruta: Path) -> list[dict]:
             r["distancia_km"] = float("nan")
         r["dentro_radio"] = r["dentro_radio"] == "1"
         r.setdefault("origen", "latest.php")
+        r.setdefault("clase_mirova", "")
     return filas
 
 
@@ -369,7 +372,11 @@ def integrar(v: Volcan, nuevos: list[dict], existentes: list[dict], ahora: datet
             continue
         claves.add(clave)
         dist = n["distancia_km"]
-        dentro = (dist == dist) and dist <= v.limite_km  # dist == dist descarta NaN
+        clase = n.get("clase", "")
+        no_volcanica = clase == "0"
+        # dentro_radio = 1 significa "anomalía atribuida al volcán": a menos de
+        # limite_km del cráter y no marcada como no volcánica por MIROVA.
+        dentro = (dist == dist) and dist <= v.limite_km and not no_volcanica  # dist == dist descarta NaN
         salida.append(
             {
                 "fecha_utc": fecha_utc,
@@ -379,9 +386,11 @@ def integrar(v: Volcan, nuevos: list[dict], existentes: list[dict], ahora: datet
                 "vrp_mw": f"{n['vrp_mw']:.4g}",
                 "distancia_km": "" if dist != dist else f"{dist:.2f}",
                 "dentro_radio": "1" if dentro else "0",
-                "clasificacion": clasificar(n["vrp_mw"]) if dentro or n["vrp_mw"] <= 0 else "fuera de radio",
+                "clasificacion": ("no volcanica" if no_volcanica and n["vrp_mw"] > 0 else
+                                  clasificar(n["vrp_mw"]) if dentro or n["vrp_mw"] <= 0 else "fuera de radio"),
                 "capturado_utc": ahora.strftime("%Y-%m-%dT%H:%M:%S"),
                 "origen": origen,
+                "clase_mirova": clase,
             }
         )
         agregados += 1
@@ -497,13 +506,16 @@ def cmd_actualizar(raiz: Path, volcanes: list[Volcan], *, con_imagenes: bool, ar
 SENSOR_ARCHIVO = {"1": "MODIS", "2": "MODIS", "3": "VIIRS750", "4": "VIIRS750", "5": "VIIRS750"}
 
 
-def _leer_archivo_mirova(ruta: Path) -> list[dict]:
+def _leer_archivo_mirova(ruta: Path, volcano_id: str | None = None) -> list[dict]:
     """CSV de un solo volcán exportado del MIROVA Dataset (Explore_Archive.php,
     "Raw data"). Encabezado real (v2.5): id, timeUTC, IDvolc, Dayflag, Satellite
     (1 Terra, 2 Aqua, 3 SNPP, 4 NOAA-20), Resolution (1000/750/375), SatZen,
     SatAzi, Npix, Tot_Lmir_hot, Tot_Lmir_bk, VRP (W), LAT, LON, Max_Dist (m),
     Volc_Name, Volc_LAT, Volc_LON, class. Las columnas se reconocen por nombre
-    para tolerar la versión 1 (UTC, Sensor, Dist) y variantes en MW o km."""
+    para tolerar la versión 1 (UTC, Sensor, Dist) y variantes en MW o km.
+    El archivo global de OSF (VRP_GLOBAL_ARCHIVE_2025.csv) trae todos los
+    volcanes: si hay columna IDvolc y se indica `volcano_id`, se filtra por él.
+    La etiqueta `class` (1 volcánica, 0 no volcánica) se conserva."""
     with ruta.open(encoding="utf-8", errors="replace", newline="") as f:
         muestra = f.read(4096)
         f.seek(0)
@@ -526,12 +538,16 @@ def _leer_archivo_mirova(ruta: Path) -> list[dict]:
         c_dist = col("dist")
         c_res = col("resol", "pixel", "res_")
         c_dia = col("dayflag", "day")
+        c_id = col("idvolc", "volcano_id", "vnum")
+        c_clase = next((c for c, l in cab.items() if l == "class"), None)
         if c_fecha is None or c_vrp is None:
             raise SystemExit(f"No reconozco las columnas de {ruta.name}: {lector.fieldnames}")
         vrp_en_mw = "mw" in cab[c_vrp]
         dist_en_km = c_dist is not None and "km" in cab[c_dist]
         registros = []
         for r in lector:
+            if volcano_id and c_id and (r.get(c_id) or "").split(".")[0].strip() != volcano_id:
+                continue
             fecha = _parsear_fecha(r[c_fecha])
             vrp = _numero(r[c_vrp] or "")
             if fecha is None or vrp is None:
@@ -546,7 +562,8 @@ def _leer_archivo_mirova(ruta: Path) -> list[dict]:
             if dist is not None and not dist_en_km:
                 dist /= 1000.0
             registros.append({"fecha": fecha, "vrp_mw": vrp, "distancia_km": dist if dist is not None else float("nan"),
-                              "sensor": sensor, "dayflag": (r.get(c_dia) or "").strip() if c_dia else ""})
+                              "sensor": sensor, "dayflag": (r.get(c_dia) or "").strip() if c_dia else "",
+                              "clase": (r.get(c_clase) or "").strip().split(".")[0] if c_clase else ""})
     return registros
 
 
@@ -670,16 +687,17 @@ def cmd_importar(raiz: Path, volcanes: list[Volcan], archivo: Path) -> dict:
     del MIROVA Dataset, que es de un solo volcán."""
     ahora = datetime.now(timezone.utc)
     resultado = {}
-    texto = archivo.read_text(encoding="utf-8", errors="replace")
-    cabecera = texto.split("\n", 1)[0].lower()
+    with archivo.open(encoding="utf-8", errors="replace") as f:
+        cabecera = f.readline().lower()
     es_firms = "frp" in cabecera and "acq_date" in cabecera
+    multivolcan = "idvolc" in cabecera
     if es_firms:
-        pixeles = _leer_firms(texto)
+        pixeles = _leer_firms(archivo.read_text(encoding="utf-8", errors="replace"))
         log.info("CSV de FIRMS: %d píxeles", len(pixeles))
-    elif len(volcanes) != 1:
-        raise SystemExit("El archivo MIROVA es de un solo volcán: indica cuál con --volcanes.")
+    elif not multivolcan and len(volcanes) != 1:
+        raise SystemExit("Este archivo MIROVA no trae IDvolc, así que es de un solo volcán: indica cuál con --volcanes.")
     for v in volcanes:
-        nuevos = agrupar_firms(pixeles, v) if es_firms else _leer_archivo_mirova(archivo)
+        nuevos = agrupar_firms(pixeles, v) if es_firms else _leer_archivo_mirova(archivo, v.volcano_id if multivolcan else None)
         origen = "firms" if es_firms else "mirova-archivo"
         agregados, total = _guardar_importados(raiz, v, nuevos, origen, ahora)
         rango = (min(n["fecha"] for n in nuevos).strftime("%Y-%m-%d"), max(n["fecha"] for n in nuevos).strftime("%Y-%m-%d")) if nuevos else ("", "")
