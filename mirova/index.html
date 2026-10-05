@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Seguimiento térmico MIROVA</title>
+<meta name="description" content="Evolución temporal de las anomalías térmicas (VRP) publicadas por MIROVA para los volcanes en seguimiento.">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --fondo: #fcfcfb; --tinta: #1d1d1b; --tinta2: #5a5a56; --borde: #d9d9d4; --panel: #ffffff;
+    --modis: #E69F00; --viirs750: #0072B2; --viirs375: #009E73; --nulo: #8c8c88;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--fondo); color: var(--tinta);
+         font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; line-height: 1.45; }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 28px 0 8px; }
+  p.sub { color: var(--tinta2); margin: 0 0 16px; }
+  .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+  select, button { font: inherit; padding: 6px 10px; border: 1px solid var(--borde); border-radius: 6px; background: var(--panel); color: var(--tinta); cursor: pointer; }
+  button[aria-pressed="true"] { background: var(--tinta); color: var(--fondo); border-color: var(--tinta); }
+  .tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .tarjeta { background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 10px 12px; }
+  .tarjeta .k { font-size: 0.8rem; color: var(--tinta2); text-transform: uppercase; letter-spacing: .03em; }
+  .tarjeta .v { font-size: 1.35rem; font-weight: 600; }
+  .tarjeta .d { font-size: 0.85rem; color: var(--tinta2); }
+  .grafico { background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 8px; height: 420px; }
+  .leyenda { display: flex; flex-wrap: wrap; gap: 14px; font-size: 0.9rem; color: var(--tinta2); margin: 8px 2px; }
+  .leyenda span::before { content: ""; display: inline-block; width: 11px; height: 11px; margin-right: 6px; border: 1.5px solid #000; vertical-align: -1px; }
+  .leyenda .modis::before { background: var(--modis); border-radius: 0; clip-path: polygon(50% 0, 100% 100%, 0 100%); border: none; }
+  .leyenda .viirs750::before { background: var(--viirs750); border-radius: 50%; }
+  .leyenda .viirs375::before { background: var(--viirs375); }
+  .leyenda .fuera::before { background: transparent; border-radius: 50%; border-color: var(--tinta2); }
+  .leyenda .nulo::before { background: var(--nulo); width: 2px; border: none; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; background: var(--panel); }
+  th, td { border-bottom: 1px solid var(--borde); padding: 6px 8px; text-align: left; white-space: nowrap; }
+  th { color: var(--tinta2); font-weight: 600; }
+  .tabla-env { overflow-x: auto; border: 1px solid var(--borde); border-radius: 8px; }
+  .figuras { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .figuras figure { margin: 0; background: var(--panel); border: 1px solid var(--borde); border-radius: 8px; padding: 6px; }
+  .figuras img { width: 100%; height: auto; display: block; }
+  .figuras figcaption { font-size: 0.85rem; color: var(--tinta2); padding: 6px 4px 2px; }
+  .aviso { background: #fff6e0; border: 1px solid #f0d9a0; border-radius: 8px; padding: 10px 12px; margin: 12px 0; }
+  footer { margin: 32px 0 8px; font-size: 0.85rem; color: var(--tinta2); }
+  a { color: var(--viirs750); }
+  @media (max-width: 600px) { .grafico { height: 340px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Seguimiento térmico MIROVA</h1>
+  <p class="sub">Potencia radiativa volcánica (VRP) detectada por MODIS y VIIRS, según publica
+    <a href="https://www.mirovaweb.it" target="_blank" rel="noopener">MIROVA</a> (Universidad de Turín).
+    Los datos se acumulan automáticamente cada 3 horas.</p>
+
+  <div class="fila">
+    <label for="volcan">Volcán</label>
+    <select id="volcan"></select>
+    <span id="ventanas" role="group" aria-label="Ventana temporal">
+      <button data-dias="30" aria-pressed="true">30 días</button>
+      <button data-dias="90" aria-pressed="false">90 días</button>
+      <button data-dias="365" aria-pressed="false">1 año</button>
+      <button data-dias="0" aria-pressed="false">Todo</button>
+    </span>
+    <a id="enlace-mirova" href="#" target="_blank" rel="noopener">Ver en MIROVA</a>
+    <a id="enlace-csv" href="#" download>Descargar CSV</a>
+  </div>
+
+  <div id="aviso" class="aviso" hidden></div>
+
+  <div class="tarjetas" id="tarjetas"></div>
+
+  <h2>Serie temporal</h2>
+  <div class="leyenda">
+    <span class="modis">MODIS (1 km)</span><span class="viirs750">VIIRS 750 m</span><span class="viirs375">VIIRS 375 m</span>
+    <span class="fuera">Fuera del radio del cráter</span><span class="nulo">Observación sin anomalía (en la línea inferior)</span>
+  </div>
+  <div class="grafico"><canvas id="grafico" role="img" aria-label="VRP en escala logarítmica contra el tiempo"></canvas></div>
+
+  <h2>Últimas lecturas</h2>
+  <div class="tabla-env"><table id="tabla"><thead><tr>
+    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th>
+  </tr></thead><tbody></tbody></table></div>
+
+  <h2>Figuras oficiales de MIROVA</h2>
+  <p class="sub">Copias locales de las figuras que MIROVA publica para este volcán (serie combinada de sensores y últimas diez detecciones). Se actualizan cuando MIROVA las regenera.</p>
+  <div class="figuras" id="figuras"></div>
+
+  <footer>Fuente de los datos: MIROVA, Middle InfraRed Observation of Volcanic Activity (Coppola et al., 2016; Universidad de Turín).
+    Este panel es una herramienta de apoyo académico y no reemplaza la información oficial de SERNAGEOMIN ni de MIROVA.</footer>
+</main>
+
+<script>
+(async function () {
+  const $ = (s) => document.querySelector(s);
+  const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const ESTILO = {
+    MODIS:    { color: css('--modis'),    forma: 'triangle', etiqueta: 'MODIS (1 km)' },
+    VIIRS750: { color: css('--viirs750'), forma: 'circle',   etiqueta: 'VIIRS 750 m' },
+    VIIRS375: { color: css('--viirs375'), forma: 'rect',     etiqueta: 'VIIRS 375 m' },
+  };
+  const PISO = 0.01; // MW, donde se dibujan las observaciones sin anomalía
+  const archivo = (nombre) => nombre.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+  const fmtFecha = (ms) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
+
+  const cfg = await fetch('volcanes.json').then(r => r.json());
+  let estado = {};
+  try { estado = await fetch('datos/estado.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}); } catch (e) {}
+  const sel = $('#volcan');
+  for (const v of cfg.volcanes) {
+    const o = document.createElement('option'); o.value = v.nombre; o.textContent = v.nombre; sel.appendChild(o);
+  }
+  const porDefecto = (cfg.seguimiento || [])[0] || cfg.volcanes[0].nombre;
+  sel.value = new URLSearchParams(location.search).get('volcan') || porDefecto;
+
+  let dias = 30, filas = [], chart = null;
+
+  async function cargar() {
+    const v = cfg.volcanes.find(x => x.nombre === sel.value);
+    const ruta = `datos/${archivo(v.nombre)}.csv`;
+    $('#enlace-mirova').href = `https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=${v.volcano_id}`;
+    $('#enlace-csv').href = ruta;
+    history.replaceState(null, '', `?volcan=${encodeURIComponent(v.nombre)}`);
+    filas = [];
+    try {
+      const txt = await fetch(ruta, { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
+      const lineas = txt.trim().split(/\r?\n/);
+      if (lineas.length > 1) {
+        const cab = lineas[0].split(',');
+        filas = lineas.slice(1).map(l => Object.fromEntries(l.split(',').map((c, i) => [cab[i], c])))
+          .map(r => ({ t: Date.parse(r.fecha_utc + 'Z'), sensor: r.sensor, vrp: +r.vrp_mw,
+                       dist: r.distancia_km === '' ? NaN : +r.distancia_km, dentro: r.dentro_radio === '1', clas: r.clasificacion }))
+          .sort((a, b) => a.t - b.t);
+      }
+    } catch (e) {}
+    const aviso = $('#aviso');
+    if (!filas.length) {
+      aviso.hidden = false;
+      aviso.textContent = 'Todavía no hay datos acumulados para este volcán. El flujo automático los irá agregando en cada ejecución; mientras tanto puedes ver la serie oficial en MIROVA.';
+    } else { aviso.hidden = true; }
+    dibujarTarjetas(v); dibujarGrafico(v); dibujarTabla(); dibujarFiguras(v);
+  }
+
+  function ventana() {
+    if (!dias || !filas.length) return filas;
+    const desde = Date.now() - dias * 864e5;
+    return filas.filter(r => r.t >= desde);
+  }
+
+  function dibujarTarjetas(v) {
+    const w = ventana();
+    const anom = w.filter(r => r.vrp > 0 && r.dentro);
+    const ultima = anom.length ? anom[anom.length - 1] : null;
+    const max = anom.length ? anom.reduce((a, b) => (b.vrp > a.vrp ? b : a)) : null;
+    const info = (estado.volcanes || {})[v.nombre] || {};
+    const t = [
+      ['Última anomalía', ultima ? `${ultima.vrp} MW` : 'ninguna', ultima ? `${fmtFecha(ultima.t)} UTC, ${ultima.sensor}` : `en la ventana elegida`],
+      ['Máximo de la ventana', max ? `${max.vrp} MW` : '—', max ? `${fmtFecha(max.t)} UTC, ${max.clas}` : ''],
+      ['Anomalías / lecturas', `${anom.length} / ${w.length}`, `radio de ${v.limite_km} km`],
+      ['Tendencia', info.tendencia || '—', estado.dias_ventana ? `ventana de ${estado.dias_ventana} días` : ''],
+      ['Última actualización', estado.generado_utc ? estado.generado_utc.replace('T', ' ').slice(0, 16) : '—', 'UTC'],
+    ];
+    $('#tarjetas').innerHTML = t.map(([k, val, d]) => `<div class="tarjeta"><div class="k">${k}</div><div class="v">${val}</div><div class="d">${d}</div></div>`).join('');
+  }
+
+  function dibujarGrafico(v) {
+    const w = ventana();
+    const datasets = [];
+    for (const [sensor, e] of Object.entries(ESTILO)) {
+      const pts = w.filter(r => r.sensor === sensor);
+      const dentro = pts.filter(r => r.vrp > 0 && r.dentro), fuera = pts.filter(r => r.vrp > 0 && !r.dentro), nulos = pts.filter(r => r.vrp <= 0);
+      const base = { pointStyle: e.forma, pointRadius: 6, pointHoverRadius: 9, showLine: false, borderWidth: 1.5 };
+      if (dentro.length) datasets.push({ ...base, label: e.etiqueta, data: dentro.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: e.color, borderColor: '#000' });
+      if (fuera.length) datasets.push({ ...base, label: `${e.etiqueta}, fuera de ${v.limite_km} km`, data: fuera.map(r => ({ x: r.t, y: r.vrp, r })), backgroundColor: 'transparent', borderColor: e.color });
+      if (nulos.length) datasets.push({ ...base, label: `${e.etiqueta}, sin anomalía`, pointStyle: 'line', pointRotation: 90, pointRadius: 6, data: nulos.map(r => ({ x: r.t, y: PISO, r })), borderColor: css('--nulo'), backgroundColor: css('--nulo') });
+    }
+    const ahora = Date.now();
+    const xmin = dias ? ahora - dias * 864e5 : (filas.length ? filas[0].t - 864e5 : ahora - 30 * 864e5);
+    const ymax = Math.max(10, ...w.filter(r => r.vrp > 0).map(r => r.vrp)) * 3;
+    if (chart) chart.destroy();
+    chart = new Chart($('#grafico'), {
+      type: 'scatter',
+      data: { datasets },
+      options: {
+        maintainAspectRatio: false, animation: false,
+        scales: {
+          x: { type: 'linear', min: xmin, max: ahora, grid: { color: '#eeeeea' },
+               title: { display: true, text: 'Fecha (UTC)' },
+               ticks: { maxTicksLimit: 8, callback: (ms) => new Date(ms).toISOString().slice(0, 10) } },
+          y: { type: 'logarithmic', min: PISO * 0.6, max: ymax, grid: { color: '#eeeeea' },
+               title: { display: true, text: 'VRP (MW)' },
+               ticks: { callback: (val) => ([0.01, 0.1, 1, 10, 100, 1000, 10000].includes(val) ? (val === PISO ? 'sin anomalía' : val) : '') } },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: (c) => {
+            const r = c.raw.r;
+            return `${fmtFecha(r.t)} UTC · ${r.sensor} · ${r.vrp > 0 ? r.vrp + ' MW' : 'sin anomalía'}${isNaN(r.dist) ? '' : ' · ' + r.dist + ' km del cráter'}`;
+          } } },
+        },
+      },
+    });
+  }
+
+  function dibujarTabla() {
+    const ult = filas.slice(-25).reverse();
+    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td></tr>`).join('')
+      || '<tr><td colspan="6">Sin lecturas todavía.</td></tr>';
+  }
+
+  function dibujarFiguras(v) {
+    const base = `imagenes/${archivo(v.nombre)}/${archivo(v.nombre)}`;
+    const figs = [
+      ['COMB_logVRP', 'Serie VRP (escala logarítmica), sensores combinados'],
+      ['COMB_VRP', 'Serie VRP (escala lineal), sensores combinados'],
+      ['COMB_Dist', 'Distancia de la anomalía al cráter'],
+      ['MODIS_Latest10NTI', 'Últimas 10 detecciones, MODIS'],
+      ['VIIRS750_Latest10NTI', 'Últimas 10 detecciones, VIIRS 750 m'],
+      ['VIIRS375_Latest10NTI', 'Últimas 10 detecciones, VIIRS 375 m'],
+    ];
+    $('#figuras').innerHTML = figs.map(([k, cap]) =>
+      `<figure><img src="${base}_${k}.png" alt="${cap}" loading="lazy" onerror="this.parentElement.remove()"><figcaption>${cap}</figcaption></figure>`).join('');
+  }
+
+  sel.addEventListener('change', cargar);
+  for (const b of document.querySelectorAll('#ventanas button')) {
+    b.addEventListener('click', () => {
+      for (const o of document.querySelectorAll('#ventanas button')) o.setAttribute('aria-pressed', o === b);
+      dias = +b.dataset.dias;
+      const v = cfg.volcanes.find(x => x.nombre === sel.value);
+      dibujarTarjetas(v); dibujarGrafico(v);
+    });
+  }
+  cargar();
+})();
+</script>
+</body>
+</html>
