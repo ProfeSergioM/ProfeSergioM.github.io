@@ -6,8 +6,8 @@ Observation of Volcanic Activity, Universidad de Turín) para uno o más volcane
 La idea central es sencilla: MIROVA sobrescribe sus productos en cada pasada
 satelital y su tabla de últimas detecciones sólo conserva las filas recientes,
 de modo que para ver la evolución de las anomalías hay que ir guardando cada
-lectura a medida que aparece. Un flujo de GitHub Actions hace eso cada tres
-horas y deja el resultado publicado en
+lectura a medida que aparece. Un flujo de GitHub Actions hace eso cada media
+hora y deja el resultado publicado en
 [profesergiom.github.io/mirova](https://profesergiom.github.io/mirova/).
 
 ## Qué produce
@@ -59,17 +59,21 @@ Smithsonian; el `mirova_name` es el texto exacto que aparece en las rutas de
 
 ## Automatización en GitHub
 
-El flujo `.github/workflows/mirova.yml` corre cada tres horas y también a mano
+El flujo `.github/workflows/mirova.yml` corre cada media hora y también a mano
 desde la pestaña Actions (con un campo opcional para indicar los volcanes).
 Instala matplotlib, corre las pruebas, ejecuta `todo` y hace commit de los
-cambios en `datos/`, `imagenes/` y `graficos/`. Necesita que el repositorio
-permita a Actions escribir: Settings, Actions, General, "Workflow permissions",
-"Read and write permissions".
+cambios en `datos/`, `imagenes/` y `graficos/`. El permiso de escritura va
+declarado en el propio workflow (`permissions: contents: write`), así que no
+hace falta cambiar la configuración del repositorio.
 
 ## Limitaciones que conviene conocer
 
-- La tabla `latest.php` sólo muestra detecciones recientes. El histórico previo
-  a la primera ejecución no se recupera desde ahí. Para series largas
+- La tabla `latest.php` muestra sólo la última pasada procesada de cada sensor
+  por volcán. Si MIROVA procesa dos pasadas entre dos consultas, la primera no
+  queda en el CSV; por eso el flujo corre cada media hora. Las figuras
+  oficiales "últimas 10 detecciones" conservan las pasadas intermedias y
+  sirven para contrastar. El histórico previo a la primera ejecución tampoco
+  se recupera desde ahí. Para series largas
   (2000 a 2019) existe la base de datos MIROVA v1 publicada en
   [OSF](https://osf.io/zm62w/), que se puede cargar al CSV con el mismo formato.
 - Un VRP de 0 significa que hubo una observación sin anomalía, no ausencia de

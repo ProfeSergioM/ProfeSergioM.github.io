@@ -5,13 +5,15 @@ name: Seguimiento MIROVA
 # GitHub Pages: https://profesergiom.github.io/mirova/).
 #
 # MIROVA publica cada pasada entre 1 y 4 horas después de la adquisición y
-# latest.php conserva varias filas recientes por volcán, así que correr cada
-# 3 horas es suficiente para no perder detecciones. Si se quiere mayor
-# frecuencia, basta con cambiar el cron (mínimo razonable: cada hora).
+# latest.php muestra sólo la última pasada procesada de cada sensor. Como
+# puede haber varias pasadas por hora (MODIS Terra y Aqua, VIIRS en SNPP,
+# NOAA-20 y NOAA-21), se consulta cada 30 minutos para perder las menos
+# posibles. Cada corrida dura cerca de un minuto y en un repositorio público
+# no consume cuota.
 
 on:
   schedule:
-    - cron: "23 */3 * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       volcanes:
@@ -31,11 +33,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.ref_name }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
