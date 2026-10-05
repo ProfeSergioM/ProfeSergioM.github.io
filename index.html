@@ -237,6 +237,7 @@
       <span class="dato">Calles reales</span>
       <span class="dato">Un jugador</span>
       <span class="dato">Con sonido</span>
+      <span class="dato" id="ruta-sur-version" hidden></span>
     </div>
     <div class="jugar">Jugar <span>&rarr;</span></div>
   </a>
@@ -257,6 +258,13 @@
 </footer>
 
 <script src="idioma.js"></script>
+<script>
+  // La versión de Ruta Sur la publica su propio armado (ruta-sur/version.json, en este mismo sitio).
+  fetch('ruta-sur/version.json').then(function (r) { return r.ok ? r.json() : null; }).then(function (v) {
+    var el = document.getElementById('ruta-sur-version');
+    if (el && v && v.version) { el.textContent = 'v' + v.version; el.hidden = false; }
+  }).catch(function () { /* sin red o sin archivo: la tarjeta queda igual */ });
+</script>
 <script defer src="publicidad.js"></script>
 </body>
 </html>
