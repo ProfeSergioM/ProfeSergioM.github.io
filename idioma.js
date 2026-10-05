@@ -15,6 +15,11 @@
     'Hecho a mano, sin frameworks ni rastreadores.': 'Handmade, no frameworks and no trackers.',
     'El código de cada proyecto está en': 'The code for each project is on',
 
+    // ---- Ruta Sur
+    'Simulador de camiones por las calles verdaderas de una ciudad, levantadas desde OpenStreetMap con sus edificios. Elegís Temuco, Santiago, Concepción o cualquier punto del mapa, manejás un tracto con semirremolque o un camión rígido y repartís cargas entre esquinas, con espejos, choques y una guía de despacho.':
+      'Truck simulator on the real streets of a city, built from OpenStreetMap with its buildings. Pick Temuco, Santiago, Concepción or any point on the map, drive a tractor with a semitrailer or a rigid truck and deliver loads between corners, with mirrors, collisions and a dispatch sheet.',
+    'Calles reales': 'Real streets',
+
     // ---- True o Poser
     'Simulador de banda de rock. Dieciséis semestres de decisiones para llegar a cerrar la noche en Rock in Rio, sin venderse en el camino. Ciento un situaciones, veinticinco hitos y quince finales distintos.':
       'Rock band simulator. Sixteen semesters of decisions to end up headlining Rock in Rio without selling out along the way. A hundred and one situations, twenty-five milestones and fifteen different endings.',
