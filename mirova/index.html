@@ -133,9 +133,12 @@
   const archivo = (nombre) => nombre.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
   const fmtFecha = (ms) => new Date(ms).toISOString().slice(0, 16).replace('T', ' ');
 
-  const cfg = await fetch('volcanes.json').then(r => r.json());
+  // El CDN de GitHub Pages retiene los archivos hasta 10 minutos; un parámetro
+  // distinto en cada carga evita que el navegador vea datos ya reemplazados.
+  const sinCache = (ruta) => `${ruta}?v=${Date.now()}`;
+  const cfg = await fetch(sinCache('volcanes.json')).then(r => r.json());
   let estado = {};
-  try { estado = await fetch('datos/estado.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : {}); } catch (e) {}
+  try { estado = await fetch(sinCache('datos/estado.json'), { cache: 'no-store' }).then(r => r.ok ? r.json() : {}); } catch (e) {}
   const sel = $('#volcan');
   for (const v of cfg.volcanes) {
     const o = document.createElement('option'); o.value = v.nombre; o.textContent = v.nombre; sel.appendChild(o);
@@ -154,7 +157,7 @@
     history.replaceState(null, '', `?volcan=${encodeURIComponent(v.nombre)}`);
     filas = [];
     try {
-      const txt = await fetch(ruta, { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
+      const txt = await fetch(sinCache(ruta), { cache: 'no-store' }).then(r => r.ok ? r.text() : '');
       const lineas = txt.trim().split(/\r?\n/);
       if (lineas.length > 1) {
         const cab = lineas[0].split(',');
@@ -267,7 +270,7 @@
       ['VIIRS375_Latest10NTI', 'Últimas 10 detecciones, VIIRS 375 m'],
     ];
     $('#figuras').innerHTML = figs.map(([k, cap]) =>
-      `<figure><img src="${base}_${k}.png" alt="${cap}" loading="lazy" onerror="this.parentElement.remove()"><figcaption>${cap}</figcaption></figure>`).join('');
+      `<figure><img src="${sinCache(`${base}_${k}.png`)}" alt="${cap}" loading="lazy" onerror="this.parentElement.remove()"><figcaption>${cap}</figcaption></figure>`).join('');
   }
 
   sel.addEventListener('change', cargar);
