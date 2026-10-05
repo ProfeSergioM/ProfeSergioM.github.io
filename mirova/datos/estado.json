@@ -1,52 +1,45 @@
 {
- "generado_utc": "2026-10-05T14:21:33",
+ "generado_utc": "2026-10-05T14:24:13",
  "dias_ventana": 30,
  "volcanes": {
-  "Villarrica": {
-   "volcano_id": "357120",
-   "archivo_csv": "datos/Villarrica.csv",
-   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
+  "Isluga": {
+   "volcano_id": "355030",
+   "archivo_csv": "datos/Isluga.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030",
    "limite_km": 5.0,
-   "lecturas_totales": 3988,
-   "lecturas_ventana": 514,
-   "anomalias_ventana": 8,
-   "detecciones_fuera_radio_ventana": 3,
+   "lecturas_totales": 3326,
+   "lecturas_ventana": 430,
+   "anomalias_ventana": 35,
+   "detecciones_fuera_radio_ventana": 15,
    "ultima_anomalia": {
-    "fecha_utc": "2026-09-25T08:05:00",
-    "vrp_mw": 0.9,
-    "sensor": "MODIS",
-    "distancia_km": 0.0
+    "fecha_utc": "2026-10-05T05:42:02",
+    "vrp_mw": 0.09,
+    "sensor": "VIIRS375",
+    "distancia_km": 0.53
    },
    "maximo_ventana": {
-    "fecha_utc": "2026-09-25T08:05:00",
-    "vrp_mw": 0.9,
-    "sensor": "MODIS",
+    "fecha_utc": "2026-09-11T05:30:00",
+    "vrp_mw": 0.42,
+    "sensor": "VIIRS375",
     "clasificacion": "muy baja"
    },
-   "tendencia": "en aumento",
+   "tendencia": "estable",
    "sensores": {
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1389
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1185
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1442
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1218
     },
     "MODIS": {
-     "ultima_lectura_utc": "2026-10-05T07:50:00",
-     "lecturas": 1157
+     "ultima_lectura_utc": "2026-10-05T07:45:00",
+     "lecturas": 923
     }
    },
-   "figuras": [
-    "Villarrica_COMB_Dist.png",
-    "Villarrica_COMB_VRP.png",
-    "Villarrica_COMB_logVRP.png",
-    "Villarrica_MODIS_Latest10NTI.png",
-    "Villarrica_VIIRS375_Latest10NTI.png",
-    "Villarrica_VIIRS750_Latest10NTI.png"
-   ],
-   "grafico": "graficos/Villarrica_serie.png"
+   "figuras": [],
+   "grafico": "graficos/Isluga_serie.png"
   },
   "Lascar": {
    "volcano_id": "355100",
@@ -94,6 +87,123 @@
    ],
    "grafico": "graficos/Lascar_serie.png"
   },
+  "Lastarria": {
+   "volcano_id": "355120",
+   "archivo_csv": "datos/Lastarria.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355120",
+   "limite_km": 3.0,
+   "lecturas_totales": 3437,
+   "lecturas_ventana": 455,
+   "anomalias_ventana": 15,
+   "detecciones_fuera_radio_ventana": 14,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-03T05:18:00",
+    "vrp_mw": 0.1,
+    "sensor": "VIIRS375",
+    "distancia_km": 2.73
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-26T05:48:00",
+    "vrp_mw": 0.32,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "en aumento",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1205
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1267
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:45:00",
+     "lecturas": 965
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Lastarria_serie.png"
+  },
+  "Tupungatito": {
+   "volcano_id": "357010",
+   "archivo_csv": "datos/Tupungatito.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357010",
+   "limite_km": 7.0,
+   "lecturas_totales": 3338,
+   "lecturas_ventana": 483,
+   "anomalias_ventana": 21,
+   "detecciones_fuera_radio_ventana": 11,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-03T05:42:01",
+    "vrp_mw": 0.14,
+    "sensor": "VIIRS375",
+    "distancia_km": 5.21
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-18T05:24:01",
+    "vrp_mw": 0.27,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "estable",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1169
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1217
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 952
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Tupungatito_serie.png"
+  },
+  "Planchon-Peteroa": {
+   "volcano_id": "357040",
+   "archivo_csv": "datos/Planchon_Peteroa.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357040",
+   "limite_km": 3.0,
+   "lecturas_totales": 3792,
+   "lecturas_ventana": 498,
+   "anomalias_ventana": 8,
+   "detecciones_fuera_radio_ventana": 7,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-05T05:48:02",
+    "vrp_mw": 0.1,
+    "sensor": "VIIRS375",
+    "distancia_km": 1.91
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-27T05:54:01",
+    "vrp_mw": 0.26,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "en aumento",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1322
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:42:01",
+     "lecturas": 1362
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1108
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Planchon_Peteroa_serie.png"
+  },
   "Nevados de Chillan": {
    "volcano_id": "357070",
    "archivo_csv": "datos/Nevados_de_Chillan.csv",
@@ -139,6 +249,208 @@
     "Nevados_de_Chillan_VIIRS750_Latest10NTI.png"
    ],
    "grafico": "graficos/Nevados_de_Chillan_serie.png"
+  },
+  "Copahue": {
+   "volcano_id": "357090",
+   "archivo_csv": "datos/Copahue.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357090",
+   "limite_km": 4.0,
+   "lecturas_totales": 3940,
+   "lecturas_ventana": 517,
+   "anomalias_ventana": 2,
+   "detecciones_fuera_radio_ventana": 14,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-09-24T06:54:01",
+    "vrp_mw": 0.01,
+    "sensor": "VIIRS375",
+    "distancia_km": 2.19
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-20T04:48:01",
+    "vrp_mw": 0.02,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "en descenso",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1368
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1436
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1136
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Copahue_serie.png"
+  },
+  "Llaima": {
+   "volcano_id": "357110",
+   "archivo_csv": "datos/Llaima.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357110",
+   "limite_km": 5.0,
+   "lecturas_totales": 3945,
+   "lecturas_ventana": 507,
+   "anomalias_ventana": 1,
+   "detecciones_fuera_radio_ventana": 3,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-03T07:06:00",
+    "vrp_mw": 0.01,
+    "sensor": "VIIRS375",
+    "distancia_km": 2.93
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-10-03T07:06:00",
+    "vrp_mw": 0.01,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "anomalías recientes sin antecedente en la ventana",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1366
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1436
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1143
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Llaima_serie.png"
+  },
+  "Villarrica": {
+   "volcano_id": "357120",
+   "archivo_csv": "datos/Villarrica.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
+   "limite_km": 5.0,
+   "lecturas_totales": 3988,
+   "lecturas_ventana": 514,
+   "anomalias_ventana": 8,
+   "detecciones_fuera_radio_ventana": 3,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-09-25T08:05:00",
+    "vrp_mw": 0.9,
+    "sensor": "MODIS",
+    "distancia_km": 0.0
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-25T08:05:00",
+    "vrp_mw": 0.9,
+    "sensor": "MODIS",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "en aumento",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1389
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1442
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1157
+    }
+   },
+   "figuras": [
+    "Villarrica_COMB_Dist.png",
+    "Villarrica_COMB_VRP.png",
+    "Villarrica_COMB_logVRP.png",
+    "Villarrica_MODIS_Latest10NTI.png",
+    "Villarrica_VIIRS375_Latest10NTI.png",
+    "Villarrica_VIIRS750_Latest10NTI.png"
+   ],
+   "grafico": "graficos/Villarrica_serie.png"
+  },
+  "Puyehue-Cordon Caulle": {
+   "volcano_id": "357150",
+   "archivo_csv": "datos/Puyehue_Cordon_Caulle.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150",
+   "limite_km": 20.0,
+   "lecturas_totales": 4032,
+   "lecturas_ventana": 523,
+   "anomalias_ventana": 38,
+   "detecciones_fuera_radio_ventana": 2,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-01T04:42:01",
+    "vrp_mw": 0.05,
+    "sensor": "VIIRS375",
+    "distancia_km": 8.66
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-18T05:24:01",
+    "vrp_mw": 1.43,
+    "sensor": "VIIRS750",
+    "clasificacion": "baja"
+   },
+   "tendencia": "en descenso",
+   "sensores": {
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1386
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1464
+    },
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1182
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Puyehue_Cordon_Caulle_serie.png"
+  },
+  "Chaiten": {
+   "volcano_id": "358041",
+   "archivo_csv": "datos/Chaiten.csv",
+   "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=358041",
+   "limite_km": 5.0,
+   "lecturas_totales": 4189,
+   "lecturas_ventana": 534,
+   "anomalias_ventana": 7,
+   "detecciones_fuera_radio_ventana": 1,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-09-14T05:42:02",
+    "vrp_mw": 0.18,
+    "sensor": "VIIRS375",
+    "distancia_km": 0.38
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-14T05:42:02",
+    "vrp_mw": 0.18,
+    "sensor": "VIIRS375",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "sin anomalías en la segunda mitad de la ventana",
+   "sensores": {
+    "MODIS": {
+     "ultima_lectura_utc": "2026-10-05T07:50:00",
+     "lecturas": 1253
+    },
+    "VIIRS375": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1442
+    },
+    "VIIRS750": {
+     "ultima_lectura_utc": "2026-10-05T06:48:01",
+     "lecturas": 1494
+    }
+   },
+   "figuras": [],
+   "grafico": "graficos/Chaiten_serie.png"
   }
  }
 }

@@ -113,8 +113,9 @@
   for (const v of cfg.volcanes) {
     const o = document.createElement('option'); o.value = v.nombre; o.textContent = v.nombre; sel.appendChild(o);
   }
-  const porDefecto = (cfg.seguimiento || [])[0] || cfg.volcanes[0].nombre;
+  const porDefecto = (cfg.volcanes.find(v => (cfg.seguimiento || []).includes(v.nombre)) || cfg.volcanes[0]).nombre;
   sel.value = new URLSearchParams(location.search).get('volcan') || porDefecto;
+  if (!sel.value) sel.value = porDefecto;
 
   let dias = 30, filas = [], chart = null;
 

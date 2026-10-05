@@ -51,7 +51,7 @@ python -m unittest mirova/pruebas.py        # pruebas sin red
 
 Los volcanes se eligen con `--volcanes`, con la variable de entorno
 `MIROVA_VOLCANES` o con el campo `seguimiento` de `volcanes.json`. El valor
-`todos` sigue los once volcanes de la lista. Para agregar otro volcán basta con
+`todos` sigue los once volcanes de la lista y es el valor configurado. Para agregar otro volcán basta con
 añadir su entrada en `volcanes.json`: el `volcano_id` es el número que MIROVA
 usa en `?volcano_id=` y coincide con el número del Global Volcanism Program del
 Smithsonian; el `mirova_name` es el texto exacto que aparece en las rutas de
@@ -80,7 +80,7 @@ extender la serie hacia atrás hay tres vías, de mejor a peor:
    `latest.php` para los 11 volcanes chilenos desde el 10 de enero de 2026,
    con el mismo significado que las nuestras. Ya está cargado en este
    repositorio (filas con `origen = mendoza`). Para repetirlo o extenderlo a
-   otros volcanes:
+   otros volcanes (ya aplicado a los once):
 
    ```bash
    curl -L -o consolidado.csv https://raw.githubusercontent.com/MendozaVolcanic/Mirova-v1/main/monitoreo_satelital/registro_vrp_consolidado.csv
