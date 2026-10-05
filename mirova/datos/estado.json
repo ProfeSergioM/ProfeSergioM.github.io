@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-05T12:27:55",
+ "generado_utc": "2026-10-05T14:21:33",
  "dias_ventana": 30,
  "volcanes": {
   "Villarrica": {
@@ -7,25 +7,35 @@
    "archivo_csv": "datos/Villarrica.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
    "limite_km": 5.0,
-   "lecturas_totales": 3,
-   "lecturas_ventana": 3,
-   "anomalias_ventana": 0,
-   "detecciones_fuera_radio_ventana": 0,
-   "ultima_anomalia": null,
-   "maximo_ventana": null,
-   "tendencia": "sin anomalías",
+   "lecturas_totales": 3988,
+   "lecturas_ventana": 514,
+   "anomalias_ventana": 8,
+   "detecciones_fuera_radio_ventana": 3,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-09-25T08:05:00",
+    "vrp_mw": 0.9,
+    "sensor": "MODIS",
+    "distancia_km": 0.0
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-25T08:05:00",
+    "vrp_mw": 0.9,
+    "sensor": "MODIS",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "en aumento",
    "sensores": {
     "VIIRS375": {
      "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1
+     "lecturas": 1389
     },
     "VIIRS750": {
      "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1
+     "lecturas": 1442
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-05T07:50:00",
-     "lecturas": 1
+     "lecturas": 1157
     }
    },
    "figuras": [
@@ -43,25 +53,35 @@
    "archivo_csv": "datos/Lascar.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100",
    "limite_km": 5.0,
-   "lecturas_totales": 3,
-   "lecturas_ventana": 3,
-   "anomalias_ventana": 0,
-   "detecciones_fuera_radio_ventana": 0,
-   "ultima_anomalia": null,
-   "maximo_ventana": null,
-   "tendencia": "sin anomalías",
+   "lecturas_totales": 3433,
+   "lecturas_ventana": 448,
+   "anomalias_ventana": 26,
+   "detecciones_fuera_radio_ventana": 12,
+   "ultima_anomalia": {
+    "fecha_utc": "2026-10-02T05:00:02",
+    "vrp_mw": 0.07,
+    "sensor": "VIIRS375",
+    "distancia_km": 0.75
+   },
+   "maximo_ventana": {
+    "fecha_utc": "2026-09-26T05:48:00",
+    "vrp_mw": 0.74,
+    "sensor": "VIIRS750",
+    "clasificacion": "muy baja"
+   },
+   "tendencia": "estable",
    "sensores": {
     "VIIRS375": {
      "ultima_lectura_utc": "2026-10-05T06:42:01",
-     "lecturas": 1
+     "lecturas": 1212
     },
     "VIIRS750": {
      "ultima_lectura_utc": "2026-10-05T06:42:01",
-     "lecturas": 1
+     "lecturas": 1265
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-05T07:45:00",
-     "lecturas": 1
+     "lecturas": 956
     }
    },
    "figuras": [
@@ -79,10 +99,10 @@
    "archivo_csv": "datos/Nevados_de_Chillan.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070",
    "limite_km": 5.0,
-   "lecturas_totales": 3,
-   "lecturas_ventana": 3,
-   "anomalias_ventana": 3,
-   "detecciones_fuera_radio_ventana": 0,
+   "lecturas_totales": 3892,
+   "lecturas_ventana": 514,
+   "anomalias_ventana": 32,
+   "detecciones_fuera_radio_ventana": 7,
    "ultima_anomalia": {
     "fecha_utc": "2026-10-05T07:50:00",
     "vrp_mw": 3.5,
@@ -90,24 +110,24 @@
     "distancia_km": 1.0
    },
    "maximo_ventana": {
-    "fecha_utc": "2026-10-05T06:48:01",
-    "vrp_mw": 4.71,
-    "sensor": "VIIRS375",
+    "fecha_utc": "2026-10-05T05:48:02",
+    "vrp_mw": 7.86,
+    "sensor": "VIIRS750",
     "clasificacion": "baja"
    },
-   "tendencia": "anomalías recientes sin antecedente en la ventana",
+   "tendencia": "en aumento",
    "sensores": {
     "VIIRS375": {
      "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1
+     "lecturas": 1355
     },
     "VIIRS750": {
      "ultima_lectura_utc": "2026-10-05T06:48:01",
-     "lecturas": 1
+     "lecturas": 1407
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-05T07:50:00",
-     "lecturas": 1
+     "lecturas": 1130
     }
    },
    "figuras": [

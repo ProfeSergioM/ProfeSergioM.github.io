@@ -14,7 +14,7 @@ hora y deja el resultado publicado en
 
 | Salida | Contenido |
 | --- | --- |
-| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán y la clase de intensidad. Nunca se duplican filas. |
+| `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato. Nunca se duplican filas. |
 | `datos/estado.json`, `datos/resumen.md` | Resumen por volcán: última anomalía, máximo de la ventana, tendencia y conteos. |
 | `graficos/<Volcan>_serie.png` | Serie temporal propia, dos paneles (30 días y 1 año), escala logarítmica, un marcador por sensor. |
 | `imagenes/<Volcan>/*.png` | Copias locales de las figuras oficiales de MIROVA (VRP, log VRP, distancia, últimas 10 detecciones). Se descargan sólo cuando cambian. |
@@ -57,6 +57,41 @@ usa en `?volcano_id=` y coincide con el número del Global Volcanism Program del
 Smithsonian; el `mirova_name` es el texto exacto que aparece en las rutas de
 `OUTPUTweb` (por ejemplo `ChillanNevadosde`).
 
+## Datos históricos
+
+El monitor sólo ve lo que MIROVA publica desde que empezó a correr. Para
+extender la serie hacia atrás hay tres vías, de mejor a peor:
+
+1. **MIROVA Dataset (oficial, licencia CC BY 4.0).** Cubre 2000 a 2025 para
+   170 volcanes con MODIS y VIIRS. Se exporta un CSV por volcán desde
+   [Explore_Archive.php](https://www.mirovaweb.it/ARCHIVE/Explore_Archive.php)
+   o se descarga completo desde [OSF, DOI 10.17605/OSF.IO/ZM62W](https://osf.io/zm62w/).
+   Se carga con:
+
+   ```bash
+   python mirova/mirova_monitor.py --volcanes Villarrica importar --formato mirova Villarrica.csv
+   ```
+
+   El importador reconoce las columnas por nombre (fecha UTC, VRP en W,
+   sensor como código 1 a 4 o como nombre, distancia en m) y convierte a MW
+   y km. Ese archivo contiene sólo detecciones, no observaciones sin
+   anomalía, y la versión 1 es sólo nocturna.
+2. **Registro público del proyecto MendozaVolcanic/Mirova-v1.** Lecturas de
+   `latest.php` para los 11 volcanes chilenos desde el 10 de enero de 2026,
+   con el mismo significado que las nuestras. Ya está cargado en este
+   repositorio (filas con `origen = mendoza`). Para repetirlo o extenderlo a
+   otros volcanes:
+
+   ```bash
+   curl -L -o consolidado.csv https://raw.githubusercontent.com/MendozaVolcanic/Mirova-v1/main/monitoreo_satelital/registro_vrp_consolidado.csv
+   python mirova/mirova_monitor.py --volcanes todos importar --formato mendoza consolidado.csv
+   ```
+3. **Pedir la serie al equipo MIROVA** (diego.coppola@unito.it), que entrega
+   series completas por volcán para fines de investigación.
+
+Una importación nunca pisa filas existentes: sólo rellena fechas y sensores
+que faltaban, y marca la procedencia en la columna `origen`.
+
 ## Automatización en GitHub
 
 El flujo `.github/workflows/mirova.yml` corre cada media hora y también a mano
@@ -72,8 +107,8 @@ hace falta cambiar la configuración del repositorio.
   por volcán. Si MIROVA procesa dos pasadas entre dos consultas, la primera no
   queda en el CSV; por eso el flujo corre cada media hora. Las figuras
   oficiales "últimas 10 detecciones" conservan las pasadas intermedias y
-  sirven para contrastar. El histórico previo a la primera ejecución tampoco
-  se recupera desde ahí. Para series largas
+  sirven para contrastar. El histórico previo a la primera ejecución se
+  carga con `importar` (ver "Datos históricos"). Para series largas
   (2000 a 2019) existe la base de datos MIROVA v1 publicada en
   [OSF](https://osf.io/zm62w/), que se puede cargar al CSV con el mismo formato.
 - Un VRP de 0 significa que hubo una observación sin anomalía, no ausencia de

@@ -81,6 +81,51 @@ class Integracion(unittest.TestCase):
         salidas = mm.cmd_graficar(self.tmp, volcanes, [30, 365])
         self.assertTrue(salidas[0].exists() and salidas[0].stat().st_size > 10_000)
 
+    def test_importar_mendoza_rellena_sin_pisar(self):
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Villarrica", "Nevados de Chillan"])
+        mm.cmd_actualizar(self.tmp, volcanes, con_imagenes=False, archivar=False, html_local=self.html)
+        csv_ext = self.tmp / "consolidado.csv"
+        csv_ext.write_text(
+            "timestamp,Fecha_Satelite_UTC,Fecha_Captura_Chile,Volcan,Sensor,VRP_MW,Distancia_km,Tipo_Registro\n"
+            "1,2026-10-05 06:12:30,x,Villarrica,MODIS,99,0.0,RUTINA\n"        # ya existe: no debe pisar el 0
+            "2,2026-03-01 04:00:00,x,Villarrica,VIIRS,7.5,0.9,ALERTA_TERMICA\n"
+            "3,2026-03-02 05:00:00,x,Villarrica,VIIRS375,0.0,0.0,RUTINA\n"
+            "4,2026-03-02 05:00:00,x,Nevados de Chillan,VIIRS375,21,9.5,FALSO_POSITIVO\n"
+            "5,2026-03-03 05:00:00,x,Copahue,MODIS,1,0.5,ALERTA_TERMICA\n", encoding="utf-8")
+        r = mm.cmd_importar(self.tmp, volcanes, "mendoza", csv_ext)
+        self.assertEqual(r["Villarrica"]["agregadas"], 2)
+        self.assertEqual(r["Nevados de Chillan"]["agregadas"], 1)
+        filas = mm.leer_csv(self.tmp / "datos" / "Villarrica.csv")
+        por_clave = {(f["fecha_utc"], f["sensor"]): f for f in filas}
+        self.assertEqual(por_clave[("2026-10-05T06:12:30", "MODIS")]["vrp_mw"], 0.0, "lo existente se conserva")
+        self.assertEqual(por_clave[("2026-10-05T06:12:30", "MODIS")]["origen"], "latest.php")
+        self.assertEqual(por_clave[("2026-03-01T04:00:00", "VIIRS750")]["origen"], "mendoza")
+        self.assertEqual(por_clave[("2026-03-01T04:00:00", "VIIRS750")]["clasificacion"], "baja")
+        chillan = mm.leer_csv(self.tmp / "datos" / "Nevados_de_Chillan.csv")
+        self.assertEqual([f["clasificacion"] for f in chillan if f["origen"] == "mendoza"], ["fuera de radio"])
+        self.assertFalse((self.tmp / "datos" / "Copahue.csv").exists(), "sólo los volcanes pedidos")
+        r2 = mm.cmd_importar(self.tmp, volcanes, "mendoza", csv_ext)
+        self.assertEqual(r2["Villarrica"]["agregadas"], 0, "reimportar no duplica")
+
+    def test_importar_archivo_mirova(self):
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Lascar"])
+        csv_ext = self.tmp / "Lascar_MIROVA_Database_v1.csv"
+        csv_ext.write_text(
+            "UTC,Dayflag,Sensor,Tot_Lmir_bk,VRP,Lat,Lon,Dist\n"
+            "01/03/2000 03:15:00,0,1,0.5,12500000,-23.37,-67.73,1200\n"
+            "15/06/2013 05:10:00,0,3,0.4,800000,-23.37,-67.73,9800\n"
+            "16/06/2013 05:10:00,0,4,0.4,abc,-23.37,-67.73,100\n", encoding="utf-8")
+        r = mm.cmd_importar(self.tmp, volcanes, "mirova", csv_ext)
+        self.assertEqual(r["Lascar"]["agregadas"], 2, "la fila con VRP no numérico se descarta")
+        filas = mm.leer_csv(self.tmp / "datos" / "Lascar.csv")
+        f0 = next(f for f in filas if f["fecha_utc"] == "2000-03-01T03:15:00")
+        self.assertEqual((f0["sensor"], f0["vrp_mw"], f0["distancia_km"], f0["clasificacion"], f0["origen"]),
+                         ("MODIS", 12.5, 1.2, "moderada", "mirova-archivo"))
+        f1 = next(f for f in filas if f["fecha_utc"] == "2013-06-15T05:10:00")
+        self.assertEqual((f1["sensor"], f1["vrp_mw"], f1["dentro_radio"]), ("VIIRS750", 0.8, False))
+        with self.assertRaises(SystemExit):
+            mm.cmd_importar(self.tmp, mm.elegir_volcanes(self.todos, self.seg, ["Lascar", "Isluga"]), "mirova", csv_ext)
+
     def test_volcan_desconocido(self):
         with self.assertRaises(SystemExit):
             mm.elegir_volcanes(self.todos, self.seg, ["Vesubio"])

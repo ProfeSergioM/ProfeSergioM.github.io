@@ -53,7 +53,8 @@
   <h1>Seguimiento térmico MIROVA</h1>
   <p class="sub">Potencia radiativa volcánica (VRP) detectada por MODIS y VIIRS, según publica
     <a href="https://www.mirovaweb.it" target="_blank" rel="noopener">MIROVA</a> (Universidad de Turín).
-    Los datos se acumulan automáticamente cada media hora.</p>
+    Los datos se acumulan automáticamente cada media hora; el histórico desde enero de 2026 proviene del registro público del proyecto
+    <a href="https://github.com/MendozaVolcanic/Mirova-v1" target="_blank" rel="noopener">Mirova-v1</a>.</p>
 
   <div class="fila">
     <label for="volcan">Volcán</label>
@@ -81,7 +82,7 @@
 
   <h2>Últimas lecturas</h2>
   <div class="tabla-env"><table id="tabla"><thead><tr>
-    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th>
+    <th>Fecha (UTC)</th><th>Sensor</th><th>VRP (MW)</th><th>Distancia (km)</th><th>Dentro del radio</th><th>Intensidad</th><th>Origen</th>
   </tr></thead><tbody></tbody></table></div>
 
   <h2>Figuras oficiales de MIROVA</h2>
@@ -131,7 +132,7 @@
         const cab = lineas[0].split(',');
         filas = lineas.slice(1).map(l => Object.fromEntries(l.split(',').map((c, i) => [cab[i], c])))
           .map(r => ({ t: Date.parse(r.fecha_utc + 'Z'), sensor: r.sensor, vrp: +r.vrp_mw,
-                       dist: r.distancia_km === '' ? NaN : +r.distancia_km, dentro: r.dentro_radio === '1', clas: r.clasificacion }))
+                       dist: r.distancia_km === '' ? NaN : +r.distancia_km, dentro: r.dentro_radio === '1', clas: r.clasificacion, origen: r.origen || 'latest.php' }))
           .sort((a, b) => a.t - b.t);
       }
     } catch (e) {}
@@ -206,8 +207,8 @@
 
   function dibujarTabla() {
     const ult = filas.slice(-25).reverse();
-    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td></tr>`).join('')
-      || '<tr><td colspan="6">Sin lecturas todavía.</td></tr>';
+    $('#tabla tbody').innerHTML = ult.map(r => `<tr><td>${fmtFecha(r.t)}</td><td>${r.sensor}</td><td>${r.vrp > 0 ? r.vrp : '0 (sin anomalía)'}</td><td>${isNaN(r.dist) ? '' : r.dist}</td><td>${r.vrp > 0 ? (r.dentro ? 'sí' : 'no') : ''}</td><td>${r.clas}</td><td>${r.origen}</td></tr>`).join('')
+      || '<tr><td colspan="7">Sin lecturas todavía.</td></tr>';
   }
 
   function dibujarFiguras(v) {
