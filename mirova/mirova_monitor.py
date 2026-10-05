@@ -656,11 +656,53 @@ def cmd_resumen(raiz: Path, volcanes: list[Volcan], dias: int) -> dict:
     return estado
 
 
+def ventana_mediana(dias: int) -> int:
+    """Ancho de la mediana móvil según la ventana del panel: una doceava parte,
+    acotada entre 7 días (panel mensual) y 180 días (serie completa)."""
+    return int(min(180, max(7, dias / 12)))
+
+
+def tendencia(puntos: list[tuple[datetime, float]], ancho_dias: float, desde: datetime, hasta: datetime,
+              n: int = 160, minimo: int = 3) -> list[tuple[datetime, float | None]]:
+    """Mediana móvil de log10(VRP) evaluada en una grilla regular de `n` instantes.
+
+    En cada instante se toman las detecciones a menos de medio ancho de ventana;
+    con menos de `minimo` detecciones el valor es None y la línea se corta, de
+    modo que la tendencia nunca se extrapola sobre tramos sin datos. La mediana
+    en escala logarítmica es robusta a los picos aislados y a los valores de
+    fondo, que en VRP difieren en varios órdenes de magnitud."""
+    import math
+    if not puntos or hasta <= desde:
+        return []
+    datos = sorted((t.timestamp(), math.log10(v)) for t, v in puntos if v > 0)
+    medio = ancho_dias * 43200.0
+    paso = (hasta - desde).total_seconds() / max(n - 1, 1)
+    salida = []
+    i0 = 0
+    for k in range(n):
+        tk = desde.timestamp() + k * paso
+        while i0 < len(datos) and datos[i0][0] < tk - medio:
+            i0 += 1
+        vals = []
+        j = i0
+        while j < len(datos) and datos[j][0] <= tk + medio:
+            vals.append(datos[j][1])
+            j += 1
+        if len(vals) >= minimo:
+            vals.sort()
+            m = len(vals)
+            med = vals[m // 2] if m % 2 else 0.5 * (vals[m // 2 - 1] + vals[m // 2])
+            salida.append((datetime.fromtimestamp(tk, tz=timezone.utc), 10 ** med))
+        else:
+            salida.append((datetime.fromtimestamp(tk, tz=timezone.utc), None))
+    return salida
+
+
 # Marcadores distinguibles en blanco y negro y colores seguros para daltonismo (Okabe-Ito).
 ESTILO_SENSOR = {
-    "MODIS":    {"marker": "^", "color": "#E69F00", "label": "MODIS (1 km)"},
-    "VIIRS750": {"marker": "o", "color": "#0072B2", "label": "VIIRS 750 m"},
-    "VIIRS375": {"marker": "s", "color": "#009E73", "label": "VIIRS 375 m"},
+    "MODIS":    {"marker": "^", "color": "#E69F00", "label": "MODIS (1 km)", "ls": "--"},
+    "VIIRS750": {"marker": "o", "color": "#0072B2", "label": "VIIRS 750 m", "ls": "-"},
+    "VIIRS375": {"marker": "s", "color": "#009E73", "label": "VIIRS 375 m", "ls": ":"},
 }
 
 
@@ -669,6 +711,7 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.dates as mdates
+        import matplotlib.patheffects as pe
         import matplotlib.pyplot as plt
         from matplotlib.lines import Line2D
     except ImportError:
@@ -690,7 +733,8 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
     (raiz / "graficos").mkdir(parents=True, exist_ok=True)
     for v in volcanes:
         filas = leer_csv(ruta_csv(raiz, v))
-        fig, ejes = plt.subplots(1, len(dias), figsize=(7.5 * len(dias), 5.2), squeeze=False)
+        fig, ejes = plt.subplots(1, len(dias), figsize=(7.5 * len(dias), 5.9), squeeze=False)
+        borde = [pe.Stroke(linewidth=4.2, foreground="white"), pe.Normal()]
         for eje, d in zip(ejes[0], dias):
             if d <= 0:  # 0 = toda la serie disponible
                 ventana = filas
@@ -716,9 +760,24 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
                     eje.plot([r["fecha"] for r in dentro], [r["vrp_mw"] for r in dentro], linestyle="none",
                              marker=est["marker"], color=est["color"], markersize=8,
                              markeredgecolor="black", markeredgewidth=0.6)
+            # Tendencias: mediana móvil del log de VRP, por sensor y general,
+            # sólo con detecciones dentro del radio del cráter.
+            desde, ancho = ahora - timedelta(days=d), ventana_mediana(d)
+            validas = [r for r in ventana if r["vrp_mw"] > 0 and r["dentro_radio"]]
+            for sensor, est in ESTILO_SENSOR.items():
+                linea = tendencia([(r["fecha"], r["vrp_mw"]) for r in validas if r["sensor"] == sensor], ancho, desde, ahora)
+                if linea:
+                    eje.plot([t for t, _ in linea], [v if v is not None else float("nan") for _, v in linea],
+                             linestyle=est["ls"], color=est["color"], linewidth=2.0, zorder=5, path_effects=borde)
+            general = tendencia([(r["fecha"], r["vrp_mw"]) for r in validas], ancho, desde, ahora)
+            if general:
+                eje.plot([t for t, _ in general], [v if v is not None else float("nan") for _, v in general],
+                         linestyle="-", color="black", linewidth=3.0, zorder=6, path_effects=borde)
+            eje.text(0.02, 0.97, f"mediana móvil: {ancho} días", transform=eje.transAxes, ha="left", va="top",
+                     fontsize=12, color="0.25", bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="0.7", alpha=0.9))
             eje.set_yscale("log")
             eje.set_ylim(piso * 0.6, max([r["vrp_mw"] for r in ventana if r["vrp_mw"] > 0] + [10]) * 3)
-            eje.set_xlim(ahora - timedelta(days=d), ahora)
+            eje.set_xlim(desde, ahora)
             eje.axhline(piso, color="0.55", linewidth=0.8, linestyle=":")
             eje.set_ylabel(r"$\mathrm{VRP}\ [\mathrm{MW}]$")
             eje.set_xlabel(etiqueta_x)
@@ -729,14 +788,16 @@ def cmd_graficar(raiz: Path, volcanes: list[Volcan], dias: list[int]) -> list[Pa
             eje.xaxis.set_major_formatter(mdates.ConciseDateFormatter(loc))
             for lado in eje.spines.values():  # marco completo
                 lado.set_visible(True)
-        asas = [Line2D([], [], linestyle="none", marker=e["marker"], color=e["color"], markersize=9,
-                       markeredgecolor="black", markeredgewidth=0.6, label=e["label"]) for e in ESTILO_SENSOR.values()]
+        asas = [Line2D([], [], linestyle=e["ls"], linewidth=1.6, marker=e["marker"], color=e["color"], markersize=9,
+                       markeredgecolor="black", markeredgewidth=0.6, label=f"{e['label']} y su tendencia") for e in ESTILO_SENSOR.values()]
+        asas.append(Line2D([], [], linestyle="-", linewidth=2.8, color="black", label="Tendencia general"))
         asas.append(Line2D([], [], linestyle="none", marker="o", markerfacecolor="none", markeredgecolor="0.3",
                            markersize=9, label=f"Fuera de {v.limite_km:g} km del cráter"))
         asas.append(Line2D([], [], linestyle="none", marker="|", color="0.55", markersize=10,
                            markeredgewidth=1.2, label="Observación sin anomalía"))
-        fig.legend(handles=asas, loc="upper center", ncol=len(asas), frameon=False, bbox_to_anchor=(0.5, 1.02))
-        fig.tight_layout(rect=(0, 0, 1, 0.93))
+        fig.legend(handles=asas, loc="upper center", ncol=3, frameon=False, bbox_to_anchor=(0.5, 1.0),
+                   handlelength=3.2, columnspacing=1.6)
+        fig.tight_layout(rect=(0, 0, 1, 0.88))
         salida = raiz / "graficos" / f"{v.archivo}_serie.png"
         fig.savefig(salida, dpi=150)
         plt.close(fig)

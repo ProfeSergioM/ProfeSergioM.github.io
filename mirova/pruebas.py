@@ -49,6 +49,22 @@ class Clasificacion(unittest.TestCase):
                          ["sin anomalia", "muy baja", "baja", "moderada", "alta", "muy alta"])
 
 
+class Tendencia(unittest.TestCase):
+    def test_mediana_movil_corta_sin_datos_y_resiste_picos(self):
+        from datetime import timedelta
+        fin = datetime(2026, 10, 5, tzinfo=timezone.utc)
+        ini = fin - timedelta(days=60)
+        # 30 días con fondo de 1 MW y un pico aislado de 1000 MW; luego 30 días sin detecciones.
+        pts = [(ini + timedelta(days=i), 1.0) for i in range(30)] + [(ini + timedelta(days=15, hours=1), 1000.0)]
+        linea = mm.tendencia(pts, 7, ini, fin, n=61)
+        con_valor = [v for _, v in linea if v is not None]
+        self.assertTrue(con_valor, "hay tendencia donde hay datos")
+        self.assertTrue(all(0.9 < v < 1.1 for v in con_valor), f"la mediana ignora el pico: {max(con_valor):.2f}")
+        self.assertIsNone(linea[-1][1], "sin datos al final, la línea se corta en vez de extrapolar")
+        self.assertEqual(mm.tendencia([], 7, ini, fin), [])
+        self.assertEqual((mm.ventana_mediana(30), mm.ventana_mediana(365), mm.ventana_mediana(7000)), (7, 30, 180))
+
+
 class Integracion(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())

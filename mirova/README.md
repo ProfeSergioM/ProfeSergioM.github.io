@@ -16,7 +16,7 @@ hora y deja el resultado publicado en
 | --- | --- |
 | `datos/<Volcan>.csv` | Una fila por adquisición y sensor: fecha UTC, VRP en MW, distancia al cráter, si está dentro del radio del volcán, la clase de intensidad y el origen del dato. Nunca se duplican filas. |
 | `datos/estado.json`, `datos/resumen.md` | Resumen por volcán: última anomalía, máximo de la ventana, tendencia y conteos. |
-| `graficos/<Volcan>_serie.png` | Serie temporal propia, tres paneles (30 días, 1 año y serie completa), escala logarítmica, un marcador por sensor. |
+| `graficos/<Volcan>_serie.png` | Serie temporal propia, tres paneles (30 días, 1 año y serie completa), escala logarítmica, un marcador por sensor, con líneas de tendencia por sensor y general. |
 | `fuentes/` | Exportaciones originales del MIROVA Dataset cargadas con `importar` (licencia CC BY 4.0, Universidad de Turín). |
 | `imagenes/<Volcan>/*.png` | Copias locales de las figuras oficiales de MIROVA (VRP, log VRP, distancia, últimas 10 detecciones). Se descargan sólo cuando cambian. |
 | `index.html` | Panel web interactivo que lee los CSV y muestra la serie, las últimas lecturas y las figuras oficiales. |
@@ -38,6 +38,14 @@ hora y deja el resultado publicado en
    con `If-Modified-Since`, de modo que sólo se transfieren cuando MIROVA las
    regenera.
 4. Con el CSV acumulado se dibuja la serie propia y se escribe el resumen.
+5. Las líneas de tendencia son una mediana móvil del logaritmo del VRP,
+   calculada sólo con detecciones dentro del radio del cráter, por sensor y
+   para el conjunto. La ventana es una doceava parte del panel, acotada entre
+   7 días (panel mensual) y 180 días (serie completa). La mediana en escala
+   logarítmica resiste los picos aislados y no se deja arrastrar por el fondo;
+   donde hay menos de tres detecciones en la ventana la línea se corta en vez
+   de extrapolar. Una regresión lineal sería engañosa con datos tan dispersos
+   y de tantos órdenes de magnitud.
 
 ## Uso local
 
