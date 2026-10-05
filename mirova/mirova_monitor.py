@@ -640,9 +640,15 @@ def _guardar_importados(raiz: Path, v: Volcan, nuevos: list[dict], origen: str, 
     return agregados, len(unidos)
 
 
-def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: datetime, fuentes: list[str], clave: str) -> dict:
-    """Descarga píxeles FIRMS alrededor de cada volcán, en tramos de hasta 10 días, y los agrega por pasada."""
+def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: datetime, fuentes: list[str], clave: str,
+              nrt_recientes: bool = False) -> dict:
+    """Descarga píxeles FIRMS alrededor de cada volcán, en tramos de hasta 10 días, y los agrega por pasada.
+
+    Con `nrt_recientes`, los tramos de los últimos 90 días consultan además las
+    fuentes NRT, porque el procesamiento estándar (SP) llega con dos o tres
+    meses de retraso. Una misma pasada presente en ambas se guarda una sola vez."""
     import math
+    ahora_dt = datetime.now(timezone.utc)
     if not clave:
         raise SystemExit("Falta la clave de FIRMS: define FIRMS_MAP_KEY (gratuita en https://firms.modaps.eosdis.nasa.gov/api/map_key/).")
     ahora = datetime.now(timezone.utc)
@@ -656,7 +662,10 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
         f = desde
         while f <= hasta:
             dias = min(FIRMS_TRAMO_DIAS, (hasta - f).days + 1)
-            for fuente in fuentes:
+            fuentes_tramo = list(fuentes)
+            if nrt_recientes and (ahora_dt - f).days <= 90:
+                fuentes_tramo += [x for x in FIRMS_FUENTES_NRT if x not in fuentes_tramo]
+            for fuente in fuentes_tramo:
                 url = FIRMS_API.format(clave=clave, fuente=fuente, area=area, dias=dias, fecha=f.strftime("%Y-%m-%d"))
                 try:
                     texto, _ = descargar(url)
@@ -1021,7 +1030,7 @@ def main(argv: list[str] | None = None) -> int:
         hasta = datetime.strptime(args.hasta, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.hasta else hoy
         desde = datetime.strptime(args.desde, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.desde else hasta - timedelta(days=args.dias - 1)
         fuentes = [f for f in args.fuentes.split(",") if f] if args.fuentes else (FIRMS_FUENTES_SP if args.historico else FIRMS_FUENTES_NRT)
-        cmd_firms(raiz, volcanes, desde, hasta, fuentes, os.environ.get("FIRMS_MAP_KEY", ""))
+        cmd_firms(raiz, volcanes, desde, hasta, fuentes, os.environ.get("FIRMS_MAP_KEY", ""), nrt_recientes=args.historico)
     elif args.cmd == "todo":
         cmd_actualizar(raiz, volcanes, con_imagenes=not args.sin_imagenes, archivar=args.archivar_imagenes)
         if os.environ.get("FIRMS_MAP_KEY"):

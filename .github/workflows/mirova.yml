@@ -20,6 +20,14 @@ on:
         description: "Volcanes a seguir, separados por comas (vacío = lista de volcanes.json; 'todos' = los 11)"
         required: false
         default: ""
+      firms_desde:
+        description: "Carga histórica FIRMS: fecha inicial YYYY-MM-DD (requiere el secreto FIRMS_MAP_KEY; vacío = no cargar)"
+        required: false
+        default: ""
+      firms_hasta:
+        description: "Carga histórica FIRMS: fecha final YYYY-MM-DD (vacío = hoy)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -31,7 +39,7 @@ concurrency:
 jobs:
   seguimiento:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
         with:
@@ -47,6 +55,17 @@ jobs:
 
       - name: Pruebas sin red
         run: python -m unittest mirova/pruebas.py
+
+      - name: Carga histórica FIRMS (sólo si se indicó firms_desde)
+        if: ${{ github.event.inputs.firms_desde != '' }}
+        env:
+          MIROVA_VOLCANES: ${{ github.event.inputs.volcanes }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+        run: |
+          if [ -z "$FIRMS_MAP_KEY" ]; then echo "Falta el secreto FIRMS_MAP_KEY"; exit 1; fi
+          python mirova/mirova_monitor.py firms --historico \
+            --desde "${{ github.event.inputs.firms_desde }}" \
+            ${{ github.event.inputs.firms_hasta != '' && format('--hasta {0}', github.event.inputs.firms_hasta) || '' }}
 
       - name: Actualizar datos, gráficos y resumen
         env:
