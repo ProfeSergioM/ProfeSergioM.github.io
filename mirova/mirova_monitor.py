@@ -650,10 +650,30 @@ def cmd_firms(raiz: Path, volcanes: list[Volcan], desde: datetime, hasta: dateti
     meses de retraso. Una misma pasada presente en ambas se guarda una sola vez."""
     import math
     ahora_dt = datetime.now(timezone.utc)
+    clave = (clave or "").strip().strip('"').strip("'")
     if not clave:
         raise SystemExit("Falta la clave de FIRMS: define FIRMS_MAP_KEY (gratuita en https://firms.modaps.eosdis.nasa.gov/api/map_key/).")
+    if not re.fullmatch(r"[0-9a-fA-F]{32}", clave):
+        log.warning("La clave FIRMS no tiene el formato esperado (32 caracteres hexadecimales); largo recibido: %d", len(clave))
+    # Diagnóstico: el endpoint de disponibilidad valida la clave y lista las fuentes con sus fechas.
+    disponibles: set[str] = set()
+    try:
+        disp, _ = descargar(FIRMS_DISPONIBILIDAD.format(clave=clave))
+        lineas = [l for l in disp.strip().splitlines() if l.strip()]
+        log.info("FIRMS disponibilidad (%d fuentes): %s", max(len(lineas) - 1, 0), " | ".join(lineas[1:12]))
+        disponibles = {l.split(",")[0].strip() for l in lineas[1:]}
+        faltan = [f for f in fuentes if f not in disponibles]
+        if disponibles and faltan:
+            log.warning("Fuentes no listadas por FIRMS, se omiten: %s", ", ".join(faltan))
+            fuentes = [f for f in fuentes if f in disponibles]
+    except HTTPError as e:
+        cuerpo = e.read().decode("utf-8", errors="replace")[:300] if hasattr(e, "read") else ""
+        raise SystemExit(f"FIRMS rechazó la clave o la consulta de disponibilidad (HTTP {e.code}): {cuerpo}")
+    except URLError as e:
+        raise SystemExit(f"No se pudo contactar a FIRMS: {e}")
     ahora = datetime.now(timezone.utc)
     resultado = {}
+    errores_mostrados = 0
     for v in volcanes:
         dlat = FIRMS_RADIO_KM / 111.0
         dlon = dlat / max(math.cos(math.radians(v.lat)), 0.1)

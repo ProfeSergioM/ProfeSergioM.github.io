@@ -196,6 +196,39 @@ class Integracion(unittest.TestCase):
         salidas = mm.cmd_graficar(self.tmp, volcanes, [30, 0])
         self.assertTrue(salidas[0].exists())
 
+    def test_cmd_firms_con_red_simulada(self):
+        """Ejercita cmd_firms completo sustituyendo descargar(): disponibilidad, tramos, errores HTTP y agregación."""
+        from urllib.error import HTTPError
+        import io
+        from datetime import timedelta
+        volcanes = mm.elegir_volcanes(self.todos, self.seg, ["Villarrica"])
+        llamadas = []
+        def falso_descargar(url, binario=False, cabeceras=None):
+            llamadas.append(url)
+            if "data_availability" in url:
+                return "data_id,min_date,max_date\nMODIS_NRT,2026-08-01,2026-10-05\nVIIRS_SNPP_NRT,2026-08-01,2026-10-05\nMODIS_SP,2000-11-01,2026-07-31\n", {}
+            if "VIIRS_SNPP_NRT" in url:
+                raise HTTPError(url, 400, "Bad Request", {}, io.BytesIO(b"Invalid date range"))
+            if "MODIS_NRT" in url:
+                return ("latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_t31,frp,daynight\n"
+                        "-39.421,-71.931,330,1,1,2026-10-01,0410,Terra,MODIS,80,6.1,295,4.0,N\n"), {}
+            return "", {}
+        original = mm.descargar
+        mm.descargar = falso_descargar
+        try:
+            hasta = datetime(2026, 10, 5, tzinfo=timezone.utc)
+            r = mm.cmd_firms(self.tmp, volcanes, hasta - timedelta(days=6), hasta, ["MODIS_NRT", "VIIRS_SNPP_NRT", "VIIRS_NOAA21_NRT"], " abcdef0123456789abcdef0123456789\n")
+        finally:
+            mm.descargar = original
+        self.assertEqual(r["Villarrica"]["nuevas"], 1)
+        self.assertTrue(any("data_availability/csv/abcdef0123456789abcdef0123456789/ALL" in u for u in llamadas), "la clave se limpia de espacios")
+        self.assertFalse(any("VIIRS_NOAA21_NRT" in u for u in llamadas), "las fuentes que FIRMS no lista se omiten")
+        self.assertTrue(any("/MODIS_NRT/" in u and "/7/2026-09-29" in u for u in llamadas), "un tramo de 7 días desde la fecha inicial")
+        f = [x for x in mm.leer_csv(self.tmp / "datos" / "Villarrica.csv") if x["origen"] == "firms"][0]
+        self.assertEqual((f["sensor"], f["vrp_mw"], f["fecha_utc"]), ("MODIS", 4.0, "2026-10-01T04:10:00"))
+        with self.assertRaises(SystemExit):
+            mm.cmd_firms(self.tmp, volcanes, hasta, hasta, ["MODIS_NRT"], "")
+
     def test_leer_firms_tolera_codigos_de_satelite(self):
         px = mm._leer_firms("latitude,longitude,acq_date,acq_time,satellite,instrument,frp\n"
                             "-39.42,-71.93,2025-01-01,130,T,MODIS,1.0\n"
