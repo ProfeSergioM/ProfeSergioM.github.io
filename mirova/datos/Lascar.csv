@@ -10176,3 +10176,5 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-07T06:06:01,355100,Lascar,VIIRS375,0.18,1.50,1,muy baja,2026-10-07T14:44:34,latest.php,
 2026-10-07T06:06:01,355100,Lascar,VIIRS750,0,0.00,1,sin anomalia,2026-10-07T14:44:34,latest.php,
 2026-10-07T07:25:00,355100,Lascar,MODIS,0,0.00,1,sin anomalia,2026-10-07T14:44:34,latest.php,
+2026-10-07T17:36:02,355100,Lascar,VIIRS375,0,0.00,1,sin anomalia,2026-10-07T20:35:12,latest.php,
+2026-10-07T17:36:02,355100,Lascar,VIIRS750,0,0.00,1,sin anomalia,2026-10-07T20:35:12,latest.php,
