@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-08T14:05:12",
+ "generado_utc": "2026-10-08T19:54:52",
  "dias_ventana": 30,
  "volcanes": {
   "Isluga": {
@@ -7,8 +7,8 @@
    "archivo_csv": "datos/Isluga.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030",
    "limite_km": 5.0,
-   "lecturas_totales": 4793,
-   "lecturas_firms": 24,
+   "lecturas_totales": 4794,
+   "lecturas_firms": 25,
    "lecturas_ventana": 26,
    "anomalias_ventana": 2,
    "detecciones_fuera_radio_ventana": 3,
