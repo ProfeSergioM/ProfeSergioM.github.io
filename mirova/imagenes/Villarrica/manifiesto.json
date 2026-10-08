@@ -1,21 +1,21 @@
 {
  "Villarrica_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_VRP.png",
-  "last_modified": "Wed, 07 Oct 2026 12:44:06 GMT",
-  "bytes": 105827,
-  "capturado_utc": "2026-10-07T14:45:32"
+  "last_modified": "Thu, 08 Oct 2026 09:25:55 GMT",
+  "bytes": 105976,
+  "capturado_utc": "2026-10-08T14:04:07"
  },
  "Villarrica_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_logVRP.png",
-  "last_modified": "Wed, 07 Oct 2026 12:44:10 GMT",
-  "bytes": 139059,
-  "capturado_utc": "2026-10-07T14:45:33"
+  "last_modified": "Thu, 08 Oct 2026 09:26:00 GMT",
+  "bytes": 140005,
+  "capturado_utc": "2026-10-08T14:04:08"
  },
  "Villarrica_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_Dist.png",
-  "last_modified": "Wed, 07 Oct 2026 12:44:18 GMT",
-  "bytes": 105375,
-  "capturado_utc": "2026-10-07T14:45:34"
+  "last_modified": "Thu, 08 Oct 2026 09:26:06 GMT",
+  "bytes": 105706,
+  "capturado_utc": "2026-10-08T14:04:09"
  },
  "Villarrica_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Villarrica/Villarrica_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Villarrica_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Villarrica/Villarrica_VIIRS750_Latest10NTI.png",
-  "last_modified": "Wed, 07 Oct 2026 12:43:56 GMT",
-  "bytes": 222061,
-  "capturado_utc": "2026-10-07T14:45:37"
+  "last_modified": "Thu, 08 Oct 2026 09:21:56 GMT",
+  "bytes": 208679,
+  "capturado_utc": "2026-10-08T14:04:11"
  },
  "Villarrica_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Villarrica/Villarrica_VIIRS375_Latest10NTI.png",
-  "last_modified": "Tue, 06 Oct 2026 13:52:40 GMT",
-  "bytes": 392402,
-  "capturado_utc": "2026-10-06T20:57:22"
+  "last_modified": "Thu, 08 Oct 2026 09:25:48 GMT",
+  "bytes": 341036,
+  "capturado_utc": "2026-10-08T14:04:12"
  }
 }

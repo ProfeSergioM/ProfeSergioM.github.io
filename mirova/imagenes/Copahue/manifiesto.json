@@ -1,21 +1,21 @@
 {
  "Copahue_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
-  "last_modified": "Wed, 07 Oct 2026 12:40:29 GMT",
-  "bytes": 110862,
-  "capturado_utc": "2026-10-07T14:45:18"
+  "last_modified": "Thu, 08 Oct 2026 09:24:13 GMT",
+  "bytes": 111809,
+  "capturado_utc": "2026-10-08T14:03:54"
  },
  "Copahue_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
-  "last_modified": "Wed, 07 Oct 2026 12:40:35 GMT",
-  "bytes": 143036,
-  "capturado_utc": "2026-10-07T14:45:19"
+  "last_modified": "Thu, 08 Oct 2026 09:24:16 GMT",
+  "bytes": 144537,
+  "capturado_utc": "2026-10-08T14:03:55"
  },
  "Copahue_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
-  "last_modified": "Wed, 07 Oct 2026 12:40:47 GMT",
-  "bytes": 112981,
-  "capturado_utc": "2026-10-07T14:45:20"
+  "last_modified": "Thu, 08 Oct 2026 09:24:22 GMT",
+  "bytes": 113294,
+  "capturado_utc": "2026-10-08T14:03:56"
  },
  "Copahue_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Copahue_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
-  "last_modified": "Wed, 07 Oct 2026 12:40:20 GMT",
-  "bytes": 242743,
-  "capturado_utc": "2026-10-07T14:45:23"
+  "last_modified": "Thu, 08 Oct 2026 09:19:38 GMT",
+  "bytes": 239574,
+  "capturado_utc": "2026-10-08T14:03:58"
  },
  "Copahue_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
-  "last_modified": "Tue, 06 Oct 2026 13:50:36 GMT",
-  "bytes": 441370,
-  "capturado_utc": "2026-10-06T20:57:09"
+  "last_modified": "Thu, 08 Oct 2026 09:24:05 GMT",
+  "bytes": 387473,
+  "capturado_utc": "2026-10-08T14:04:00"
  }
 }
