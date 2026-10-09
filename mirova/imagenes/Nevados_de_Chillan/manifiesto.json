@@ -1,21 +1,21 @@
 {
  "Nevados_de_Chillan_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_VRP.png",
-  "last_modified": "Thu, 08 Oct 2026 09:23:15 GMT",
-  "bytes": 116050,
-  "capturado_utc": "2026-10-08T14:03:48"
+  "last_modified": "Fri, 09 Oct 2026 12:21:34 GMT",
+  "bytes": 114548,
+  "capturado_utc": "2026-10-09T14:20:29"
  },
  "Nevados_de_Chillan_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_logVRP.png",
-  "last_modified": "Thu, 08 Oct 2026 09:23:17 GMT",
-  "bytes": 149854,
-  "capturado_utc": "2026-10-08T14:03:49"
+  "last_modified": "Fri, 09 Oct 2026 12:21:38 GMT",
+  "bytes": 148242,
+  "capturado_utc": "2026-10-09T14:20:30"
  },
  "Nevados_de_Chillan_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_Dist.png",
-  "last_modified": "Thu, 08 Oct 2026 09:23:23 GMT",
-  "bytes": 118505,
-  "capturado_utc": "2026-10-08T14:03:50"
+  "last_modified": "Fri, 09 Oct 2026 12:21:49 GMT",
+  "bytes": 117060,
+  "capturado_utc": "2026-10-09T14:20:31"
  },
  "Nevados_de_Chillan_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/ChillanNevadosde/ChillanNevadosde_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Nevados_de_Chillan_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/ChillanNevadosde/ChillanNevadosde_VIIRS750_Latest10NTI.png",
-  "last_modified": "Thu, 08 Oct 2026 09:18:34 GMT",
-  "bytes": 257081,
-  "capturado_utc": "2026-10-08T14:03:52"
+  "last_modified": "Fri, 09 Oct 2026 12:21:21 GMT",
+  "bytes": 246973,
+  "capturado_utc": "2026-10-09T14:20:33"
  },
  "Nevados_de_Chillan_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/ChillanNevadosde/ChillanNevadosde_VIIRS375_Latest10NTI.png",
-  "last_modified": "Thu, 08 Oct 2026 09:23:07 GMT",
-  "bytes": 409835,
-  "capturado_utc": "2026-10-08T14:03:53"
+  "last_modified": "Fri, 09 Oct 2026 12:04:32 GMT",
+  "bytes": 414471,
+  "capturado_utc": "2026-10-09T14:20:35"
  }
 }
