@@ -5516,3 +5516,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-08T19:48:01,357150,Puyehue-Cordon Caulle,VIIRS375,0,0.00,1,sin anomalia,2026-10-09T00:17:57,latest.php,
 2026-10-08T19:48:01,357150,Puyehue-Cordon Caulle,VIIRS750,0,0.00,1,sin anomalia,2026-10-09T00:17:57,latest.php,
 2026-10-08T21:40:00,357150,Puyehue-Cordon Caulle,MODIS,0,0.00,1,sin anomalia,2026-10-09T00:17:57,latest.php,
+2026-10-09T02:00:00,357150,Puyehue-Cordon Caulle,MODIS,0,0.00,1,sin anomalia,2026-10-09T06:39:34,latest.php,
