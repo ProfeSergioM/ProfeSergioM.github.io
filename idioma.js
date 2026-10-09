@@ -15,6 +15,11 @@
     'Hecho a mano, sin frameworks ni rastreadores.': 'Handmade, no frameworks and no trackers.',
     'El código de cada proyecto está en': 'The code for each project is on',
 
+    // ---- Ruta Sur
+    'Simulador de camiones por las calles verdaderas de una ciudad, levantadas desde OpenStreetMap con sus edificios. Elegís Temuco, Santiago, Concepción o cualquier punto del mapa, manejás un tracto con semirremolque o un camión rígido y repartís cargas entre esquinas, con espejos, choques y una guía de despacho.':
+      'Truck simulator on the real streets of a city, built from OpenStreetMap with its buildings. Pick Temuco, Santiago, Concepción or any point on the map, drive a tractor with a semitrailer or a rigid truck and deliver loads between corners, with mirrors, collisions and a dispatch sheet.',
+    'Calles reales': 'Real streets',
+
     // ---- True o Poser
     'Simulador de banda de rock. Dieciséis semestres de decisiones para llegar a cerrar la noche en Rock in Rio, sin venderse en el camino. Ciento un situaciones, veinticinco hitos y quince finales distintos.':
       'Rock band simulator. Sixteen semesters of decisions to end up headlining Rock in Rio without selling out along the way. A hundred and one situations, twenty-five milestones and fifteen different endings.',
@@ -63,6 +68,12 @@
     // ---- Load Up
     'La prueba de óvalo que inventaron los gringos: una camioneta arrastra un acoplado abierto y no para nunca, y gana el primero que mete su auto adentro y lo deja quieto. Alcanza la rampa, iguala la velocidad, sube derecho y aguanta las curvas con tres o cuatro rivales empujando.':
       'The oval stunt the Americans came up with: a pickup tows an open trailer and never stops, and the first driver to get their car inside and hold it still wins. Catch the ramp, match the speed, drive up straight and hang on through the corners with three or four rivals shoving.',
+
+    // ---- Mánager Relámpago
+    'Football manager para jugar solo contra la máquina o con amigos. Draft en serpiente con leyendas del fútbol chileno, de Livingstone a Alexis, una táctica por fecha y un campeonato que se arma solo según cuántos son. Podés subir tu propia base en CSV o JSON.':
+      'A football manager to play alone against the computer or with friends. Snake draft with Chilean football legends, from Livingstone to Alexis, one tactic per matchday and a championship that sets itself up based on how many of you there are. You can upload your own database as CSV or JSON.',
+    'De 1 a 8': '1 to 8 players',
+    'Base propia': 'Your own database',
 
     'De a 2': 'Two players',
     '2 minutos': '2 minutes',

@@ -1,0 +1,38 @@
+{
+ "Lascar_COMB_VRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lascar/Lascar_COMB_VRP.png",
+  "last_modified": "Fri, 09 Oct 2026 12:17:00 GMT",
+  "bytes": 126851,
+  "capturado_utc": "2026-10-09T14:20:00"
+ },
+ "Lascar_COMB_logVRP.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lascar/Lascar_COMB_logVRP.png",
+  "last_modified": "Fri, 09 Oct 2026 12:17:03 GMT",
+  "bytes": 155985,
+  "capturado_utc": "2026-10-09T14:20:01"
+ },
+ "Lascar_COMB_Dist.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lascar/Lascar_COMB_Dist.png",
+  "last_modified": "Fri, 09 Oct 2026 12:17:09 GMT",
+  "bytes": 120438,
+  "capturado_utc": "2026-10-09T14:20:03"
+ },
+ "Lascar_MODIS_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Lascar/Lascar_MODIS_Latest10NTI.png",
+  "last_modified": "Wed, 07 Oct 2026 09:32:50 GMT",
+  "bytes": 98712,
+  "capturado_utc": "2026-10-07T14:44:47"
+ },
+ "Lascar_VIIRS750_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Lascar/Lascar_VIIRS750_Latest10NTI.png",
+  "last_modified": "Fri, 09 Oct 2026 12:16:52 GMT",
+  "bytes": 217493,
+  "capturado_utc": "2026-10-09T14:20:05"
+ },
+ "Lascar_VIIRS375_Latest10NTI.png": {
+  "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Lascar/Lascar_VIIRS375_Latest10NTI.png",
+  "last_modified": "Fri, 09 Oct 2026 12:00:03 GMT",
+  "bytes": 346168,
+  "capturado_utc": "2026-10-09T14:20:06"
+ }
+}
