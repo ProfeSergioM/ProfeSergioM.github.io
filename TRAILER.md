@@ -43,20 +43,23 @@ en vez de colarse por debajo del acoplado. El que va subiendo se dibuja
 después del acoplado, porque si no el gráfico de la rampa le pasa por encima
 y parece que se metiera debajo. Al cruzar la boca se mira el ángulo
 y la diferencia de velocidad: derecho y por debajo de `V_SUBIDA` el auto sube;
-torcido o disparado se lleva puesta la baranda.
+torcido o disparado pega contra el borde de atrás y rebota. Bajarse despacio
+por la rampa, marcha atrás, no cuesta chapa.
 
 **Los golpes.** Cada choque abolla según la velocidad con que se dio, y la
 chapa rota se paga manejando: el auto pierde punta y el volante se pone vago
 (`castigoPorDano`). Al llegar a cien queda afuera.
 
 **Los rivales.** Van por turnos: encara el que está mejor parado y los demás
-esperan corridos a un costado. Cada intento se sortea antes de empezar y
+esperan corridos a un costado. Con alguien arriba se acaba el turno: suben
+los `embisten` mejor parados, a sacarlo a los empujones. Cada intento se sortea antes de empezar y
 puede salir limpio, torcido o pasado de velocidad. Como el que sube torcido
 igual se acomoda y termina ganando, lo que más mueve el largo de la carrera
 no es cuántos intentos salen limpios sino `demora`, cuánto esperan antes de
-volver a encarar. Medido con el jugador quieto, el primer rival gana cerca
-de los ochenta segundos en Novato, de los treinta en Pro y de los veinte en
-Leyenda, con bastante dispersión entre carreras.
+volver a encarar. Medido con el jugador quieto y semilla fija, el primer
+rival gana entre los veinte y los treinta segundos en Rookie, entre los
+veinticinco y los cuarenta en Pro y entre los veinte y los ochenta en Legend,
+donde los rivales se abollan tanto entre ellos que la carrera se alarga.
 
 ## Los números que conviene tocar
 

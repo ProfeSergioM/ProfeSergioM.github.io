@@ -221,8 +221,8 @@
       <p class="bajada">Out on the county fair ovals there is a contest that looks like no race at
         all: a pickup tows an open trailer and goes round without ever stopping, and the winner is
         <b>the first driver to get their car aboard and hold it still</b>. It is not about being
-        fast. It is about reaching the ramp, matching the speed and driving up straight, with four other
-        people trying the very same thing beside you.</p>
+        fast. It is about reaching the ramp, matching the speed and driving up straight, with a pack of
+        other drivers trying the very same thing beside you.</p>
 
       <div class="rotulo">Difficulty</div>
       <div class="opciones" id="op-dif">
@@ -236,7 +236,8 @@
 
       <div class="ayuda">
         <b>Keyboard:</b> <kbd>&uarr;</kbd> accelerates, <kbd>&darr;</kbd> brakes and reverses,
-        <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer, <kbd>space</kbd> is the handbrake.<br>
+        <kbd>&larr;</kbd> <kbd>&rarr;</kbd> steer, <kbd>space</kbd> is the handbrake.
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> work too.<br>
         <b>Phone:</b> the buttons on screen. It plays better sideways.
       </div>
     </div>
@@ -256,9 +257,10 @@
           green you are straight and at a sane speed to climb.</li>
         <li><b>Climb with a little extra.</b> You want to be just barely faster than the trailer. Come
           in flying and you run out of deck and fall off the front.</li>
-        <li><b>Brake up there and pin the car.</b> The bar fills while the whole car is on the deck and
-          stays still. There are no rails to lean on, and in the corners the trailer pulls you outward,
-          so hold the handbrake: up on the deck it is what keeps the wheels from sliding.</li>
+        <li><b>Brake up there and pin the car.</b> The bar fills while you are on the deck and
+          still. There are no rails to lean on, and in the corners the trailer pulls you outward,
+          so hold the handbrake: up on the deck it is what keeps the wheels from sliding. Whoever is
+          already up there will come and shove you, and every hit costs you time on the bar.</li>
         <li><b>Look after the bodywork.</b> Every hit dents, and a dented car loses speed and steering,
           so mistakes cost you twice. At zero you are out and they win.</li>
       </ol>
@@ -639,17 +641,19 @@ function circulosLocales(a) {
 }
 
 /* Un golpe hace tres cosas: frena el auto, le marca la chapa donde pegó y
-   suma daño. El último golpe lo hace explotar. */
-function abollar(a, fuerza, nx, ny) {
+   suma daño. El último golpe lo hace explotar. (hx, hy) apunta desde el auto
+   hacia lo que chocó, en el marco del mundo: así la abolladura queda del
+   lado que pegó y no del opuesto. */
+function abollar(a, fuerza, hx, hy) {
   if (fuerza <= 0) return;
   a.dano = Math.min(100, a.dano + fuerza);
   a.golpe = 1;
 
   /* la abolladura va en el tramo del contorno que recibió el golpe */
-  if (nx !== undefined) {
-    var rel = normAng(Math.atan2(ny, nx) - a.ang);
-    var idx = Math.round((rel + Math.PI) / (Math.PI / 4)) % 8;
-    a.dientes[(idx + 8) % 8] = Math.min(1, a.dientes[(idx + 8) % 8] + fuerza * 0.06);
+  if (hx !== undefined) {
+    var rel = normAng(Math.atan2(hy, hx) - a.ang);
+    var idx = Math.floor(((rel + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 4)) % 8;
+    a.dientes[idx] = Math.min(1, a.dientes[idx] + fuerza * 0.06);
   }
 
   /* el choque cuesta velocidad, no solo chapa */
@@ -807,7 +811,7 @@ function chocarConjunto(a, tr) {
     var vn = (a.vx - tr.vx) * nm.x + (a.vy - tr.vy) * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 75) * 0.13, nm.x, nm.y);
+      abollar(a, Math.max(0, -vn - 75) * 0.13, -nm.x, -nm.y);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -827,7 +831,7 @@ function chocarRect(a, obj, hx, hy) {
     var vn = rvx * nm.x + rvy * nm.y;
     if (vn < 0) {
       a.vx -= nm.x * vn * 1.05; a.vy -= nm.y * vn * 1.05;
-      abollar(a, Math.max(0, -vn - 60) * 0.15, nm.x, nm.y);
+      abollar(a, Math.max(0, -vn - 60) * 0.15, -nm.x, -nm.y);
       if (-vn > 110) sonar("golpe");
     }
   }
@@ -853,9 +857,13 @@ function pasoCama(a, tr, dt) {
   /* La cama es una tarima pelada: no hay barandas ni pared adelante, así que
      lo único que sostiene al auto es el freno. Pasarse de cualquier borde es
      caerse. */
-  if (a.lx > CAMA_L / 2 + 4 || a.lx < -CAMA_L / 2 - 8 ||
-      Math.abs(a.ly) > CAMA_W / 2 + 4) {
-    caerse(a, tr);
+  if (a.lx < -CAMA_L / 2 - 8) {
+    /* por atrás está la rampa: bajarse despacio por ahí es bajarse, no caerse */
+    caerse(a, tr, Math.abs(a.lvx) < 60 * RAPIDEZ);
+    return;
+  }
+  if (a.lx > CAMA_L / 2 + 4 || Math.abs(a.ly) > CAMA_W / 2 + 4) {
+    caerse(a, tr, false);
     return;
   }
 
@@ -890,12 +898,11 @@ function colocarDesdeCama(a, tr) {
 
 /* Se cayó de la cama: sigue con la velocidad que traía, que es lo que hace
    que caerse de costado en una curva termine contra el muro. */
-function caerse(a, tr) {
+function caerse(a, tr, porLaRampa) {
   a.arriba = false; a.prog = 0;
   colocarDesdeCama(a, tr);
-  abollar(a, 8);
-  a.humoHasta = tiempo + 1.4;
-  if (a.jugador) flash("You fell off!");
+  if (!porLaRampa) { abollar(a, 8); a.humoHasta = tiempo + 1.4; }
+  if (a.jugador) flash(porLaRampa ? "Off the back" : "You fell off!");
   else {
     a.ia.nervio = nivel.demora * (hayAlguienArriba(a) ? 0.2 : 1) * (0.6 + 0.5 * Math.random());
     cortarIntento(a);
@@ -1019,7 +1026,8 @@ function pensarIA(a, dt) {
       var o = autos[q];
       if (o === a || o.arriba || o.fuera) continue;
       var lo = aLocal(tr, o.x, o.y);
-      if (lo.x > loc.x && lo.x - loc.x < 110 && Math.abs(lo.y - loc.y) < 34) estorbo = o;
+      if (lo.x > loc.x && lo.x - loc.x < 110 && Math.abs(lo.y - loc.y) < 34 &&
+          (!estorbo || lo.x < aLocal(tr, estorbo.x, estorbo.y).x)) estorbo = o;
     }
   }
 
@@ -1150,18 +1158,24 @@ function armarCarrera() {
     a.ia.duda = (3.0 + i * 1.1 + Math.random() * 1.8) * nivel.arranque;
     autos.push(a);
   }
+  clearTimeout(finPendiente);
   tiempo = 0; cuenta = 3.0; restante = nivel.minutos * 60; ganador = null; motivoFin = "";
   chispas = []; marcas = []; humos = [];
   estado = "cuenta";
   pintarChips();
 }
 
+var finPendiente = 0;
 function terminar(quien, motivo) {
   if (estado === "fin") return;
   estado = "fin";
   ganador = quien; motivoFin = motivo;
   sonar(quien && quien.jugador ? "gana" : "pierde");
-  setTimeout(mostrarFin, motivo === "chatarra" ? 1500 : 900);
+  /* Se deja ver el final un momento antes del cartel. Si en ese momento se
+     vuelve a largar, el cartel no tiene que aparecer encima de la carrera
+     nueva. */
+  clearTimeout(finPendiente);
+  finPendiente = setTimeout(mostrarFin, motivo === "chatarra" ? 1500 : 900);
 }
 
 var restante = 0;
@@ -1245,6 +1259,9 @@ window.addEventListener("keydown", function (e) {
   if (e.key === "Enter" && estado === "fin") reiniciar();
 });
 window.addEventListener("keyup", function (e) { teclas[e.key.toLowerCase()] = false; });
+/* Si la ventana pierde el foco con una tecla apretada, el keyup no llega
+   nunca y el auto sigue acelerando solo. */
+window.addEventListener("blur", function () { teclas = {}; });
 
 var toque = { izq: false, der: false, gas: false, fre: false, mano: false };
 function botonTactil(id, campo) {
@@ -1277,7 +1294,9 @@ function leerJugador(a) {
 /* ========================================================================== */
 var audio = null, motorOsc = null, motorGan = null, motorFil = null, sonidoSi = true;
 function arrancarAudio() {
-  if (audio || !sonidoSi) return;
+  if (!sonidoSi) return;
+  /* el contexto puede nacer suspendido, o quedar así al volver de segundo plano */
+  if (audio) { if (audio.state === "suspended") audio.resume(); return; }
   try {
     var AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
@@ -1371,6 +1390,10 @@ function caminoOval(rr) {
   p.closePath();
   return p;
 }
+/* Los óvalos se arman una vez y se reusan: en cada cuadro se dibujan más de
+   diez, y armar un Path2D por cada uno era basura para el recolector. */
+var ovales = {};
+function oval(rr) { return ovales[rr] || (ovales[rr] = caminoOval(rr)); }
 var OV_MURO_EXT = caminoOval(R + HW + 26);
 var OV_ASF_EXT = caminoOval(R + HW);
 var OV_ASF_INT = caminoOval(R - HW);
@@ -1420,9 +1443,9 @@ var TINTA = "#2b1d14";
 
 function dibujarPista() {
   ctx.fillStyle = "#6f8f4b"; ctx.fill(OV_MURO_EXT);      // pasto de afuera
-  ctx.fillStyle = "#9a8560"; ctx.fill(caminoOval(R + HW + 14));
+  ctx.fillStyle = "#9a8560"; ctx.fill(oval(R + HW + 14));
   ctx.fillStyle = "#4a3a2c"; ctx.fill(OV_ASF_EXT);       // barro
-  ctx.fillStyle = "#9a8560"; ctx.fill(caminoOval(R - HW - 14));
+  ctx.fillStyle = "#9a8560"; ctx.fill(oval(R - HW - 14));
   ctx.fillStyle = "#7ea653"; ctx.fill(OV_ASF_INT);       // pasto de adentro
 
   /* La huella por donde pasan todos queda más seca y clara; lo de afuera y
@@ -1430,10 +1453,10 @@ function dibujarPista() {
   ctx.save();
   ctx.globalAlpha = 0.6;
   ctx.strokeStyle = "#5d4833"; ctx.lineWidth = 52;
-  ctx.stroke(caminoOval(R + HW * 0.12));
+  ctx.stroke(oval(R + HW * 0.12));
   ctx.strokeStyle = "#3b2e23"; ctx.lineWidth = 38;
-  ctx.stroke(caminoOval(R + HW * 0.78));
-  ctx.stroke(caminoOval(R - HW * 0.78));
+  ctx.stroke(oval(R + HW * 0.78));
+  ctx.stroke(oval(R - HW * 0.78));
   ctx.restore();
 
   /* charcos */
@@ -1461,8 +1484,8 @@ function dibujarPista() {
   ctx.stroke(OV_MURO_EXT); ctx.stroke(OV_MURO_INT);
   ctx.restore();
   ctx.strokeStyle = TINTA; ctx.lineWidth = 3;
-  ctx.stroke(caminoOval(R + HW + 31.5)); ctx.stroke(caminoOval(R + HW + 20.5));
-  ctx.stroke(caminoOval(R - HW - 31.5)); ctx.stroke(caminoOval(R - HW - 20.5));
+  ctx.stroke(oval(R + HW + 31.5)); ctx.stroke(oval(R + HW + 20.5));
+  ctx.stroke(oval(R - HW - 31.5)); ctx.stroke(oval(R - HW - 20.5));
 
   /* largada: cuadros pintados sobre la tierra */
   ctx.globalAlpha = 0.85;
@@ -1477,9 +1500,9 @@ function dibujarPista() {
   /* tribunas: un anillo de madera con gente alrededor de toda la pista */
   var medio = (TRIB_DESDE + TRIB_HASTA) / 2;
   ctx.strokeStyle = "#8a6f4a"; ctx.lineWidth = TRIB_HASTA - TRIB_DESDE;
-  ctx.stroke(caminoOval(R + medio));
+  ctx.stroke(oval(R + medio));
   ctx.strokeStyle = TINTA; ctx.lineWidth = 4;
-  ctx.stroke(caminoOval(R + TRIB_DESDE)); ctx.stroke(caminoOval(R + TRIB_HASTA));
+  ctx.stroke(oval(R + TRIB_DESDE)); ctx.stroke(oval(R + TRIB_HASTA));
 
   for (var k = 0; k < TRIBUNA.length; k++) {
     var t = TRIBUNA[k];
@@ -1759,10 +1782,10 @@ function dibujar() {
 
   /* la cámara sigue al jugador y mira un poco hacia el acoplado */
   if (yo) {
-    var mx = camion.tr.x - yo.x, my = camion.tr.y - yo.y;
-    var d = Math.hypot(mx, my) || 1;
+    var hx = camion.tr.x - yo.x, hy = camion.tr.y - yo.y;
+    var d = Math.hypot(hx, hy) || 1;
     var tirar = Math.min(d, 210) * 0.45;
-    var objX = yo.x + mx / d * tirar, objY = yo.y + my / d * tirar;
+    var objX = yo.x + hx / d * tirar, objY = yo.y + hy / d * tirar;
     camara.x += (objX - camara.x) * 0.14;
     camara.y += (objY - camara.y) * 0.14;
   }
@@ -1854,7 +1877,7 @@ function dibujarMapa() {
   mtx.strokeStyle = "#c9b48a"; mtx.lineWidth = 2 * HW / 1.5;
   mtx.stroke(OV_EJE);
   mtx.strokeStyle = "rgba(43,29,20,.85)"; mtx.lineWidth = 10;
-  mtx.stroke(caminoOval(R + HW)); mtx.stroke(caminoOval(R - HW));
+  mtx.stroke(OV_ASF_EXT); mtx.stroke(OV_ASF_INT);
   var tr = camion.tr;
   mtx.fillStyle = "#2b1d14";
   mtx.fillRect(tr.x - 52, tr.y - 52, 104, 104);
@@ -1885,10 +1908,10 @@ function cajaRedonda(g, x, y, w, h, r) {
 function dibujarTablero(dt) {
   var yo = autos[0];
   if (!yo) return;
-  var g = btx, W = 376, H = 184;
-  var TINTA = "#2b1d14", CREMA = "rgba(255,243,214,.94)";
-  g.clearRect(0, 0, W, H);
-  cajaRedonda(g, 3, 3, W - 6, H - 6, 22);
+  var g = btx, TW = 376, TH = 184;
+  var CREMA = "rgba(255,243,214,.94)";
+  g.clearRect(0, 0, TW, TH);
+  cajaRedonda(g, 3, 3, TW - 6, TH - 6, 22);
   g.fillStyle = CREMA; g.fill(); g.lineWidth = 5; g.strokeStyle = TINTA; g.stroke();
   g.textAlign = "center"; g.textBaseline = "middle";
 
@@ -1906,8 +1929,8 @@ function dibujarTablero(dt) {
   g.fillText(Math.round(100 - yo.dano) + "%", dx + 26, 158);
 
   g.strokeStyle = "rgba(43,29,20,.25)"; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(96, 22); g.lineTo(96, H - 22); g.stroke();
-  g.beginPath(); g.moveTo(296, 22); g.lineTo(296, H - 22); g.stroke();
+  g.beginPath(); g.moveTo(96, 22); g.lineTo(96, TH - 22); g.stroke();
+  g.beginPath(); g.moveTo(296, 22); g.lineTo(296, TH - 22); g.stroke();
 
   /* ---- reloj de aguja */
   var kmh = Math.hypot(yo.vx, yo.vy) * KMH;
@@ -2011,9 +2034,12 @@ function actualizarHUD() {
     elEst.classList.remove("ver");
   }
 
+  if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
+  pintarFichas();
+
   /* la línea de ayuda de abajo: lo único que hay que mirar mientras se maneja */
   elDif.style.display = nivel.ayudas ? "" : "none";
-  if (!nivel.ayudas) { pintarFichas(); return; }
+  if (!nivel.ayudas) return;
   var tr = camion.tr;
   if (yo.fuera) elDif.innerHTML = "Your car is done";
   else if (yo.arriba) {
@@ -2031,10 +2057,6 @@ function actualizarHUD() {
     else if (rl.x < 4 * RAPIDEZ) elDif.innerHTML = "A little more throttle";
     else elDif.innerHTML = "Like this: <b>+" + Math.round(rl.x * KMH) + "</b> over the trailer";
   }
-
-  pintarFichas();
-
-  if (avisoHasta && tiempo > avisoHasta) { elAviso.classList.remove("ver"); avisoHasta = 0; }
 }
 
 function pintarFichas() {
@@ -2080,6 +2102,7 @@ document.getElementById("btn-menu").addEventListener("click", function () {
 function reiniciar() { ver(null); armarCarrera(); }
 
 function mostrarFin() {
+  if (estado !== "fin") return;
   var yo = autos[0];
   var tit = document.getElementById("fin-titulo");
   var txt = document.getElementById("fin-texto");
@@ -2099,8 +2122,12 @@ function mostrarFin() {
       "so it pays to wave off a bad run instead of forcing a crooked climb.";
   } else {
     tit.textContent = "Time is up";
-    txt.innerHTML = "The pickup drove off with an empty trailer. Nobody took it home, which in this " +
-      "contest is what usually happens.";
+    var abordo = hayAlguienArriba(null);
+    txt.innerHTML = abordo
+      ? (abordo.jugador ? "You" : abordo.nombre) + " was still aboard when the clock ran out, but " +
+        "aboard is not parked: the car has to stay put for the whole count."
+      : "The pickup drove off with an empty trailer. Nobody took it home, which in this " +
+        "contest is what usually happens.";
   }
   var m = document.getElementById("fin-marcador");
   m.innerHTML = "";
