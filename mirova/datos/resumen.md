@@ -1,9 +1,9 @@
-# Resumen MIROVA (2026-10-09 19:45 UTC)
+# Resumen MIROVA (2026-10-10 00:01 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
 ## Isluga (ID 355030)
-- Lecturas acumuladas: 4775; en la ventana: 32.
+- Lecturas acumuladas: 4778; en la ventana: 35.
 - Última anomalía dentro de 5 km: 2026-10-07T06:00:01 UTC, 0.09 MW (VIIRS375).
 - Máximo de la ventana: 0.09 MW el 2026-10-07T06:00:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 3.
@@ -11,7 +11,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030
 
 ## Lascar (ID 355100)
-- Lecturas acumuladas: 10060; en la ventana: 32.
+- Lecturas acumuladas: 10063; en la ventana: 35.
 - Última anomalía dentro de 5 km: 2026-10-07T06:06:01 UTC, 0.18 MW (VIIRS375).
 - Máximo de la ventana: 0.18 MW el 2026-10-07T06:06:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 1.
@@ -19,28 +19,28 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100
 
 ## Lastarria (ID 355120)
-- Lecturas acumuladas: 5401; en la ventana: 33.
+- Lecturas acumuladas: 5404; en la ventana: 36.
 - Sin anomalías dentro de 3 km en la ventana.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 2.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355120
 
 ## Tupungatito (ID 357010)
-- Lecturas acumuladas: 33; en la ventana: 33.
+- Lecturas acumuladas: 36; en la ventana: 36.
 - Sin anomalías dentro de 7 km en la ventana.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 2.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357010
 
 ## Planchon-Peteroa (ID 357040)
-- Lecturas acumuladas: 1794; en la ventana: 32.
+- Lecturas acumuladas: 1797; en la ventana: 35.
 - Última anomalía dentro de 3 km: 2026-10-07T06:06:01 UTC, 0.15 MW (VIIRS375).
 - Máximo de la ventana: 0.15 MW el 2026-10-07T06:06:01 UTC, intensidad muy baja.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357040
 
 ## Nevados de Chillan (ID 357070)
-- Lecturas acumuladas: 5075; en la ventana: 33.
+- Lecturas acumuladas: 5078; en la ventana: 36.
 - Última anomalía dentro de 5 km: 2026-10-09T06:12:02 UTC, 1.22 MW (VIIRS375).
 - Máximo de la ventana: 4.71 MW el 2026-10-05T06:48:01 UTC, intensidad baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 1.
@@ -49,32 +49,32 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070
 
 ## Copahue (ID 357090)
-- Lecturas acumuladas: 4200; en la ventana: 32.
+- Lecturas acumuladas: 4203; en la ventana: 35.
 - Sin anomalías dentro de 4 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357090
 
 ## Llaima (ID 357110)
-- Lecturas acumuladas: 774; en la ventana: 33.
+- Lecturas acumuladas: 777; en la ventana: 36.
 - Sin anomalías dentro de 5 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357110
 
 ## Villarrica (ID 357120)
-- Lecturas acumuladas: 5245; en la ventana: 34.
+- Lecturas acumuladas: 5248; en la ventana: 37.
 - Sin anomalías dentro de 5 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - FIRMS (FRP, independiente de MIROVA): 1 pasadas con píxeles activos dentro del radio; última 2026-09-17T05:46:00 UTC, 0.31 MW; máximo 0.31 MW.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120
 
 ## Puyehue-Cordon Caulle (ID 357150)
-- Lecturas acumuladas: 5521; en la ventana: 33.
+- Lecturas acumuladas: 5524; en la ventana: 36.
 - Sin anomalías dentro de 20 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150
 
 ## Chaiten (ID 358041)
-- Lecturas acumuladas: 5842; en la ventana: 33.
+- Lecturas acumuladas: 5845; en la ventana: 36.
 - Última anomalía dentro de 5 km: 2026-10-06T05:30:02 UTC, 0.18 MW (VIIRS750).
 - Máximo de la ventana: 0.18 MW el 2026-10-06T05:30:02 UTC, intensidad muy baja.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.
