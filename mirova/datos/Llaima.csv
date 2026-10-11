@@ -791,3 +791,6 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-10T06:54:01,357110,Llaima,VIIRS750,0,0.00,1,sin anomalia,2026-10-10T12:24:14,latest.php,
 2026-10-10T07:45:00,357110,Llaima,MODIS,0,0.00,1,sin anomalia,2026-10-10T12:24:14,latest.php,
 2026-10-10T13:45:00,357110,Llaima,MODIS,0,0.00,1,sin anomalia,2026-10-10T17:27:48,latest.php,
+2026-10-10T19:12:01,357110,Llaima,VIIRS375,0,0.00,1,sin anomalia,2026-10-11T00:13:07,latest.php,
+2026-10-10T19:12:01,357110,Llaima,VIIRS750,0,0.00,1,sin anomalia,2026-10-11T00:13:07,latest.php,
+2026-10-10T21:20:00,357110,Llaima,MODIS,0,0.00,1,sin anomalia,2026-10-11T00:13:07,latest.php,

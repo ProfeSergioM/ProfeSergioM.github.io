@@ -1,21 +1,21 @@
 {
  "Llaima_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_VRP.png",
-  "last_modified": "Sat, 10 Oct 2026 09:56:01 GMT",
-  "bytes": 103780,
-  "capturado_utc": "2026-10-10T12:25:16"
+  "last_modified": "Sat, 10 Oct 2026 22:09:13 GMT",
+  "bytes": 103488,
+  "capturado_utc": "2026-10-11T00:13:47"
  },
  "Llaima_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_logVRP.png",
-  "last_modified": "Sat, 10 Oct 2026 09:56:03 GMT",
-  "bytes": 133602,
-  "capturado_utc": "2026-10-10T12:25:17"
+  "last_modified": "Sat, 10 Oct 2026 22:09:17 GMT",
+  "bytes": 133489,
+  "capturado_utc": "2026-10-11T00:13:48"
  },
  "Llaima_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_Dist.png",
-  "last_modified": "Sat, 10 Oct 2026 09:56:09 GMT",
-  "bytes": 106597,
-  "capturado_utc": "2026-10-10T12:25:18"
+  "last_modified": "Sat, 10 Oct 2026 22:09:26 GMT",
+  "bytes": 106400,
+  "capturado_utc": "2026-10-11T00:13:49"
  },
  "Llaima_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Llaima/Llaima_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Llaima_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Llaima/Llaima_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sat, 10 Oct 2026 09:54:47 GMT",
+  "last_modified": "Sat, 10 Oct 2026 22:01:05 GMT",
   "bytes": 223143,
-  "capturado_utc": "2026-10-10T12:25:21"
+  "capturado_utc": "2026-10-11T00:13:52"
  },
  "Llaima_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Llaima/Llaima_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sat, 10 Oct 2026 09:55:54 GMT",
+  "last_modified": "Sat, 10 Oct 2026 22:09:05 GMT",
   "bytes": 362691,
-  "capturado_utc": "2026-10-10T12:25:23"
+  "capturado_utc": "2026-10-11T00:13:53"
  }
 }
