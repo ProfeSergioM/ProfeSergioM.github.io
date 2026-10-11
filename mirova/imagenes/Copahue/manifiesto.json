@@ -1,21 +1,21 @@
 {
  "Copahue_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
-  "last_modified": "Sat, 10 Oct 2026 09:55:19 GMT",
-  "bytes": 111376,
-  "capturado_utc": "2026-10-10T12:25:07"
+  "last_modified": "Sun, 11 Oct 2026 12:10:17 GMT",
+  "bytes": 111107,
+  "capturado_utc": "2026-10-11T22:26:58"
  },
  "Copahue_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
-  "last_modified": "Sat, 10 Oct 2026 09:55:21 GMT",
-  "bytes": 143792,
-  "capturado_utc": "2026-10-10T12:25:09"
+  "last_modified": "Sun, 11 Oct 2026 12:10:20 GMT",
+  "bytes": 143517,
+  "capturado_utc": "2026-10-11T22:26:59"
  },
  "Copahue_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
-  "last_modified": "Sat, 10 Oct 2026 09:55:27 GMT",
-  "bytes": 113332,
-  "capturado_utc": "2026-10-10T12:25:10"
+  "last_modified": "Sun, 11 Oct 2026 12:10:26 GMT",
+  "bytes": 113118,
+  "capturado_utc": "2026-10-11T22:27:00"
  },
  "Copahue_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Copahue_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sat, 10 Oct 2026 09:54:05 GMT",
-  "bytes": 231239,
-  "capturado_utc": "2026-10-10T12:25:12"
+  "last_modified": "Sun, 11 Oct 2026 12:10:09 GMT",
+  "bytes": 216690,
+  "capturado_utc": "2026-10-11T22:27:03"
  },
  "Copahue_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sat, 10 Oct 2026 09:55:13 GMT",
-  "bytes": 368319,
-  "capturado_utc": "2026-10-10T12:25:14"
+  "last_modified": "Sun, 11 Oct 2026 11:56:13 GMT",
+  "bytes": 362199,
+  "capturado_utc": "2026-10-11T22:27:04"
  }
 }
