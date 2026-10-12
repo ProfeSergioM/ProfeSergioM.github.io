@@ -1,21 +1,21 @@
 {
  "Llaima_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_VRP.png",
-  "last_modified": "Sun, 11 Oct 2026 12:11:30 GMT",
-  "bytes": 103516,
-  "capturado_utc": "2026-10-11T22:27:06"
+  "last_modified": "Mon, 12 Oct 2026 08:32:59 GMT",
+  "bytes": 103684,
+  "capturado_utc": "2026-10-12T09:06:48"
  },
  "Llaima_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_logVRP.png",
-  "last_modified": "Sun, 11 Oct 2026 12:11:38 GMT",
-  "bytes": 133520,
-  "capturado_utc": "2026-10-11T22:27:07"
+  "last_modified": "Mon, 12 Oct 2026 08:33:01 GMT",
+  "bytes": 133455,
+  "capturado_utc": "2026-10-12T09:06:50"
  },
  "Llaima_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_Dist.png",
-  "last_modified": "Sun, 11 Oct 2026 12:11:48 GMT",
-  "bytes": 105890,
-  "capturado_utc": "2026-10-11T22:27:08"
+  "last_modified": "Mon, 12 Oct 2026 08:33:07 GMT",
+  "bytes": 106828,
+  "capturado_utc": "2026-10-12T09:06:51"
  },
  "Llaima_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Llaima/Llaima_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Llaima_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Llaima/Llaima_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sun, 11 Oct 2026 12:11:19 GMT",
-  "bytes": 227366,
-  "capturado_utc": "2026-10-11T22:27:11"
+  "last_modified": "Mon, 12 Oct 2026 08:32:52 GMT",
+  "bytes": 228586,
+  "capturado_utc": "2026-10-12T09:06:53"
  },
  "Llaima_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Llaima/Llaima_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sun, 11 Oct 2026 11:57:05 GMT",
-  "bytes": 369857,
-  "capturado_utc": "2026-10-11T22:27:12"
+  "last_modified": "Mon, 12 Oct 2026 08:29:49 GMT",
+  "bytes": 376337,
+  "capturado_utc": "2026-10-12T09:06:54"
  }
 }
