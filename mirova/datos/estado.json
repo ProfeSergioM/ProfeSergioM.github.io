@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-13T16:26:01",
+ "generado_utc": "2026-10-13T21:32:57",
  "dias_ventana": 30,
  "volcanes": {
   "Isluga": {
@@ -7,9 +7,9 @@
    "archivo_csv": "datos/Isluga.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030",
    "limite_km": 5.0,
-   "lecturas_totales": 4826,
+   "lecturas_totales": 4828,
    "lecturas_firms": 25,
-   "lecturas_ventana": 58,
+   "lecturas_ventana": 60,
    "anomalias_ventana": 5,
    "detecciones_fuera_radio_ventana": 3,
    "ultima_anomalia": {
@@ -30,12 +30,12 @@
    "firms_maximo_mw": null,
    "sensores": {
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:06:01",
-     "lecturas": 4760
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 4761
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:06:01",
-     "lecturas": 19
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 20
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-13T12:20:00",
@@ -57,9 +57,9 @@
    "archivo_csv": "datos/Lascar.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100",
    "limite_km": 5.0,
-   "lecturas_totales": 10214,
+   "lecturas_totales": 10216,
    "lecturas_firms": 130,
-   "lecturas_ventana": 56,
+   "lecturas_ventana": 58,
    "anomalias_ventana": 2,
    "detecciones_fuera_radio_ventana": 1,
    "ultima_anomalia": {
@@ -84,12 +84,12 @@
      "lecturas": 5069
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 4785
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 4786
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 230
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 231
     }
    },
    "figuras": [
@@ -107,9 +107,9 @@
    "archivo_csv": "datos/Lastarria.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355120",
    "limite_km": 3.0,
-   "lecturas_totales": 5424,
+   "lecturas_totales": 5426,
    "lecturas_firms": 0,
-   "lecturas_ventana": 56,
+   "lecturas_ventana": 58,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 3,
    "ultima_anomalia": null,
@@ -124,12 +124,12 @@
      "lecturas": 43
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 5358
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 5359
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 23
+     "ultima_lectura_utc": "2026-10-13T18:00:00",
+     "lecturas": 24
     }
    },
    "figuras": [
@@ -147,9 +147,9 @@
    "archivo_csv": "datos/Tupungatito.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357010",
    "limite_km": 7.0,
-   "lecturas_totales": 58,
+   "lecturas_totales": 60,
    "lecturas_firms": 0,
-   "lecturas_ventana": 58,
+   "lecturas_ventana": 60,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 3,
    "ultima_anomalia": null,
@@ -160,12 +160,12 @@
    "firms_maximo_mw": null,
    "sensores": {
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 18
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 19
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 18
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 19
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-13T12:25:00",
@@ -187,9 +187,9 @@
    "archivo_csv": "datos/Planchon_Peteroa.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357040",
    "limite_km": 3.0,
-   "lecturas_totales": 1839,
+   "lecturas_totales": 1841,
    "lecturas_firms": 20,
-   "lecturas_ventana": 57,
+   "lecturas_ventana": 59,
    "anomalias_ventana": 1,
    "detecciones_fuera_radio_ventana": 1,
    "ultima_anomalia": {
@@ -210,16 +210,16 @@
    "firms_maximo_mw": null,
    "sensores": {
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 1668
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 1669
     },
     "MODIS": {
      "ultima_lectura_utc": "2026-10-13T12:25:00",
      "lecturas": 84
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 67
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 68
     }
    },
    "figuras": [
@@ -237,9 +237,9 @@
    "archivo_csv": "datos/Nevados_de_Chillan.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070",
    "limite_km": 5.0,
-   "lecturas_totales": 5161,
+   "lecturas_totales": 5163,
    "lecturas_firms": 61,
-   "lecturas_ventana": 58,
+   "lecturas_ventana": 60,
    "anomalias_ventana": 13,
    "detecciones_fuera_radio_ventana": 1,
    "ultima_anomalia": {
@@ -267,12 +267,12 @@
      "lecturas": 1397
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 2952
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 2953
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 751
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 752
     }
    },
    "figuras": [
@@ -290,9 +290,9 @@
    "archivo_csv": "datos/Copahue.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357090",
    "limite_km": 4.0,
-   "lecturas_totales": 4235,
+   "lecturas_totales": 4237,
    "lecturas_firms": 10,
-   "lecturas_ventana": 57,
+   "lecturas_ventana": 59,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": null,
@@ -307,12 +307,12 @@
      "lecturas": 642
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 3391
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 3392
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 192
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 193
     }
    },
    "figuras": [
@@ -330,9 +330,9 @@
    "archivo_csv": "datos/Llaima.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357110",
    "limite_km": 5.0,
-   "lecturas_totales": 809,
+   "lecturas_totales": 811,
    "lecturas_firms": 10,
-   "lecturas_ventana": 58,
+   "lecturas_ventana": 60,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": null,
@@ -347,12 +347,12 @@
      "lecturas": 442
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 318
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 319
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 39
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 40
     }
    },
    "figuras": [
@@ -370,9 +370,9 @@
    "archivo_csv": "datos/Villarrica.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
    "limite_km": 5.0,
-   "lecturas_totales": 5279,
+   "lecturas_totales": 5281,
    "lecturas_firms": 10,
-   "lecturas_ventana": 58,
+   "lecturas_ventana": 60,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": null,
@@ -390,12 +390,12 @@
      "lecturas": 2576
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 678
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 679
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:12:01",
-     "lecturas": 2015
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 2016
     }
    },
    "figuras": [
@@ -413,9 +413,9 @@
    "archivo_csv": "datos/Puyehue_Cordon_Caulle.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150",
    "limite_km": 20.0,
-   "lecturas_totales": 5547,
+   "lecturas_totales": 5549,
    "lecturas_firms": 0,
-   "lecturas_ventana": 59,
+   "lecturas_ventana": 61,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": null,
@@ -430,12 +430,12 @@
      "lecturas": 544
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:18:01",
-     "lecturas": 370
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 371
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:18:01",
-     "lecturas": 4633
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 4634
     }
    },
    "figuras": [
@@ -453,9 +453,9 @@
    "archivo_csv": "datos/Chaiten.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=358041",
    "limite_km": 5.0,
-   "lecturas_totales": 5868,
+   "lecturas_totales": 5870,
    "lecturas_firms": 0,
-   "lecturas_ventana": 59,
+   "lecturas_ventana": 61,
    "anomalias_ventana": 2,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": {
@@ -480,12 +480,12 @@
      "lecturas": 2557
     },
     "VIIRS375": {
-     "ultima_lectura_utc": "2026-10-12T06:18:01",
-     "lecturas": 2981
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 2982
     },
     "VIIRS750": {
-     "ultima_lectura_utc": "2026-10-12T06:18:01",
-     "lecturas": 330
+     "ultima_lectura_utc": "2026-10-13T17:54:00",
+     "lecturas": 331
     }
    },
    "figuras": [
