@@ -1,38 +1,38 @@
 {
  "Villarrica_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_VRP.png",
-  "last_modified": "Wed, 14 Oct 2026 03:08:26 GMT",
-  "bytes": 105434,
-  "capturado_utc": "2026-10-14T05:24:26"
+  "last_modified": "Wed, 14 Oct 2026 10:39:02 GMT",
+  "bytes": 105424,
+  "capturado_utc": "2026-10-14T15:29:33"
  },
  "Villarrica_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_logVRP.png",
-  "last_modified": "Wed, 14 Oct 2026 03:08:28 GMT",
-  "bytes": 137969,
-  "capturado_utc": "2026-10-14T05:24:28"
+  "last_modified": "Wed, 14 Oct 2026 10:39:11 GMT",
+  "bytes": 139130,
+  "capturado_utc": "2026-10-14T15:29:35"
  },
  "Villarrica_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_Dist.png",
-  "last_modified": "Wed, 14 Oct 2026 03:08:35 GMT",
-  "bytes": 106428,
-  "capturado_utc": "2026-10-14T05:24:29"
+  "last_modified": "Wed, 14 Oct 2026 10:39:19 GMT",
+  "bytes": 106353,
+  "capturado_utc": "2026-10-14T15:29:36"
  },
  "Villarrica_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Villarrica/Villarrica_MODIS_Latest10NTI.png",
-  "last_modified": "Wed, 14 Oct 2026 03:08:18 GMT",
-  "bytes": 96832,
-  "capturado_utc": "2026-10-14T05:24:30"
+  "last_modified": "Wed, 14 Oct 2026 10:36:29 GMT",
+  "bytes": 97097,
+  "capturado_utc": "2026-10-14T15:29:37"
  },
  "Villarrica_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Villarrica/Villarrica_VIIRS750_Latest10NTI.png",
-  "last_modified": "Mon, 12 Oct 2026 09:12:40 GMT",
-  "bytes": 224860,
-  "capturado_utc": "2026-10-12T19:00:38"
+  "last_modified": "Wed, 14 Oct 2026 10:38:53 GMT",
+  "bytes": 208696,
+  "capturado_utc": "2026-10-14T15:29:39"
  },
  "Villarrica_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Villarrica/Villarrica_VIIRS375_Latest10NTI.png",
-  "last_modified": "Mon, 12 Oct 2026 09:09:39 GMT",
-  "bytes": 371949,
-  "capturado_utc": "2026-10-12T19:00:40"
+  "last_modified": "Wed, 14 Oct 2026 10:34:57 GMT",
+  "bytes": 324682,
+  "capturado_utc": "2026-10-14T15:29:41"
  }
 }
