@@ -1,4 +1,4 @@
-# Resumen MIROVA (2026-10-14 19:42 UTC)
+# Resumen MIROVA (2026-10-14 23:12 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
@@ -33,7 +33,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357010
 
 ## Planchon-Peteroa (ID 357040)
-- Lecturas acumuladas: 1828; en la ventana: 66.
+- Lecturas acumuladas: 1829; en la ventana: 67.
 - Última anomalía dentro de 3 km: 2026-10-07T06:06:01 UTC, 0.15 MW (VIIRS375).
 - Máximo de la ventana: 0.15 MW el 2026-10-07T06:06:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 1.
@@ -41,8 +41,8 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357040
 
 ## Nevados de Chillan (ID 357070)
-- Lecturas acumuladas: 5109; en la ventana: 67.
-- Última anomalía dentro de 5 km: 2026-10-12T07:20:00 UTC, 2.18 MW (MODIS).
+- Lecturas acumuladas: 5110; en la ventana: 68.
+- Última anomalía dentro de 5 km: 2026-10-14T13:05:00 UTC, 6.98 MW (MODIS).
 - Máximo de la ventana: 15.81 MW el 2026-10-11T19:36:02 UTC, intensidad moderada.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 1.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.
@@ -50,32 +50,32 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070
 
 ## Copahue (ID 357090)
-- Lecturas acumuladas: 4234; en la ventana: 66.
+- Lecturas acumuladas: 4235; en la ventana: 67.
 - Sin anomalías dentro de 4 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357090
 
 ## Llaima (ID 357110)
-- Lecturas acumuladas: 808; en la ventana: 67.
+- Lecturas acumuladas: 809; en la ventana: 68.
 - Sin anomalías dentro de 5 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357110
 
 ## Villarrica (ID 357120)
-- Lecturas acumuladas: 5278; en la ventana: 67.
+- Lecturas acumuladas: 5279; en la ventana: 68.
 - Sin anomalías dentro de 5 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - FIRMS (FRP, independiente de MIROVA): 1 pasadas con píxeles activos dentro del radio; última 2026-09-17T05:46:00 UTC, 0.31 MW; máximo 0.31 MW.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120
 
 ## Puyehue-Cordon Caulle (ID 357150)
-- Lecturas acumuladas: 5556; en la ventana: 68.
+- Lecturas acumuladas: 5557; en la ventana: 69.
 - Sin anomalías dentro de 20 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150
 
 ## Chaiten (ID 358041)
-- Lecturas acumuladas: 5877; en la ventana: 68.
+- Lecturas acumuladas: 5878; en la ventana: 69.
 - Última anomalía dentro de 5 km: 2026-10-11T06:36:01 UTC, 0.16 MW (VIIRS375).
 - Máximo de la ventana: 0.18 MW el 2026-10-06T05:30:02 UTC, intensidad muy baja.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.
