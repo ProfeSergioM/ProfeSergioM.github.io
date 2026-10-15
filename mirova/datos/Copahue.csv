@@ -4254,3 +4254,6 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-15T06:36:00,357090,Copahue,VIIRS750,0,0.00,1,sin anomalia,2026-10-15T17:44:57,latest.php,
 2026-10-15T12:05:00,357090,Copahue,MODIS,0,0.00,1,sin anomalia,2026-10-15T17:44:57,latest.php,
 2026-10-15T13:45:00,357090,Copahue,MODIS,0,0.00,1,sin anomalia,2026-10-15T21:18:08,latest.php,
+2026-10-15T19:18:01,357090,Copahue,VIIRS375,0,0.00,1,sin anomalia,2026-10-15T23:49:28,latest.php,
+2026-10-15T19:18:01,357090,Copahue,VIIRS750,0,0.00,1,sin anomalia,2026-10-15T23:49:28,latest.php,
+2026-10-15T21:10:00,357090,Copahue,MODIS,0,0.00,1,sin anomalia,2026-10-15T23:49:28,latest.php,
