@@ -4844,4 +4844,6 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-15T07:30:00,355030,Isluga,MODIS,0,0.00,1,sin anomalia,2026-10-15T17:44:57,latest.php,
 2026-10-15T13:35:00,355030,Isluga,MODIS,0,0.00,1,sin anomalia,2026-10-15T21:18:08,latest.php,
 2026-10-15T18:24:02,355030,Isluga,VIIRS375,0,0.00,1,sin anomalia,2026-10-15T23:49:28,latest.php,
+2026-10-15T19:06:00,355030,Isluga,VIIRS375,0,0.00,1,sin anomalia,2026-10-16T04:23:33,latest.php,
 2026-10-15T19:06:00,355030,Isluga,VIIRS750,0,0.00,1,sin anomalia,2026-10-15T23:49:28,latest.php,
+2026-10-16T01:45:00,355030,Isluga,MODIS,0,0.00,1,sin anomalia,2026-10-16T04:23:33,latest.php,
