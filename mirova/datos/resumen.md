@@ -1,9 +1,9 @@
-# Resumen MIROVA (2026-10-17 00:26 UTC)
+# Resumen MIROVA (2026-10-17 04:59 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
 ## Isluga (ID 355030)
-- Lecturas acumuladas: 4831; en la ventana: 88.
+- Lecturas acumuladas: 4832; en la ventana: 89.
 - Última anomalía dentro de 5 km: 2026-10-12T05:48:00 UTC, 0.19 MW (VIIRS375).
 - Máximo de la ventana: 0.24 MW el 2026-10-12T05:48:00 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 4.
@@ -11,7 +11,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030
 
 ## Lascar (ID 355100)
-- Lecturas acumuladas: 10113; en la ventana: 85.
+- Lecturas acumuladas: 10114; en la ventana: 86.
 - Última anomalía dentro de 5 km: 2026-10-10T06:30:00 UTC, 0.09 MW (VIIRS375).
 - Máximo de la ventana: 0.18 MW el 2026-10-07T06:06:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 2.
@@ -19,14 +19,14 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100
 
 ## Lastarria (ID 355120)
-- Lecturas acumuladas: 5456; en la ventana: 88.
+- Lecturas acumuladas: 5457; en la ventana: 89.
 - Sin anomalías dentro de 3 km en la ventana.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 4.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355120
 
 ## Tupungatito (ID 357010)
-- Lecturas acumuladas: 89; en la ventana: 89.
+- Lecturas acumuladas: 90; en la ventana: 90.
 - Última anomalía dentro de 7 km: 2026-10-16T06:36:01 UTC, 0.05 MW (VIIRS375).
 - Máximo de la ventana: 0.05 MW el 2026-10-16T06:36:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 4.
