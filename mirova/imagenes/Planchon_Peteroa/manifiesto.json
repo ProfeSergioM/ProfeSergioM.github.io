@@ -1,21 +1,21 @@
 {
  "Planchon_Peteroa_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_VRP.png",
-  "last_modified": "Sat, 17 Oct 2026 04:24:23 GMT",
-  "bytes": 126321,
-  "capturado_utc": "2026-10-17T04:57:47"
+  "last_modified": "Sat, 17 Oct 2026 08:56:33 GMT",
+  "bytes": 126582,
+  "capturado_utc": "2026-10-17T09:16:04"
  },
  "Planchon_Peteroa_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_logVRP.png",
-  "last_modified": "Sat, 17 Oct 2026 04:24:28 GMT",
-  "bytes": 161847,
-  "capturado_utc": "2026-10-17T04:57:48"
+  "last_modified": "Sat, 17 Oct 2026 08:56:38 GMT",
+  "bytes": 161703,
+  "capturado_utc": "2026-10-17T09:16:05"
  },
  "Planchon_Peteroa_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_COMB_Dist.png",
-  "last_modified": "Sat, 17 Oct 2026 04:24:37 GMT",
-  "bytes": 124887,
-  "capturado_utc": "2026-10-17T04:57:50"
+  "last_modified": "Sat, 17 Oct 2026 08:56:45 GMT",
+  "bytes": 125303,
+  "capturado_utc": "2026-10-17T09:16:06"
  },
  "Planchon_Peteroa_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Planchon_Peteroa_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_VIIRS750_Latest10NTI.png",
-  "last_modified": "Fri, 16 Oct 2026 11:33:15 GMT",
-  "bytes": 255234,
-  "capturado_utc": "2026-10-16T14:13:32"
+  "last_modified": "Sat, 17 Oct 2026 07:08:48 GMT",
+  "bytes": 248750,
+  "capturado_utc": "2026-10-17T09:16:08"
  },
  "Planchon_Peteroa_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/PlanchonPeteroa/PlanchonPeteroa_VIIRS375_Latest10NTI.png",
-  "last_modified": "Fri, 16 Oct 2026 11:26:36 GMT",
-  "bytes": 416036,
-  "capturado_utc": "2026-10-16T14:13:34"
+  "last_modified": "Sat, 17 Oct 2026 08:56:23 GMT",
+  "bytes": 398372,
+  "capturado_utc": "2026-10-17T09:16:09"
  }
 }
