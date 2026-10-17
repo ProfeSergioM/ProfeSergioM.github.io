@@ -5314,3 +5314,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-17T06:24:01,357120,Villarrica,VIIRS375,0,0.00,1,sin anomalia,2026-10-17T13:10:15,latest.php,
 2026-10-17T06:24:01,357120,Villarrica,VIIRS750,0,0.00,1,sin anomalia,2026-10-17T13:10:15,latest.php,
 2026-10-17T08:50:00,357120,Villarrica,MODIS,0,0.00,1,sin anomalia,2026-10-17T13:10:15,latest.php,
+2026-10-17T13:25:00,357120,Villarrica,MODIS,0,0.00,1,sin anomalia,2026-10-17T16:38:26,latest.php,
