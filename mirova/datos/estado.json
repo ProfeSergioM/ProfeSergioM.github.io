@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-17T19:19:58",
+ "generado_utc": "2026-10-17T21:45:17",
  "dias_ventana": 30,
  "volcanes": {
   "Isluga": {
@@ -247,8 +247,8 @@
    "archivo_csv": "datos/Nevados_de_Chillan.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070",
    "limite_km": 5.0,
-   "lecturas_totales": 5214,
-   "lecturas_firms": 76,
+   "lecturas_totales": 5215,
+   "lecturas_firms": 77,
    "lecturas_ventana": 96,
    "anomalias_ventana": 30,
    "detecciones_fuera_radio_ventana": 1,
@@ -265,10 +265,10 @@
     "clasificacion": "moderada"
    },
    "tendencia": "anomalías recientes sin antecedente en la ventana",
-   "firms_ventana": 33,
+   "firms_ventana": 34,
    "firms_ultima": {
-    "fecha_utc": "2026-10-17T06:22:00",
-    "frp_mw": 20.22
+    "fecha_utc": "2026-10-17T18:24:00",
+    "frp_mw": 21.88
    },
    "firms_maximo_mw": 60.97,
    "sensores": {
