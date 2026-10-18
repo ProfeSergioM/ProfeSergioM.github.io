@@ -1,21 +1,21 @@
 {
  "Chaiten_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_VRP.png",
-  "last_modified": "Sun, 18 Oct 2026 02:58:40 GMT",
-  "bytes": 104372,
-  "capturado_utc": "2026-10-18T04:23:06"
+  "last_modified": "Sun, 18 Oct 2026 08:49:52 GMT",
+  "bytes": 104229,
+  "capturado_utc": "2026-10-18T09:04:01"
  },
  "Chaiten_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_logVRP.png",
-  "last_modified": "Sun, 18 Oct 2026 02:58:44 GMT",
-  "bytes": 139990,
-  "capturado_utc": "2026-10-18T04:23:07"
+  "last_modified": "Sun, 18 Oct 2026 08:49:55 GMT",
+  "bytes": 139941,
+  "capturado_utc": "2026-10-18T09:04:02"
  },
  "Chaiten_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_Dist.png",
-  "last_modified": "Sun, 18 Oct 2026 02:58:51 GMT",
-  "bytes": 105999,
-  "capturado_utc": "2026-10-18T04:23:08"
+  "last_modified": "Sun, 18 Oct 2026 08:50:02 GMT",
+  "bytes": 105349,
+  "capturado_utc": "2026-10-18T09:04:04"
  },
  "Chaiten_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Chaiten/Chaiten_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Chaiten_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Chaiten/Chaiten_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sat, 17 Oct 2026 21:48:53 GMT",
-  "bytes": 238970,
-  "capturado_utc": "2026-10-18T00:00:39"
+  "last_modified": "Sun, 18 Oct 2026 08:12:33 GMT",
+  "bytes": 256424,
+  "capturado_utc": "2026-10-18T09:04:05"
  },
  "Chaiten_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Chaiten/Chaiten_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sat, 17 Oct 2026 11:37:53 GMT",
-  "bytes": 379005,
-  "capturado_utc": "2026-10-17T13:11:49"
+  "last_modified": "Sun, 18 Oct 2026 08:49:44 GMT",
+  "bytes": 438689,
+  "capturado_utc": "2026-10-18T09:04:07"
  }
 }
