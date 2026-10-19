@@ -1,21 +1,21 @@
 {
  "Tupungatito_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_VRP.png",
-  "last_modified": "Mon, 19 Oct 2026 03:24:35 GMT",
-  "bytes": 138762,
-  "capturado_utc": "2026-10-19T05:16:39"
+  "last_modified": "Mon, 19 Oct 2026 10:55:31 GMT",
+  "bytes": 138810,
+  "capturado_utc": "2026-10-19T11:13:40"
  },
  "Tupungatito_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_logVRP.png",
-  "last_modified": "Mon, 19 Oct 2026 03:24:37 GMT",
-  "bytes": 167433,
-  "capturado_utc": "2026-10-19T05:16:41"
+  "last_modified": "Mon, 19 Oct 2026 10:55:38 GMT",
+  "bytes": 166486,
+  "capturado_utc": "2026-10-19T11:13:41"
  },
  "Tupungatito_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_Dist.png",
-  "last_modified": "Mon, 19 Oct 2026 03:24:44 GMT",
-  "bytes": 130643,
-  "capturado_utc": "2026-10-19T05:16:42"
+  "last_modified": "Mon, 19 Oct 2026 10:55:49 GMT",
+  "bytes": 130661,
+  "capturado_utc": "2026-10-19T11:13:42"
  },
  "Tupungatito_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Tupungatito/Tupungatito_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Tupungatito_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Tupungatito/Tupungatito_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sun, 18 Oct 2026 20:59:14 GMT",
-  "bytes": 210872,
-  "capturado_utc": "2026-10-18T21:50:13"
+  "last_modified": "Mon, 19 Oct 2026 10:55:17 GMT",
+  "bytes": 220924,
+  "capturado_utc": "2026-10-19T11:13:44"
  },
  "Tupungatito_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Tupungatito/Tupungatito_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sun, 18 Oct 2026 20:55:28 GMT",
-  "bytes": 327383,
-  "capturado_utc": "2026-10-18T21:50:15"
+  "last_modified": "Mon, 19 Oct 2026 08:20:11 GMT",
+  "bytes": 353904,
+  "capturado_utc": "2026-10-19T11:13:45"
  }
 }
