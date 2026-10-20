@@ -1,4 +1,4 @@
-# Resumen MIROVA (2026-10-19 22:19 UTC)
+# Resumen MIROVA (2026-10-20 01:16 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
@@ -65,20 +65,20 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357110
 
 ## Villarrica (ID 357120)
-- Lecturas acumuladas: 5329; en la ventana: 118.
+- Lecturas acumuladas: 5330; en la ventana: 119.
 - Sin anomalías dentro de 5 km en la ventana.
 - Tendencia (mediana segunda mitad vs. primera mitad): sin anomalías.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120
 
 ## Puyehue-Cordon Caulle (ID 357150)
-- Lecturas acumuladas: 5607; en la ventana: 119.
+- Lecturas acumuladas: 5608; en la ventana: 120.
 - Última anomalía dentro de 20 km: 2026-10-17T06:24:01 UTC, 0.55 MW (VIIRS375).
 - Máximo de la ventana: 0.55 MW el 2026-10-17T06:24:01 UTC, intensidad muy baja.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150
 
 ## Chaiten (ID 358041)
-- Lecturas acumuladas: 5927; en la ventana: 118.
+- Lecturas acumuladas: 5928; en la ventana: 119.
 - Última anomalía dentro de 5 km: 2026-10-11T06:36:01 UTC, 0.16 MW (VIIRS375).
 - Máximo de la ventana: 0.18 MW el 2026-10-06T05:30:02 UTC, intensidad muy baja.
 - Tendencia (mediana segunda mitad vs. primera mitad): anomalías recientes sin antecedente en la ventana.

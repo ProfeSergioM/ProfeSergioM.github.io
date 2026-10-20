@@ -1,5 +1,5 @@
 {
- "generado_utc": "2026-10-19T22:19:57",
+ "generado_utc": "2026-10-20T01:16:51",
  "dias_ventana": 30,
  "volcanes": {
   "Isluga": {
@@ -380,9 +380,9 @@
    "archivo_csv": "datos/Villarrica.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357120",
    "limite_km": 5.0,
-   "lecturas_totales": 5339,
+   "lecturas_totales": 5340,
    "lecturas_firms": 10,
-   "lecturas_ventana": 118,
+   "lecturas_ventana": 119,
    "anomalias_ventana": 0,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": null,
@@ -393,8 +393,8 @@
    "firms_maximo_mw": null,
    "sensores": {
     "MODIS": {
-     "ultima_lectura_utc": "2026-10-19T08:30:00",
-     "lecturas": 2600
+     "ultima_lectura_utc": "2026-10-19T13:05:00",
+     "lecturas": 2601
     },
     "VIIRS750": {
      "ultima_lectura_utc": "2026-10-19T07:06:00",
@@ -420,9 +420,9 @@
    "archivo_csv": "datos/Puyehue_Cordon_Caulle.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357150",
    "limite_km": 20.0,
-   "lecturas_totales": 5607,
+   "lecturas_totales": 5608,
    "lecturas_firms": 0,
-   "lecturas_ventana": 119,
+   "lecturas_ventana": 120,
    "anomalias_ventana": 1,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": {
@@ -443,8 +443,8 @@
    "firms_maximo_mw": null,
    "sensores": {
     "MODIS": {
-     "ultima_lectura_utc": "2026-10-19T08:30:00",
-     "lecturas": 568
+     "ultima_lectura_utc": "2026-10-19T13:05:00",
+     "lecturas": 569
     },
     "VIIRS750": {
      "ultima_lectura_utc": "2026-10-19T07:06:00",
@@ -470,9 +470,9 @@
    "archivo_csv": "datos/Chaiten.csv",
    "url_mirova": "https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=358041",
    "limite_km": 5.0,
-   "lecturas_totales": 5927,
+   "lecturas_totales": 5928,
    "lecturas_firms": 0,
-   "lecturas_ventana": 118,
+   "lecturas_ventana": 119,
    "anomalias_ventana": 2,
    "detecciones_fuera_radio_ventana": 0,
    "ultima_anomalia": {
@@ -493,8 +493,8 @@
    "firms_maximo_mw": null,
    "sensores": {
     "MODIS": {
-     "ultima_lectura_utc": "2026-10-19T08:30:00",
-     "lecturas": 2580
+     "ultima_lectura_utc": "2026-10-19T13:05:00",
+     "lecturas": 2581
     },
     "VIIRS375": {
      "ultima_lectura_utc": "2026-10-19T07:06:00",
