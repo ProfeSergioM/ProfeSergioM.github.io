@@ -5932,3 +5932,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-20T13:40:00,358041,Chaiten,MODIS,0,0.00,1,sin anomalia,2026-10-20T17:29:43,latest.php,
 2026-10-20T20:06:02,358041,Chaiten,VIIRS375,0,0.00,1,sin anomalia,2026-10-20T23:49:20,latest.php,
 2026-10-20T20:06:02,358041,Chaiten,VIIRS750,0,0.00,1,sin anomalia,2026-10-20T23:49:20,latest.php,
+2026-10-21T01:40:00,358041,Chaiten,MODIS,0,0.00,1,sin anomalia,2026-10-21T04:35:46,latest.php,
