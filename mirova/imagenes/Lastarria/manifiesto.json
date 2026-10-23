@@ -1,21 +1,21 @@
 {
  "Lastarria_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_VRP.png",
-  "last_modified": "Fri, 23 Oct 2026 03:27:54 GMT",
-  "bytes": 143885,
-  "capturado_utc": "2026-10-23T04:39:46"
+  "last_modified": "Fri, 23 Oct 2026 09:04:27 GMT",
+  "bytes": 144467,
+  "capturado_utc": "2026-10-23T09:59:18"
  },
  "Lastarria_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_logVRP.png",
-  "last_modified": "Fri, 23 Oct 2026 03:27:58 GMT",
-  "bytes": 160876,
-  "capturado_utc": "2026-10-23T04:39:47"
+  "last_modified": "Fri, 23 Oct 2026 09:04:30 GMT",
+  "bytes": 161090,
+  "capturado_utc": "2026-10-23T09:59:19"
  },
  "Lastarria_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Lastarria/Lastarria_COMB_Dist.png",
-  "last_modified": "Fri, 23 Oct 2026 03:28:05 GMT",
-  "bytes": 128456,
-  "capturado_utc": "2026-10-23T04:39:48"
+  "last_modified": "Fri, 23 Oct 2026 09:04:38 GMT",
+  "bytes": 128380,
+  "capturado_utc": "2026-10-23T09:59:21"
  },
  "Lastarria_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Lastarria/Lastarria_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Lastarria_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Lastarria/Lastarria_VIIRS750_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 08:44:51 GMT",
-  "bytes": 217128,
-  "capturado_utc": "2026-10-22T12:22:49"
+  "last_modified": "Fri, 23 Oct 2026 08:02:02 GMT",
+  "bytes": 220293,
+  "capturado_utc": "2026-10-23T09:59:23"
  },
  "Lastarria_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Lastarria/Lastarria_VIIRS375_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 08:57:25 GMT",
-  "bytes": 352118,
-  "capturado_utc": "2026-10-22T12:22:50"
+  "last_modified": "Fri, 23 Oct 2026 09:04:17 GMT",
+  "bytes": 354895,
+  "capturado_utc": "2026-10-23T09:59:24"
  }
 }

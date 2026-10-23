@@ -1,21 +1,21 @@
 {
  "Chaiten_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_VRP.png",
-  "last_modified": "Fri, 23 Oct 2026 04:13:44 GMT",
-  "bytes": 104643,
-  "capturado_utc": "2026-10-23T04:40:31"
+  "last_modified": "Fri, 23 Oct 2026 09:40:26 GMT",
+  "bytes": 104756,
+  "capturado_utc": "2026-10-23T10:00:16"
  },
  "Chaiten_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_logVRP.png",
-  "last_modified": "Fri, 23 Oct 2026 04:13:46 GMT",
-  "bytes": 139610,
-  "capturado_utc": "2026-10-23T04:40:32"
+  "last_modified": "Fri, 23 Oct 2026 09:40:29 GMT",
+  "bytes": 140044,
+  "capturado_utc": "2026-10-23T10:00:17"
  },
  "Chaiten_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_Dist.png",
-  "last_modified": "Fri, 23 Oct 2026 04:13:53 GMT",
-  "bytes": 106053,
-  "capturado_utc": "2026-10-23T04:40:33"
+  "last_modified": "Fri, 23 Oct 2026 09:40:36 GMT",
+  "bytes": 106117,
+  "capturado_utc": "2026-10-23T10:00:18"
  },
  "Chaiten_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Chaiten/Chaiten_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Chaiten_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Chaiten/Chaiten_VIIRS750_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 08:52:26 GMT",
-  "bytes": 238578,
-  "capturado_utc": "2026-10-22T12:23:53"
+  "last_modified": "Fri, 23 Oct 2026 09:40:16 GMT",
+  "bytes": 226263,
+  "capturado_utc": "2026-10-23T10:00:20"
  },
  "Chaiten_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Chaiten/Chaiten_VIIRS375_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 09:04:16 GMT",
-  "bytes": 370066,
-  "capturado_utc": "2026-10-22T12:23:55"
+  "last_modified": "Fri, 23 Oct 2026 09:10:56 GMT",
+  "bytes": 385153,
+  "capturado_utc": "2026-10-23T10:00:22"
  }
 }

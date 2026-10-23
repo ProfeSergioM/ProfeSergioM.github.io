@@ -1,21 +1,21 @@
 {
  "Puyehue_Cordon_Caulle_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_VRP.png",
-  "last_modified": "Fri, 23 Oct 2026 02:26:00 GMT",
-  "bytes": 126194,
-  "capturado_utc": "2026-10-23T04:40:25"
+  "last_modified": "Fri, 23 Oct 2026 09:39:07 GMT",
+  "bytes": 126592,
+  "capturado_utc": "2026-10-23T10:00:09"
  },
  "Puyehue_Cordon_Caulle_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_logVRP.png",
-  "last_modified": "Fri, 23 Oct 2026 02:26:02 GMT",
-  "bytes": 155204,
-  "capturado_utc": "2026-10-23T04:40:26"
+  "last_modified": "Fri, 23 Oct 2026 09:39:10 GMT",
+  "bytes": 155322,
+  "capturado_utc": "2026-10-23T10:00:10"
  },
  "Puyehue_Cordon_Caulle_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_Dist.png",
-  "last_modified": "Fri, 23 Oct 2026 02:26:09 GMT",
-  "bytes": 115601,
-  "capturado_utc": "2026-10-23T04:40:27"
+  "last_modified": "Fri, 23 Oct 2026 09:39:22 GMT",
+  "bytes": 115410,
+  "capturado_utc": "2026-10-23T10:00:11"
  },
  "Puyehue_Cordon_Caulle_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Puyehue_Cordon_Caulle_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS750_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 08:51:22 GMT",
-  "bytes": 227653,
-  "capturado_utc": "2026-10-22T12:23:45"
+  "last_modified": "Fri, 23 Oct 2026 09:38:56 GMT",
+  "bytes": 214334,
+  "capturado_utc": "2026-10-23T10:00:13"
  },
  "Puyehue_Cordon_Caulle_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS375_Latest10NTI.png",
-  "last_modified": "Thu, 22 Oct 2026 09:03:24 GMT",
-  "bytes": 348327,
-  "capturado_utc": "2026-10-22T12:23:46"
+  "last_modified": "Fri, 23 Oct 2026 09:10:04 GMT",
+  "bytes": 358959,
+  "capturado_utc": "2026-10-23T10:00:15"
  }
 }
