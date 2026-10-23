@@ -1,27 +1,27 @@
 {
  "Chaiten_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_VRP.png",
-  "last_modified": "Fri, 23 Oct 2026 09:40:26 GMT",
-  "bytes": 104756,
-  "capturado_utc": "2026-10-23T10:00:16"
+  "last_modified": "Fri, 23 Oct 2026 14:11:40 GMT",
+  "bytes": 104482,
+  "capturado_utc": "2026-10-23T15:00:58"
  },
  "Chaiten_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_logVRP.png",
-  "last_modified": "Fri, 23 Oct 2026 09:40:29 GMT",
-  "bytes": 140044,
-  "capturado_utc": "2026-10-23T10:00:17"
+  "last_modified": "Fri, 23 Oct 2026 14:11:51 GMT",
+  "bytes": 139130,
+  "capturado_utc": "2026-10-23T15:00:59"
  },
  "Chaiten_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Chaiten/Chaiten_COMB_Dist.png",
-  "last_modified": "Fri, 23 Oct 2026 09:40:36 GMT",
-  "bytes": 106117,
-  "capturado_utc": "2026-10-23T10:00:18"
+  "last_modified": "Fri, 23 Oct 2026 14:12:01 GMT",
+  "bytes": 105822,
+  "capturado_utc": "2026-10-23T15:01:00"
  },
  "Chaiten_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Chaiten/Chaiten_MODIS_Latest10NTI.png",
-  "last_modified": "Fri, 23 Oct 2026 04:13:34 GMT",
-  "bytes": 99603,
-  "capturado_utc": "2026-10-23T04:40:34"
+  "last_modified": "Fri, 23 Oct 2026 14:11:29 GMT",
+  "bytes": 99528,
+  "capturado_utc": "2026-10-23T15:01:01"
  },
  "Chaiten_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Chaiten/Chaiten_VIIRS750_Latest10NTI.png",
@@ -31,8 +31,8 @@
  },
  "Chaiten_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Chaiten/Chaiten_VIIRS375_Latest10NTI.png",
-  "last_modified": "Fri, 23 Oct 2026 09:10:56 GMT",
-  "bytes": 385153,
-  "capturado_utc": "2026-10-23T10:00:22"
+  "last_modified": "Fri, 23 Oct 2026 10:17:28 GMT",
+  "bytes": 377586,
+  "capturado_utc": "2026-10-23T15:01:04"
  }
 }
