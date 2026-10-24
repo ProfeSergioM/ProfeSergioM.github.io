@@ -1935,3 +1935,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-24T06:30:02,357040,Planchon-Peteroa,VIIRS375,0,0.00,1,sin anomalia,2026-10-24T10:50:28,latest.php,
 2026-10-24T06:30:02,357040,Planchon-Peteroa,VIIRS750,0,0.00,1,sin anomalia,2026-10-24T10:50:28,latest.php,
 2026-10-24T08:20:00,357040,Planchon-Peteroa,MODIS,0,0.00,1,sin anomalia,2026-10-24T10:50:28,latest.php,
+2026-10-24T13:00:00,357040,Planchon-Peteroa,MODIS,0,0.00,1,sin anomalia,2026-10-24T14:27:53,latest.php,
