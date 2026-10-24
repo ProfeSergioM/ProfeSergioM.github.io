@@ -1,9 +1,9 @@
-# Resumen MIROVA (2026-10-24 17:36 UTC)
+# Resumen MIROVA (2026-10-24 19:48 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
 ## Isluga (ID 355030)
-- Lecturas acumuladas: 4894; en la ventana: 151.
+- Lecturas acumuladas: 4896; en la ventana: 153.
 - Última anomalía dentro de 5 km: 2026-10-23T06:00:01 UTC, 0.08 MW (VIIRS375).
 - Máximo de la ventana: 0.45 MW el 2026-10-17T05:18:02 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 5.
@@ -11,7 +11,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355030
 
 ## Lascar (ID 355100)
-- Lecturas acumuladas: 10173; en la ventana: 145.
+- Lecturas acumuladas: 10175; en la ventana: 147.
 - Última anomalía dentro de 5 km: 2026-10-23T06:06:01 UTC, 0.11 MW (VIIRS375).
 - Máximo de la ventana: 0.18 MW el 2026-10-07T06:06:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 6.
@@ -19,7 +19,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=355100
 
 ## Lastarria (ID 355120)
-- Lecturas acumuladas: 5515; en la ventana: 147.
+- Lecturas acumuladas: 5517; en la ventana: 149.
 - Última anomalía dentro de 3 km: 2026-10-22T06:24:01 UTC, 0.16 MW (VIIRS375).
 - Máximo de la ventana: 0.16 MW el 2026-10-22T06:24:01 UTC, intensidad muy baja.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 4.
