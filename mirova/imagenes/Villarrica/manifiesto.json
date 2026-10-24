@@ -1,38 +1,38 @@
 {
  "Villarrica_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_VRP.png",
-  "last_modified": "Sat, 24 Oct 2026 03:09:26 GMT",
-  "bytes": 105873,
-  "capturado_utc": "2026-10-24T05:47:44"
+  "last_modified": "Sat, 24 Oct 2026 10:24:06 GMT",
+  "bytes": 105877,
+  "capturado_utc": "2026-10-24T10:51:22"
  },
  "Villarrica_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_logVRP.png",
-  "last_modified": "Sat, 24 Oct 2026 03:09:28 GMT",
-  "bytes": 137688,
-  "capturado_utc": "2026-10-24T05:47:45"
+  "last_modified": "Sat, 24 Oct 2026 10:24:08 GMT",
+  "bytes": 138140,
+  "capturado_utc": "2026-10-24T10:51:23"
  },
  "Villarrica_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Villarrica/Villarrica_COMB_Dist.png",
-  "last_modified": "Sat, 24 Oct 2026 03:09:36 GMT",
-  "bytes": 106181,
-  "capturado_utc": "2026-10-24T05:47:47"
+  "last_modified": "Sat, 24 Oct 2026 10:24:14 GMT",
+  "bytes": 106274,
+  "capturado_utc": "2026-10-24T10:51:24"
  },
  "Villarrica_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Villarrica/Villarrica_MODIS_Latest10NTI.png",
-  "last_modified": "Sat, 24 Oct 2026 03:09:19 GMT",
+  "last_modified": "Sat, 24 Oct 2026 10:24:00 GMT",
   "bytes": 93262,
-  "capturado_utc": "2026-10-24T05:47:48"
+  "capturado_utc": "2026-10-24T10:51:25"
  },
  "Villarrica_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Villarrica/Villarrica_VIIRS750_Latest10NTI.png",
-  "last_modified": "Fri, 23 Oct 2026 09:37:35 GMT",
-  "bytes": 212388,
-  "capturado_utc": "2026-10-23T10:00:06"
+  "last_modified": "Sat, 24 Oct 2026 08:49:30 GMT",
+  "bytes": 197608,
+  "capturado_utc": "2026-10-24T10:51:26"
  },
  "Villarrica_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Villarrica/Villarrica_VIIRS375_Latest10NTI.png",
-  "last_modified": "Fri, 23 Oct 2026 10:14:45 GMT",
-  "bytes": 347048,
-  "capturado_utc": "2026-10-23T15:00:48"
+  "last_modified": "Sat, 24 Oct 2026 09:07:52 GMT",
+  "bytes": 319221,
+  "capturado_utc": "2026-10-24T10:51:27"
  }
 }
