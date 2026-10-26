@@ -5301,3 +5301,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-25T19:30:01,357070,Nevados de Chillan,VIIRS375,39.47,1.19,1,moderada,2026-10-25T23:11:36,latest.php,
 2026-10-25T19:30:01,357070,Nevados de Chillan,VIIRS750,26.75,1.68,1,moderada,2026-10-25T23:11:36,latest.php,
 2026-10-25T19:34:00,357070,Nevados de Chillan,VIIRS375,12.81,0.52,1,moderada,2026-10-25T23:12:27,firms,
+2026-10-25T21:00:00,357070,Nevados de Chillan,MODIS,20.11,1.41,1,moderada,2026-10-26T01:39:15,latest.php,
