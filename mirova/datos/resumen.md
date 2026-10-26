@@ -1,4 +1,4 @@
-# Resumen MIROVA (2026-10-26 15:10 UTC)
+# Resumen MIROVA (2026-10-26 20:45 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
