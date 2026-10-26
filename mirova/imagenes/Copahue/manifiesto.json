@@ -1,38 +1,38 @@
 {
  "Copahue_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
-  "last_modified": "Mon, 26 Oct 2026 01:09:03 GMT",
-  "bytes": 114375,
-  "capturado_utc": "2026-10-26T01:39:50"
+  "last_modified": "Mon, 26 Oct 2026 14:46:00 GMT",
+  "bytes": 114111,
+  "capturado_utc": "2026-10-26T15:08:50"
  },
  "Copahue_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
-  "last_modified": "Mon, 26 Oct 2026 01:09:05 GMT",
-  "bytes": 142853,
-  "capturado_utc": "2026-10-26T01:39:51"
+  "last_modified": "Mon, 26 Oct 2026 14:46:03 GMT",
+  "bytes": 143040,
+  "capturado_utc": "2026-10-26T15:08:51"
  },
  "Copahue_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
-  "last_modified": "Mon, 26 Oct 2026 01:09:13 GMT",
-  "bytes": 113365,
-  "capturado_utc": "2026-10-26T01:39:52"
+  "last_modified": "Mon, 26 Oct 2026 14:46:13 GMT",
+  "bytes": 113056,
+  "capturado_utc": "2026-10-26T15:08:53"
  },
  "Copahue_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
-  "last_modified": "Mon, 26 Oct 2026 01:08:55 GMT",
-  "bytes": 101402,
-  "capturado_utc": "2026-10-26T01:39:53"
+  "last_modified": "Mon, 26 Oct 2026 14:45:49 GMT",
+  "bytes": 102312,
+  "capturado_utc": "2026-10-26T15:08:54"
  },
  "Copahue_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sun, 25 Oct 2026 10:49:37 GMT",
-  "bytes": 241718,
-  "capturado_utc": "2026-10-25T14:22:12"
+  "last_modified": "Mon, 26 Oct 2026 11:27:30 GMT",
+  "bytes": 256348,
+  "capturado_utc": "2026-10-26T15:08:55"
  },
  "Copahue_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sun, 25 Oct 2026 10:45:44 GMT",
-  "bytes": 413851,
-  "capturado_utc": "2026-10-25T14:22:14"
+  "last_modified": "Mon, 26 Oct 2026 10:47:25 GMT",
+  "bytes": 389263,
+  "capturado_utc": "2026-10-26T15:08:56"
  }
 }
