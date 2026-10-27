@@ -1960,3 +1960,6 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-26T19:12:01,357040,Planchon-Peteroa,VIIRS750,0,0.00,1,sin anomalia,2026-10-27T05:33:02,latest.php,
 2026-10-26T20:00:00,357040,Planchon-Peteroa,MODIS,0,0.00,1,sin anomalia,2026-10-27T00:22:49,latest.php,
 2026-10-27T02:20:00,357040,Planchon-Peteroa,MODIS,0,0.00,1,sin anomalia,2026-10-27T05:33:02,latest.php,
+2026-10-27T04:54:01,357040,Planchon-Peteroa,VIIRS375,0,0.00,1,sin anomalia,2026-10-27T10:56:24,latest.php,
+2026-10-27T05:36:02,357040,Planchon-Peteroa,VIIRS750,0,0.00,1,sin anomalia,2026-10-27T10:56:24,latest.php,
+2026-10-27T08:35:00,357040,Planchon-Peteroa,MODIS,0,0.00,1,sin anomalia,2026-10-27T10:56:24,latest.php,

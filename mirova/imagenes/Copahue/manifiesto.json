@@ -1,21 +1,21 @@
 {
  "Copahue_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
-  "last_modified": "Tue, 27 Oct 2026 04:10:09 GMT",
-  "bytes": 114335,
-  "capturado_utc": "2026-10-27T05:33:46"
+  "last_modified": "Tue, 27 Oct 2026 10:20:02 GMT",
+  "bytes": 114443,
+  "capturado_utc": "2026-10-27T10:57:15"
  },
  "Copahue_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
-  "last_modified": "Tue, 27 Oct 2026 04:10:16 GMT",
-  "bytes": 143114,
-  "capturado_utc": "2026-10-27T05:33:47"
+  "last_modified": "Tue, 27 Oct 2026 10:20:04 GMT",
+  "bytes": 143090,
+  "capturado_utc": "2026-10-27T10:57:17"
  },
  "Copahue_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
-  "last_modified": "Tue, 27 Oct 2026 04:10:26 GMT",
-  "bytes": 113099,
-  "capturado_utc": "2026-10-27T05:33:48"
+  "last_modified": "Tue, 27 Oct 2026 10:20:10 GMT",
+  "bytes": 113220,
+  "capturado_utc": "2026-10-27T10:57:18"
  },
  "Copahue_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
@@ -25,14 +25,14 @@
  },
  "Copahue_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
-  "last_modified": "Mon, 26 Oct 2026 11:27:30 GMT",
-  "bytes": 256348,
-  "capturado_utc": "2026-10-26T15:08:55"
+  "last_modified": "Tue, 27 Oct 2026 09:23:40 GMT",
+  "bytes": 237987,
+  "capturado_utc": "2026-10-27T10:57:20"
  },
  "Copahue_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
-  "last_modified": "Mon, 26 Oct 2026 10:47:25 GMT",
-  "bytes": 389263,
-  "capturado_utc": "2026-10-26T15:08:56"
+  "last_modified": "Tue, 27 Oct 2026 10:47:56 GMT",
+  "bytes": 385917,
+  "capturado_utc": "2026-10-27T10:57:22"
  }
 }
