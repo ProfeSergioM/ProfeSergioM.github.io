@@ -1,38 +1,38 @@
 {
  "Llaima_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_VRP.png",
-  "last_modified": "Tue, 27 Oct 2026 10:20:47 GMT",
-  "bytes": 104252,
-  "capturado_utc": "2026-10-27T10:57:23"
+  "last_modified": "Tue, 27 Oct 2026 14:39:06 GMT",
+  "bytes": 104105,
+  "capturado_utc": "2026-10-27T16:31:47"
  },
  "Llaima_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_logVRP.png",
-  "last_modified": "Tue, 27 Oct 2026 10:20:49 GMT",
-  "bytes": 133827,
-  "capturado_utc": "2026-10-27T10:57:24"
+  "last_modified": "Tue, 27 Oct 2026 14:39:08 GMT",
+  "bytes": 133416,
+  "capturado_utc": "2026-10-27T16:31:48"
  },
  "Llaima_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Llaima/Llaima_COMB_Dist.png",
-  "last_modified": "Tue, 27 Oct 2026 10:20:56 GMT",
-  "bytes": 106641,
-  "capturado_utc": "2026-10-27T10:57:26"
+  "last_modified": "Tue, 27 Oct 2026 14:39:14 GMT",
+  "bytes": 106567,
+  "capturado_utc": "2026-10-27T16:31:49"
  },
  "Llaima_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Llaima/Llaima_MODIS_Latest10NTI.png",
-  "last_modified": "Tue, 27 Oct 2026 04:11:17 GMT",
-  "bytes": 96753,
-  "capturado_utc": "2026-10-27T05:33:56"
+  "last_modified": "Tue, 27 Oct 2026 14:38:58 GMT",
+  "bytes": 101763,
+  "capturado_utc": "2026-10-27T16:31:50"
  },
  "Llaima_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Llaima/Llaima_VIIRS750_Latest10NTI.png",
-  "last_modified": "Tue, 27 Oct 2026 09:24:28 GMT",
-  "bytes": 234797,
-  "capturado_utc": "2026-10-27T10:57:28"
+  "last_modified": "Tue, 27 Oct 2026 12:09:36 GMT",
+  "bytes": 234749,
+  "capturado_utc": "2026-10-27T16:31:52"
  },
  "Llaima_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Llaima/Llaima_VIIRS375_Latest10NTI.png",
-  "last_modified": "Tue, 27 Oct 2026 10:48:37 GMT",
-  "bytes": 407968,
-  "capturado_utc": "2026-10-27T10:57:30"
+  "last_modified": "Tue, 27 Oct 2026 12:22:38 GMT",
+  "bytes": 398176,
+  "capturado_utc": "2026-10-27T16:31:53"
  }
 }
