@@ -1,4 +1,4 @@
-# Resumen MIROVA (2026-10-29 16:55 UTC)
+# Resumen MIROVA (2026-10-29 21:47 UTC)
 
 Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad de Turín.
 
@@ -48,7 +48,7 @@ Ventana de análisis: últimos 30 días. VRP en MW. Fuente: MIROVA, Universidad 
 - Máximo de la ventana: 57.2 MW el 2026-10-28T19:54:00 UTC, intensidad moderada.
 - Detecciones fuera del radio (probables fuentes no volcánicas): 2.
 - Tendencia (mediana segunda mitad vs. primera mitad): en aumento.
-- FIRMS (FRP, independiente de MIROVA): 68 pasadas con píxeles activos dentro del radio; última 2026-10-29T08:18:00 UTC, 11.2 MW; máximo 60.97 MW.
+- FIRMS (FRP, independiente de MIROVA): 71 pasadas con píxeles activos dentro del radio; última 2026-10-29T19:40:00 UTC, 36.6 MW; máximo 60.97 MW.
 - Página MIROVA: https://www.mirovaweb.it/NRT/volcanoDetails_MIR.php?volcano_id=357070
 
 ## Copahue (ID 357090)
