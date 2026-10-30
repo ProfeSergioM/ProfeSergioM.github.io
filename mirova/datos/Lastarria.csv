@@ -5562,3 +5562,4 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-29T19:00:02,355120,Lastarria,VIIRS375,0,0.00,1,sin anomalia,2026-10-30T01:54:09,latest.php,
 2026-10-29T19:00:02,355120,Lastarria,VIIRS750,0,0.00,1,sin anomalia,2026-10-30T01:54:09,latest.php,
 2026-10-29T20:15:00,355120,Lastarria,MODIS,0,0.00,1,sin anomalia,2026-10-30T01:54:09,latest.php,
+2026-10-30T01:00:00,355120,Lastarria,MODIS,0,0.00,1,sin anomalia,2026-10-30T08:32:16,latest.php,
