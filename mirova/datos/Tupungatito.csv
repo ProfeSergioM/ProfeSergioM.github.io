@@ -204,3 +204,5 @@ fecha_utc,volcano_id,volcan,sensor,vrp_mw,distancia_km,dentro_radio,clasificacio
 2026-10-29T19:36:00,357010,Tupungatito,VIIRS750,0,0.00,1,sin anomalia,2026-10-30T08:32:16,latest.php,
 2026-10-29T20:15:00,357010,Tupungatito,MODIS,0,0.00,1,sin anomalia,2026-10-30T01:54:09,latest.php,
 2026-10-30T01:00:00,357010,Tupungatito,MODIS,0,0.00,1,sin anomalia,2026-10-30T08:32:16,latest.php,
+2026-10-30T04:36:02,357010,Tupungatito,VIIRS375,0,0.00,1,sin anomalia,2026-10-30T15:18:42,latest.php,
+2026-10-30T05:36:01,357010,Tupungatito,VIIRS750,0,0.00,1,sin anomalia,2026-10-30T15:18:42,latest.php,
