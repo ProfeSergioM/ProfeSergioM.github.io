@@ -1,27 +1,27 @@
 {
  "Copahue_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_VRP.png",
-  "last_modified": "Fri, 30 Oct 2026 14:59:42 GMT",
-  "bytes": 113416,
-  "capturado_utc": "2026-10-30T15:19:35"
+  "last_modified": "Fri, 30 Oct 2026 15:37:26 GMT",
+  "bytes": 113755,
+  "capturado_utc": "2026-10-30T20:07:19"
  },
  "Copahue_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_logVRP.png",
-  "last_modified": "Fri, 30 Oct 2026 14:59:44 GMT",
-  "bytes": 143419,
-  "capturado_utc": "2026-10-30T15:19:37"
+  "last_modified": "Fri, 30 Oct 2026 15:37:29 GMT",
+  "bytes": 143584,
+  "capturado_utc": "2026-10-30T20:07:20"
  },
  "Copahue_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Copahue/Copahue_COMB_Dist.png",
-  "last_modified": "Fri, 30 Oct 2026 14:59:51 GMT",
-  "bytes": 112983,
-  "capturado_utc": "2026-10-30T15:19:38"
+  "last_modified": "Fri, 30 Oct 2026 15:37:43 GMT",
+  "bytes": 113060,
+  "capturado_utc": "2026-10-30T20:07:21"
  },
  "Copahue_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Copahue/Copahue_MODIS_Latest10NTI.png",
-  "last_modified": "Fri, 30 Oct 2026 14:36:38 GMT",
-  "bytes": 100932,
-  "capturado_utc": "2026-10-30T15:19:39"
+  "last_modified": "Fri, 30 Oct 2026 15:24:34 GMT",
+  "bytes": 100071,
+  "capturado_utc": "2026-10-30T20:07:22"
  },
  "Copahue_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Copahue/Copahue_VIIRS750_Latest10NTI.png",
@@ -31,8 +31,8 @@
  },
  "Copahue_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Copahue/Copahue_VIIRS375_Latest10NTI.png",
-  "last_modified": "Fri, 30 Oct 2026 14:45:18 GMT",
-  "bytes": 379001,
-  "capturado_utc": "2026-10-30T15:19:42"
+  "last_modified": "Fri, 30 Oct 2026 15:37:04 GMT",
+  "bytes": 372633,
+  "capturado_utc": "2026-10-30T20:07:25"
  }
 }
