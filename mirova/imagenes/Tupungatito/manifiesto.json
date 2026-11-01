@@ -1,38 +1,38 @@
 {
  "Tupungatito_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_VRP.png",
-  "last_modified": "Sun, 01 Nov 2026 12:25:33 GMT",
-  "bytes": 139600,
-  "capturado_utc": "2026-11-01T13:13:59"
+  "last_modified": "Sun, 01 Nov 2026 17:26:24 GMT",
+  "bytes": 139583,
+  "capturado_utc": "2026-11-01T18:32:55"
  },
  "Tupungatito_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_logVRP.png",
-  "last_modified": "Sun, 01 Nov 2026 12:25:37 GMT",
-  "bytes": 166618,
-  "capturado_utc": "2026-11-01T13:14:01"
+  "last_modified": "Sun, 01 Nov 2026 17:26:26 GMT",
+  "bytes": 166835,
+  "capturado_utc": "2026-11-01T18:32:56"
  },
  "Tupungatito_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/Tupungatito/Tupungatito_COMB_Dist.png",
-  "last_modified": "Sun, 01 Nov 2026 12:25:44 GMT",
-  "bytes": 131537,
-  "capturado_utc": "2026-11-01T13:14:02"
+  "last_modified": "Sun, 01 Nov 2026 17:26:33 GMT",
+  "bytes": 131535,
+  "capturado_utc": "2026-11-01T18:32:57"
  },
  "Tupungatito_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/Tupungatito/Tupungatito_MODIS_Latest10NTI.png",
-  "last_modified": "Sun, 01 Nov 2026 08:26:46 GMT",
-  "bytes": 95470,
-  "capturado_utc": "2026-11-01T13:14:03"
+  "last_modified": "Sun, 01 Nov 2026 16:16:06 GMT",
+  "bytes": 96808,
+  "capturado_utc": "2026-11-01T18:32:58"
  },
  "Tupungatito_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/Tupungatito/Tupungatito_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sun, 01 Nov 2026 11:57:35 GMT",
-  "bytes": 225260,
-  "capturado_utc": "2026-11-01T13:14:04"
+  "last_modified": "Sun, 01 Nov 2026 16:39:02 GMT",
+  "bytes": 230183,
+  "capturado_utc": "2026-11-01T18:33:00"
  },
  "Tupungatito_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/Tupungatito/Tupungatito_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sun, 01 Nov 2026 12:25:23 GMT",
-  "bytes": 368382,
-  "capturado_utc": "2026-11-01T13:14:05"
+  "last_modified": "Sun, 01 Nov 2026 17:26:15 GMT",
+  "bytes": 366655,
+  "capturado_utc": "2026-11-01T18:33:01"
  }
 }
