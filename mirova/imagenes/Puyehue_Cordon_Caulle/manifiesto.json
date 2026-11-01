@@ -1,38 +1,38 @@
 {
  "Puyehue_Cordon_Caulle_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_VRP.png",
-  "last_modified": "Sun, 01 Nov 2026 04:51:25 GMT",
-  "bytes": 127497,
-  "capturado_utc": "2026-11-01T05:54:43"
+  "last_modified": "Sun, 01 Nov 2026 12:31:54 GMT",
+  "bytes": 126778,
+  "capturado_utc": "2026-11-01T13:14:42"
  },
  "Puyehue_Cordon_Caulle_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_logVRP.png",
-  "last_modified": "Sun, 01 Nov 2026 04:51:28 GMT",
-  "bytes": 154975,
-  "capturado_utc": "2026-11-01T05:54:45"
+  "last_modified": "Sun, 01 Nov 2026 12:31:56 GMT",
+  "bytes": 155800,
+  "capturado_utc": "2026-11-01T13:14:43"
  },
  "Puyehue_Cordon_Caulle_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_COMB_Dist.png",
-  "last_modified": "Sun, 01 Nov 2026 04:51:34 GMT",
-  "bytes": 115938,
-  "capturado_utc": "2026-11-01T05:54:46"
+  "last_modified": "Sun, 01 Nov 2026 12:32:03 GMT",
+  "bytes": 115597,
+  "capturado_utc": "2026-11-01T13:14:44"
  },
  "Puyehue_Cordon_Caulle_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_MODIS_Latest10NTI.png",
-  "last_modified": "Sun, 01 Nov 2026 04:51:16 GMT",
-  "bytes": 102617,
-  "capturado_utc": "2026-11-01T05:54:47"
+  "last_modified": "Sun, 01 Nov 2026 08:24:34 GMT",
+  "bytes": 103705,
+  "capturado_utc": "2026-11-01T13:14:45"
  },
  "Puyehue_Cordon_Caulle_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS750_Latest10NTI.png",
-  "last_modified": "Sat, 31 Oct 2026 09:54:03 GMT",
-  "bytes": 222011,
-  "capturado_utc": "2026-10-31T11:13:05"
+  "last_modified": "Sun, 01 Nov 2026 12:04:00 GMT",
+  "bytes": 238210,
+  "capturado_utc": "2026-11-01T13:14:46"
  },
  "Puyehue_Cordon_Caulle_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/PuyehueCordonCaulle/PuyehueCordonCaulle_VIIRS375_Latest10NTI.png",
-  "last_modified": "Sat, 31 Oct 2026 10:17:52 GMT",
-  "bytes": 371028,
-  "capturado_utc": "2026-10-31T11:13:06"
+  "last_modified": "Sun, 01 Nov 2026 12:31:46 GMT",
+  "bytes": 417098,
+  "capturado_utc": "2026-11-01T13:14:47"
  }
 }
