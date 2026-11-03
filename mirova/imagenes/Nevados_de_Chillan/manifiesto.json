@@ -1,38 +1,38 @@
 {
  "Nevados_de_Chillan_COMB_VRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_VRP.png",
-  "last_modified": "Mon, 02 Nov 2026 22:42:40 GMT",
-  "bytes": 121657,
-  "capturado_utc": "2026-11-03T02:14:38"
+  "last_modified": "Tue, 03 Nov 2026 08:56:57 GMT",
+  "bytes": 121408,
+  "capturado_utc": "2026-11-03T10:01:25"
  },
  "Nevados_de_Chillan_COMB_logVRP.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_logVRP.png",
-  "last_modified": "Mon, 02 Nov 2026 22:42:42 GMT",
-  "bytes": 154546,
-  "capturado_utc": "2026-11-03T02:14:39"
+  "last_modified": "Tue, 03 Nov 2026 08:56:58 GMT",
+  "bytes": 155335,
+  "capturado_utc": "2026-11-03T10:01:26"
  },
  "Nevados_de_Chillan_COMB_Dist.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/COMB/VOLCANOES/ChillanNevadosde/ChillanNevadosde_COMB_Dist.png",
-  "last_modified": "Mon, 02 Nov 2026 22:42:48 GMT",
-  "bytes": 120733,
-  "capturado_utc": "2026-11-03T02:14:40"
+  "last_modified": "Tue, 03 Nov 2026 08:57:04 GMT",
+  "bytes": 120902,
+  "capturado_utc": "2026-11-03T10:01:29"
  },
  "Nevados_de_Chillan_MODIS_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/MODIS/VOLCANOES/ChillanNevadosde/ChillanNevadosde_MODIS_Latest10NTI.png",
-  "last_modified": "Mon, 02 Nov 2026 22:42:34 GMT",
-  "bytes": 104866,
-  "capturado_utc": "2026-11-03T02:14:41"
+  "last_modified": "Tue, 03 Nov 2026 02:57:11 GMT",
+  "bytes": 104418,
+  "capturado_utc": "2026-11-03T10:01:30"
  },
  "Nevados_de_Chillan_VIIRS750_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS750/VOLCANOES/ChillanNevadosde/ChillanNevadosde_VIIRS750_Latest10NTI.png",
-  "last_modified": "Mon, 02 Nov 2026 09:42:24 GMT",
-  "bytes": 250447,
-  "capturado_utc": "2026-11-02T19:47:00"
+  "last_modified": "Tue, 03 Nov 2026 08:56:50 GMT",
+  "bytes": 262233,
+  "capturado_utc": "2026-11-03T10:01:31"
  },
  "Nevados_de_Chillan_VIIRS375_Latest10NTI.png": {
   "url": "https://www.mirovaweb.it/OUTPUTweb/MIROVA/VIIRS375/VOLCANOES/ChillanNevadosde/ChillanNevadosde_VIIRS375_Latest10NTI.png",
-  "last_modified": "Mon, 02 Nov 2026 11:01:55 GMT",
-  "bytes": 413983,
-  "capturado_utc": "2026-11-02T19:47:01"
+  "last_modified": "Tue, 03 Nov 2026 08:56:14 GMT",
+  "bytes": 439365,
+  "capturado_utc": "2026-11-03T10:01:41"
  }
 }
