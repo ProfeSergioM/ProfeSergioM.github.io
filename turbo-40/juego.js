@@ -8,25 +8,91 @@
   cv.width = gcv.width = W; cv.height = gcv.height = H;
   ctx.imageSmoothingEnabled = false;
 
-  // ---------- entrada: solo flechas (M silencia) ----------
+  // ---------- entrada: flechas del teclado o controles táctiles (M silencia) ----------
   const keys = { up: false, down: false, left: false, right: false };
   const pressed = new Set();
   const KM = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
+  let musicStarted = false;
+  function press(k) {
+    if (!keys[k]) pressed.add(k);
+    keys[k] = true; AU.init();
+    if (!musicStarted) { musicStarted = true; AU.music(true, 'title'); }
+  }
+  const release = k => { keys[k] = false; };
   addEventListener('keydown', e => {
     const k = KM[e.key];
-    if (k) { e.preventDefault(); if (!keys[k]) pressed.add(k); keys[k] = true; AU.init(); if (!musicStarted) { musicStarted = true; AU.music(true, 'title'); } }
+    if (k) { e.preventDefault(); press(k); }
     if (e.key === 'm' || e.key === 'M') AU.toggleMute();
   });
-  addEventListener('keyup', e => { const k = KM[e.key]; if (k) { keys[k] = false; e.preventDefault(); } });
+  addEventListener('keyup', e => { const k = KM[e.key]; if (k) { release(k); e.preventDefault(); } });
   addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
-  let musicStarted = false;
   const P = k => pressed.has(k);
 
+  // ---------- controles táctiles ----------
+  const TACTIL = /[?&]tactil\b/.test(location.search) || (window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window;
+  const vibrar = ms => { if (TACTIL && navigator.vibrate) try { navigator.vibrate(ms); } catch (e) { } };
+  let mandos = null;
+  // zona con dos mitades: cada dedo activa la tecla de la mitad donde está (se puede deslizar)
+  function zona(cls, eje, teclas, html) {
+    const el = document.createElement('div');
+    el.className = 'zona ' + cls; el.innerHTML = html;
+    const dedos = new Map();
+    const sync = () => {
+      const on = new Set(dedos.values());
+      for (const k of teclas) { if (on.has(k)) { if (!keys[k]) press(k); } else if (keys[k]) release(k); }
+      el.querySelectorAll('[data-k]').forEach(b => b.classList.toggle('activo', on.has(b.dataset.k)));
+    };
+    const cual = e => {
+      const r = el.getBoundingClientRect();
+      const f = eje === 'x' ? (e.clientX - r.left) / r.width : (e.clientY - r.top) / r.height;
+      return eje === 'x' ? (f < 0.5 ? teclas[0] : teclas[1]) : (f < 0.38 ? teclas[0] : teclas[1]);
+    };
+    el.addEventListener('pointerdown', e => { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (_) { } dedos.set(e.pointerId, cual(e)); sync(); });
+    el.addEventListener('pointermove', e => { if (dedos.has(e.pointerId)) { dedos.set(e.pointerId, cual(e)); sync(); } });
+    const fin = e => { if (dedos.delete(e.pointerId)) sync(); };
+    el.addEventListener('pointerup', fin); el.addEventListener('pointercancel', fin); el.addEventListener('lostpointercapture', fin);
+    el.addEventListener('contextmenu', e => e.preventDefault());
+    return el;
+  }
+  if (TACTIL) {
+    document.body.classList.add('tactil');
+    mandos = document.createElement('div'); mandos.id = 'mandos';
+    mandos.appendChild(zona('volante', 'x', ['left', 'right'],
+      '<div class="tecla" data-k="left">◀</div><div class="tecla" data-k="right">▶</div>'));
+    mandos.appendChild(zona('pedales', 'y', ['down', 'up'],
+      '<div class="tecla freno" data-k="down">▼<small>FRENO</small></div><div class="tecla gas" data-k="up">▲<small>GAS</small></div>'));
+    const gira = document.createElement('div'); gira.id = 'girar'; gira.textContent = '↻ GIRA EL CELULAR PARA VERLO MÁS GRANDE';
+    mandos.appendChild(gira);
+    const son = document.createElement('button'); son.id = 'sonido'; son.type = 'button'; son.textContent = '♪';
+    son.addEventListener('pointerdown', e => { e.preventDefault(); AU.init(); AU.toggleMute(); son.classList.toggle('mudo', AU.muted); });
+    mandos.appendChild(son);
+    document.body.appendChild(mandos);
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  }
+
   function fit() {
-    let s = Math.min(innerWidth / W, innerHeight / H);
-    if (s >= 3) s = Math.floor(s);
     const box = document.getElementById('marco');
+    const vw = innerWidth, vh = innerHeight;
+    let s, x, y;
+    if (!TACTIL) {
+      s = Math.min(vw / W, vh / H);
+      if (s >= 3) s = Math.floor(s);
+      x = (vw - W * s) / 2; y = (vh - H * s) / 2;
+    } else if (vw > vh) { // celular horizontal: controles a los costados
+      const banda = Math.max(104, Math.min(170, vw * 0.17));
+      s = Math.min((vw - 2 * banda) / W, vh / H);
+      x = (vw - W * s) / 2; y = (vh - H * s) / 2;
+      mandos.className = 'horizontal';
+      mandos.style.setProperty('--banda', banda + 'px');
+    } else { // celular vertical: juego arriba, controles abajo (con altura acotada)
+      s = Math.min(vw / W, (vh * 0.56) / H);
+      const ctrl = Math.max(vh - 330, 56 + H * s + 40);
+      x = (vw - W * s) / 2; y = Math.max(56, (ctrl - H * s) / 2);
+      mandos.className = 'vertical';
+      mandos.style.setProperty('--arriba', Math.round(ctrl) + 'px');
+    }
     box.style.width = Math.floor(W * s) + 'px'; box.style.height = Math.floor(H * s) + 'px';
+    box.style.left = Math.round(x) + 'px'; box.style.top = Math.round(y) + 'px';
   }
   addEventListener('resize', fit); fit();
 
@@ -216,12 +282,12 @@
         if (c === p) AU.backfire();
       } else if (e.type === 'hit') {
         sparks(e.x, e.y, 10);
-        if (e.car === p || e.other === p) { AU.crash(e.v); shake = Math.min(3, e.v / 30); }
+        if (e.car === p || e.other === p) { AU.crash(e.v); shake = Math.min(3, e.v / 30); vibrar(35); }
       } else if (e.type === 'tire' || e.type === 'rock') {
         const col = e.type === 'rock' ? '#d03030' : '#202024';
         for (let i = 0; i < 7; i++) addP({ x: e.x, y: e.y, z: 4, vx: rnd(-50, 50), vy: rnd(-50, 50), vz: rnd(30, 80), life: 0, max: 0.6, type: 'dirt', col });
         if (e.type === 'rock') { sparks(e.x, e.y, 6); smoke(e.x, e.y, 3, '#909098', 3); }
-        if (e.car === p) { AU.thud(e.v); shake = Math.min(3.5, e.v / 25); }
+        if (e.car === p) { AU.thud(e.v); shake = Math.min(3.5, e.v / 25); vibrar(60); }
       } else if (e.type === 'crosser') {
         if (e.car === p) {
           if (e.kind === 'persona') { pop(e.x, e.y, '¡MULTA -$40!', '#ff8040'); AU.honk(); }
@@ -247,7 +313,7 @@
         pop(e.x, e.y, txt, { cash: '#7cff4f', nitro: '#20e0ff', caja: '#ff6ec7' }[e.kind] || '#f9f871');
         for (let i = 0; i < 8; i++) addP({ x: e.x, y: e.y, z: 6, vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(20, 60), life: 0, max: 0.4, type: 'spark' });
       } else if (e.type === 'dead' && e.car === p) {
-        AU.boom(); shake = 5; flash = 0.7;
+        AU.boom(); shake = 5; flash = 0.7; vibrar([90, 50, 250]);
         for (let i = 0; i < 40; i++) addP({ x: p.x, y: p.y, z: 5, vx: rnd(-80, 80), vy: rnd(-80, 80), vz: rnd(30, 120), life: 0, max: rnd(0.4, 1), type: i % 2 ? 'flame' : 'spark' });
         smoke(p.x, p.y, 12, '#303034', 4);
         msg('¡DESTRUIDO!', 4, 'bad'); state = 'finish'; finT = 0; AU.music(false);

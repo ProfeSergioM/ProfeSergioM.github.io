@@ -23,7 +23,7 @@
     // ---- Turbo 40 Rally Tour
     'Tour de carreras roguelike en pixel art isométrico, con un auto inspirado en el F40. Cuatro regiones de etapas de punto a punto armadas con curvas de circuitos famosos, daño que se arrastra de una etapa a otra, taller, mejoras, lluvia, banderas amarillas y autos coleccionables. Si el auto se rompe, se acaba el tour.':
       'Roguelike racing tour in isometric pixel art, with a car inspired by the F40. Four regions of point-to-point stages built from corners of famous circuits, damage that carries over from one stage to the next, a workshop, upgrades, rain, yellow flags and collectible cars. If the car breaks down, the tour is over. In Spanish.',
-    'Solo teclado': 'Keyboard only',
+    'Teclado o táctil': 'Keyboard or touch',
 
     // ---- True o Poser
     'Simulador de banda de rock. Dieciséis semestres de decisiones para llegar a cerrar la noche en Rock in Rio, sin venderse en el camino. Ciento un situaciones, veinticinco hitos y quince finales distintos.':
