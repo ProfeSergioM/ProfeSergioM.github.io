@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="Tour de carreras roguelike en pixel art isométrico con un auto inspirado en el F40.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google-adsense-account" content="ca-pub-6113562135089306">
+<title>TURBO 40 Rally Tour</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #marco { position: relative; border-radius: 14px; overflow: hidden; box-shadow: 0 0 40px rgba(255, 42, 109, .25); }
+  #marco canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #pantalla { filter: saturate(1.15) contrast(1.06); }
+  #brillo { filter: blur(3px) brightness(1.5); mix-blend-mode: screen; opacity: .38; pointer-events: none; }
+  .crt { position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0, rgba(0,0,0,.28) 1px, transparent 1px, transparent 3px); }
+  .crt::after { content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.55) 100%);
+    animation: parpadeo .12s infinite steps(2); }
+  .rgb { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: .12;
+    background: repeating-linear-gradient(to right, #f33 0, #f33 1px, #3f3 1px, #3f3 2px, #33f 2px, #33f 3px); }
+  @keyframes parpadeo { 0% { opacity: .96 } 100% { opacity: 1 } }
+</style>
+</head>
+<body>
+<div id="marco">
+  <canvas id="pantalla"></canvas>
+  <canvas id="brillo"></canvas>
+  <div class="rgb"></div>
+  <div class="crt"></div>
+</div>
+<script src="nucleo.js"></script>
+<script src="etapas.js"></script>
+<script src="tour.js"></script>
+<script src="grafica.js"></script>
+<script src="audio.js"></script>
+<script src="juego.js"></script>
+<script defer src="../volver.js" data-pos="bottom-left"></script>
+<script defer src="../publicidad.js"></script>
+</body>
+</html>
