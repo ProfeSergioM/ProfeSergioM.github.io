@@ -6,21 +6,21 @@
   const TOUR = {};
 
   TOUR.UPGRADES = [
-    { id: 'motor', n: 'MOTOR', d: '+4% VELOCIDAD PUNTA', cost: [900, 1600, 2600] },
-    { id: 'turbo', n: 'TURBO', d: '+10% ACELERACIÓN', cost: [700, 1250, 2000] },
-    { id: 'gomas', n: 'NEUMÁTICOS', d: '+6% AGARRE', cost: [650, 1150, 1850] },
-    { id: 'blindaje', n: 'BLINDAJE', d: '-15% DAÑO RECIBIDO', cost: [580, 1000, 1650] },
-    { id: 'susp', n: 'SUSPENSIÓN', d: '-25% CASTIGO FUERA DE PISTA', cost: [450, 800, 1250] },
-    { id: 'frenos', n: 'FRENOS', d: '+12% FRENADA', cost: [400, 700, 1150] },
+    { id: 'motor', n: 'MOTOR', d: '+4% VELOCIDAD PUNTA', cost: [400, 700, 1100] },
+    { id: 'turbo', n: 'TURBO', d: '+10% ACELERACIÓN', cost: [320, 560, 900] },
+    { id: 'gomas', n: 'NEUMÁTICOS', d: '+6% AGARRE', cost: [300, 520, 840] },
+    { id: 'blindaje', n: 'BLINDAJE', d: '-15% DAÑO RECIBIDO', cost: [260, 460, 740] },
+    { id: 'susp', n: 'SUSPENSIÓN', d: '-25% CASTIGO FUERA DE PISTA', cost: [200, 360, 560] },
+    { id: 'frenos', n: 'FRENOS', d: '+12% FRENADA', cost: [180, 320, 520] },
   ];
   TOUR.ITEMS = {
-    cinta: { n: 'CINTA', d: 'CHASIS +12', fx: { chasis: 12 }, precio: 70, w: 22 },
-    soldadora: { n: 'SOLDADORA', d: 'CHASIS +35', fx: { chasis: 35 }, precio: 200, w: 10 },
-    bujias: { n: 'BUJÍAS', d: 'MOTOR +15', fx: { motor: 15 }, precio: 90, w: 18 },
-    motorrec: { n: 'MOTOR REC.', d: 'MOTOR +50', fx: { motor: 50 }, precio: 290, w: 6 },
-    parche: { n: 'PARCHES', d: 'GOMAS +20', fx: { gomas: 20 }, precio: 65, w: 22 },
-    gomasnuevas: { n: 'GOMAS NUEVAS', d: 'GOMAS AL 100', fx: { gomas: 100 }, precio: 215, w: 8 },
-    kit: { n: 'KIT COMPLETO', d: 'TODO +25', fx: { chasis: 25, motor: 25, gomas: 25 }, precio: 270, w: 6 },
+    cinta: { n: 'CINTA', d: 'CHASIS +12', fx: { chasis: 12 }, precio: 40, w: 22 },
+    soldadora: { n: 'SOLDADORA', d: 'CHASIS +35', fx: { chasis: 35 }, precio: 110, w: 10 },
+    bujias: { n: 'BUJÍAS', d: 'MOTOR +15', fx: { motor: 15 }, precio: 50, w: 18 },
+    motorrec: { n: 'MOTOR REC.', d: 'MOTOR +50', fx: { motor: 50 }, precio: 160, w: 6 },
+    parche: { n: 'PARCHES', d: 'GOMAS +20', fx: { gomas: 20 }, precio: 35, w: 22 },
+    gomasnuevas: { n: 'GOMAS NUEVAS', d: 'GOMAS AL 100', fx: { gomas: 100 }, precio: 120, w: 8 },
+    kit: { n: 'KIT COMPLETO', d: 'TODO +25', fx: { chasis: 25, motor: 25, gomas: 25 }, precio: 150, w: 6 },
   };
   TOUR.PERKS = [
     { id: 'iman', n: 'IMÁN', d: 'ATRAES LOS OBJETOS CERCANOS' },
@@ -231,7 +231,7 @@
   };
 
   // ---------- taller ----------
-  TOUR.repairCost = (run, part) => Math.ceil((100 - run.dmg[part]) * (part === 'gomas' ? 4 : 6));
+  TOUR.repairCost = (run, part) => Math.ceil((100 - run.dmg[part]) * (part === 'gomas' ? 2 : 3));
   TOUR.repair = function (run, part) {
     const c = TOUR.repairCost(run, part); if (c <= 0 || run.money < c) return false;
     run.money -= c; run.dmg[part] = 100; return true;

@@ -244,7 +244,7 @@
     const k = race.trk.marks.findIndex(m => p.s >= m.s0 && p.s < m.s1);
     if (k >= 0 && k !== secIdx) {
       secIdx = k; const m = race.trk.marks[k], dt2 = race.t - bannerT;
-      if ((m.rocks && dt2 > 8) || (!vistos.has(m.n) && dt2 > 20)) { vistos.add(m.n); bannerT = race.t; banner = { n: m.n, ref: m.ref, rocks: m.rocks, t: 0 }; }
+      if (m.rocks && dt2 > 8) { bannerT = race.t; banner = { rocks: true, t: 0 }; }
     }
     if (banner) { banner.t += dt; if (banner.t > 2.2) banner = null; }
     // suelo: generar lo que viene y liberar lo que quedó atrás
@@ -709,7 +709,7 @@
     if (race.penalty) GR.text(ctx, '+' + race.penalty + ' S', 104, 26, { color: '#ff4040', outline: '#000' });
     // cartel de sección
     if (banner) {
-      const txt = banner.n + ' · ' + (banner.rocks ? '¡OBSTÁCULOS!' : 'ESTILO ' + banner.ref);
+      const txt = '¡OBSTÁCULOS ADELANTE!';
       const w = GR.textW(txt) + 12, f = banner.t, y = f < 0.2 ? 30 + f / 0.2 * 14 : f > 1.9 ? 44 - (f - 1.9) / 0.3 * 14 : 44;
       ctx.globalAlpha = f > 1.9 ? Math.max(0, 1 - (f - 1.9) / 0.3) : 1;
       ctx.fillStyle = 'rgba(8,4,24,0.8)'; ctx.fillRect(Math.round(W / 2 - w / 2), Math.round(y), w, 11);

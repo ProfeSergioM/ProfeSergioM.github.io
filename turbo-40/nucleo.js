@@ -229,7 +229,7 @@
     const rally = trk.tipo === 'rally';
     const TYPES = [['cash', 44], ['llave', 14], ['goma', 12], ['aceite', 10], ['nitro', 13], ['caja', 7]];
     const tw = TYPES.reduce((a, t) => a + t[1], 0);
-    for (let s = trk.startS + 400; s < trk.finishS - 150; s += (rally ? 110 : 150) + R() * 110) {
+    for (let s = trk.startS + 700 + R() * 600; s < trk.finishS - 150; s += (rally ? 800 : 1100) + R() * 700) {
       const p = trk.pts[iAt(s)], lat = (R() * 2 - 1) * (HW - 12);
       let r = R() * tw, type = 'cash';
       for (const [t, w] of TYPES) { if ((r -= w) < 0) { type = t; break; } }
@@ -251,7 +251,7 @@
           const q = trk.pts[iAt(ds)], off = (HW + 13) * side;
           marshals.push({ x: q.x + q.nx * off, y: q.y + q.ny * off, side, ph: R() * 6 });
         }
-        yellows.push({ s0, s1, s });
+        yellows.push({ s0, s1, s, blat: lat });
       }
     }
     // auto coleccionable
@@ -490,16 +490,17 @@
     const fx = Math.cos(c.a), fy = Math.sin(c.a);
     if (c.avoidT > 0) c.avoidT -= dt; else c.avoid = 0;
     let slow = false;
-    const obstacle = (dx, dy, osp, wide) => {
+    const enAmarilla = trk.scen.yellows.some(yz => c.s > yz.s0 && c.s < yz.s1);
+    const obstacle = (dx, dy, osp, wide, esAuto) => {
       const al = dx * fx + dy * fy;
       if (al <= 0 || al > 60 + sp * 0.25) return;
       const lt = -dx * fy + dy * fx;
       if (Math.abs(lt) < wide && osp < sp - 4) {
-        if (c.avoidT <= 0) { c.avoid = (lt > 0 ? -1 : 1) * (wide + 6); c.avoidT = 0.7; }
+        if (c.avoidT <= 0 && !(esAuto && enAmarilla && osp > 25)) { c.avoid = (lt > 0 ? -1 : 1) * (wide + 6); c.avoidT = 0.7; }
         if (al < 26 && Math.abs(lt) < 11) slow = true;
       }
     };
-    for (const o of race.cars) if (o !== c) obstacle(o.x - c.x, o.y - c.y, Math.hypot(o.vx, o.vy), 15);
+    for (const o of race.cars) if (o !== c) obstacle(o.x - c.x, o.y - c.y, Math.hypot(o.vx, o.vy), 15, true);
     const gx = Math.floor(c.x / 64), gy = Math.floor(c.y / 64);
     for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) {
       const l = trk.scen.cgrid.get((gx + ox) + ',' + (gy + oy));
@@ -509,6 +510,8 @@
     for (const o of race.crossers) if (!o.hit) obstacle(o.x + o.vx * 0.4 - c.x, o.y + o.vy * 0.4 - c.y, 0, 16);
     let lane = pt.rl * c.lineUse + c.laneOff + c.avoid;
     if (Math.abs(c.lat) > HW + 4) lane = 0;
+    // en amarilla, pasar el auto averiado por el lado libre
+    for (const yz of trk.scen.yellows) if (c.s > yz.s - 420 && c.s < yz.s + 40) lane = -Math.sign(yz.blat) * 15;
     lane = clamp(lane, -HW + 9, HW - 9);
     const tx = pt.x + pt.nx * lane, ty = pt.y + pt.ny * lane;
     const want = Math.atan2(ty - c.y, tx - c.x);
@@ -528,7 +531,16 @@
       if (vr < vt) vt = vr;
     }
     if (c.finished) vt = c.p > trk.finishS - trk.startS + 90 ? 0 : Math.min(vt, 60);
-    if (trk.scen.yellows.some(yz => c.s > yz.s0 && c.s < yz.s1)) vt = Math.min(vt, T.YLIM);
+    const cercaAmarilla = trk.scen.yellows.some(yz => c.s > yz.s0 - 120 && c.s < yz.s1);
+    if (enAmarilla) vt = Math.min(vt, T.YLIM);
+    if (cercaAmarilla) {
+      for (const o of race.cars) {
+        if (o === c || o.finished) continue;
+        const gap = o.p - c.p, osp = Math.hypot(o.vx, o.vy);
+        if (gap <= 0 || gap > 70 || osp < 25) continue; // a un auto detenido sí se lo puede pasar
+        vt = Math.min(vt, gap < 24 ? osp - 10 : gap < 40 ? osp - 3 : osp + 4);
+      }
+    }
     if (slow) vt = Math.min(vt, sp - 10);
     if (sp > vt + 4) { c.thr = 0; c.brk = clamp((sp - vt) / 25, 0.2, 1); }
     else if (sp > vt) { c.thr = 0.25; c.brk = 0; }
@@ -684,7 +696,7 @@
 
   function applyPickup(race, c, o) {
     const ev = { type: 'pickup', kind: o.type, x: o.x, y: o.y };
-    if (o.type === 'cash') { const v = 10 + Math.floor(Math.random() * 3) * 5; race.cash += v; ev.val = v; }
+    if (o.type === 'cash') { const v = 20 + Math.floor(Math.random() * 5) * 5; race.cash += v; ev.val = v; }
     else if (o.type === 'llave') { const v = Math.min(12, 100 - c.dmg.chasis); c.dmg.chasis += v; ev.val = v; }
     else if (o.type === 'goma') { const v = Math.min(15, 100 - c.dmg.gomas); c.dmg.gomas += v; ev.val = v; }
     else if (o.type === 'aceite') { const v = Math.min(12, 100 - c.dmg.motor); c.dmg.motor += v; ev.val = v; }
