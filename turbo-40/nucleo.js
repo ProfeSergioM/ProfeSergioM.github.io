@@ -8,7 +8,7 @@
   T.HW = HW; T.DS = DS; T.CURB = 6; T.SAND = 34;
   T.NCARS = 10;
   T.PH = {
-    VMAX: 200, ACC: 175, BRAKE: 430, DRAG: 32, REV: 70,
+    VMAX: 172, ACC: 150, BRAKE: 430, DRAG: 32, REV: 70,
     TURN: 2.3, TURNHI: 0.5, GRIP: 7.5,
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
@@ -168,7 +168,7 @@
       const p = trk.pts[i];
       if (p.s < nextRock || p.s > trk.finishS - 100) continue;
       if (!p.rocky) continue;
-      nextRock = p.s + 170 + R() * 230;
+      nextRock = p.s + 340 + R() * 460;
       const lat = (R() * 2 - 1) * (HW - 8);
       rocks.push({ x: p.x + p.nx * lat, y: p.y + p.ny * lat, r: 5 + R() * 2.5, kind: 'rock', v: Math.floor(R() * 3) });
     }
@@ -178,7 +178,7 @@
     for (let i = 0; i < trk.N; i++) {
       const p = trk.pts[i];
       if (!p.rocky || p.s < nextOil || p.s > trk.finishS - 100) continue;
-      nextOil = p.s + 220 + R() * 260;
+      nextOil = p.s + 450 + R() * 520;
       if (R() < 0.45) continue;
       const lat = (R() * 2 - 1) * (HW - 12);
       oil.push({ x: p.x + p.nx * lat, y: p.y + p.ny * lat, r: 10 + R() * 5, kind: 'aceite' });
@@ -229,7 +229,7 @@
     const rally = trk.tipo === 'rally';
     const TYPES = [['cash', 44], ['llave', 14], ['goma', 12], ['aceite', 10], ['nitro', 13], ['caja', 7]];
     const tw = TYPES.reduce((a, t) => a + t[1], 0);
-    for (let s = trk.startS + 450; s < trk.finishS - 150; s += (rally ? 260 : 380) + R() * 220) {
+    for (let s = trk.startS + 400; s < trk.finishS - 150; s += (rally ? 110 : 150) + R() * 110) {
       const p = trk.pts[iAt(s)], lat = (R() * 2 - 1) * (HW - 12);
       let r = R() * tw, type = 'cash';
       for (const [t, w] of TYPES) { if ((r -= w) < 0) { type = t; break; } }
@@ -237,18 +237,22 @@
     }
     // bandera amarilla: auto averiado y comisarios
     const marshals = [], broken = [];
-    let yellow = null;
+    const yellows = [];
     if (trk.extra.amarilla) {
-      const s = trk.startS + 1500 + R() * Math.max(200, trk.finishS - trk.startS - 2400);
-      const i = iAt(s), p = trk.pts[i], sd = R() < 0.5 ? 1 : -1, lat = sd * (HW - 11);
-      const bx = p.x + p.nx * lat, by = p.y + p.ny * lat;
-      broken.push({ x: bx, y: by, a: p.ang + sd * 0.5, kind: 'averiado' });
-      for (const o of [-7, 7]) rocks.push({ x: bx + p.tx * o, y: by + p.ty * o, r: 7, kind: 'rock', hidden: true });
-      for (const ds of [-280, -150]) for (const side of [-1, 1]) {
-        const q = trk.pts[iAt(s + ds)], off = (HW + 13) * side;
-        marshals.push({ x: q.x + q.nx * off, y: q.y + q.ny * off, side, ph: R() * 6 });
+      const largo = trk.finishS - trk.startS, n = largo > 15000 && R() < 0.55 ? 2 : 1;
+      for (let k = 0; k < n; k++) {
+        const s = trk.startS + 2500 + (largo - 4500) * (k + 0.2 + R() * 0.6) / n;
+        const i = iAt(s), p = trk.pts[i], sd = R() < 0.5 ? 1 : -1, lat = sd * (HW - 11);
+        const bx = p.x + p.nx * lat, by = p.y + p.ny * lat;
+        broken.push({ x: bx, y: by, a: p.ang + sd * 0.5, kind: 'averiado' });
+        for (const o of [-7, 7]) rocks.push({ x: bx + p.tx * o, y: by + p.ty * o, r: 7, kind: 'rock', hidden: true });
+        const s0 = s - 1250, s1 = s + 260;
+        for (let ds = s0 + 40; ds < s1; ds += 260) for (const side of [-1, 1]) {
+          const q = trk.pts[iAt(ds)], off = (HW + 13) * side;
+          marshals.push({ x: q.x + q.nx * off, y: q.y + q.ny * off, side, ph: R() * 6 });
+        }
+        yellows.push({ s0, s1, s });
       }
-      yellow = { s0: s - 320, s1: s + 70, s };
     }
     // auto coleccionable
     let coleccion = null;
@@ -262,7 +266,7 @@
       const key = Math.floor(t.x / 64) + ',' + Math.floor(t.y / 64);
       let l = cgrid.get(key); if (!l) cgrid.set(key, l = []); l.push(t);
     });
-    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellow, coleccion };
+    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellows, coleccion };
   }
 
   // ---------- autos ----------
@@ -321,7 +325,8 @@
   }
   T.hurt = hurt;
 
-  const GEARS = [0, 48, 86, 120, 150, 178];
+  const GEARS = [0, 41, 74, 103, 129, 153];
+  T.GEARS = GEARS.concat([185]);
 
   function physics(race, c, dt) {
     const PH = T.PH;
@@ -523,8 +528,7 @@
       if (vr < vt) vt = vr;
     }
     if (c.finished) vt = c.p > trk.finishS - trk.startS + 90 ? 0 : Math.min(vt, 60);
-    const yz = trk.scen.yellow;
-    if (yz && c.s > yz.s0 && c.s < yz.s1) vt = Math.min(vt, T.YLIM);
+    if (trk.scen.yellows.some(yz => c.s > yz.s0 && c.s < yz.s1)) vt = Math.min(vt, T.YLIM);
     if (slow) vt = Math.min(vt, sp - 10);
     if (sp > vt + 4) { c.thr = 0; c.brk = clamp((sp - vt) / 25, 0.2, 1); }
     else if (sp > vt) { c.thr = 0.25; c.brk = 0; }
@@ -560,7 +564,7 @@
         let mod = 0;
         if (!pl.finished && !pl.dead) {
           const gap = c.p - pl.p;
-          if (gap > 300) mod = -Math.min(0.06, (gap - 300) / 4000);
+          if (gap > 400) mod = -Math.min(0.03, (gap - 400) / 6000);
           else if (gap < -200) mod = Math.min(0.15, (-gap - 200) / 2000);
         }
         c.skillEff = c.skill + mod;
@@ -597,9 +601,8 @@
     }
     if (run) updCrossers(race, dt);
     // bandera amarilla: no adelantar
-    const yz = trk.scen.yellow;
-    if (run && yz && !pl.finished && !pl.dead) {
-      const inZ = pl.s >= yz.s0 && pl.s <= yz.s1;
+    if (run && trk.scen.yellows.length && !pl.finished && !pl.dead) {
+      const inZ = trk.scen.yellows.some(yz => pl.s >= yz.s0 && pl.s <= yz.s1);
       if (inZ && !race.yIn) { race.yIn = true; race.yAhead = new Set(cars.filter(c => c !== pl && c.p > pl.p).map(c => c.id)); race.events.push({ type: 'yellowIn' }); }
       if (inZ) for (const c of cars) if (race.yAhead.has(c.id) && pl.p > c.p + 4) {
         race.yAhead.delete(c.id); race.penalty += 5; race.events.push({ type: 'penalty', car: c, x: pl.x, y: pl.y });
@@ -642,8 +645,8 @@
     race.crossT -= dt;
     if (race.crossT <= 0 && !pl.finished) {
       race.crossT = 5 + R() * 8;
-      const s = pl.s + 230 + R() * 140, yz = trk.scen.yellow;
-      if (s < trk.finishS - 60 && !(yz && s > yz.s0 - 100 && s < yz.s1 + 50)) {
+      const s = pl.s + 230 + R() * 140;
+      if (s < trk.finishS - 60 && !trk.scen.yellows.some(yz => s > yz.s0 - 100 && s < yz.s1 + 50)) {
         const p = trk.pts[clamp(Math.round(s / trk.DS), 0, trk.N - 1)], side = R() < 0.5 ? 1 : -1;
         const pool = CRUZAN[trk.tema] || CRUZAN.europa, type = pool[Math.floor(R() * pool.length)];
         const v = VEL[type] * (0.8 + R() * 0.4), lat = side * (HW + 24);
@@ -681,7 +684,7 @@
 
   function applyPickup(race, c, o) {
     const ev = { type: 'pickup', kind: o.type, x: o.x, y: o.y };
-    if (o.type === 'cash') { const v = 20 + Math.floor(Math.random() * 5) * 5; race.cash += v; ev.val = v; }
+    if (o.type === 'cash') { const v = 10 + Math.floor(Math.random() * 3) * 5; race.cash += v; ev.val = v; }
     else if (o.type === 'llave') { const v = Math.min(12, 100 - c.dmg.chasis); c.dmg.chasis += v; ev.val = v; }
     else if (o.type === 'goma') { const v = Math.min(15, 100 - c.dmg.gomas); c.dmg.gomas += v; ev.val = v; }
     else if (o.type === 'aceite') { const v = Math.min(12, 100 - c.dmg.motor); c.dmg.motor += v; ev.val = v; }

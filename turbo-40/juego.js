@@ -128,7 +128,7 @@
   let cam = { x: 0, y: 0 }, cd = 0, lights = 0;
   let parts = [], conf = [], msgs = [], pops = [], shake = 0, flash = 0, hurtFlash = 0;
   let menu = null, sel = 0, mapSel = 0, ev = null, evResult = null, perks = null, stock = null, out = null, bagFrom = null;
-  let banner = null, secIdx = -1, lastHurt = 0, alarmT = 0, finT = 0;
+  let banner = null, secIdx = -1, lastHurt = 0, alarmT = 0, finT = 0, bannerT = -99, vistos = new Set(), prepS = 0, prepTot = 1;
   const NEON = ['#ff2a6d', '#05d9e8', '#f9f871', '#d1f7ff', '#ff6ec7', '#7cff4f'];
   const rnd = (a, b) => a + Math.random() * (b - a);
   const go = (s) => { state = s; stT = 0; sel = 0; };
@@ -158,7 +158,8 @@
     mini = GR.buildMinimap(trk, 92, 58);
     bigMini = GR.buildMinimap(trk, 200, 124);
     buildStatics(trk);
-    parts = []; conf = []; msgs = []; pops = []; banner = null; secIdx = -1; lastHurt = 0; finT = 0;
+    parts = []; conf = []; msgs = []; pops = []; banner = null; secIdx = -1; lastHurt = 0; finT = 0; bannerT = -99; vistos = new Set();
+    prepS = trk.startS + 1800; prepTot = Math.max(1, ground.queue.filter(q => q[2] <= prepS).length);
     const p = race.player, [ix, iy] = GR.iso(p.x, p.y); cam.x = ix; cam.y = iy;
     go('prep');
   }
@@ -209,8 +210,8 @@
     else if (S === 'camp') updCamp();
     else if (S === 'perk') updPerk();
     else if (S === 'prep') {
-      ground.work(14);
-      if (!ground.queue.length && P('up')) { go('countdown'); cd = 4.2; lights = 0; msg('PREPARADOS', 1.6, 'big'); AU.music(false); AU.music(true, 'race'); }
+      ground.work(14, prepS);
+      if (!ground.pendiente(prepS) && P('up')) { go('countdown'); cd = 4.2; lights = 0; msg('PREPARADOS', 1.6, 'big'); AU.music(false); AU.music(true, 'race'); }
       if (P('left')) { bagFrom = 'prep'; go('bag'); }
     } else if (S === 'stageres') {
       if (P('right') || P('up')) afterStage();
@@ -241,10 +242,16 @@
     if (p.dmg.chasis < 25 && !p.dead && alarmT <= 0 && state === 'race') { AU.alarm(); alarmT = 1.4; }
     // sección actual
     const k = race.trk.marks.findIndex(m => p.s >= m.s0 && p.s < m.s1);
-    if (k >= 0 && k !== secIdx) { secIdx = k; const m = race.trk.marks[k]; banner = { n: m.n, ref: m.ref, dirt: m.dirt, rocks: m.rocks, t: 0 }; }
-    if (banner) { banner.t += dt; if (banner.t > 2.6) banner = null; }
+    if (k >= 0 && k !== secIdx) {
+      secIdx = k; const m = race.trk.marks[k], dt2 = race.t - bannerT;
+      if ((m.rocks && dt2 > 8) || (!vistos.has(m.n) && dt2 > 20)) { vistos.add(m.n); bannerT = race.t; banner = { n: m.n, ref: m.ref, rocks: m.rocks, t: 0 }; }
+    }
+    if (banner) { banner.t += dt; if (banner.t > 2.2) banner = null; }
+    // suelo: generar lo que viene y liberar lo que quedó atrás
+    ground.work(2, p.s + 2600);
+    if (frame % 60 === 0) ground.evict(p.s);
     // sonido
-    const v = Math.abs(p.vf || 0), GE = [0, 48, 86, 120, 150, 178, 215];
+    const v = Math.abs(p.vf || 0), GE = T.GEARS;
     const g = p.gear, rpm = state === 'countdown' ? 0.25 + (keys.up ? 0.6 + Math.random() * 0.1 : 0) : Math.min(1.05, 0.22 + 0.78 * (v - GE[g - 1]) / (GE[g] - GE[g - 1]));
     AU.car(!p.dead, rpm, (p.thr || (state === 'countdown' && keys.up)) ? 1 : 0, p.slip, (p.surf === 2 || p.surf === 5) && v > 20);
     const near = [];
@@ -570,10 +577,10 @@
       if (frame & 8) { GR.text(ctx, '↓', PX, PY - 30, { align: 'center', color: '#f9f871', outline: '#000' }); GR.text(ctx, 'TÚ', PX, PY - 39, { align: 'center', color: '#fff', outline: '#000' }); }
     }
     const v = Math.hypot(p.vx, p.vy);
-    if ((v > 165 || p.nitroT > 0) && state === 'race') {
+    if (p.nitroT > 0 && state === 'race') {
       const dx = p.vx - p.vy, dy = (p.vx + p.vy) / 2, l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l;
       ctx.strokeStyle = p.nitroT > 0 ? 'rgba(120,220,255,0.7)' : 'rgba(255,255,255,0.55)'; ctx.lineWidth = 1; ctx.beginPath();
-      const n = p.nitroT > 0 ? 14 : Math.floor((v - 160) / 8);
+      const n = 12;
       for (let i = 0; i < n; i++) {
         const ang = Math.random() * Math.PI * 2, rr = rnd(120, 200), x = W / 2 + Math.cos(ang) * rr, y = H / 2 + Math.sin(ang) * rr * 0.6, L = rnd(10, 26);
         ctx.moveTo(x | 0, y | 0); ctx.lineTo((x - ux * L) | 0, (y - uy * L) | 0);
@@ -702,11 +709,13 @@
     if (race.penalty) GR.text(ctx, '+' + race.penalty + ' S', 104, 26, { color: '#ff4040', outline: '#000' });
     // cartel de sección
     if (banner) {
-      const f = banner.t, x = f < 0.25 ? W + 10 - (f / 0.25) * (W / 2 + 10) : f > 2.3 ? W / 2 - ((f - 2.3) / 0.3) * (W / 2 + 140) : W / 2;
-      ctx.fillStyle = 'rgba(8,4,24,0.8)'; ctx.fillRect(Math.round(x - 92), 44, 184, 27);
-      ctx.fillStyle = '#ff2a6d'; ctx.fillRect(Math.round(x - 92), 44, 184, 1); ctx.fillRect(Math.round(x - 92), 70, 184, 1);
-      GR.text(ctx, banner.n, x, 47, { align: 'center', scale: 2, rows: banner.rocks ? gradY('#ffe0a0', '#ffa040', '#ff5020') : COOL });
-      GR.text(ctx, 'ESTILO ' + banner.ref + (banner.rocks ? ' · ¡OBSTÁCULOS!' : ''), x, 62, { align: 'center', color: banner.rocks ? '#ff8040' : '#a0a0c0' });
+      const txt = banner.n + ' · ' + (banner.rocks ? '¡OBSTÁCULOS!' : 'ESTILO ' + banner.ref);
+      const w = GR.textW(txt) + 12, f = banner.t, y = f < 0.2 ? 30 + f / 0.2 * 14 : f > 1.9 ? 44 - (f - 1.9) / 0.3 * 14 : 44;
+      ctx.globalAlpha = f > 1.9 ? Math.max(0, 1 - (f - 1.9) / 0.3) : 1;
+      ctx.fillStyle = 'rgba(8,4,24,0.8)'; ctx.fillRect(Math.round(W / 2 - w / 2), Math.round(y), w, 11);
+      ctx.fillStyle = banner.rocks ? '#ff8040' : '#ff2a6d'; ctx.fillRect(Math.round(W / 2 - w / 2), Math.round(y) + 10, w, 1);
+      GR.text(ctx, txt, W / 2, Math.round(y) + 2, { align: 'center', color: banner.rocks ? '#ffb070' : '#d0f8ff' });
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -858,8 +867,8 @@
     GR.text(ctx, km.toFixed(1).replace('.', ',') + ' KM · LARGAS ' + ((race.cars.indexOf(race.player)) + 1) + '°', 14, 168, { color: '#f9f871' });
     dmgBars(14, 180, 120, run.dmg);
     GR.text(ctx, race.rain ? 'CLIMA: LLUVIA (MENOS AGARRE)' : 'CLIMA: DESPEJADO', 150, 168, { color: race.rain ? '#80b0ff' : '#a0a0c0' });
-    const left = ground.queue.length, tot = ground.chunks.size + left;
-    if (left) GR.text(ctx, 'PREPARANDO PISTA ' + Math.round(100 * (1 - left / tot)) + '%', 300, 186, { align: 'center', color: '#a0a0c0' });
+    const left = ground.queue.filter(q => q[2] <= prepS).length;
+    if (left) GR.text(ctx, 'PREPARANDO PISTA ' + Math.round(100 * (1 - left / prepTot)) + '%', 300, 186, { align: 'center', color: '#a0a0c0' });
     else if (frame % 40 < 28) GR.text(ctx, 'PULSA ↑ PARA LARGAR', 300, 180, { align: 'center', rows: HOT, outline: '#200' });
     hints('↑ LARGAR   ← MOCHILA (USAR REPUESTOS)');
   }
@@ -986,7 +995,7 @@
 
   // ganchos de depuración
   window.__t40 = {
-    get state() { return state; }, get race() { return race; }, get run() { return run; }, keys, pressed,
+    get state() { return state; }, get race() { return race; }, get run() { return run; }, get ground() { return ground; }, keys, pressed,
     ff(sec) { for (let i = 0; i < sec * 60; i++) update(1 / 60); draw(); },
     press(k) { pressed.add(k); update(1 / 60); },
   };

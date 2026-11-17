@@ -453,18 +453,30 @@
     const G = {
       chunks, CS,
       get(cu, cv) { const k = cu + ',' + cv; let c = chunks.get(k); if (!c) { c = gen(cu, cv); chunks.set(k, c); } return c; },
-      queue: [],
+      // cola en orden de pista: [cu, cv, s]; ultS guarda hasta qué punto de la pista hace falta cada bloque
+      queue: [], ultS: new Map(),
       plan() {
         const seen = new Set();
         for (let i = 0; i < trk.N; i += 6) {
           const p = trk.pts[i], [u, v] = GR.iso(p.x, p.y);
           for (let cu = Math.floor((u - 260) / CS); cu <= Math.floor((u + 260) / CS); cu++)
             for (let cv = Math.floor((v - 170) / CS); cv <= Math.floor((v + 170) / CS); cv++) {
-              const k = cu + ',' + cv; if (!seen.has(k)) { seen.add(k); G.queue.push([cu, cv]); }
+              const k = cu + ',' + cv;
+              G.ultS.set(k, p.s);
+              if (!seen.has(k)) { seen.add(k); G.queue.push([cu, cv, p.s]); }
             }
         }
       },
-      work(n) { while (n-- > 0 && G.queue.length) { const [cu, cv] = G.queue.shift(); G.get(cu, cv); } return G.queue.length; },
+      // genera hasta n bloques, solo los que hacen falta antes de sHasta
+      work(n, sHasta) {
+        while (n-- > 0 && G.queue.length && (sHasta == null || G.queue[0][2] <= sHasta)) { const [cu, cv] = G.queue.shift(); G.get(cu, cv); }
+        return G.queue.length;
+      },
+      pendiente: sHasta => G.queue.length > 0 && G.queue[0][2] <= sHasta,
+      // libera los bloques que quedaron atrás (vuelven a generarse si hicieran falta)
+      evict(sAhora) {
+        for (const k of chunks.keys()) { const u = G.ultS.get(k); if (u != null && u < sAhora - 700) chunks.delete(k); }
+      },
       draw(ctx, camX, camY, W, H) {
         const ul = camX - W / 2, vt = camY - H / 2;
         for (let cu = Math.floor(ul / CS); cu <= Math.floor((ul + W) / CS); cu++)
