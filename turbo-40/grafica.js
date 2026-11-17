@@ -334,7 +334,7 @@
     for (const k of ['g1', 'g2', 'gedge', 'flor', 'out', 'rut']) P[k] = packH(th[k]);
     P.d = th.dirt.map(packH); P.t = th.trap.map(packH);
     P.a1 = packH('#5c5c68'); P.a2 = packH('#50505c'); P.a3 = packH('#686874'); P.line = packH('#e8e8ec');
-    P.cr = packH('#d82818'); P.cw = packH('#f0f0f0'); P.blk = packH('#18181c'); P.wht = packH('#f4f4f4');
+    P.cr = packH('#d82818'); P.goma = packH('#46464f'); P.fren = packH('#2a2a31'); P.raya = packH('#d8d8dc'); P.cw = packH('#f0f0f0'); P.blk = packH('#18181c'); P.wht = packH('#f4f4f4');
     const sh = th.arena ? [packH('#c89a5a'), packH('#f0d090')] : null;
     const chunks = new Map();
     const RM = HW + T.SAND + 14;
@@ -405,6 +405,17 @@
                 const h2 = hash(ix >> 1, iy >> 1);
                 col = h2 < 0.13 ? P.a2 : (h2 > 0.95 ? P.a3 : P.a1);
                 if (a > HW - 3.2 && a < HW - 1.6) col = P.line;
+                // goma acumulada en la trazada de las curvas
+                const dl = lat - p.rl * 0.9;
+                if (Math.abs(p.k) > 1 / 300 && Math.abs(dl) < 7 && h2 < 0.6) col = P.goma;
+                // marcas de frenada antes de las curvas cerradas
+                if (p.frena && (Math.abs(dl - 5) < 0.9 || Math.abs(dl + 5) < 0.9) && hash(ix >> 2, iy) < 0.7) col = P.fren;
+                // línea discontinua central
+                if (Math.abs(lat) < 0.9 && (((s % 32) + 32) % 32) < 16 && !p.cebra) col = P.raya;
+                // flechas (chevrones) antes de curvas cerradas
+                if (p.chev != null) { const q = s - p.chev; if (Math.abs(lat) < 11 && Math.abs(q - (9 - Math.abs(lat) * 0.6)) < 1.5) col = P.line; }
+                // paso de cebra
+                if (p.cebra != null && Math.abs(s - p.cebra) < 7 && Math.abs(lat) < HW - 3 && (Math.floor((lat + HW) / 4) & 1) === 0) col = P.wht;
               }
               const ds = s - sS;
               if (ds >= 0 && ds < 7) col = ((Math.floor((lat + HW) / 3.5) + Math.floor(ds / 3.5)) & 1) ? P.blk : P.wht;
@@ -551,6 +562,16 @@
       c.fillStyle = '#101010'; c.fillRect(8, 2, 2, 1);
       outlineCanvas(cv, '#0c0c10');
       return { cv, ox: 7, oy: 15 };
+    });
+    S.senal = [0, 1, 2].map(() => {
+      const { cv, c, px } = canvasPx(12, 24);
+      c.fillStyle = '#808088'; c.fillRect(5, 9, 2, 14);
+      c.fillStyle = '#1c50c8'; c.fillRect(1, 0, 10, 10);
+      c.fillStyle = '#ffffff'; c.fillRect(2, 1, 8, 8);
+      c.fillStyle = '#1c50c8'; c.fillRect(3, 2, 6, 6);
+      ['..#..', '.###.', '..#..', '.#.#.', '#...#'].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') px(4 + x, 2 + y, '#ffffff'); }));
+      outlineCanvas(cv, '#0c0c10');
+      return { cv, ox: 6, oy: 23 };
     });
     return S;
   };

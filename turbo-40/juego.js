@@ -474,6 +474,7 @@
       case 'cerezo': return decoSpr.cerezo[o.v];
       case 'arbusto': return sah ? decoSpr.seco[o.v] : decoSpr.arbusto[o.v];
       case 'roca': return sah ? decoSpr.rocaArena[o.v] : decoSpr.roca[o.v];
+      case 'senal': return decoSpr.senal[0];
     }
     return null;
   }

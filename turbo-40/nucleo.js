@@ -13,6 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
+  T.AI = { m0: 0.74, m1: 0.30, bd: 0.85, cerca: 18, afloja: 6, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -86,6 +87,20 @@
       p.curb = !p.dirt && Math.abs(kb[i]) > 1 / 200;
       p.sand = !p.dirt && Math.abs(kb[i]) > 1 / 140 ? -Math.sign(kb[i]) : 0;
     }
+    // zonas de frenada: tramo recto antes de una curva cerrada
+    for (let i = 0; i < N; i++) {
+      if (Math.abs(ks[i]) > 1 / 260) continue;
+      for (let j = i + 4; j < Math.min(N, i + 40); j++) if (Math.abs(ks[j]) > 1 / 95) { pts[i].frena = 1; break; }
+    }
+    // flechas pintadas: tres chevrones antes de cada curva cerrada
+    const chev = [];
+    for (let i = 1; i < N; i++) {
+      if (Math.abs(ks[i]) > 1 / 95 && Math.abs(ks[i - 1]) <= 1 / 95) {
+        const s0 = i * DS;
+        if (!chev.length || s0 - chev[chev.length - 1] > 300) for (let j = 0; j < 3; j++) chev.push(s0 - 150 + j * 16);
+      }
+    }
+    for (const sc of chev) for (let i = Math.max(0, Math.floor((sc - 10) / DS)); i <= Math.min(N - 1, Math.ceil((sc + 14) / DS)); i++) pts[i].chev = sc;
     // grilla espacial de muestras (cubetas de 64)
     const grid = new Map();
     pts.forEach((p, i) => {
@@ -254,6 +269,22 @@
         yellows.push({ s0, s1, s, blat: lat });
       }
     }
+    // pasos de cebra (por ahí cruzan peatones y animales)
+    const cruces = [];
+    for (let s = trk.startS + 900 + R() * 600; s < trk.finishS - 400; s += 1700 + R() * 1100) {
+      let ok = null;
+      for (let d = 0; d < 400 && !ok; d += 20) {
+        const ss = s + d, i = iAt(ss);
+        if (Math.abs(trk.pts[i].k) < 1 / 500 && !yellows.some(y => ss > y.s0 - 150 && ss < y.s1 + 80)) ok = ss;
+      }
+      if (ok == null) continue;
+      cruces.push(ok);
+      for (let i = iAt(ok - 10); i <= iAt(ok + 10); i++) trk.pts[i].cebra = ok;
+      for (const sd of [-1, 1]) {
+        const q = trk.pts[iAt(ok - sd * 22)], off = (HW + 10) * sd;
+        decor.push({ x: q.x + q.nx * off, y: q.y + q.ny * off, kind: 'senal', v: 0 });
+      }
+    }
     // auto coleccionable
     let coleccion = null;
     if (trk.extra.coleccion) {
@@ -266,7 +297,7 @@
       const key = Math.floor(t.x / 64) + ',' + Math.floor(t.y / 64);
       let l = cgrid.get(key); if (!l) cgrid.set(key, l = []); l.push(t);
     });
-    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellows, coleccion };
+    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellows, coleccion, cruces };
   }
 
   // ---------- autos ----------
@@ -305,7 +336,7 @@
     return {
       trk, cars, t: 0, phase: 'grid', events: [], finishOrder: [], player, aiBase: opts.aiBase || 0.68,
       autopilotAll: !!opts.autopilot, cash: 0, got: [], hurt: { motor: 0, gomas: 0, chasis: 0 }, timeout: false,
-      rain: trk.extra.lluvia, crossers: [], crossT: 5, R: rng((opts.seed || 1) * 977 + 3), penalty: 0, fines: 0, collected: null,
+      rain: trk.extra.lluvia, crossers: [], crossT: 5, cruceUsado: new Set(), R: rng((opts.seed || 1) * 977 + 3), penalty: 0, fines: 0, collected: null,
       yIn: false, yAhead: null,
     };
   };
@@ -393,10 +424,12 @@
     // desgaste del jugador
     if (c.dmg && !c.dead) {
       let w = 0;
-      if ((surf === PASTO || surf === ARENA || surf === TRAMPA) && sp > 40) w += 1.1 * offK;
+      if ((surf === PASTO || surf === ARENA || surf === TRAMPA) && sp > 40) w += 1.8 * offK;
       if (surf === TIERRA) w += 0.25 * offK;
-      if (c.slip > 40) w += (c.slip - 40) / 50;
+      if (c.slip > 32) w += (c.slip - 32) / 35;
+      w += 0.07 * sp / T.PH.VMAX; // desgaste normal por andar
       if (w > 0) hurt(race, c, 'gomas', w * dt);
+      if (c.thr > 0 && sp > 0.85 * T.PH.VMAX) hurt(race, c, 'motor', 0.05 * dt); // motor exigido a fondo
     }
     let g = 1; for (let k = 1; k < GEARS.length; k++) if (vf > GEARS[k]) g = k + 1;
     if (g > c.gear) { c.shiftT = 0.12; race.events.push({ type: 'shift', car: c }); }
@@ -436,7 +469,7 @@
             if (-vr > 25 && a.hitT <= 0 && b.hitT <= 0) {
               a.hitT = b.hitT = 0.25;
               race.events.push({ type: 'hit', car: a, other: b, x: (pa[0] + pb[0]) / 2, y: (pa[1] + pb[1]) / 2, v: -vr });
-              for (const c of [a, b]) if (c.dmg) { hurt(race, c, 'chasis', (-vr - 25) * 0.09); hurt(race, c, 'motor', (-vr - 25) * 0.02); }
+              for (const c of [a, b]) if (c.dmg) { hurt(race, c, 'chasis', (-vr - 24) * 0.10); hurt(race, c, 'motor', (-vr - 24) * 0.025); }
             }
           }
         }
@@ -465,8 +498,8 @@
               c.hitT = 0.3;
               race.events.push({ type: rock ? 'rock' : 'tire', car: c, x: t.x, y: t.y, v: -vn });
               if (c.dmg) {
-                if (rock) { hurt(race, c, 'chasis', 2 + -vn * 0.04); hurt(race, c, 'gomas', 1 + -vn * 0.02); hurt(race, c, 'motor', -vn * 0.02); }
-                else hurt(race, c, 'chasis', (-vn - 20) * 0.16);
+                if (rock) { hurt(race, c, 'chasis', 2 + -vn * 0.05); hurt(race, c, 'gomas', 1 + -vn * 0.025); hurt(race, c, 'motor', -vn * 0.02); }
+                else hurt(race, c, 'chasis', (-vn - 15) * 0.26);
               }
             }
           }
@@ -497,7 +530,7 @@
       const lt = -dx * fy + dy * fx;
       if (Math.abs(lt) < wide && osp < sp - 4) {
         if (c.avoidT <= 0 && !(esAuto && enAmarilla && osp > 25)) { c.avoid = (lt > 0 ? -1 : 1) * (wide + 6); c.avoidT = 0.7; }
-        if (al < 26 && Math.abs(lt) < 11) slow = true;
+        if (al < T.AI.cerca && Math.abs(lt) < 10) slow = true;
       }
     };
     for (const o of race.cars) if (o !== c) obstacle(o.x - c.x, o.y - c.y, Math.hypot(o.vx, o.vy), 15, true);
@@ -518,11 +551,11 @@
     const diff = wrapA(want - c.a);
     c.steer = clamp(diff * 2.8, -1, 1);
     // velocidad objetivo
-    let m = (0.66 + 0.32 * sk);
+    let m = c.isPlayer && T.AI.pm ? T.AI.pm : (T.AI.m0 + T.AI.m1 * sk);
     if (race.rain) m *= 0.9;
     if (pts[c.i].dirt) m *= 0.9;
     let vt = PH.VMAX * 1.3;
-    const bd = PH.BRAKE * 0.75;
+    const bd = PH.BRAKE * (c.isPlayer && T.AI.pm ? T.AI.pbd : T.AI.bd);
     const n = Math.ceil((sp * sp / (2 * bd) + 40) / trk.DS);
     for (let k = 0; k <= n; k++) {
       const q = pts[Math.min(N - 1, c.i + k)];
@@ -541,7 +574,7 @@
         vt = Math.min(vt, gap < 24 ? osp - 10 : gap < 40 ? osp - 3 : osp + 4);
       }
     }
-    if (slow) vt = Math.min(vt, sp - 10);
+    if (slow) vt = Math.min(vt, sp - T.AI.afloja);
     if (sp > vt + 4) { c.thr = 0; c.brk = clamp((sp - vt) / 25, 0.2, 1); }
     else if (sp > vt) { c.thr = 0.25; c.brk = 0; }
     else { c.thr = 1; c.brk = 0; }
@@ -576,7 +609,7 @@
         let mod = 0;
         if (!pl.finished && !pl.dead) {
           const gap = c.p - pl.p;
-          if (gap > 400) mod = -Math.min(0.03, (gap - 400) / 6000);
+          if (gap > 400) mod = 0;
           else if (gap < -200) mod = Math.min(0.15, (-gap - 200) / 2000);
         }
         c.skillEff = c.skill + mod;
@@ -654,15 +687,16 @@
   T.CRUZAN = CRUZAN;
   function updCrossers(race, dt) {
     const trk = race.trk, pl = race.player, R = race.R;
-    race.crossT -= dt;
-    if (race.crossT <= 0 && !pl.finished) {
-      race.crossT = 5 + R() * 8;
-      const s = pl.s + 230 + R() * 140;
-      if (s < trk.finishS - 60 && !trk.scen.yellows.some(yz => s > yz.s0 - 100 && s < yz.s1 + 50)) {
-        const p = trk.pts[clamp(Math.round(s / trk.DS), 0, trk.N - 1)], side = R() < 0.5 ? 1 : -1;
-        const pool = CRUZAN[trk.tema] || CRUZAN.europa, type = pool[Math.floor(R() * pool.length)];
-        const v = VEL[type] * (0.8 + R() * 0.4), lat = side * (HW + 24);
-        race.crossers.push({ type, x: p.x + p.nx * lat, y: p.y + p.ny * lat, vx: -p.nx * side * v, vy: -p.ny * side * v, z: 0, vz: 0, t: 0, hit: false, v: Math.floor(R() * 3) });
+    for (const cs of trk.scen.cruces) {
+      if (race.cruceUsado.has(cs) || pl.finished || cs - pl.s > 380 || cs - pl.s < 200) continue;
+      race.cruceUsado.add(cs);
+      if (R() < 0.2) continue; // a veces no cruza nadie
+      const p = trk.pts[clamp(Math.round(cs / trk.DS), 0, trk.N - 1)], side = R() < 0.5 ? 1 : -1;
+      const pool = CRUZAN[trk.tema] || CRUZAN.europa, type = pool[Math.floor(R() * pool.length)];
+      const cuantos = type === 'persona' && R() < 0.35 ? 2 : 1;
+      for (let k = 0; k < cuantos; k++) {
+        const v = VEL[type] * (0.8 + R() * 0.4), lat = side * (HW + 24 + k * 12), off = (R() - 0.5) * 8;
+        race.crossers.push({ type, x: p.x + p.nx * lat + p.tx * off, y: p.y + p.ny * lat + p.ty * off, vx: -p.nx * side * v, vy: -p.ny * side * v, z: 0, vz: 0, t: 0, hit: false, v: Math.floor(R() * 3) });
       }
     }
     for (const o of race.crossers) {
@@ -683,8 +717,8 @@
           const slow = o.type === 'ciervo' ? 0.7 : o.type === 'rodadora' || o.type === 'pelota' ? 0.97 : 0.88;
           c.vx *= slow; c.vy *= slow;
           if (c.dmg) {
-            if (o.type === 'ciervo') hurt(race, c, 'chasis', 8 + sp * 0.04);
-            else if (o.type === 'perro' || o.type === 'gallina') hurt(race, c, 'chasis', 3);
+            if (o.type === 'ciervo') hurt(race, c, 'chasis', 12 + sp * 0.06);
+            else if (o.type === 'perro' || o.type === 'gallina') hurt(race, c, 'chasis', 6);
           }
           race.events.push({ type: 'crosser', kind: o.type, car: c, x: o.x, y: o.y });
           break;
