@@ -408,32 +408,55 @@
     function back() { state = bagFrom; stT = 0; }
   }
   function syncDmg() { /* race.player.dmg comparte objeto con run.dmg */ }
+  // ---------- taller: tres secciones claras (reparar, mejoras, repuestos) ----------
+  const PIEZA = {
+    chasis: { n: 'CHASIS', d: 'ES LA VIDA DEL AUTO. BAJA CON LOS CHOQUES. SI LLEGA A 0 QUEDAS FUERA DEL TOUR.', ef: d => ['VIDA', d, 100] },
+    motor: { n: 'MOTOR', d: 'DA LA VELOCIDAD Y LA ACELERACIÓN. SE GASTA CON GOLPES Y YENDO SIEMPRE A FONDO.', ef: d => ['VELOCIDAD', Math.round(80 + 0.2 * d), 100] },
+    gomas: { n: 'GOMAS', d: 'DAN EL AGARRE EN LAS CURVAS. SE GASTAN DERRAPANDO Y SALIENDO DE LA PISTA.', ef: d => ['AGARRE', Math.round(60 + 0.4 * d), 100] },
+  };
+  let shopMsg = null;
   function shopRows() {
     const rows = [];
-    const PN = { chasis: 'CHASIS', motor: 'MOTOR', gomas: 'GOMAS' };
+    rows.push({ head: 'REPARAR', sub: 'DEJA LA PIEZA AL 100%' });
     for (const p of ['chasis', 'motor', 'gomas']) {
-      const c = TOUR.repairCost(run, p);
-      rows.push({ t: 'REPARAR ' + PN[p], d: c ? 'DEJA EL ' + PN[p] + ' AL 100%' : 'YA ESTÁ PERFECTO', price: c, ok: c > 0 && run.money >= c, act: () => TOUR.repair(run, p) });
+      const c = TOUR.repairCost(run, p), d = Math.round(run.dmg[p]), P0 = PIEZA[p], ef = P0.ef(d);
+      rows.push({ kind: 'rep', t: P0.n, val: d, price: c || null, done: !c, ok: c > 0 && run.money >= c, act: () => TOUR.repair(run, p),
+        title: 'REPARAR ' + P0.n, d: P0.d, cambio: c ? ef[0] + ' ' + ef[1] + '% → ' + ef[2] + '%' : P0.n + ' AL 100%', falta: c ? null : 'YA ESTÁ AL 100%' });
     }
+    const all = TOUR.repairAllCost(run), rotas = ['chasis', 'motor', 'gomas'].filter(p => run.dmg[p] < 100).length;
+    if (rotas > 1) rows.push({ kind: 'todo', t: 'REPARAR TODO', price: all, ok: run.money >= all, act: () => TOUR.repairAll(run),
+      title: 'REPARAR TODO', d: 'DEJA CHASIS, MOTOR Y GOMAS AL 100% DE UNA VEZ. CUESTA LO MISMO QUE POR SEPARADO.', cambio: 'TODO AL 100%' });
+    rows.push({ head: 'MEJORAS', sub: 'PARA TODO EL TOUR' });
     for (const u of TOUR.UPGRADES) {
-      const c = TOUR.upCost(run, u.id), lv = run.up[u.id];
-      rows.push({ t: 'MEJORAR ' + u.n, d: c == null ? 'NIVEL MÁXIMO' : u.d, price: c, lv, ok: c != null && run.money >= c, act: () => TOUR.buyUp(run, u.id), up: true });
+      const c = TOUR.upCost(run, u.id), lv = run.up[u.id], cur = 100 + u.paso * lv;
+      rows.push({ kind: 'up', t: u.n, lv, price: c, ok: c != null && run.money >= c, act: () => TOUR.buyUp(run, u.id),
+        title: 'MEJORAR ' + u.n, d: 'MEJORA PERMANENTE: SE QUEDA EN EL AUTO HASTA EL FINAL DEL TOUR. NIVEL ' + lv + ' DE 3.',
+        cambio: c == null ? u.ef + ' ' + cur + '%' : u.ef + ' ' + cur + '% → ' + (cur + u.paso) + '%', falta: c == null ? 'NIVEL MÁXIMO' : null });
     }
+    rows.push({ head: 'REPUESTOS', sub: 'VAN A TU MOCHILA' });
     stock.forEach((id, i) => {
-      const it = TOUR.ITEMS[id];
-      rows.push({ t: it.n, d: it.d + ' · A LA MOCHILA', price: it.precio, ok: run.money >= it.precio && run.items.length < run.maxItems, act: () => { const r = TOUR.buyItem(run, id); if (r) stock.splice(i, 1); return r; } });
+      const it = TOUR.ITEMS[id], llena = run.items.length >= run.maxItems;
+      rows.push({ kind: 'item', t: it.n, ef: it.d, price: it.precio, ok: run.money >= it.precio && !llena, act: () => { const r = TOUR.buyItem(run, id); if (r) stock.splice(i, 1); return r; },
+        title: it.n, d: 'NO SE USA AHORA: SE GUARDA EN LA MOCHILA PARA REPARAR DESPUÉS, EN EL MAPA O ANTES DE LARGAR (TECLA ←).', cambio: it.d, falta: llena ? 'MOCHILA LLENA' : null });
     });
-    rows.push({ t: 'SALIR', d: 'VOLVER AL MAPA', exit: true, ok: true });
+    if (!stock.length) rows.push({ kind: 'nada', t: 'SIN STOCK', ok: false, title: 'SIN REPUESTOS', d: 'YA COMPRASTE TODO LO QUE HABÍA.' });
+    const fin = node && node.type === 'jefe';
+    rows.push({ kind: 'exit', t: fin ? 'SEGUIR A LA PRÓXIMA REGIÓN' : 'SALIR AL MAPA', exit: true, ok: true, title: 'SALIR', d: fin ? 'TERMINAR EN EL TALLER Y SEGUIR A LA PRÓXIMA REGIÓN.' : 'VOLVER AL MAPA DE RUTAS.' });
     return rows;
   }
   function updShop() {
-    const rows = shopRows();
-    listNav(rows.length);
+    const rows = shopRows(), n = rows.length;
+    const ok = i => !rows[i].head && rows[i].kind !== 'nada';
+    if (sel >= n) sel = n - 1;
+    if (!ok(sel)) { let k = sel; while (k < n - 1 && !ok(k)) k++; sel = k; }
+    const mover = d => { let k = sel; do { k = (k + d + n) % n; } while (!ok(k)); sel = k; AU.move(); };
+    if (P('up')) mover(-1);
+    if (P('down')) mover(1);
     if (P('right')) {
       const r = rows[sel];
       if (r.exit) leaveShop();
-      else if (r.ok && r.act()) { AU.buy(); sel = Math.min(sel, shopRows().length - 1); }
-      else AU.error();
+      else if (r.ok && r.act()) { AU.buy(); shopMsg = { t: '¡LISTO! ' + r.title, c: '#7cff4f', t0: frame }; }
+      else { AU.error(); shopMsg = { t: r.falta || (r.price != null && run.money < r.price ? 'TE FALTAN $' + (r.price - run.money) : 'NO SE PUEDE'), c: '#ff4040', t0: frame }; }
     }
     if (P('left')) leaveShop();
   }
@@ -632,10 +655,10 @@
     ctx.fillStyle = '#ff2a6d'; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + h - 1, w, 1);
     ctx.fillStyle = '#05d9e8'; ctx.fillRect(x, y + 1, 1, h - 2); ctx.fillRect(x + w - 1, y + 1, 1, h - 2);
   }
-  function bar(x, y, w, v, label) {
+  function bar(x, y, w, v, label, lw) {
     const col = v > 60 ? '#30e050' : v > 30 ? '#f9f871' : '#ff2a2a';
     GR.text(ctx, label, x, y, { color: v <= 25 && frame % 20 < 10 ? '#ff2a2a' : '#a0a0c0' });
-    const bx = x + 24, bw = w - 24;
+    const bx = x + (lw || 24), bw = w - (lw || 24);
     ctx.fillStyle = '#000'; ctx.fillRect(bx - 1, y, bw + 2, 7);
     ctx.fillStyle = '#202030'; ctx.fillRect(bx, y + 1, bw, 5);
     ctx.fillStyle = col; ctx.fillRect(bx, y + 1, Math.round(bw * Math.max(0, v) / 100), 5);
@@ -754,14 +777,19 @@
     GR.text(ctx, '$' + run.money, W - 8, 20, { align: 'right', color: '#7cff4f' });
   }
   function hints(t) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, H - 11, W, 11); GR.text(ctx, t, W / 2, H - 9, { align: 'center', color: '#a0a0c0' }); }
-  function status(x, y) {
-    panel(x, y, 120, 92);
+  function status(x, y, corto) {
+    panel(x, y, 120, corto ? 70 : 136);
     GR.text(ctx, 'TU AUTO', x + 6, y + 5, { color: '#05d9e8' });
-    dmgBars(x + 6, y + 16, 108, run.dmg);
+    bar(x + 6, y + 16, 108, run.dmg.chasis, 'CHASIS', 38); bar(x + 6, y + 25, 108, run.dmg.motor, 'MOTOR', 38); bar(x + 6, y + 34, 108, run.dmg.gomas, 'GOMAS', 38);
     GR.text(ctx, 'MOCHILA ' + run.items.length + '/' + run.maxItems, x + 6, y + 46, { color: '#a0a0c0' });
     run.items.slice(0, 8).forEach((id, i) => { ctx.fillStyle = itemColor(id); ctx.fillRect(x + 6 + i * 13, y + 56, 10, 8); ctx.fillStyle = '#000'; ctx.fillRect(x + 6 + i * 13, y + 63, 10, 1); });
-    const up = TOUR.UPGRADES.map(u => u.n.slice(0, 3) + run.up[u.id]).join(' ');
-    GR.wrap(up, 18).forEach((l, i) => GR.text(ctx, l, x + 6, y + 70 + i * 9, { color: '#d0d0e0' }));
+    if (corto) return;
+    GR.text(ctx, 'MEJORAS', x + 6, y + 70, { color: '#05d9e8' });
+    TOUR.UPGRADES.forEach((u, i) => {
+      const yy = y + 80 + i * 9, lv = run.up[u.id];
+      GR.text(ctx, u.n, x + 6, yy, { color: lv ? '#fff' : '#707088' });
+      for (let k = 0; k < 3; k++) { ctx.fillStyle = k < lv ? '#f9f871' : '#303040'; ctx.fillRect(x + 84 + k * 9, yy + 1, 7, 5); }
+    });
   }
   function itemColor(id) { return { cinta: '#c0c0c8', soldadora: '#ff9020', bujias: '#f0d020', motorrec: '#ff4040', parche: '#808088', gomasnuevas: '#303038', kit: '#30e050' }[id] || '#fff'; }
   const NODE_COL = { carrera: '#ff2a6d', rally: '#d08040', taller: '#40a0ff', evento: '#b060ff', campamento: '#30c060', jefe: '#ffd020' };
@@ -806,7 +834,7 @@
         GR.text(ctx, 'ESTILO ' + secs, 14, 192, { color: '#a0a0c0' });
       }
     }
-    status(270, 112);
+    status(270, 112, true);
     hints('↑↓ ELEGIR RUTA   → IR   ← MOCHILA');
   }
   function drawList(x, y, w, rows, rowH) {
@@ -821,23 +849,70 @@
   function drawShop() {
     bg();
     header(node && node.type === 'jefe' ? 'TALLER DE FIN DE REGIÓN' : 'TALLER', null);
-    const rows = shopRows();
-    panel(8, 30, 262, rows.length * 11 + 8);
-    drawList(10, 35, 258, rows, 11);
-    const r = rows[sel];
-    panel(8, 186, 262, 24); GR.text(ctx, r.d, 14, 194, { color: '#fff' });
-    status(274, 30);
+    const rows = shopRows(), x = 8, w = 232, rh = 10;
+    panel(x, 28, w, rows.length * rh + 6);
+    rows.forEach((r, i) => {
+      const y = 32 + i * rh, me = i === sel;
+      if (r.head) {
+        ctx.fillStyle = '#1c1440'; ctx.fillRect(x + 2, y - 1, w - 4, rh - 1);
+        GR.text(ctx, r.head, x + 6, y, { color: '#05d9e8' });
+        GR.text(ctx, r.sub, x + w - 6, y, { align: 'right', color: '#8078a8' });
+        return;
+      }
+      if (me) { ctx.fillStyle = frame % 30 < 20 ? 'rgba(255,42,109,0.45)' : 'rgba(255,42,109,0.3)'; ctx.fillRect(x + 2, y - 2, w - 4, rh); }
+      const gris = r.ok === false && !r.exit;
+      GR.text(ctx, (me ? '>' : ' ') + r.t, x + 6, y, { color: r.exit ? '#f9f871' : gris ? '#8080a0' : me ? '#fff' : '#d0d0e0' });
+      const mx = x + 104;
+      if (r.kind === 'rep') {
+        const col = r.val > 60 ? '#30e050' : r.val > 30 ? '#f9f871' : '#ff2a2a';
+        ctx.fillStyle = '#000'; ctx.fillRect(mx - 1, y, 52, 7); ctx.fillStyle = '#202030'; ctx.fillRect(mx, y + 1, 50, 5);
+        ctx.fillStyle = col; ctx.fillRect(mx, y + 1, Math.round(50 * r.val / 100), 5);
+        GR.text(ctx, r.val + '%', mx + 56, y, { color: col });
+      }
+      if (r.kind === 'up') for (let k = 0; k < 3; k++) { ctx.fillStyle = '#000'; ctx.fillRect(mx + k * 10 - 1, y, 9, 7); ctx.fillStyle = k < r.lv ? '#f9f871' : '#303040'; ctx.fillRect(mx + k * 10, y + 1, 7, 5); }
+      if (r.kind === 'item') GR.text(ctx, r.ef, mx, y, { color: '#a0a0c0' });
+      if (!r.exit && r.kind !== 'nada') {
+        const txt = r.price ? '$' + r.price : r.done ? 'OK' : r.lv >= 3 ? 'MÁX' : '';
+        GR.text(ctx, txt, x + w - 6, y, { align: 'right', color: r.price ? (r.ok ? '#7cff4f' : '#a04040') : '#606070' });
+      }
+    });
+    // detalle de lo elegido
+    const r = rows[sel] || rows[0], dx = 244, dw = 150;
+    panel(dx, 28, dw, 182);
+    let y = 34;
+    GR.wrap(r.title || r.t || '', 23).forEach(l => { GR.text(ctx, l, dx + 6, y, { rows: HOT }); y += 10; });
+    y += 2;
+    GR.wrap(r.d || '', 23).forEach(l => { GR.text(ctx, l, dx + 6, y, { color: '#d0d0e0' }); y += 9; });
+    if (r.cambio) {
+      y += 4; ctx.fillStyle = '#3a2a70'; ctx.fillRect(dx + 4, y - 2, dw - 8, 1);
+      GR.wrap(r.cambio, 23).forEach(l => { GR.text(ctx, l, dx + 6, y + 2, { color: '#f9f871' }); y += 9; });
+      y += 2;
+    }
+    if (r.kind === 'item') GR.text(ctx, 'MOCHILA ' + run.items.length + '/' + run.maxItems, dx + 6, y + 4, { color: '#a0a0c0' });
+    // precio / qué falta
+    let pie = null, pc = '#a0a0c0';
+    if (r.exit) { pie = '→ SALIR'; pc = '#f9f871'; }
+    else if (r.falta) pie = r.falta;
+    else if (r.price != null && run.money < r.price) { pie = 'TE FALTAN $' + (r.price - run.money); pc = '#ff4040'; }
+    else if (r.price != null) { pie = '→ COMPRAR: $' + r.price; pc = '#7cff4f'; }
+    ctx.fillStyle = '#3a2a70'; ctx.fillRect(dx + 4, 181, dw - 8, 1);
+    if (pie) GR.text(ctx, pie, dx + 6, 186, { color: pc });
+    GR.text(ctx, 'TIENES $' + run.money, dx + 6, 197, { color: '#7cff4f' });
+    if (shopMsg && frame - shopMsg.t0 < 100) {
+      ctx.fillStyle = 'rgba(0,0,0,0.9)'; ctx.fillRect(dx + 3, 166, dw - 6, 13);
+      GR.text(ctx, GR.wrap(shopMsg.t, 23)[0], dx + dw / 2, 169, { align: 'center', color: frame % 16 < 11 ? shopMsg.c : '#fff' });
+    }
     hints('↑↓ ELEGIR   → COMPRAR   ← SALIR');
   }
   function drawBag() {
     bg(); header('MOCHILA', null);
-    const rows = run.items.map(id => ({ t: TOUR.ITEMS[id].n, d: TOUR.ITEMS[id].d })).concat([{ t: 'VOLVER', d: '' }]);
+    const rows = run.items.map(id => ({ t: TOUR.ITEMS[id].n, d: '→ USAR AHORA: ' + TOUR.ITEMS[id].d })).concat([{ t: 'VOLVER', d: '' }]);
     panel(8, 30, 200, rows.length * 12 + 8);
     drawList(10, 35, 196, rows, 12);
     if (rows[sel] && rows[sel].d) { panel(8, 186, 200, 24); GR.text(ctx, rows[sel].d, 14, 194, { color: '#fff' }); }
     if (!run.items.length) GR.text(ctx, 'NO TIENES REPUESTOS', 14, 60, { color: '#a0a0c0' });
     status(274, 30);
-    if (run.perks.length) { panel(274, 126, 120, 12 + run.perks.length * 9); run.perks.forEach((id, i) => GR.text(ctx, TOUR.PERKS.find(p => p.id === id).n, 280, 131 + i * 9, { color: '#f9f871' })); }
+    if (run.perks.length) { panel(274, 170, 120, 12 + run.perks.length * 9); run.perks.forEach((id, i) => GR.text(ctx, TOUR.PERKS.find(p => p.id === id).n, 280, 175 + i * 9, { color: '#f9f871' })); }
     hints('↑↓ ELEGIR   → USAR   ← VOLVER');
   }
   function drawEventLike(title, desc, rows, result) {
@@ -868,6 +943,7 @@
     GR.text(ctx, km.toFixed(1).replace('.', ',') + ' KM · LARGAS ' + ((race.cars.indexOf(race.player)) + 1) + '°', 14, 168, { color: '#f9f871' });
     dmgBars(14, 180, 120, run.dmg);
     GR.text(ctx, race.rain ? 'CLIMA: LLUVIA (MENOS AGARRE)' : 'CLIMA: DESPEJADO', 150, 168, { color: race.rain ? '#80b0ff' : '#a0a0c0' });
+    if (run.ritmo) GR.text(ctx, 'RITMO RIVAL ' + (run.ritmo > 0 ? '+' : '') + Math.round(run.ritmo * 100) + '%', 150, 178, { color: run.ritmo > 0 ? '#ff6040' : '#80b0ff' });
     const left = ground.queue.filter(q => q[2] <= prepS).length;
     if (left) GR.text(ctx, 'PREPARANDO PISTA ' + Math.round(100 * (1 - left / prepTot)) + '%', 300, 186, { align: 'center', color: '#a0a0c0' });
     else if (frame % 40 < 28) GR.text(ctx, 'PULSA ↑ PARA LARGAR', 300, 180, { align: 'center', rows: HOT, outline: '#200' });
@@ -898,6 +974,7 @@
     if (out.collected) GR.text(ctx, '¡NUEVO AUTO EN TU COLECCIÓN: ' + TOUR.COLECCION.find(c => c.id === out.collected).n + '!', 200, 194, { align: 'center', color: '#ffd020' });
     if (out.items.length) GR.text(ctx, 'REPUESTOS: ' + out.items.map(id => TOUR.ITEMS[id].n).join(', '), 8, 164, { color: '#ff6ec7' });
     dmgBars(8, 176, 140, run.dmg);
+    if (out.ritmoD) GR.text(ctx, out.ritmoD > 0 ? 'LOS RIVALES SUBEN EL RITMO +' + out.ritmoD + '%' : 'LOS RIVALES AFLOJAN ' + out.ritmoD + '%', 300, 168, { align: 'center', color: out.ritmoD > 0 ? '#ff6040' : '#80b0ff' });
     if (stT > 0.8 && frame % 40 < 28) GR.text(ctx, 'PULSA → PARA SEGUIR', 300, 186, { align: 'center', rows: HOT });
   }
   function drawPerk() {
@@ -999,5 +1076,6 @@
     get state() { return state; }, get race() { return race; }, get run() { return run; }, get ground() { return ground; }, keys, pressed,
     ff(sec) { for (let i = 0; i < sec * 60; i++) update(1 / 60); draw(); },
     press(k) { pressed.add(k); update(1 / 60); },
+    taller() { stock = TOUR.stock(run); go('shop'); },
   };
 })();

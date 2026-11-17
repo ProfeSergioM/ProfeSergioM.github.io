@@ -13,7 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
-  T.AI = { m0: 0.74, m1: 0.30, bd: 0.85, cerca: 18, afloja: 6, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.AI = { m0: 0.82, m1: 0.30, bd: 0.85, cerca: 18, afloja: 6, caza: 0.25, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -335,7 +335,7 @@
     });
     return {
       trk, cars, t: 0, phase: 'grid', events: [], finishOrder: [], player, aiBase: opts.aiBase || 0.68,
-      autopilotAll: !!opts.autopilot, cash: 0, got: [], hurt: { motor: 0, gomas: 0, chasis: 0 }, timeout: false,
+      autopilotAll: !!opts.autopilot, ritmo: opts.ritmo || 0, cash: 0, got: [], hurt: { motor: 0, gomas: 0, chasis: 0 }, timeout: false,
       rain: trk.extra.lluvia, crossers: [], crossT: 5, cruceUsado: new Set(), R: rng((opts.seed || 1) * 977 + 3), penalty: 0, fines: 0, collected: null,
       yIn: false, yAhead: null,
     };
@@ -380,6 +380,7 @@
       if (c.lim) vmaxEff = Math.min(vmaxEff, T.YLIM);
     } else {
       vmaxEff = PH.VMAX * (race.aiBase + 0.24 * c.skillEff + c.draft);
+      acc *= Math.max(1, race.aiBase + 0.24 * c.skillEff); // los rivales de nivel alto también aceleran más
       if (c.finished) vmaxEff = c.p > race.trk.finishS - race.trk.startS + 90 ? 0 : Math.min(vmaxEff, 70);
     }
     if (c.dead) { vmaxEff = 0; }
@@ -551,7 +552,7 @@
     const diff = wrapA(want - c.a);
     c.steer = clamp(diff * 2.8, -1, 1);
     // velocidad objetivo
-    let m = c.isPlayer && T.AI.pm ? T.AI.pm : (T.AI.m0 + T.AI.m1 * sk);
+    let m = c.isPlayer && T.AI.pm ? T.AI.pm : (T.AI.m0 + T.AI.m1 * sk) * (1 + 0.45 * Math.max(0, race.ritmo));
     if (race.rain) m *= 0.9;
     if (pts[c.i].dirt) m *= 0.9;
     let vt = PH.VMAX * 1.3;
@@ -610,7 +611,7 @@
         if (!pl.finished && !pl.dead) {
           const gap = c.p - pl.p;
           if (gap > 400) mod = 0;
-          else if (gap < -200) mod = Math.min(0.15, (-gap - 200) / 2000);
+          else if (gap < -150) mod = Math.min(T.AI.caza, (-gap - 150) / 1500); // los que vienen detrás aprietan
         }
         c.skillEff = c.skill + mod;
       }

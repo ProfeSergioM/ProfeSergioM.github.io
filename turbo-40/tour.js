@@ -6,12 +6,12 @@
   const TOUR = {};
 
   TOUR.UPGRADES = [
-    { id: 'motor', n: 'MOTOR', d: '+4% VELOCIDAD PUNTA', cost: [400, 700, 1100] },
-    { id: 'turbo', n: 'TURBO', d: '+10% ACELERACIÓN', cost: [320, 560, 900] },
-    { id: 'gomas', n: 'NEUMÁTICOS', d: '+6% AGARRE', cost: [300, 520, 840] },
-    { id: 'blindaje', n: 'BLINDAJE', d: '-15% DAÑO RECIBIDO', cost: [260, 460, 740] },
-    { id: 'susp', n: 'SUSPENSIÓN', d: '-25% CASTIGO FUERA DE PISTA', cost: [200, 360, 560] },
-    { id: 'frenos', n: 'FRENOS', d: '+12% FRENADA', cost: [180, 320, 520] },
+    { id: 'motor', n: 'MOTOR', d: '+4% VELOCIDAD PUNTA', ef: 'VELOCIDAD PUNTA', paso: 4, cost: [400, 700, 1100] },
+    { id: 'turbo', n: 'TURBO', d: '+10% ACELERACIÓN', ef: 'ACELERACIÓN', paso: 10, cost: [320, 560, 900] },
+    { id: 'gomas', n: 'NEUMÁTICOS', d: '+6% AGARRE', ef: 'AGARRE EN CURVA', paso: 6, cost: [300, 520, 840] },
+    { id: 'blindaje', n: 'BLINDAJE', d: '-15% DAÑO RECIBIDO', ef: 'DAÑO QUE RECIBES', paso: -15, cost: [260, 460, 740] },
+    { id: 'susp', n: 'SUSPENSIÓN', d: '-25% CASTIGO FUERA DE PISTA', ef: 'FRENADO FUERA DE PISTA', paso: -25, cost: [200, 360, 560] },
+    { id: 'frenos', n: 'FRENOS', d: '+12% FRENADA', ef: 'POTENCIA DE FRENADA', paso: 12, cost: [180, 320, 520] },
   ];
   TOUR.ITEMS = {
     cinta: { n: 'CINTA', d: 'CHASIS +12', fx: { chasis: 12 }, precio: 40, w: 22 },
@@ -57,7 +57,7 @@
   ];
   const RIVALS = [['BLAZE', 0.97], ['VIPER', 0.955], ['NOVA', 0.94], ['RICO', 0.93], ['AKIRA', 0.915], ['LUNA', 0.9], ['DUKE', 0.885], ['ZED', 0.87], ['MIKA', 0.85]];
   const PRIZE = [280, 220, 180, 150, 125, 105, 90, 75, 60, 50];
-  const AIBASE = [0.77, 0.83, 0.89, 0.95];
+  const AIBASE = [0.80, 0.85, 0.90, 0.95];
 
   const R0 = T.rng;
   TOUR.newRun = function (seed, owned) {
@@ -152,7 +152,7 @@
       lluvia, amarilla, coleccion: falta.length && colR < 0.35 ? falta[Math.floor(X() * falta.length)].id : null,
       seed: node.seed, region: reg.id, tema: reg.tema, tipo,
       largo: tipo === 'jefe' ? 30000 : 24500,
-      aiBase: AIBASE[run.region] + (tipo === 'jefe' ? 0.015 : 0),
+      aiBase: AIBASE[run.region] + (tipo === 'jefe' ? 0.015 : 0) + (run.ritmo || 0),
     };
   };
   // construye la etapa y la carrera lista para largar
@@ -164,7 +164,7 @@
     let order;
     if (run.stage === 0) order = run.rivals.map((r, i) => i).concat([-1]);
     else order = ['p'].concat(run.rivals.map((r, i) => i)).sort((a, b) => run.gc[a] - run.gc[b]).map(k => k === 'p' ? -1 : k);
-    const race = T.newRace(trk, { rivals: run.rivals, order, stats: TOUR.stats(run), dmg: run.dmg, aiBase: sp.aiBase, seed: sp.seed });
+    const race = T.newRace(trk, { rivals: run.rivals, order, stats: TOUR.stats(run), dmg: run.dmg, aiBase: sp.aiBase, ritmo: run.ritmo || 0, seed: sp.seed });
     race.params = sp;
     return race;
   };
@@ -211,6 +211,12 @@
     if (run.perks.includes('mecanico')) for (const k in run.dmg) run.dmg[k] = Math.min(100, run.dmg[k] + 8);
     out.money = out.lines.reduce((a, l) => a + l[1], 0);
     run.money = Math.max(0, run.money + out.money);
+    // ritmo adaptativo: si ganas con holgura, los rivales aprietan en la próxima etapa; si quedas atrás, aflojan un poco
+    const antes = run.ritmo || 0;
+    let d = [0, 0.006, 0.003, 0, 0, 0, -0.006, -0.01, -0.015, -0.02][pos - 1];
+    if (pos === 1 && res[1]) d = 0.01 + Math.min(0.05, (res[1].time - res[0].time) / 150);
+    run.ritmo = Math.max(-0.08, Math.min(0.22, antes + d));
+    out.ritmo = Math.round(run.ritmo * 100); out.ritmoD = Math.round((run.ritmo - antes) * 100);
     run.stage++;
     run.log.push({ region: run.region, tipo: sp.tipo, pos, time: res.find(r => r.car === pl).time });
     return out;
@@ -235,6 +241,11 @@
   TOUR.repair = function (run, part) {
     const c = TOUR.repairCost(run, part); if (c <= 0 || run.money < c) return false;
     run.money -= c; run.dmg[part] = 100; return true;
+  };
+  TOUR.repairAllCost = run => ['chasis', 'motor', 'gomas'].reduce((a, p) => a + TOUR.repairCost(run, p), 0);
+  TOUR.repairAll = function (run) {
+    const c = TOUR.repairAllCost(run); if (c <= 0 || run.money < c) return false;
+    run.money -= c; for (const p in run.dmg) run.dmg[p] = 100; return true;
   };
   TOUR.upCost = (run, id) => { const u = TOUR.UPGRADES.find(x => x.id === id), lv = run.up[id]; return lv >= 3 ? null : u.cost[lv]; };
   TOUR.buyUp = function (run, id) {
