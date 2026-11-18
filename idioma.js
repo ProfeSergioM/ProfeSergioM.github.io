@@ -25,6 +25,11 @@
       'Roguelike racing road trip in isometric pixel art, with a car inspired by the F40. Six legs along the Pan-American Highway, from Alaska to Tierra del Fuego: snow, forests, deserts, jungle, the Andes and Patagonia, with tight corners between guard rails, animals crossing, damage that carries over from one stage to the next, a workshop and upgrades. If the car breaks down, the trip is over. In Spanish.',
     'Teclado o táctil': 'Keyboard or touch',
 
+    // ---- Fletes
+    'Juego de camiones tranquilo en pixel art isométrico. Llevas cargas entre Puerto Montt y Puerto Varas por sus calles reales, levantadas desde OpenStreetMap, y por la Ruta 5: salmón, mariscos, madera, leche o diésel. Con GPS, lluvia del sur, día y noche, y radios en vivo para escuchar mientras manejas. Sin carreras ni rivales.':
+      'Relaxed truck game in isometric pixel art. Haul freight between Puerto Montt and Puerto Varas on their real streets, built from OpenStreetMap, and along Route 5: salmon, seafood, timber, milk or diesel. With GPS, southern Chilean rain, day and night, and live radio stations to listen to while you drive. No races and no rivals. In Spanish.',
+    'Radios en vivo': 'Live radio',
+
     // ---- True o Poser
     'Simulador de banda de rock. Dieciséis semestres de decisiones para llegar a cerrar la noche en Rock in Rio, sin venderse en el camino. Ciento un situaciones, veinticinco hitos y quince finales distintos.':
       'Rock band simulator. Sixteen semesters of decisions to end up headlining Rock in Rio without selling out along the way. A hundred and one situations, twenty-five milestones and fifteen different endings.',

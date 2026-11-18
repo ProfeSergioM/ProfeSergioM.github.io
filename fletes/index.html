@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="google-adsense-account" content="ca-pub-6113562135089306">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>FLETES · camiones por el sur</title>
+<meta name="description" content="Juego de camiones tranquilo en pixel art: entregas de carga entre Puerto Montt y Puerto Varas por calles reales de OpenStreetMap, con radios en vivo.">
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; }
+  #marco { position: absolute; border-radius: 14px; overflow: hidden; box-shadow: 0 0 40px rgba(5, 217, 232, .22); }
+  #marco canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; }
+  #pantalla { filter: saturate(1.15) contrast(1.06); }
+  #brillo { filter: blur(3px) brightness(1.5); mix-blend-mode: screen; opacity: .38; pointer-events: none; }
+  .crt { position: absolute; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.28) 0, rgba(0,0,0,.28) 1px, transparent 1px, transparent 3px); }
+  .crt::after { content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, transparent 58%, rgba(0,0,0,.55) 100%);
+    animation: parpadeo .12s infinite steps(2); }
+  .rgb { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: .12;
+    background: repeating-linear-gradient(to right, #f33 0, #f33 1px, #3f3 1px, #3f3 2px, #33f 2px, #33f 3px); }
+  /* controles táctiles */
+  body.tactil { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+  #mandos .zona { position: fixed; display: flex; gap: 8px; touch-action: none; }
+  #mandos .tecla { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border-radius: 14px; border: 2px solid #05d9e8; background: rgba(20, 8, 48, .55); color: #05d9e8;
+    font: bold 30px/1 monospace; text-shadow: 0 0 8px #05d9e8; box-shadow: inset 0 0 14px rgba(5, 217, 232, .25); }
+  #mandos .tecla small { font-size: 11px; letter-spacing: 2px; margin-top: 4px; }
+  #mandos .gas { border-color: #7cff4f; color: #7cff4f; text-shadow: 0 0 8px #7cff4f; flex: 1.6; }
+  #mandos .freno { border-color: #ff2a6d; color: #ff2a6d; text-shadow: 0 0 8px #ff2a6d; }
+  #mandos .tecla.activo { background: rgba(255, 255, 255, .22); box-shadow: 0 0 18px currentColor, inset 0 0 18px currentColor; }
+  #mandos .volante .tecla { font-size: 34px; }
+  #mandos .pedales .tecla { font-size: 34px; }
+  #mandos.horizontal .volante { left: max(8px, env(safe-area-inset-left)); bottom: 10px; width: calc(var(--banda) - 16px); height: 46vh; }
+  #mandos.horizontal .pedales { right: max(8px, env(safe-area-inset-right)); bottom: 10px; width: calc(var(--banda) - 16px); height: 72vh; flex-direction: column; }
+  #mandos.vertical .volante { left: 10px; bottom: max(14px, env(safe-area-inset-bottom)); top: var(--arriba); width: calc(50% - 15px); }
+  #mandos.vertical .pedales { right: 10px; bottom: max(14px, env(safe-area-inset-bottom)); top: var(--arriba); width: calc(50% - 15px); flex-direction: column; }
+  #girar { display: none; position: fixed; left: 0; right: 0; top: calc(var(--arriba) - 30px); text-align: center;
+    font: bold 11px monospace; letter-spacing: 1px; color: #a080c0; pointer-events: none; }
+  #mandos.vertical #girar { display: block; }
+  #sonido { position: fixed; top: 8px; right: max(8px, env(safe-area-inset-right)); width: 40px; height: 40px; border-radius: 50%;
+    border: 2px solid #ff6ec7; background: rgba(20, 8, 48, .6); color: #ff6ec7; font: bold 20px monospace; touch-action: none; }
+  #sonido.mudo { opacity: .4; text-decoration: line-through; }
+  #mandos .botones { position: fixed; display: flex; gap: 6px; justify-content: center; }
+  #mandos.horizontal .botones { left: var(--banda); right: var(--banda); bottom: 4px; height: 36px; }
+  #mandos.vertical .botones { left: 10px; right: 10px; top: calc(var(--arriba) - 46px); height: 36px; }
+  #mandos .botones button { flex: 1; max-width: 110px; border-radius: 10px; border: 2px solid #f9f871; background: rgba(20, 8, 48, .6); color: #f9f871;
+    font: bold 13px monospace; letter-spacing: 1px; touch-action: none; }
+  #mandos .botones button:active { background: rgba(255, 255, 255, .25); }
+  #mandos.vertical #girar { top: calc(var(--arriba) - 64px); }
+  @keyframes parpadeo { 0% { opacity: .96 } 100% { opacity: 1 } }
+</style>
+</head>
+<body>
+<div id="marco">
+  <canvas id="pantalla"></canvas>
+  <canvas id="brillo"></canvas>
+  <div class="rgb"></div>
+  <div class="crt"></div>
+</div>
+<script src="datos/mapa.js"></script>
+<script src="mundo.js"></script>
+<script src="nucleo.js"></script>
+<script src="cargas.js"></script>
+<script src="grafica.js"></script>
+<script src="audio.js"></script>
+<script src="radio.js"></script>
+<script src="juego.js"></script>
+<script defer src="../volver.js" data-pos="bottom-left"></script>
+<script>
+  // En pantallas táctiles la esquina inferior izquierda es la dirección: el botón va arriba.
+  if ((window.matchMedia && matchMedia('(pointer: coarse)').matches) || 'ontouchstart' in window)
+    document.querySelector('script[src$="volver.js"]').setAttribute('data-pos', 'top-left');
+</script>
+<script defer src="../publicidad.js"></script>
+</body>
+</html>
