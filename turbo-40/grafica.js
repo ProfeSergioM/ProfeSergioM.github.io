@@ -8,6 +8,9 @@
   const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
   const pack = (r, g, b) => (0xff000000 | (b << 16) | (g << 8) | r) >>> 0;
   const packH = h => { const c = hex(h); return pack(c[0], c[1], c[2]); };
+  // aclara u oscurece un color empaquetado
+  const shadeP = (c, f) => pack(Math.min(255, (c & 255) * f) | 0, Math.min(255, ((c >> 8) & 255) * f) | 0, Math.min(255, ((c >> 16) & 255) * f) | 0);
+  const mixP = (c, d, t) => pack(((c & 255) * (1 - t) + (d & 255) * t) | 0, (((c >> 8) & 255) * (1 - t) + ((d >> 8) & 255) * t) | 0, (((c >> 16) & 255) * (1 - t) + ((d >> 16) & 255) * t) | 0);
   GR.hex = hex;
   function hash(x, y) { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
   GR.hash = hash;
@@ -344,6 +347,7 @@
     P.rut = packH(th.rut || '#6e4c2c');
     P.d = (th.dirt || ['#9a7048', '#8a6038', '#ae845a']).map(packH); P.t = th.trap.map(packH);
     P.b = (th.berma || ['#8a8a84', '#7a7a74']).map(packH);
+    P.mar1 = packH('#2c74b8'); P.mar2 = packH('#163e86'); P.mar3 = packH('#5a9ad8'); P.espuma = packH('#eef4fa'); P.playa1 = packH('#ead69e'); P.playa2 = packH('#dcc68a'); P.roca1 = packH('#8a8274'); P.roca2 = packH('#6a6256');
     P.a1 = packH('#5c5c68'); P.a2 = packH('#50505c'); P.a3 = packH('#686874'); P.line = packH('#e8e8ec');
     P.cr = packH('#d82818'); P.goma = packH('#46464f'); P.fren = packH('#2a2a31'); P.raya = packH('#e8c030'); P.cw = packH('#f0f0f0'); P.blk = packH('#18181c'); P.wht = packH('#f4f4f4');
     const sh = th.arena ? (th.duna || ['#c89a5a', '#f0d090']).map(packH) : null;
@@ -405,6 +409,24 @@
           });
         }
       }
+      // campo lejano (grueso) para el mar y la montaña
+      let ff = null; const G3 = 12, RF = 380, fgw = Math.ceil((xmax - xmin) / G3), fgh = Math.ceil((ymax - ymin) / G3);
+      if (trk.mar || trk.valle) {
+        ff = new Int32Array(fgw * fgh).fill(-1); const fd = new Float32Array(fgw * fgh).fill(1e12), rc = Math.ceil(RF / G3);
+        for (let gx = Math.floor((xmin - RF) / 64); gx <= Math.floor((xmax + RF) / 64); gx++)
+          for (let gy = Math.floor((ymin - RF) / 64); gy <= Math.floor((ymax + RF) / 64); gy++) {
+            const l = trk.grid.get(gx + ',' + gy); if (!l) continue;
+            for (const i of l) {
+              if (i & 3) continue;
+              const p = trk.pts[i], gx0 = Math.floor((p.x - xmin) / G3), gy0 = Math.floor((p.y - ymin) / G3);
+              for (let yy = Math.max(0, gy0 - rc); yy <= Math.min(fgh - 1, gy0 + rc); yy++)
+                for (let xx = Math.max(0, gx0 - rc); xx <= Math.min(fgw - 1, gx0 + rc); xx++) {
+                  const dx = xmin + (xx + 0.5) * G3 - p.x, dy = ymin + (yy + 0.5) * G3 - p.y, d2 = dx * dx + dy * dy, k = yy * fgw + xx;
+                  if (d2 < fd[k] && d2 < RF * RF) { fd[k] = d2; ff[k] = i; }
+                }
+            }
+          }
+      }
       const sS = trk.startS, fS = trk.finishS;
       for (let py = 0; py < CS; py++) for (let px = 0; px < CS; px++) {
         const u = u0 + px, v = v0 + py, x = v + u / 2, y = v - u / 2;
@@ -419,13 +441,33 @@
           if (vnoise(x / 70, y / 70) < 0.22) col = P.out;
         }
         if (hz > 0.994) col = P.flor;
-        let aT = 1e9;
+        if (ff) {
+          const i = ff[Math.min(fgh - 1, Math.floor((y - ymin) / G3)) * fgw + Math.min(fgw - 1, Math.floor((x - xmin) / G3))];
+          if (i >= 0) {
+            const p = trk.pts[i], lat = (x - p.x) * p.nx + (y - p.y) * p.ny;
+            if (trk.mar) {
+              const m = lat * trk.mar, ola = vnoise(x / 26, y / 26) * 6;
+              if (m > HW + 64 + ola) {
+                const prof = Math.min(1, (m - HW - 64) / 220);
+                col = mixP(P.mar1, P.mar2, prof);
+                if (((x * 0.31 + y * 0.69 + vnoise(x / 40, y / 40) * 30) % 15 + 15) % 15 < 1.2) col = P.mar3;
+                if (m < HW + 70 + ola && hz < 0.7) col = P.espuma;
+              } else if (m > HW + 40 + ola * 0.5) col = hz < 0.5 ? P.playa1 : P.playa2;
+            }
+            if (trk.valle) {
+              const v = lat * trk.valle;
+              if (v > HW + 14) col = shadeP(col, 1 - Math.min(0.55, (v - HW - 14) / 240 * 0.55)); // ladera hacia el valle
+              else if (v < -(HW + 22)) { const t = Math.min(0.65, (-v - HW - 22) / 140); col = mixP(col, hash(ix >> 2, iy >> 1) < 0.3 ? P.roca2 : P.roca1, t); }
+            }
+          }
+        }
+        let aT = 1e9, pN = null;
         if (fi) {
           const k = Math.floor((y - ymin) / G2) * gw + Math.floor((x - xmin) / G2), i = fi[k];
           if (i >= 0) {
             const p = trk.pts[i], dx = x - p.x, dy = y - p.y;
             const lat = dx * p.nx + dy * p.ny, s = p.s + dx * p.tx + dy * p.ty, a = Math.abs(lat);
-            aT = a;
+            aT = a; pN = p;
             const edge = p.dirt ? (hash(ix >> 2, iy >> 2) - 0.5) * 6 : 0;
             if (a < HW + edge) {
               if (p.dirt) {
@@ -465,6 +507,11 @@
               col = hz < 0.15 ? P.t[1] : (hz > 0.93 ? P.t[2] : P.t[0]);
             } else if (a < HW + 1.6 && !p.dirt) col = P.gedge;
           }
+        }
+        // sombreado por la pendiente del camino (lomos, cuestas)
+        if (pN && pN.sl && aT < HW + 30) {
+          const lit = -pN.sl * (pN.tx + pN.ty) * 0.707;
+          col = shadeP(col, 1 + Math.max(-0.22, Math.min(0.22, lit * 3.2)));
         }
         if (fh && aT > HW + T.CURB + 4) {
           const k = Math.floor((y - ymin) / G2) * gw + Math.floor((x - xmin) / G2), n = fh[k];
@@ -757,6 +804,24 @@
       return { cv, ox: 7, oy: 24 };
     };
     S.curvaD = [curva(true)]; S.curvaI = [curva(false)];
+    S.lomo = [(() => { // cartel de lomo / desnivel
+      const { cv, c, px } = canvasPx(15, 26);
+      c.fillStyle = '#808088'; c.fillRect(6, 12, 2, 13);
+      for (let y = 0; y <= 12; y++) for (let x = 0; x <= 12; x++) { const d = Math.abs(x - 6) + Math.abs(y - 6); if (d <= 6) px(1 + x, y, d === 6 ? '#181818' : '#f8c818'); }
+      ['..###..', '.#...#.', '#######'].forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') px(4 + x, 5 + y, '#181818'); }));
+      outlineCanvas(cv, '#0c0c10');
+      return { cv, ox: 7, oy: 24 };
+    })()];
+    S.velero = ['#ffffff', '#ffe060', '#ff7060'].map(vela => {
+      const { cv, c, px } = canvasPx(20, 24);
+      for (let y = 0; y < 15; y++) for (let x = 0; x <= y * 0.55; x++) px(10 + x, 2 + y, x === 0 ? '#d0d0d8' : vela);
+      for (let y = 4; y < 15; y++) for (let x = 0; x <= (y - 4) * 0.4; x++) px(8 - x, 2 + y, '#f0f0f0');
+      c.fillStyle = '#5a3a20'; c.fillRect(9, 1, 1, 17);
+      c.fillStyle = '#e8e8f0'; c.fillRect(3, 18, 14, 2); c.fillStyle = '#304060'; c.fillRect(4, 20, 12, 1);
+      c.fillStyle = 'rgba(255,255,255,0.7)'; c.fillRect(1, 21, 18, 1);
+      outlineCanvas(cv, '#0c1428');
+      return { cv, ox: 10, oy: 21 };
+    });
     // casas de vóxeles (una sola orientación)
     const casa = (nx, ny, nz, techo, ventanas) => (cols) => {
       const get = (x, y, z) => {

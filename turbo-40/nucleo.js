@@ -14,6 +14,7 @@
     R: 6.5, OFF: 6.5,
   };
   T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, linea: 1, lim: 15, klw: 0, defensa: 0.8, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.GV = 330; T.GSL = 200; // gravedad para saltos y para las cuestas
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -139,9 +140,48 @@
       tema: opts.tema, region: opts.region, tipo: opts.tipo, W: maxx - minx + 2 * M, H: maxy - miny + 2 * M,
     };
     trk.extra = { lluvia: !!opts.lluvia, amarilla: !!opts.amarilla, coleccion: opts.coleccion || null, urbano: !!opts.urbano };
+    // lado del mar (etapas costeras) y del valle (subida o bajada de montaña)
+    const RL = rng((opts.seed || 1) * 13 + 5);
+    trk.mar = opts.costa ? (RL() < 0.5 ? 1 : -1) : 0;
+    trk.perfil = opts.perfil || null;
+    trk.valle = trk.perfil ? (RL() < 0.5 ? 1 : -1) : 0;
+    relieve(trk, RL);
     trk.scen = buildScenery(trk, opts.seed || 1);
     return trk;
   };
+
+  // ---------- relieve: altura del camino a lo largo de la etapa ----------
+  // lomas suaves, lomos y escalones en las rectas (saltitos) y, en montaña, una subida o bajada constante
+  function relieve(trk, R) {
+    const pts = trk.pts, N = trk.N, h = new Float64Array(N);
+    const p1 = R() * 6.3, p2 = R() * 6.3, pend = trk.perfil === 'subida' ? 0.07 : trk.perfil === 'bajada' ? -0.07 : 0;
+    for (let i = 0; i < N; i++) {
+      const s = i * DS;
+      h[i] = pend * s + (pend ? 4 : 14) * Math.sin(s / 290 + p1) + (pend ? 2 : 5) * Math.sin(s / 110 + p2);
+    }
+    // lomos y escalones solo en rectas
+    trk.lomos = [];
+    let next = trk.startS + 700 + R() * 600;
+    for (let i = 0; i < N; i++) {
+      const s = i * DS;
+      if (s < next || s > trk.finishS - 300) continue;
+      let recto = true;
+      for (let j = Math.max(0, i - 25); j <= Math.min(N - 1, i + 30); j++) if (Math.abs(pts[j].k) > 1 / 400) { recto = false; break; }
+      if (!recto) continue;
+      const tipo = R() < 0.55 ? 'lomo' : 'escalon', A = 5 + R() * 3, L = tipo === 'lomo' ? 64 : 16;
+      for (let j = i; j < N; j++) {
+        const t = (j * DS - s) / L;
+        if (tipo === 'lomo') { if (t > 1) break; h[j] += A * (1 - Math.cos(2 * Math.PI * t)) / 2; }
+        else h[j] -= A * (t >= 1 ? 1 : t * t * (3 - 2 * t));
+      }
+      trk.lomos.push({ s, tipo });
+      next = s + 1100 + R() * 1500;
+    }
+    for (let i = 0; i < N; i++) {
+      const a = h[Math.max(0, i - 1)], b = h[Math.min(N - 1, i + 1)];
+      pts[i].h = h[i]; pts[i].sl = (b - a) / (2 * DS); pts[i].h2 = (b - 2 * h[i] + a) / (DS * DS);
+    }
+  }
 
   // muestra más cercana usando la grilla espacial
   function nearestGrid(trk, x, y, rad) {
@@ -200,6 +240,7 @@
     nieve: ['pinoNieve', 'roca'], bosque: ['pino', 'roca', 'pino'], california: ['roble', 'roca'], desierto: ['saguaro', 'rocaArena'],
     selva: ['ceiba', 'palmera'], andes: ['roca', 'pirca'], atacama: ['rocaArena'], estepa: ['roca', 'ventoso'],
   };
+  const FRAGIL = { poste: 1, curvaD: 1, curvaI: 1, senal: 1, lomo: 1 }; // se rompen al chocarlos
   const CASA = { nieve: 'cabana', bosque: 'cabana', california: 'motel', desierto: 'adobe', selva: 'casaColor', andes: 'adobe', atacama: 'adobe', estepa: 'galpon' };
   T.DECOR = DECOR;
   function buildScenery(trk, seed) {
@@ -208,6 +249,11 @@
     const dist = (x, y) => T.distTrack(trk, x, y, 200);
     const lines = []; // barandas, cables, alambrados, oleoducto: segmentos {x,y,x2,y2,e}
     const tema = trk.tema;
+    const agua = (x, y) => {
+      if (!trk.mar) return false;
+      const [i, d] = nearestGrid(trk, x, y, 420); if (i < 0) return false;
+      const p = trk.pts[i]; return ((x - p.x) * p.nx + (y - p.y) * p.ny) * trk.mar > HW + 40;
+    };
     // autopista de las etapas urbanas: calzada paralela con tráfico en contra, detrás de un muro
     const autopista = { runs: [], lado: 0, grid: new Map() };
     const hwDist = (x, y) => {
@@ -219,7 +265,7 @@
       return Math.sqrt(d);
     };
     if (trk.extra.urbano) {
-      const lado = R() < 0.5 ? 1 : -1, OFF = HW + 14 + T.HW2;
+      const lado = trk.mar ? -trk.mar : (R() < 0.5 ? 1 : -1), OFF = HW + 14 + T.HW2;
       autopista.lado = lado;
       let run = [];
       const cerrar = () => { if (run.length >= 30) autopista.runs.push(run); run = []; };
@@ -264,10 +310,14 @@
       }
     }
     // barandas al exterior de las curvas y al interior de las horquillas (no se puede cortar camino)
-    tira(2, p => p.sand !== 0 && p.autopista !== p.sand, p => (HW + 9) * p.sand, 'baranda', true);
-    tira(2, p => Math.abs(p.k) > 1 / 48 && p.autopista !== Math.sign(p.k), p => (HW + 7) * Math.sign(p.k), 'baranda', true);
+    tira(2, p => p.sand !== 0 && p.autopista !== p.sand && p.sand !== trk.valle, p => (HW + 9) * p.sand, 'baranda', true);
+    tira(2, p => Math.abs(p.k) > 1 / 48 && p.autopista !== Math.sign(p.k) && Math.sign(p.k) !== -trk.valle, p => (HW + 7) * Math.sign(p.k), 'baranda', true);
+    if (trk.valle) {
+      tira(2, () => true, () => (HW + 9) * trk.valle, 'baranda', true);
+      tira(2, () => true, () => (HW + 16) * -trk.valle, 'roca', true);
+    }
     // postes de teléfono con cables en un costado
-    const ladoPostes = autopista.lado ? -autopista.lado : (R() < 0.5 ? 1 : -1);
+    const ladoPostes = autopista.lado ? -autopista.lado : trk.mar ? -trk.mar : trk.valle ? -trk.valle : (R() < 0.5 ? 1 : -1);
     {
       let prev = null, next = trk.startS + 60;
       for (let i = 0; i < trk.N; i++) {
@@ -275,9 +325,11 @@
         if (p.s > trk.finishS + 100) break;
         const l = (HW + 24) * ladoPostes, x = p.x + p.nx * l, y = p.y + p.ny * l;
         if (dist(x, y) < HW + 20 || Math.abs(p.k) > 1 / 120) { prev = null; continue; }
-        decor.push({ x, y, kind: 'poste', v: 0, solid: 2.4 });
-        if (prev && Math.hypot(prev.x - x, prev.y - y) < 190) lines.push({ x: prev.x, y: prev.y, x2: x, y2: y, e: 'cable' });
-        prev = { x, y };
+        if (trk.valle && ladoPostes === trk.valle) { prev = null; continue; }
+        const po = { x, y, kind: 'poste', v: 0, solid: 2.4 };
+        decor.push(po);
+        if (prev && Math.hypot(prev.x - x, prev.y - y) < 190) lines.push({ x: prev.x, y: prev.y, x2: x, y2: y, e: 'cable', a: prev.o, b: po });
+        prev = { x, y, o: po };
       }
     }
     // alambrados en la estepa y el oleoducto de Alaska
@@ -327,16 +379,29 @@
       for (let k = 0; k < 9; k++) {
         const s = base - 260 + R() * 560, p = trk.pts[iAt(s)], sd = R() < 0.5 ? 1 : -1, off = (HW + 46 + R() * 70) * sd;
         const x = p.x + p.nx * off, y = p.y + p.ny * off;
-        if (dist(x, y) < HW + 40 || hwDist(x, y) < T.HW2 + 16 || stands.some(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 60 * 60) || decor.some(o => o.casa && (o.x - x) ** 2 + (o.y - y) ** 2 < 42 * 42)) continue;
+        if (dist(x, y) < HW + 40 || hwDist(x, y) < T.HW2 + 16 || agua(x, y) || stands.some(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 60 * 60) || decor.some(o => o.casa && (o.x - x) ** 2 + (o.y - y) ** 2 < 42 * 42)) continue;
         decor.push({ x, y, kind: CASA[tema] || 'cabana', v: Math.floor(R() * 3), casa: true, solid: 9 });
+      }
+    }
+    // veleros en el mar
+    if (trk.mar) for (let s = trk.startS; s < trk.finishS; s += 500 + R() * 700) {
+      const p = trk.pts[iAt(s)], off = (HW + 120 + R() * 170) * trk.mar, x = p.x + p.nx * off, y = p.y + p.ny * off;
+      if (agua(x, y) && dist(x, y) > HW + 100) decor.push({ x, y, kind: 'velero', v: Math.floor(R() * 3) });
+    }
+    // cartel de lomo o desnivel antes de cada salto
+    for (const lm of trk.lomos || []) {
+      const sd0 = trk.mar ? -trk.mar : trk.valle ? -trk.valle : ladoPostes, p = trk.pts[iAt(lm.s - 110)];
+      for (const sd of [sd0, -sd0]) {
+        const off = (HW + 12) * sd, x = p.x + p.nx * off, y = p.y + p.ny * off;
+        if (dist(x, y) > HW + 8 && hwDist(x, y) > T.HW2 + 16) { decor.push({ x, y, kind: 'lomo', v: 0, solid: 2 }); break; }
       }
     }
     // carteles de ruta cada tanto
     for (let s = trk.startS + 600, k = 0; s < trk.finishS - 200; s += 900 + R() * 600, k++) {
       const p = trk.pts[iAt(s)], sd = R() < 0.5 ? 1 : -1, off = (HW + 30) * sd;
       const x = p.x + p.nx * off, y = p.y + p.ny * off;
-      if (dist(x, y) < HW + 22 || hwDist(x, y) < T.HW2 + 14) continue;
-      boards.push({ x, y, k: Math.floor(R() * 8) });
+      if (dist(x, y) < HW + 22 || hwDist(x, y) < T.HW2 + 14 || agua(x, y)) continue;
+      boards.push({ x, y, k: Math.floor(R() * 8), solid: 6 });
     }
     // decoración por tema
     const kinds = DECOR[tema] || DECOR.bosque;
@@ -349,7 +414,7 @@
       }
       for (const s of stands) if ((s.x - x) ** 2 + (s.y - y) ** 2 < 55 * 55) return false;
       for (const s of decor) if (s.casa && (s.x - x) ** 2 + (s.y - y) ** 2 < 30 * 30) return false;
-      if (hwDist(x, y) < T.HW2 + 12) return false;
+      if (hwDist(x, y) < T.HW2 + 12 || agua(x, y)) return false;
       return true;
     };
     const ponerDeco = o => { decor.push(o); const kk = dkey(o.x, o.y); let l = dgrid.get(kk); if (!l) dgrid.set(kk, l = []); l.push(o); };
@@ -436,7 +501,7 @@
     }
     // colisionadores estáticos
     const cgrid = new Map();
-    decor.forEach(o => { if (o.solid) tires.push({ x: o.x, y: o.y, r: o.solid, kind: 'solido' }); });
+    decor.concat(boards).forEach(o => { if (o.solid) tires.push({ x: o.x, y: o.y, r: o.solid, kind: FRAGIL[o.kind] || o.k != null ? 'fragil' : 'solido', ref: o }); });
     tires.concat(rocks).forEach(t => {
       const key = Math.floor(t.x / 64) + ',' + Math.floor(t.y / 64);
       let l = cgrid.get(key); if (!l) cgrid.set(key, l = []); l.push(t);
@@ -468,6 +533,7 @@
         laneOff: isPlayer ? 0 : (R0(k + (opts.seed || 0)) - 0.5) * 16, lineUse: 0.8 + R0(k + 9) * 0.2,
         avoid: 0, avoidT: 0, stuckT: 0, revT: 0, react: isPlayer ? 0 : 0.05 + R0(k + 3) * 0.3,
         slip: 0, surf: 0, gear: 1, shiftT: 0, wrongT: 0, vf: 0, hitT: 0, draft: 0, nitroT: 0, dead: false,
+        y3: p.h || 0, vz: 0, air: false, z: 0,
       };
       if (isPlayer) {
         c.stats = Object.assign({}, T.STATS0, opts.stats || {});
@@ -530,6 +596,10 @@
     }
     if (c.dead) { vmaxEff = 0; }
     if (c.nitroT > 0) c.nitroT -= dt;
+    // relieve: en el aire no hay tracción, freno ni casi dirección; en pendiente cambia la velocidad punta
+    const pv = race.trk.pts[c.i] || {}, sl = pv.sl || 0;
+    if (c.air) { acc = 0; brake = 0; turn *= 0.15; grip *= 0.08; }
+    else vmaxEff *= clamp(1 - 1.3 * sl, 0.86, 1.12);
     // dirección
     const turnF = Math.min(1, sp / 45) * (1 - PH.TURNHI * Math.min(1, sp / PH.VMAX));
     c.a = wrapA(c.a + c.steer * turn * turnF * Math.sign(vf || 1) * dt);
@@ -550,6 +620,7 @@
       else vf = Math.max(-PH.REV, vf - 140 * c.brk * dt);
     }
     if (!(c.thr > 0) && !(c.brk > 0)) vf -= Math.sign(vf) * Math.min(Math.abs(vf), PH.DRAG * (c.dead ? 4 : 1) * dt);
+    if (!c.air) vf -= T.GSL * sl * dt; // la cuesta frena o empuja
     if (vf > vmaxEff + (c.lim ? 0.3 : 5)) vf -= Math.min(vf - vmaxEff, (c.lim ? 260 : 120) * dt); // tras el nitro o con limitador
     if (c.dead) { vf *= Math.exp(-2.5 * dt); vl *= Math.exp(-2.5 * dt); }
     const off = (v, d) => { if (Math.abs(vf) > v) vf -= Math.sign(vf) * d * offK * dt; };
@@ -567,6 +638,24 @@
     c.vx = nx * vf - ny * vl; c.vy = ny * vf + nx * vl;
     c.x += c.vx * dt; c.y += c.vy * dt;
     c.vf = vf;
+    // altura: sigue el camino o vuela si una loma o un escalón lo despega
+    {
+      const hg = (pv.h || 0) + sl * (c.s - (pv.s || 0));
+      if (!c.air) {
+        if (sp > 45 && vf * vf * (pv.h2 || 0) < -T.GV) { c.air = true; c.vz = sl * vf; c.y3 = hg; }
+        else { c.y3 = hg; c.vz = sl * vf; }
+      }
+      if (c.air) {
+        c.vz -= T.GV * dt; c.y3 += c.vz * dt;
+        if (c.y3 <= hg) {
+          const imp = sl * vf - c.vz;
+          c.air = false; c.y3 = hg;
+          race.events.push({ type: 'aterriza', car: c, v: imp, x: c.x, y: c.y });
+          if (c.dmg && imp > 140) hurt(race, c, 'chasis', (imp - 140) * 0.05);
+        }
+      }
+      c.z = c.air ? Math.max(0, c.y3 - hg) : 0;
+    }
     // desgaste del jugador
     if (c.dmg && !c.dead) {
       let w = 0;
@@ -630,9 +719,19 @@
         const list = grid.get((gx + ox) + ',' + (gy + oy));
         if (!list) continue;
         for (const t of list) for (const pc of circles(c)) {
+          if (t.roto) continue;
           let dx = pc[0] - t.x, dy = pc[1] - t.y, d = Math.hypot(dx, dy);
           const rr = R + t.r;
           if (d >= rr || d < 1e-6) continue;
+          if (c.air && (t.kind === 'fragil' || t.kind === 'rock') && c.z > 6) continue; // lo pasa por encima
+          if (t.kind === 'fragil') { // poste o cartel: se rompe, frena al auto pero no lo para
+            t.roto = true; if (t.ref) t.ref.roto = true;
+            const sp = Math.hypot(c.vx, c.vy);
+            c.vx *= 0.7; c.vy *= 0.7;
+            if (c.dmg) hurt(race, c, 'chasis', Math.max(0, sp - 15) * 0.13); // la mitad que un muro
+            race.events.push({ type: 'rompe', kind: t.ref && t.ref.kind || 'cartel', car: c, x: t.x, y: t.y, v: sp, ang: Math.atan2(c.vy, c.vx) });
+            break;
+          }
           dx /= d; dy /= d;
           c.x += dx * (rr - d); c.y += dy * (rr - d);
           const vn = c.vx * dx + c.vy * dy;
@@ -878,10 +977,8 @@
           if (dx * dx + dy * dy > (T.PH.R + 5) ** 2) continue;
           o.hit = true; done = true;
           const sp = Math.hypot(c.vx, c.vy);
-          if (o.type === 'persona') { // la persona salta a tiempo; multa por el susto
-            const d = Math.hypot(dx, dy) || 1; o.vx = dx / d * 140; o.vy = dy / d * 140; o.vz = 90;
-            if (c.dmg) race.fines += 40;
-          } else { o.vx = c.vx * 0.7 + dx * 4; o.vy = c.vy * 0.7 + dy * 4; o.vz = 60 + sp * 0.3; }
+          if (o.type === 'persona' && c.dmg) race.fines += 40;
+          o.t = 99; // estalla y desaparece
           const slow = o.type === 'alce' || o.type === 'oso' ? 0.55 : GRANDE[o.type] ? 0.7 : o.type === 'rodadora' || o.type === 'pelota' ? 0.97 : 0.88;
           c.vx *= slow; c.vy *= slow;
           if (c.dmg) {

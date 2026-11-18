@@ -135,7 +135,7 @@
     const lluvia = X() < LL[run.region], amarilla = X() < 0.5, colR = X();
     return {
       lluvia, amarilla, coleccion: falta.length && colR < 0.35 ? falta[Math.floor(X() * falta.length)].id : null,
-      seed: node.seed, region: reg.id, tema: pueblo.tema || reg.tema, tipo, origen: tr.origen.n, destino: pueblo.n, urbano: !!pueblo.urbano,
+      seed: node.seed, region: reg.id, tema: pueblo.tema || reg.tema, tipo, origen: tr.origen.n, destino: pueblo.n, urbano: !!pueblo.urbano, costa: !!pueblo.costa, perfil: pueblo.perfil || null,
       largo: tipo === 'jefe' ? 30000 : 24500,
       aiBase: AIBASE[run.region] + (tipo === 'jefe' ? 0.015 : 0) + (run.ritmo || 0),
     };
@@ -143,8 +143,8 @@
   // construye la etapa y la carrera lista para largar
   TOUR.buildRace = function (run, node) {
     const sp = TOUR.stageParams(run, node);
-    const gen = E.generar(sp.seed, { region: sp.region, tipo: sp.tipo === 'jefe' ? 'carrera' : sp.tipo, largo: sp.largo });
-    const trk = T.buildStage(gen, { tema: sp.tema, region: sp.region, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion, urbano: sp.urbano });
+    const gen = E.generar(sp.seed, { region: sp.region, tipo: sp.tipo === 'jefe' ? 'carrera' : sp.tipo, largo: sp.largo, pool: sp.perfil ? E.MONTANA : null });
+    const trk = T.buildStage(gen, { tema: sp.tema, region: sp.region, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion, urbano: sp.urbano, costa: sp.costa, perfil: sp.perfil });
     // orden de largada: según la general (el líder adelante); en la primera etapa, el jugador último
     let order;
     if (run.stage === 0) order = run.rivals.map((r, i) => i).concat([-1]);

@@ -11,14 +11,14 @@
     { id: 'alaska', nombre: 'ALASKA', tema: 'nieve', pool: { rectaLarga: 1, recta: 1, curva90: 3, curvaLarga: 2, eses: 2, curvaCiega: 2, chicana: 1 },
       pueblos: [{ n: 'FAIRBANKS', lon: -147.7, lat: 64.8, tema: 'nieve' }, { n: 'TOK', lon: -143, lat: 63.3, tema: 'nieve' }, { n: 'WHITEHORSE', lon: -135, lat: 60.7, tema: 'nieve', jefe: 'AUTOPISTA DE ALASKA' }] },
     { id: 'canada', nombre: 'CANADÁ', tema: 'bosque', pool: { eses: 3, horquilla: 2, zigzag: 2, curvaCiega: 3, curvaLarga: 2, recta: 1 },
-      pueblos: [{ n: 'FORT NELSON', lon: -122.7, lat: 58.8, tema: 'bosque' }, { n: 'PRINCE GEORGE', lon: -122.7, lat: 53.9, tema: 'bosque' }, { n: 'VANCOUVER', lon: -123.1, lat: 49.3, tema: 'bosque', jefe: 'CAÑÓN DEL FRASER' }] },
+      pueblos: [{ n: 'FORT NELSON', lon: -122.7, lat: 58.8, tema: 'bosque' }, { n: 'PRINCE GEORGE', lon: -122.7, lat: 53.9, tema: 'bosque' }, { n: 'VANCOUVER', perfil: 'bajada', lon: -123.1, lat: 49.3, tema: 'bosque', jefe: 'CAÑÓN DEL FRASER' }] },
     { id: 'eeuu', nombre: 'ESTADOS UNIDOS', tema: 'california', pool: { costa: 3, rectaLarga: 2, curva90: 2, eses: 2, chicana: 2, horquilla: 1 },
-      pueblos: [{ n: 'SAN FRANCISCO', urbano: true, lon: -122.4, lat: 37.8, tema: 'california' }, { n: 'LOS ÁNGELES', urbano: true, lon: -118.2, lat: 34, tema: 'california' }, { n: 'NOGALES', lon: -111, lat: 31.3, tema: 'desierto', jefe: 'DESIERTO DE SONORA' }] },
+      pueblos: [{ n: 'SAN FRANCISCO', costa: true, urbano: true, lon: -122.4, lat: 37.8, tema: 'california' }, { n: 'LOS ÁNGELES', costa: true, urbano: true, lon: -118.2, lat: 34, tema: 'california' }, { n: 'NOGALES', lon: -111, lat: 31.3, tema: 'desierto', jefe: 'DESIERTO DE SONORA' }] },
     { id: 'centro', nombre: 'MÉXICO Y CENTROAMÉRICA', tema: 'desierto', pool: { esquina: 3, curva90: 2, eses: 2, horquilla: 2, zigzag: 1, costa: 2 },
-      pueblos: [{ n: 'CIUDAD DE MÉXICO', urbano: true, lon: -99.1, lat: 19.4, tema: 'desierto' }, { n: 'GUATEMALA', lon: -90.5, lat: 14.6, tema: 'selva' }, { n: 'PANAMÁ', lon: -79.5, lat: 9, tema: 'selva', jefe: 'RUTA DE LOS VOLCANES' }],
+      pueblos: [{ n: 'CIUDAD DE MÉXICO', urbano: true, lon: -99.1, lat: 19.4, tema: 'desierto' }, { n: 'GUATEMALA', lon: -90.5, lat: 14.6, tema: 'selva' }, { n: 'PANAMÁ', costa: true, lon: -79.5, lat: 9, tema: 'selva', jefe: 'RUTA DE LOS VOLCANES' }],
       nota: 'EN EL TAPÓN DEL DARIÉN NO HAY CAMINO: EMBARCAS EL AUTO DE PANAMÁ A CARTAGENA.' },
     { id: 'andes', nombre: 'LOS ANDES', tema: 'andes', pool: { horquilla: 3, zigzag: 3, curvaCiega: 2, eses: 2, curva90: 1, rectaLarga: 1 },
-      pueblos: [{ n: 'QUITO', lon: -78.5, lat: -0.2, tema: 'andes' }, { n: 'LIMA', urbano: true, lon: -77, lat: -12, tema: 'atacama' }, { n: 'ARICA', lon: -70.3, lat: -18.5, tema: 'atacama', jefe: 'PAMPA DE NAZCA' }],
+      pueblos: [{ n: 'QUITO', perfil: 'subida', lon: -78.5, lat: -0.2, tema: 'andes' }, { n: 'LIMA', costa: true, urbano: true, lon: -77, lat: -12, tema: 'atacama' }, { n: 'ARICA', costa: true, lon: -70.3, lat: -18.5, tema: 'atacama', jefe: 'PAMPA DE NAZCA' }],
       desde: { n: 'CARTAGENA', lon: -75.5, lat: 10.4 } },
     { id: 'patagonia', nombre: 'PATAGONIA', tema: 'estepa', pool: { rectaLarga: 2, curva90: 2, curvaCiega: 2, eses: 2, horquilla: 1, curvaLarga: 2 },
       pueblos: [{ n: 'SANTIAGO', urbano: true, lon: -70.7, lat: -33.4, tema: 'andes' }, { n: 'BARILOCHE', lon: -71.3, lat: -41.1, tema: 'bosque' }, { n: 'EL CALAFATE', lon: -72.3, lat: -50.3, tema: 'estepa' }, { n: 'USHUAIA', lon: -68.3, lat: -54.8, tema: 'nieve', jefe: 'FIN DEL MUNDO' }] },
@@ -38,6 +38,9 @@
     esquina: { n: 'PUEBLO', p: [['S', 150], ['C', 90, 34], ['S', 110], ['C', -90, 34], ['S', 150]] },
     costa: { n: 'CAMINO COSTERO', p: [['C', 45, 62], ['C', -70, 50], ['C', 55, 58], ['C', -50, 66], ['S', 110]] },
   };
+  // camino de montaña (subida o bajada): muchas horquillas
+  E.MONTANA = { horquilla: 4, zigzag: 3, curvaCiega: 2, eses: 1, curva90: 1 };
+  E.poolDe = w => { const L = []; for (const k in w) for (let i = 0; i < w[k]; i++) L.push(Object.assign({ id: k }, E.PIEZAS[k])); return L; };
   E.SECCIONES = {};
   for (const reg of E.REGIONES) {
     E.SECCIONES[reg.id] = [];
@@ -73,7 +76,7 @@
 
   function intentar(seed, opts) {
     const R = rng(seed);
-    const pool = E.SECCIONES[opts.region];
+    const pool = opts.pool ? E.poolDe(opts.pool) : E.SECCIONES[opts.region];
     const h0 = R() * Math.PI * 2;
     let h = h0, x = 0, y = 0;
     const poly = [[x, y]], marks = []; // marks: {s0,s1,n,ref,dirt,rocks}

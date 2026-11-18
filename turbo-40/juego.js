@@ -373,7 +373,24 @@
           else if (e.kind === 'perro' || e.kind === 'gallina' || e.kind === 'oveja') { pop(e.x, e.y, '¡UPS!', '#ff8040'); AU.thud(50); }
           else { pop(e.x, e.y, '¡PAF!', '#f9f871'); AU.blip(); }
         }
-        for (let i = 0; i < 6; i++) addP({ x: e.x, y: e.y, z: 3, vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(20, 60), life: 0, max: 0.4, type: 'dirt', col: e.kind === 'rodadora' ? '#a08048' : e.kind === 'gallina' ? '#ffffff' : '#c0b0a0' });
+        // estalla: nube de humo y pedacitos de su color, y desaparece
+        const cols = ESTALLA[e.kind] || ['#c0b0a0', '#ffffff'];
+        smoke(e.x, e.y, 9, '#f4f4f8', 5);
+        for (let i = 0; i < 22; i++) addP({ x: e.x + rnd(-3, 3), y: e.y + rnd(-3, 3), z: 5, vx: rnd(-80, 80) + e.car.vx * 0.3, vy: rnd(-80, 80) + e.car.vy * 0.3, vz: rnd(30, 110), life: 0, max: rnd(0.4, 0.8), type: 'dirt', col: cols[i % cols.length] });
+        for (let i = 0; i < 6; i++) addP({ x: e.x, y: e.y, z: 6, vx: rnd(-30, 30), vy: rnd(-30, 30), vz: rnd(10, 40), life: 0, max: 0.25, type: 'spark' });
+      } else if (e.type === 'rompe') {
+        // poste o cartel partido: astillas o chapa, y una sacudida corta
+        const madera = e.kind === 'poste', fx = Math.cos(e.ang), fy = Math.sin(e.ang);
+        for (let i = 0; i < 16; i++) addP({ x: e.x, y: e.y, z: rnd(3, 16), vx: fx * rnd(30, 110) + rnd(-35, 35), vy: fy * rnd(30, 110) + rnd(-35, 35), vz: rnd(20, 80), life: 0, max: rnd(0.4, 0.9), type: 'dirt', col: madera ? (i % 3 ? '#7a5430' : '#4a321c') : (i % 3 ? '#f8c818' : '#a0a0a8') });
+        if (!madera) sparks(e.x, e.y, 6);
+        smoke(e.x, e.y, 3, '#c8c0b0', 3);
+        if (e.car === p) { AU.thud(e.v * 0.45); shake = Math.min(2.5, e.v / 60); vibrar(40); }
+      } else if (e.type === 'aterriza') {
+        if (e.v > 25) {
+          smoke(e.x, e.y, Math.min(6, 1 + e.v / 25), '#d0ccc4', 1);
+          if (e.v > 70) sparks(e.x, e.y, 5);
+          if (e.car === p) { AU.thud(Math.min(90, e.v * 0.6)); shake = Math.min(3, e.v / 40); vibrar(Math.min(80, e.v)); }
+        }
       } else if (e.type === 'yellowIn') { AU.whistle(); }
       else if (e.type === 'yellowOut') { pop(p.x, p.y, 'PISTA LIBRE', '#7cff4f'); }
       else if (e.type === 'penalty') { pop(e.x, e.y, '¡+5 S!', '#ff2a2a'); AU.error(); msg('ADELANTASTE CON AMARILLA', 1.8, 'pen', '+5 S DE PENALIZACIÓN'); }
@@ -416,12 +433,18 @@
     atacama: { huella: 'rgba(150,80,40,0.4)', salta: '#d08858', nube: '#e8b088', ruta: '#ecc0a0' },
     estepa: { huella: 'rgba(120,100,50,0.4)', salta: '#b8a060', nube: '#d0c08a', ruta: '#dccca0' },
   };
+  // colores de lo que vuela al atropellar a alguien
+  const ESTALLA = {
+    persona: ['#e83040', '#2a70e0', '#f0b890', '#2a3050'], perro: ['#a8692c', '#6a3e14'], ciervo: ['#a0602c', '#d8c090'], gallina: ['#ffffff', '#f8f8f0', '#e02020'],
+    alce: ['#5a3a20', '#d8c8a0', '#3a2414'], oso: ['#26221e', '#6a4a2a'], llama: ['#f0ece0', '#9a6a3a'], guanaco: ['#c88a4a', '#f0e8d8'], oveja: ['#f0f0e8', '#ffffff', '#202020'],
+    rodadora: ['#a08048', '#c8a868'], pelota: ['#ff3030', '#ffffff', '#3060ff', '#ffd020'],
+  };
   function perCarFx(dt) {
     for (const c of race.cars) {
       const sp = Math.hypot(c.vx, c.vy), fx = Math.cos(c.a), fy = Math.sin(c.a);
       // las ruedas en el suelo: marcas, humo, goma y polvo
       const tema = race.trk.tema, PV = POLVO[tema] || POLVO.bosque;
-      const asf = c.surf === 0 || c.surf === 1, fuera = !asf && c.surf !== 4;
+      const asf = (c.surf === 0 || c.surf === 1) && !c.air, fuera = !asf && c.surf !== 4 && !c.air;
       const derrape = c.slip > 16 && sp > 30 ? Math.min(1, (c.slip - 16) / 28) : 0;
       const frenada = c.brk > 0.4 && c.vf > 40 ? c.brk : 0;
       const patina = c.thr > 0.9 && c.vf > 2 && c.vf < 42 && !c.dead ? 0.7 : 0; // arranque patinando
@@ -634,13 +657,14 @@
           if (inView(X, Y, 70)) list.push({ d: e.o.x + e.o.y + e.d, k: e.k, o: e.o, X, Y });
         }
       }
-    for (const c of race.cars) { const [X, Y] = proj(c.x, c.y); if (inView(X, Y, 40)) list.push({ d: c.x + c.y, k: 'car', o: c, X, Y }); }
+    for (const c of race.cars) { const [X, Y] = proj(c.x, c.y, c.z || 0); if (inView(X, Y, 40)) list.push({ d: c.x + c.y, k: 'car', o: c, X, Y }); }
     for (const o of race.crossers) { const [X, Y] = proj(o.x, o.y, o.z); if (inView(X, Y, 30)) list.push({ d: o.x + o.y, k: 'cross', o, X, Y }); }
     for (const o of trafico) { if (o.x == null) continue; const [X, Y] = proj(o.x, o.y); if (inView(X, Y, 50)) list.push({ d: o.x + o.y, k: 'traf', o, X, Y }); }
     list.sort((a, b) => a.d - b.d);
     for (const e of list) {
       const { X, Y, o } = e;
       if (e.k === 'deco') {
+        if (o.roto) { ctx.fillStyle = o.kind === 'poste' ? '#4a321c' : '#606068'; ctx.fillRect(X - 1, Y - 3, 2, 3); continue; }
         const s = decoSprite(o); if (!s) continue;
         const x0 = X - s.ox, y0 = Y - s.oy;
         const occl = TALL[o.kind] && e.d > pd && PX > x0 && PX < x0 + s.cv.width && PY > y0 && PY < y0 + s.cv.height;
@@ -649,7 +673,7 @@
       } else if (e.k === 'tire') { const s = tiresSpr[o.c]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); }
       else if (e.k === 'line') drawLinea(o.l);
       else if (e.k === 'rock') { const s = decoSpr.peligro[o.v]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); }
-      else if (e.k === 'board') drawBoard(X, Y, o.k, e.d > pd && Math.abs(PX - X) < 22 && PY < Y && PY > Y - 34);
+      else if (e.k === 'board') { if (o.roto) { ctx.fillStyle = '#202028'; ctx.fillRect(X - 15, Y - 4, 2, 4); ctx.fillRect(X + 13, Y - 4, 2, 4); } else drawBoard(X, Y, o.k, e.d > pd && Math.abs(PX - X) < 22 && PY < Y && PY > Y - 34); }
       else if (e.k === 'stand') {
         const fr = standSpr(o), s = fr[(Math.floor(stT * (state !== 'race' ? 8 : 2.5)) + (o.x | 0)) % 2];
         ctx.drawImage(s.cv, X - s.ox, Y - s.oy);
@@ -689,7 +713,7 @@
         if (c.dead) { ctx.globalAlpha = 0.75; ctx.filter = 'brightness(0.35)'; }
         ctx.drawImage(s.cv, X - s.ox, Y - s.oy + bump);
         ctx.filter = 'none'; ctx.globalAlpha = 1;
-        if (c.brk > 0 && c.vf > 5) { const fx = Math.cos(c.a), fy = Math.sin(c.a), [bx, by] = proj(c.x - fx * 13, c.y - fy * 13, 2); ctx.fillStyle = '#ff2020'; ctx.fillRect(bx - 2, by - 1, 4, 2); }
+        if (c.brk > 0 && c.vf > 5) { const fx = Math.cos(c.a), fy = Math.sin(c.a), [bx, by] = proj(c.x - fx * 13, c.y - fy * 13, 2 + (c.z || 0)); ctx.fillStyle = '#ff2020'; ctx.fillRect(bx - 2, by - 1, 4, 2); }
       }
     }
     for (const q of parts) {
@@ -740,12 +764,13 @@
 
   // barandas, cables de teléfono, alambrados y oleoducto (segmentos entre postes)
   const LINEA = { baranda: { z: 4, w: 2, c: '#9aa0ae', h: '#eef0f4', post: '#3a3a44', pz: 4 }, cable: { z: 26, w: 1, c: '#18181c' },
-    alambre: { z: 5, w: 1, c: '#7a7a70', post: '#6a4a2a', pz: 6 }, muro: { z: 5, w: 4, c: '#b8b8b0', h: '#f0f0e8' }, tubo: { z: 7, w: 3, c: '#a8acb6', h: '#e8eaf0', post: '#50505a', pz: 7 } };
+    alambre: { z: 5, w: 1, c: '#7a7a70', post: '#6a4a2a', pz: 6 }, roca: { z: 9, w: 6, c: '#7a7266', h: '#a89e8c' }, muro: { z: 5, w: 4, c: '#b8b8b0', h: '#f0f0e8' }, tubo: { z: 7, w: 3, c: '#a8acb6', h: '#e8eaf0', post: '#50505a', pz: 7 } };
   function drawLinea(l) {
     const st = LINEA[l.e] || LINEA.baranda;
     const [ax, ay] = proj(l.x, l.y, st.z), [bx, by] = proj(l.x2, l.y2, st.z);
     if (st.post) { const [px0, py0] = proj(l.x, l.y, 0); ctx.fillStyle = st.post; ctx.fillRect(px0, py0 - Math.round(st.pz * 1.15), l.e === 'tubo' ? 2 : 1, Math.round(st.pz * 1.15) + 1); }
-    if (l.e === 'baranda' || l.e === 'tubo' || l.e === 'muro') { ctx.strokeStyle = '#26282e'; ctx.lineWidth = st.w + 2; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); ctx.stroke(); }
+    if (l.e === 'cable' && ((l.a && l.a.roto) || (l.b && l.b.roto))) return;
+    if (l.e === 'baranda' || l.e === 'tubo' || l.e === 'muro' || l.e === 'roca') { ctx.strokeStyle = '#26282e'; ctx.lineWidth = st.w + 2; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); ctx.stroke(); }
     ctx.strokeStyle = st.c; ctx.lineWidth = st.w; ctx.beginPath();
     if (l.e === 'cable') { const mx = (ax + bx) / 2, my = (ay + by) / 2 + 3; ctx.moveTo(ax + 0.5, ay + 0.5); ctx.quadraticCurveTo(mx, my, bx + 0.5, by + 0.5); }
     else { ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); }
@@ -836,6 +861,15 @@
     GR.text(ctx, String(pos), W - 28, pos >= 10 ? 10 : 8, { scale: pos >= 10 ? 3 : 4, rows: HOT, shadow: '#400', align: 'right' });
     GR.text(ctx, '°', W - 25, 9, { color: '#fff' });
     GR.text(ctx, '/' + T.NCARS, W - 25, 30, { color: '#a0a0c0' });
+    // pendiente y altura (en montaña siempre; en el resto, solo si la cuesta se nota)
+    {
+      const q = trk.pts[p.i], qa = trk.pts[Math.max(0, p.i - 25)], qb = trk.pts[Math.min(trk.N - 1, p.i + 25)];
+      const pct = Math.round(((qb.h || 0) - (qa.h || 0)) / ((qb.s - qa.s) || 1) * 100);
+      if (trk.perfil || Math.abs(pct) >= 4) {
+        if (pct) GR.text(ctx, (pct > 0 ? '↑ ' : '↓ ') + Math.abs(pct) + '%', W - 6, 46, { align: 'right', color: pct > 0 ? '#ffb040' : '#60c0ff', outline: '#000' });
+        if (trk.perfil) { const alt = Math.round(((q.h || 0) - (trk.pts[Math.round(trk.startS / trk.DS)].h || 0)) * 0.45); GR.text(ctx, (alt >= 0 ? '+' : '') + alt + ' M', W - 6, 56, { align: 'right', color: '#d0d0e0', outline: '#000' }); }
+      }
+    }
     // tabla
     panel(4, 42, 56, 84);
     st.forEach((c, i) => {
@@ -1059,7 +1093,7 @@
       GR.text(ctx, info.n, 136, 145, { scale: 2, color: NODE_COL[n.type] });
       GR.text(ctx, 'A ' + tr.destino.n, 136, 162, { color: '#f9f871' });
       GR.wrap(info.d, 26).slice(0, 2).forEach((l, k) => GR.text(ctx, l, 136, 172 + k * 9, { color: '#fff' }));
-      if (n.type === 'carrera' || n.type === 'rally' || n.type === 'jefe') GR.text(ctx, ((GR.TEMAS[tr.destino.tema] || {}).n || ''), 136, 199, { color: '#a0a0c0' });
+      if (n.type === 'carrera' || n.type === 'rally' || n.type === 'jefe') GR.text(ctx, tr.destino.perfil === 'subida' ? 'SUBIDA DE MONTAÑA' : tr.destino.perfil === 'bajada' ? 'BAJADA DE MONTAÑA' : tr.destino.costa ? 'CAMINO COSTERO' : ((GR.TEMAS[tr.destino.tema] || {}).n || ''), 136, 199, { color: tr.destino.perfil ? '#ffb040' : '#a0a0c0' });
     }
     status(302, 140, true, 94);
     hints('→ SEGUIR VIAJE   ← MOCHILA');
@@ -1165,7 +1199,8 @@
     GR.text(ctx, 'RUTA', 224, 35, { color: '#05d9e8' });
     GR.text(ctx, 'DE ' + sp.origen, 224, 46, { color: '#d0d0e0' });
     GR.text(ctx, 'A  ' + sp.destino, 224, 56, { color: '#f9f871' });
-    GR.text(ctx, (GR.TEMAS[sp.tema] || {}).n || '', 224, 68, { color: '#a0a0c0' });
+    GR.text(ctx, ((GR.TEMAS[sp.tema] || {}).n || '') + (sp.costa ? ' · COSTA' : ''), 224, 68, { color: '#a0a0c0' });
+    if (sp.perfil) GR.text(ctx, sp.perfil === 'subida' ? 'SUBIDA DE MONTAÑA' : 'BAJADA DE MONTAÑA', 388, 35, { align: 'right', color: sp.perfil === 'subida' ? '#ffb040' : '#60c0ff' });
     GR.text(ctx, 'EN EL CAMINO', 224, 82, { color: '#05d9e8' });
     const cuenta = {};
     race.trk.marks.forEach(m => { cuenta[m.n] = (cuenta[m.n] || 0) + 1; });
