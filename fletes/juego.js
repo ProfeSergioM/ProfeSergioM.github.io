@@ -256,14 +256,18 @@
   // ---------- tráfico de decorado ----------
   const TIPOS = ['sedan', 'sedan', 'sedan', 'sedan', 'furgon', 'camion', 'bus'];
   const LARGO = { sedan: 4.6, furgon: 5.3, camion: 8.6, bus: 11.2 };
+  let idAuto = 0;
   function sumarAutos(dt) {
     const max = TACTIL ? 18 : 26;
     // quitar los lejanos
     for (let i = autos.length - 1; i >= 0; i--) {
       const a = autos[i], d = Math.hypot(a.x - cam.x, a.y - cam.y);
       // tráfico de decorado: un auto trabado mucho rato se retira (fuera de la vista, antes)
-      const trabado = (a.espera || 0) > (d > 70 ? 4 : 10) || (a.tPegado || 0) > 3;
-      if (a.muerto || d > 330 || trabado) autos.splice(i, 1);
+      // fuera de la pantalla se retira pronto; a la vista espera más (un taco breve se ve natural)
+      const trabado = Math.max(a.espera || 0, a.trabado || 0) > (d > 60 ? 4 : 12) || (a.tPegado || 0) > 1.2;
+      if (trabado && !a.saliendo) a.saliendo = 1; // se desvanece en vez de atravesar a otro
+      if (a.saliendo) a.saliendo -= dt / 0.8;
+      if (a.muerto || d > 330 || (a.saliendo != null && a.saliendo <= 0)) autos.splice(i, 1);
     }
     if (autos.length >= max) return;
     for (let intento = 0; intento < 3 && autos.length < max; intento++) {
@@ -276,7 +280,7 @@
       const tipo = e.c === 'motorway' && Math.random() < 0.35 ? (Math.random() < 0.5 ? 'camion' : 'bus') : TIPOS[Math.floor(Math.random() * TIPOS.length)];
       const dir = e.ow ? 1 : (Math.random() < 0.5 ? 1 : -1);
       const temple = Math.random();
-      const a = { e, dir, s: q.s, v: e.vmax * 0.7, vmaxBase: 26, tipo, largo: LARGO[tipo], ancho: 2, col: Math.floor(Math.random() * autoSpr[tipo].length), temple, carril: 1 };
+      const a = { id: ++idAuto, e, dir, s: q.s, v: e.vmax * 0.7, vmaxBase: 26, tipo, largo: LARGO[tipo], ancho: 2, col: Math.floor(Math.random() * autoSpr[tipo].length), temple, carril: 1 };
       a.vmax = Math.min(a.vmaxBase, e.vmax * (0.8 + 0.2 * temple));
       if (e.ow && e.hw > 4.2) a.carril = (tipo === 'camion' || tipo === 'bus' || Math.random() < 0.6) ? 1 : -1;
       N.ubicarAuto(a);
@@ -289,7 +293,7 @@
   function pasoAutos(dt) {
     // el camión es un obstáculo para el tráfico (tracto y tres puntos del remolque)
     const cs = N.circulos(cam, []);
-    const obs = autos.slice();
+    const obs = autos.filter(a => !a.saliendo);
     for (const [x, y, r] of cs) obs.push({ x, y, r, largo: 3, ancho: 2.8, fijo: true });
     const rr = Math.random;
     for (const a of autos) N.pasoAuto(M, a, dt, obs, rr);
@@ -353,11 +357,16 @@
     while (acc >= DT) {
       acc -= DT;
       const obst = [];
-      for (const a of autos) if (Math.abs(a.x - cam.x) < 30 && Math.abs(a.y - cam.y) < 30) { const fx = Math.cos(a.ang), fy = Math.sin(a.ang), h = a.largo / 2 - 1; obst.push({ x: a.x + fx * h, y: a.y + fy * h, r: 1.05, a }, { x: a.x - fx * h, y: a.y - fy * h, r: 1.05, a }); }
+      for (const a of autos) if (!a.saliendo && Math.abs(a.x - cam.x) < 30 && Math.abs(a.y - cam.y) < 30) for (const [x, y] of N.cuerpo(a.x, a.y, a.ang, a.largo)) obst.push({ x, y, r: 1.05, a });
       // árboles, postes y casas generadas también chocan
       const gx = Math.floor(cam.x / DC), gy = Math.floor(cam.y / DC);
-      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (const o of decoCelda(gx + ox, gy + oy)) if (Math.abs(o.x - cam.x) < 25 && Math.abs(o.y - cam.y) < 25) obst.push({ x: o.x, y: o.y, r: o.casa ? o.r * 0.8 : o.r });
+      for (let ox = -1; ox <= 1; ox++) for (let oy = -1; oy <= 1; oy++) for (const o of decoCelda(gx + ox, gy + oy)) if (Math.abs(o.x - cam.x) < 25 && Math.abs(o.y - cam.y) < 25) if (!o.roto) obst.push({ x: o.x, y: o.y, r: o.casa ? o.r * 0.8 : o.r, fragil: !o.casa, deco: o });
       const golpe = N.paso(cam, keys, DT, M, obst);
+      // postes y árboles quebrados por el camión
+      for (const o of obst) if (o.roto && o.deco && !o.deco.roto) {
+        o.deco.roto = true; AU.thud(20 + o.vRoto * 8);
+        if (o.vRoto > 3) { const d = C.golpe(partida, o.vRoto * 0.5); if (d > 0.5) msg((o.deco.k === 'poste' ? 'DERRIBASTE UN POSTE' : 'BOTASTE UN ÁRBOL') + ' · CARGA ' + Math.round(partida.encargo.dano) + '%', 2, 'small'); }
+      }
       if (golpe > 0.6 && stT - ultGolpe > 0.5) {
         ultGolpe = stT;
         const d = C.golpe(partida, golpe);
@@ -511,6 +520,7 @@
     for (const e of list) {
       const { X, Y, o } = e;
       if (e.k === 'deco') {
+        if (o.roto) { ctx.fillStyle = o.k === 'poste' ? '#4a321c' : '#5a3a1c'; ctx.fillRect(X - 1, Y - 3, o.k === 'poste' ? 2 : 3, 3); continue; }
         const s = decoSprite(o); if (!s) continue;
         const x0s = X - s.ox, y0s = Y - s.oy;
         const tapa = e.d > pd && PX > x0s && PX < x0s + s.cv.width && PY > y0s && PY < y0s + s.cv.height && o.k !== 'poste';
@@ -527,7 +537,9 @@
         ctx.drawImage(s.cv, x0s, y0s); ctx.globalAlpha = 1;
       } else if (e.k === 'auto') {
         const l = autoSpr[o.tipo][o.col], s = l[GR.ang(o.ang)];
+        if (o.saliendo) ctx.globalAlpha = Math.max(0, o.saliendo);
         ctx.drawImage(s.cv, X - s.ox, Y - s.oy);
+        ctx.globalAlpha = 1;
         if (noche() > 0.3) { const fx = Math.cos(o.ang), fy = Math.sin(o.ang), [hx, hy] = proj(o.x + fx * o.largo / 2, o.y + fy * o.largo / 2, 0.7); ctx.fillStyle = '#fff8c0'; ctx.fillRect(hx - 1, hy, 2, 1); }
       } else if (e.k === 'letrero') dibujarLetrero(o, X, Y);
       else if (e.k === 'camion') dibujarCamion(X, Y);

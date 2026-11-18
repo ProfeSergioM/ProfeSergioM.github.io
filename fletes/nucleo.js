@@ -92,7 +92,7 @@
     c.v = nv;
     // ---- cinemática: bicicleta + remolque arrastrado
     const px = c.x, py = c.y, pa = c.a, prx = c.rx, pry = c.ry;
-    const antes = obst && obst.length ? N.circulos(c, tmpA).map(q => q.slice()) : null;
+    const antes = (obst && obst.length) || mundo ? N.circulos(c, tmpA).map(q => q.slice()) : null;
     c.a += c.v * Math.tan(c.delta) / C.L1 * dt;
     c.x += Math.cos(c.a) * c.v * dt; c.y += Math.sin(c.a) * c.v * dt;
     if (c.remolque) {
@@ -114,13 +114,18 @@
         const [x, y, r] = cs[ci];
         let hit = false;
         // si quedó metido en un edificio al enganchar o aparecer, se le deja salir (solo de edificios y agua)
-        if (mundo && !c.atrapado) { if (mundo.chocaEdif(x, y, r)) hit = true; else if (mundo.agua(x, y)) hit = true; }
+        if (mundo && !c.atrapado && (mundo.chocaEdif(x, y, r) || mundo.agua(x, y))) {
+          const q = antes && antes[ci];
+          if (!q || !(mundo.chocaEdif(q[0], q[1], r) || mundo.agua(q[0], q[1]))) hit = true;
+        }
         // contra un auto solo cuenta al entrar en contacto (así puede alejarse si quedó pegado)
         if (!hit && obst) for (const o of obst) {
           const d2 = (x - o.x) ** 2 + (y - o.y) ** 2;
           if (d2 < (r + o.r) ** 2) {
             // si ya estaban superpuestos antes del paso, no bloquea: el camión puede irse en cualquier dirección
             const q = antes && antes[ci];
+            // postes y árboles: se quiebran al pasarles encima, no traban al camión
+            if (o.fragil) { if (!o.roto) { o.roto = 1; o.vRoto = Math.abs(c.v); } continue; }
             // maniobrando despacio, el camión tiene prioridad: empuja al auto (que retrocede) en vez de trabarse
             if (o.a && Math.abs(c.v) < N.VEL_EMPUJE) { o.a.empujado = 0.4; continue; }
             if (!q || (q[0] - o.x) ** 2 + (q[1] - o.y) ** 2 >= (r + o.r) ** 2) { hit = true; golpeAuto = true; o.tocado = 1; break; }
@@ -169,6 +174,12 @@
     return out;
   }
   N.posEje = posEje;
+  // cuerpo de un vehículo como círculos de radio ~1 cada 3 m o menos (un bus de 11 m lleva 5)
+  N.cuerpo = function (x, y, ang, largo) {
+    const fx = Math.cos(ang), fy = Math.sin(ang), h = largo / 2 - 1, n = Math.max(2, Math.ceil((2 * h) / 3) + 1), out = [];
+    for (let k = 0; k < n; k++) { const d = -h + 2 * h * k / (n - 1); out.push([x + fx * d, y + fy * d]); }
+    return out;
+  };
   N.FRENO_AUTO = 8; // m/s²: los autos frenan fuerte si se les cruza el camión
   N.VEL_EMPUJE = 2; // m/s: bajo esta velocidad el camión empuja a los autos en vez de chocar
   const _p = {};
@@ -205,13 +216,34 @@
   N.pasoAuto = function (mundo, a, dt, obst, rnd) {
     // ¿algo adelante en la pista?
     const fx = Math.cos(a.ang), fy = Math.sin(a.ang);
-    let libre = 99, libreFijo = 99;
+    let libre = 99;
     for (const o of obst) {
       if (o === a) continue;
       const dx = o.x - a.x, dy = o.y - a.y, d = dx * fx + dy * fy;
       if (d <= 0 || d > 30) continue;
       const lat = Math.abs(-dx * fy + dy * fx);
-      if (lat < (o.ancho || 1.8)) { const l = d - (o.largo || 5) * 0.5 - a.largo * 0.5; libre = Math.min(libre, l); if (o.fijo) libreFijo = Math.min(libreFijo, l); }
+      if (lat < (o.ancho || 1.8)) libre = Math.min(libre, d - (o.largo || 5) * 0.5 - a.largo * 0.5);
+    }
+    // seguir la calle, no la línea recta: el auto de adelante en el mismo tramo, y en cruces e incorporaciones
+    // cede el paso al que llega primero o al que todavía está saliendo del cruce
+    const finV = a.dir > 0 ? a.e.b : a.e.a, aFin = a.dir > 0 ? a.e.len - a.s : a.s;
+    const grado = mundo.vert[finV].ej.length;
+    for (const o of obst) {
+      if (o === a || o.fijo || !o.e) continue;
+      if (o.e === a.e && o.dir === a.dir && (!(a.e.ow && a.e.hw > 4.2) || (o.carril || 1) === (a.carril || 1))) {
+        const ds = (o.s - a.s) * a.dir;
+        if (ds > 0 && ds < 40) libre = Math.min(libre, ds - (o.largo + a.largo) / 2);
+        continue;
+      }
+      // no ceder ante un auto que lleva rato detenido: así no se forman esperas en cadena (la mirada hacia adelante igual evita el choque)
+      if (grado < 3 || aFin > 24 || (o.v < 0.5 && (o.espera || 0) > 1.2)) continue;
+      const oFinV = o.dir > 0 ? o.e.b : o.e.a, oFin = o.dir > 0 ? o.e.len - o.s : o.s;
+      if (oFinV === finV && o.e !== a.e && (oFin < aFin - 0.5 || (Math.abs(oFin - aFin) <= 0.5 && o.id < a.id)) && aFin > 3) {
+        libre = Math.min(libre, aFin - 3.5); // otro llega antes al cruce: esperar en la línea
+        continue;
+      }
+      const oIniV = o.dir > 0 ? o.e.a : o.e.b, oSalio = o.dir > 0 ? o.s : o.e.len - o.s;
+      if (oIniV === finV && oSalio < o.largo + 4 && aFin > 3) libre = Math.min(libre, aFin - 3.5); // todavía está en el cruce
     }
     // el camión (tracto y remolque) es sólido: se revisa la pista hasta la distancia de frenado
     const alcance = a.v * a.v / (2 * N.FRENO_AUTO) + 4;
@@ -221,17 +253,16 @@
       if (Math.abs(o.x - a.x) > alcance + 8 || Math.abs(o.y - a.y) > alcance + 8) continue;
       for (let k = 0; k * 1.0 <= alcance; k++) {
         const px = a.x + fx * (a.largo / 2 + k), py = a.y + fy * (a.largo / 2 + k);
-        if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.15) ** 2) { const l = Math.max(0, k - 1); libre = Math.min(libre, l); libreFijo = Math.min(libreFijo, l); break; }
+        if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.15) ** 2) { libre = Math.min(libre, Math.max(0, k - 1)); break; }
       }
       // ¿ya quedó encima del camión? (el camión se le cruzó encima): retrocede por su pista
-      const h = a.largo / 2 - 1;
-      for (const sg of [1, -1]) if ((a.x + fx * h * sg - o.x) ** 2 + (a.y + fy * h * sg - o.y) ** 2 < (o.r + 1.0) ** 2) a.pegado = 1;
+      for (const [px, py] of N.cuerpo(a.x, a.y, a.ang, a.largo)) if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.0) ** 2) a.pegado = 1;
     }
     a.espera = libre < 4 ? (a.espera || 0) + dt : 0;
-    if (a.espera > 6) libre = libreFijo; // destrabar cruces entre autos, pero nunca pasar a través del camión
     // velocidad que permite detenerse antes del obstáculo
     const vObj = Math.min(a.vmax, Math.sqrt(2 * N.FRENO_AUTO * Math.max(0, libre - 1.5)), Math.max(0, (libre - 1.5) * 1.2) + (libre > 6 ? 99 : 0));
     a.v += Math.max(-N.FRENO_AUTO * dt, Math.min(1.8 * dt, vObj - a.v));
+    const prev = { e: a.e, dir: a.dir, s: a.s, x: a.x, y: a.y, ang: a.ang, vmax: a.vmax };
     if (a.empujado > 0) { a.empujado -= dt; a.pegado = 1; }
     if (a.pegado) { a.v = 0; a.tPegado = (a.tPegado || 0) + dt; a.s -= a.dir * 2.5 * dt; } else a.tPegado = 0;
     a.s += a.v * dt * a.dir;
@@ -244,9 +275,27 @@
       a.s = a.dir > 0 ? sobra : a.e.len - sobra;
     }
     N.ubicarAuto(a);
+    // nunca meterse en otro auto (tampoco al retroceder empujado por el camión): si el paso lo deja encima de uno, se deshace
+    {
+      const cuerpo = (x, y, ang, l) => N.cuerpo(x, y, ang, l);
+      const yo = cuerpo(a.x, a.y, a.ang, a.largo), yoAntes = cuerpo(prev.x, prev.y, prev.ang, a.largo);
+      for (const o of obst) {
+        if (o === a || o.fijo || !o.e || Math.abs(o.x - a.x) > 14 || Math.abs(o.y - a.y) > 14) continue;
+        const ot = cuerpo(o.x, o.y, o.ang, o.largo);
+        let dAhora = 1e9, dAntes = 1e9;
+        for (const p of yo) for (const q of ot) dAhora = Math.min(dAhora, Math.hypot(p[0] - q[0], p[1] - q[1]));
+        for (const p of yoAntes) for (const q of ot) dAntes = Math.min(dAntes, Math.hypot(p[0] - q[0], p[1] - q[1]));
+        // cede el que tiene al otro adelante; si van parejos, pasa el de número menor
+        const rel = (o.x - prev.x) * Math.cos(prev.ang) + (o.y - prev.y) * Math.sin(prev.ang);
+        const cedo = a.pegado ? rel < -0.5 : rel > 0.5 || (Math.abs(rel) <= 0.5 && o.id < a.id); // retrocediendo, cede ante el de atrás
+        if (dAhora < dAntes && (dAhora < 1.4 || (dAhora < 2.0 && cedo))) { Object.assign(a, prev); a.v = 0; a.trabado = (a.trabado || 0) + dt; return; }
+      }
+    }
+    a.trabado = 0;
   };
 
   // ---------- piloto automático (para medir): sigue la polilínea de la ruta ----------
+  const resto0 = (ruta, s) => ruta.len - s;
   N.piloto = function (c, ruta, st) {
     // st: {i} índice del punto de la ruta más cercano ya alcanzado
     const P = ruta.pts, cum = ruta.cum;
@@ -260,6 +309,11 @@
     let j = i; while (j < P.length - 1 && cum[j + 1] - sNow < look) j++;
     let tx = P[j][0], ty = P[j][1];
     if (j < P.length - 1) { const f = Math.max(0, Math.min(1, (sNow + look - cum[j]) / ((cum[j + 1] - cum[j]) || 1))); tx += (P[j + 1][0] - tx) * f; ty += (P[j + 1][1] - ty) * f; }
+    // por su pista: en calles de doble sentido apunta a la derecha de la línea del GPS (st.mundo opcional)
+    if (st.mundo && j < P.length - 1 && resto0(ruta, sNow) > 25) {
+      const q = st.mundo.enCalzada(tx, ty);
+      if (q && !q.e.ow) { const dx = P[j + 1][0] - P[j][0], dy = P[j + 1][1] - P[j][1], L = Math.hypot(dx, dy) || 1, off = Math.min(2.2, q.e.hw * 0.5); tx += -dy / L * off; ty += dx / L * off; }
+    }
     let ang = Math.atan2(ty - c.y, tx - c.x) - c.a; while (ang > Math.PI) ang -= 2 * Math.PI; while (ang < -Math.PI) ang += 2 * Math.PI;
     // velocidad: según la curvatura de los próximos 60 m
     let vlim = 25;
