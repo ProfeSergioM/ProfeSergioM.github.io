@@ -48,7 +48,7 @@
     return out;
   };
 
-  const tmpC = [];
+  const tmpC = [], tmpA = [];
   // paso de física. ent: {up, down, left, right, mano}. mundo: el de mundo.js (o null)
   N.paso = function (c, ent, dt, mundo, obst) {
     const C = N.CAMION, m = N.masa(c);
@@ -92,6 +92,7 @@
     c.v = nv;
     // ---- cinemática: bicicleta + remolque arrastrado
     const px = c.x, py = c.y, pa = c.a, prx = c.rx, pry = c.ry;
+    const antes = obst && obst.length ? N.circulos(c, tmpA).map(q => q.slice()) : null;
     c.a += c.v * Math.tan(c.delta) / C.L1 * dt;
     c.x += Math.cos(c.a) * c.v * dt; c.y += Math.sin(c.a) * c.v * dt;
     if (c.remolque) {
@@ -108,22 +109,27 @@
     let golpe = 0;
     if (mundo || obst) {
       const cs = N.circulos(c, tmpC);
-      for (const [x, y, r, rem] of cs) {
+      let golpeAuto = false;
+      for (let ci = 0; ci < cs.length; ci++) {
+        const [x, y, r] = cs[ci];
         let hit = false;
-        if (mundo) { if (mundo.chocaEdif(x, y, r)) hit = true; else if (mundo.agua(x, y)) hit = true; }
-        if (!hit && obst) for (const o of obst) { if ((x - o.x) ** 2 + (y - o.y) ** 2 < (r + o.r) ** 2) { hit = true; o.tocado = 1; break; } }
-        if (hit) { golpe = Math.max(golpe, Math.abs(c.v)); break; }
+        // si quedó metido en un edificio al enganchar o aparecer, se le deja salir (solo de edificios y agua)
+        if (mundo && !c.atrapado) { if (mundo.chocaEdif(x, y, r)) hit = true; else if (mundo.agua(x, y)) hit = true; }
+        // contra un auto solo cuenta si el paso lo acerca más (así puede alejarse si quedó pegado)
+        if (!hit && obst) for (const o of obst) {
+          const d2 = (x - o.x) ** 2 + (y - o.y) ** 2;
+          if (d2 < (r + o.r) ** 2) { const q = antes && antes[ci]; if (!q || d2 < (q[0] - o.x) ** 2 + (q[1] - o.y) ** 2 - 1e-6) { hit = true; golpeAuto = true; o.tocado = 1; break; } }
+        }
+        if (hit) { golpe = Math.max(golpe, Math.abs(c.v), golpeAuto ? 0.01 : 0); break; }
       }
-      // si ya estaba metido en algo (al enganchar o aparecer), se le deja salir
-      if (golpe && c.atrapado) { golpe = 0; }
-      else if (golpe) {
+      if (golpe) {
         c.x = px; c.y = py; c.a = pa; c.rx = prx; c.ry = pry;
         if (c.remolque) c.a2 = Math.atan2(py + Math.sin(pa) * C.quinta - pry, px + Math.cos(pa) * C.quinta - prx);
         c.v = -c.v * 0.15;
       }
     }
     c.golpe = golpe;
-    if (c.atrapado && mundo) { c.atrapadoT = (c.atrapadoT || 0) + dt; if (c.atrapadoT > 0.25) { c.atrapadoT = 0; c.atrapado = N.tocaAlgo(c, mundo, obst); } }
+    if (c.atrapado && mundo) { c.atrapadoT = (c.atrapadoT || 0) + dt; if (c.atrapadoT > 0.25) { c.atrapadoT = 0; c.atrapado = N.tocaAlgo(c, mundo, null); } }
     // ---- marcha y revoluciones (caja automática de 12 velocidades)
     const MARCHAS = [0, 2.2, 3.4, 4.8, 6.4, 8.2, 10.2, 12.4, 14.8, 17.4, 20.2, 23.2, 26.4];
     if (c.atras) { c.marcha = -1; c.rpm = 0.25 + av / C.vmaxAtras * 0.5; }
@@ -198,6 +204,14 @@
       if (d <= 0 || d > 30) continue;
       const lat = Math.abs(-dx * fy + dy * fx);
       if (lat < (o.ancho || 1.8)) { const l = d - (o.largo || 5) * 0.5 - a.largo * 0.5; libre = Math.min(libre, l); if (o.fijo) libreFijo = Math.min(libreFijo, l); }
+    }
+    // el camión (tracto y remolque) es sólido: si la trompa del auto va a tocar alguno de sus círculos, se detiene
+    for (const o of obst) {
+      if (!o.fijo) continue;
+      for (let k = 0; k <= 2; k++) {
+        const px = a.x + fx * (a.largo / 2 + 0.6 + k * 1.4), py = a.y + fy * (a.largo / 2 + 0.6 + k * 1.4);
+        if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.1) ** 2) { libre = Math.min(libre, k * 1.4); libreFijo = Math.min(libreFijo, k * 1.4); }
+      }
     }
     a.espera = libre < 4 ? (a.espera || 0) + dt : 0;
     if (a.espera > 6) libre = libreFijo; // destrabar cruces entre autos, pero nunca pasar a través del camión

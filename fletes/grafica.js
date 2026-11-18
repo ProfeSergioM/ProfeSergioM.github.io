@@ -460,10 +460,13 @@
     return null;
   } };
   // ---------- semirremolques ----------
+  GR.PIVOTE = 9 + 9.6 * 3; // en vóxeles desde la cola: eje trasero (x=9) + largo hasta el perno rey (N.CAMION.L2)
   function remolque(tipo) {
     const nx = 42, ny = 8;
     const ejes = x => (x >= 4 && x <= 6 || x >= 7 && x <= 9 || x >= 10 && x <= 12);
-    return { nx, ny, nz: 13, cx: 9, cy: 4, sub: 2, get(x, y, z) {
+    // ancla en el pivote (perno rey): eje del remolque en x=9 más 9,6 m hacia adelante; así el remolque
+    // queda pegado a la quinta rueda del tracto aunque los dos sprites redondeen su ángulo distinto
+    return { nx, ny, nz: 13, cx: GR.PIVOTE, cy: 4, sub: 2, get(x, y, z) {
       if (ejes(x) && (y === 0 || y === 7) && z <= 2) return (z === 1 && (x === 5 || x === 8 || x === 11)) ? 2 : 1;
       if (z === 0) return null;
       if (z <= 2) { if (x <= 14 && y >= 1 && y <= 6 && z === 2) return 3; if (x >= 34 && x <= 36 && (y === 1 || y === 6) && z <= 2) return 2; if (x >= 15 && z === 2 && (y === 0 || y === 7)) return 7; return x >= 15 && y >= 2 && y <= 5 && z === 2 ? 3 : null; }
@@ -500,7 +503,7 @@
     const tractos = {};
     const pinta = (cab, franja) => bt.map(b => paint(b, palette([cab, '#18181c', '#c8ccd4', '#2a2a30', '#3a5a88', '#fff4b0', '#ff3820', darker(cab, 0.72), franja]), '#0c0c10'));
     tractos.rojo = pinta('#d42a2a', '#f0f0f0'); tractos.blanco = pinta('#eceef2', '#2a6ad0'); tractos.azul = pinta('#2a58c0', '#f0c020'); tractos.verde = pinta('#2a8a4a', '#f0f0f0');
-    const rem = {}, remSombra = rot32({ nx: 42, ny: 8, nz: 1, cx: 9, cy: 4, sub: 1, get: () => 0 }).map(b => paint(b, palette(['#000000']), null));
+    const rem = {}, remSombra = rot32({ nx: 42, ny: 8, nz: 1, cx: GR.PIVOTE, cy: 4, sub: 1, get: () => 0 }).map(b => paint(b, palette(['#000000']), null));
     for (const tipo of Object.keys(GR.REMOLQUES)) {
       const bufs = rot32(remolque(tipo));
       rem[tipo] = GR.REMOLQUES[tipo].map(col => bufs.map(b => paint(b, palette([col, '#18181c', '#c8ccd4', '#2a2a30', '#3a5a88', '#fff4b0', '#ff3820', darker(col, 0.62), tipo === 'plataforma' ? '#a8763a' : '#f0f0f0']), '#0c0c10')));

@@ -290,7 +290,7 @@
     // el camión es un obstáculo para el tráfico (tracto y tres puntos del remolque)
     const cs = N.circulos(cam, []);
     const obs = autos.slice();
-    for (const [x, y] of cs) obs.push({ x, y, largo: 3, ancho: 2.8, fijo: true });
+    for (const [x, y, r] of cs) obs.push({ x, y, r, largo: 3, ancho: 2.8, fijo: true });
     const rr = Math.random;
     for (const a of autos) N.pasoAuto(M, a, dt, obs, rr);
   }
@@ -465,7 +465,7 @@
     for (const a of autos) { const [X, Y] = proj(a.x, a.y); if (!inView(X, Y, 40)) continue; ctx.fillStyle = '#000'; ctx.fillRect(X - 6, Y - 1, 12, 4); }
     if (cam) {
       const [X, Y] = proj(cam.x, cam.y), s1 = camSpr.sombra[GR.ang(cam.a)]; ctx.drawImage(s1.cv, X - s1.ox + 2, Y - s1.oy + 2);
-      if (cam.remolque) { const [X2, Y2] = proj(cam.rx, cam.ry), s2 = camSpr.remSombra[GR.ang(cam.a2)]; ctx.drawImage(s2.cv, X2 - s2.ox + 2, Y2 - s2.oy + 2); }
+      if (cam.remolque) { const [hx, hy] = pivote(), [X2, Y2] = proj(hx, hy), s2 = camSpr.remSombra[GR.ang(cam.a2)]; ctx.drawImage(s2.cv, X2 - s2.ox + 2, Y2 - s2.oy + 2); }
     }
     ctx.globalAlpha = 1;
     // lista ordenada por profundidad
@@ -481,11 +481,24 @@
     for (const d of M.depositos) { const [X, Y] = proj(d.x, d.y); if (inView(X, Y, 40)) list.push({ d: d.x + d.y + 6, k: 'letrero', o: d, X, Y }); }
     let pd = 0, PX = 0, PY = 0;
     if (cam && estado !== 'titulo') {
-      const ca = Math.cos(cam.a), sa = Math.sin(cam.a);
-      const [X, Y] = proj(cam.x, cam.y);
-      list.push({ d: cam.x + cam.y + (ca + sa) * 2.4, k: 'tracto', X, Y });
+      // tracto y remolque van juntos, con la profundidad del pivote
+      const [X, Y] = proj(cam.x, cam.y), [hx, hy] = pivote();
+      list.push({ d: hx + hy, k: 'camion', X, Y });
       pd = cam.x + cam.y; PX = X; PY = Y - 12;
-      if (cam.remolque) { const [X2, Y2] = proj(cam.rx, cam.ry); list.push({ d: cam.rx + cam.ry + (Math.cos(cam.a2) + Math.sin(cam.a2)) * 4.5, k: 'remolque', X: X2, Y: Y2 }); }
+      // un auto se dibuja delante o detrás del camión según el punto del camión que le queda más cerca
+      const C = N.CAMION, ca = Math.cos(cam.a), sa = Math.sin(cam.a), cb = Math.cos(cam.a2), sb = Math.sin(cam.a2);
+      const tramos = [[cam.x - ca * C.cola, cam.y - sa * C.cola, cam.x + ca * C.frente, cam.y + sa * C.frente]];
+      if (cam.remolque) tramos.push([cam.rx - cb * C.remCola, cam.ry - sb * C.remCola, hx + cb * C.remFrente, hy + sb * C.remFrente]);
+      for (const e of list) {
+        if (e.k !== 'auto') continue;
+        const o = e.o; if (Math.abs(o.x - cam.x) > 30 || Math.abs(o.y - cam.y) > 30) continue;
+        let bd = 1e9, bq = 0;
+        for (const [ax, ay, bx, by] of tramos) {
+          const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy || 1; let t = ((o.x - ax) * dx + (o.y - ay) * dy) / L2; t = Math.max(0, Math.min(1, t));
+          const qx = ax + dx * t, qy = ay + dy * t, d = Math.hypot(o.x - qx, o.y - qy); if (d < bd) { bd = d; bq = qx + qy; }
+        }
+        if (bd < 9) e.d = (o.x + o.y) > bq ? Math.max(e.d, hx + hy + 0.01) : Math.min(e.d, hx + hy - 0.01);
+      }
     }
     list.sort((a, b) => a.d - b.d);
     // preparar los edificios que vienen (hacia donde va el camión), pocos por cuadro
@@ -517,8 +530,7 @@
         ctx.drawImage(s.cv, X - s.ox, Y - s.oy);
         if (noche() > 0.3) { const fx = Math.cos(o.ang), fy = Math.sin(o.ang), [hx, hy] = proj(o.x + fx * o.largo / 2, o.y + fy * o.largo / 2, 0.7); ctx.fillStyle = '#fff8c0'; ctx.fillRect(hx - 1, hy, 2, 1); }
       } else if (e.k === 'letrero') dibujarLetrero(o, X, Y);
-      else if (e.k === 'tracto') { const s = camSpr.tractos[tractoCol][GR.ang(cam.a)]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); if (cam.freno && Math.abs(cam.v) > 0.3 || cam.atras) luzFreno(); }
-      else if (e.k === 'remolque') { const enc = partida.encargo, tipo = enc ? enc.rem : 'lona', col = enc ? enc.col : 0; const s = camSpr.rem[tipo][col % camSpr.rem[tipo].length][GR.ang(cam.a2)]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); }
+      else if (e.k === 'camion') dibujarCamion(X, Y);
     }
     // cables entre postes de la misma calle
     ctx.strokeStyle = 'rgba(20,20,24,0.8)'; ctx.lineWidth = 1; ctx.beginPath();
@@ -550,6 +562,20 @@
     const s = GR.edificio(M.edif[i], i); edifCache.set(i, s);
     if (edifCache.size > 900) { const it = edifCache.keys(); for (let n = 0; n < 200; n++) edifCache.delete(it.next().value); }
     return s;
+  }
+  // quinta rueda del tracto: ahí se ancla el sprite del remolque
+  function pivote() { return [cam.x + Math.cos(cam.a) * N.CAMION.quinta, cam.y + Math.sin(cam.a) * N.CAMION.quinta]; }
+  function dibujarCamion(X, Y) {
+    const st = camSpr.tractos[tractoCol][GR.ang(cam.a)];
+    const tracto = () => { ctx.drawImage(st.cv, X - st.ox, Y - st.oy); if (cam.freno && Math.abs(cam.v) > 0.3 || cam.atras) luzFreno(); };
+    if (!cam.remolque) { tracto(); return; }
+    const enc = partida.encargo, tipo = enc ? enc.rem : 'lona', col = enc ? enc.col : 0;
+    const sr = camSpr.rem[tipo][col % camSpr.rem[tipo].length][GR.ang(cam.a2)];
+    const [hx, hy] = pivote(), [HX, HY] = proj(hx, hy);
+    const remolque = () => ctx.drawImage(sr.cv, HX - sr.ox, HY - sr.oy);
+    // el que queda más cerca de la cámara (más al sur-este) se dibuja encima
+    // el tracto va adelante del pivote: si mira hacia la cámara (+x+y), tapa al remolque
+    if (Math.cos(cam.a) + Math.sin(cam.a) > 0) { remolque(); tracto(); } else { tracto(); remolque(); }
   }
   function luzFreno() {
     const ca = Math.cos(cam.remolque ? cam.a2 : cam.a), sa = Math.sin(cam.remolque ? cam.a2 : cam.a);
@@ -786,7 +812,7 @@
     // camión grande de adorno
     const s = camSpr.tractos.rojo[Math.floor(stT * 2) % 32], r = camSpr.rem.frigo[0][Math.floor(stT * 2) % 32];
     const ang = Math.floor(stT * 2) % 32 / 32 * Math.PI * 2, bx = W / 2, by = 150;
-    const rx = bx - (Math.cos(ang) - Math.sin(ang)) * 9.6 * S * 0.9, ry = by - (Math.cos(ang) + Math.sin(ang)) / 2 * 9.6 * S * 0.9;
+    const q = N.CAMION.quinta * S, rx = bx + (Math.cos(ang) - Math.sin(ang)) * q, ry = by + (Math.cos(ang) + Math.sin(ang)) / 2 * q;
     const orden = (Math.cos(ang) + Math.sin(ang)) > 0;
     if (orden) { ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); ctx.drawImage(s.cv, bx - s.ox, by - s.oy); }
     else { ctx.drawImage(s.cv, bx - s.ox, by - s.oy); ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); }
