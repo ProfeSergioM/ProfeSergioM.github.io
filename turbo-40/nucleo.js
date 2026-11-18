@@ -3,7 +3,7 @@
 (function (G) {
   'use strict';
   const T = {};
-  const HW = 26;          // medio ancho del camino (dos carriles)
+  const HW = 39;          // medio ancho del camino
   const DS = 4;           // separación de muestras de la línea central
   T.HW = HW; T.DS = DS; T.CURB = 6; T.SAND = 12; T.HW2 = 18; // HW2: media calzada de la autopista
   T.NCARS = 10;
@@ -13,7 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
-  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -80,7 +80,7 @@
     const kr = [];
     for (let i = 0; i < N; i++) kr.push(i < N - 1 ? wrapA(pts[i + 1].ang - pts[i].ang) / DS : 0);
     const ks = smoothOpen(kr, 3, 2), kb = smoothOpen(kr, 14, 3);
-    const rl = smoothOpen(kb.map(k => clamp(k * 2600, -17, 17)), 6, 2);
+    const rl = smoothOpen(kb.map(k => clamp(k * 2600, -26, 26)), 6, 2);
     // suavizar transiciones de tierra (evita parches de un punto)
     for (let i = 0; i < N; i++) {
       const p = pts[i]; p.k = ks[i]; p.rl = rl[i];
@@ -428,9 +428,9 @@
     let player = null;
     order.forEach((who, k) => {
       const row = Math.floor(k / 2), col = k % 2;
-      const s = trk.startS - 26 - row * 44 - col * 22;
+      const s = trk.startS - 26 - row * 58 - col * 26;
       const i = clamp(Math.round(s / trk.DS), 0, trk.N - 1), p = trk.pts[i];
-      const lat = col ? -14 : 14;
+      const lat = col ? -20 : 20;
       const isPlayer = who === -1;
       const rv = isPlayer ? null : opts.rivals[who];
       const c = {
@@ -663,7 +663,7 @@
     let lane = pt.rl * c.lineUse + c.laneOff + c.avoid;
     if (Math.abs(c.lat) > HW + 4) lane = 0;
     // en amarilla, pasar el auto averiado por el lado libre
-    for (const yz of trk.scen.yellows) if (c.s > yz.s - 420 && c.s < yz.s + 40) lane = -Math.sign(yz.blat) * 15;
+    for (const yz of trk.scen.yellows) if (c.s > yz.s - 420 && c.s < yz.s + 40) lane = -Math.sign(yz.blat) * 20;
     lane = clamp(lane, -HW + 9, HW - 9);
     const tx = pt.x + pt.nx * lane, ty = pt.y + pt.ny * lane;
     const want = Math.atan2(ty - c.y, tx - c.x);
@@ -694,6 +694,16 @@
       }
     }
     if (slow) vt = Math.min(vt, sp - T.AI.afloja);
+    // distancia de seguimiento: no comerse al de adelante cuando frena para la curva
+    if (!c.isPlayer && T.AI.sigue) for (const o of race.cars) {
+      if (o === c || o.dead) continue;
+      const dx = o.x - c.x, dy = o.y - c.y, al = dx * fx + dy * fy;
+      if (al <= 0 || al > 75) continue;
+      const lt = -dx * fy + dy * fx;
+      if (Math.abs(lt) > 16) continue;
+      const ov = o.vx * fx + o.vy * fy;
+      vt = Math.min(vt, Math.max(0, ov + (al - 24) * 2.2));
+    }
     if (sp > vt + 4) { c.thr = 0; c.brk = clamp((sp - vt) / 25, 0.2, 1); }
     else if (sp > vt) { c.thr = 0.25; c.brk = 0; }
     else { c.thr = 1; c.brk = 0; }

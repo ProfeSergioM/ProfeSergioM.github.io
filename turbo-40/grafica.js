@@ -351,7 +351,7 @@
     const RM = HW + T.SAND + 14;
     // grilla de largada
     const slots = [];
-    for (let k = 0; k < T.NCARS; k++) { const row = Math.floor(k / 2), col = k % 2; slots.push([-26 - row * 44 - col * 22, col ? -14 : 14]); }
+    for (let k = 0; k < T.NCARS; k++) { const row = Math.floor(k / 2), col = k % 2; slots.push([-26 - row * 58 - col * 26, col ? -20 : 20]); }
     // decoración indexada por bloque iso (para hornear sombras y dunas)
     const decoByChunk = new Map();
     for (const o of trk.scen.decor.concat(trk.scen.stands, trk.scen.oil || [])) {
@@ -454,7 +454,7 @@
               if (ds >= 0 && ds < 7) col = ((Math.floor((lat + HW) / 3.5) + Math.floor(ds / 3.5)) & 1) ? P.blk : P.wht;
               const df = s - fS;
               if (df >= 0 && df < 10.5) col = ((Math.floor((lat + HW) / 3.5) + Math.floor(df / 3.5)) & 1) ? P.blk : P.wht;
-              if (ds < 0 && ds > -260) for (const [ss, sl] of slots) {
+              if (ds < 0 && ds > -330) for (const [ss, sl] of slots) {
                 const q = ds - ss, dl = lat - sl;
                 if ((q > 11 && q < 12.8 && Math.abs(dl) < 9) || (Math.abs(Math.abs(dl) - 9) < 0.9 && q > 3 && q < 12.8)) col = P.wht;
               }

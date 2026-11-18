@@ -29,13 +29,13 @@
     recta: { n: 'RECTA', p: [['S', 520]] },
     rectaLarga: { n: 'RECTA LARGA', p: [['S', 950]] },
     curva90: { n: 'CURVA DE 90', p: [['S', 140], ['C', 90, 44], ['S', 150]] },
-    curvaCiega: { n: 'CURVA CIEGA', p: [['C', 80, 36], ['S', 170]] },
-    horquilla: { n: 'HORQUILLA', p: [['S', 90], ['C', 155, 38], ['S', 110]] },
-    zigzag: { n: 'ZIGZAG', p: [['C', 75, 40], ['S', 40], ['C', -150, 36], ['S', 40], ['C', 75, 40], ['S', 80]] },
+    curvaCiega: { n: 'CURVA CIEGA', p: [['C', 80, 42], ['S', 170]] },
+    horquilla: { n: 'HORQUILLA', p: [['S', 90], ['C', 155, 54], ['S', 110]] },
+    zigzag: { n: 'ZIGZAG', p: [['C', 75, 40], ['S', 40], ['C', -150, 52], ['S', 40], ['C', 75, 40], ['S', 80]] },
     eses: { n: 'ESES', p: [['C', 55, 52], ['C', -75, 46], ['C', 75, 46], ['C', -55, 52], ['S', 120]] },
-    chicana: { n: 'CHICANA', p: [['S', 220], ['C', -55, 32], ['C', 55, 32], ['S', 200]] },
+    chicana: { n: 'CHICANA', p: [['S', 220], ['C', -55, 38], ['C', 55, 38], ['S', 200]] },
     curvaLarga: { n: 'CURVA LARGA', p: [['C', 125, 78], ['S', 200]] },
-    esquina: { n: 'PUEBLO', p: [['S', 150], ['C', 90, 26], ['S', 110], ['C', -90, 26], ['S', 150]] },
+    esquina: { n: 'PUEBLO', p: [['S', 150], ['C', 90, 34], ['S', 110], ['C', -90, 34], ['S', 150]] },
     costa: { n: 'CAMINO COSTERO', p: [['C', 45, 62], ['C', -70, 50], ['C', 55, 58], ['C', -50, 66], ['S', 110]] },
   };
   E.SECCIONES = {};
@@ -64,7 +64,7 @@
 
   // opts: {region, tipo: 'carrera'|'rally'|'jefe', largo}
   E.generar = function (seed, opts) {
-    for (let intento = 0; intento < 40; intento++) {
+    for (let intento = 0; intento < 90; intento++) {
       const r = intentar(seed * 7919 + intento * 104729, opts);
       if (r) return r;
     }
@@ -89,8 +89,8 @@
     };
     const runSteps = (p, sign) => { for (const st of p) st[0] === 'S' ? straight(st[1]) : curve(st[1] * sign, st[2]); };
     // largada: recta para la grilla
-    straight(420);
-    const startS = 300;
+    straight(1250); // recta larga de largada: el pelotón se estira antes de la primera curva
+    const startS = 420;
     const target = opts.largo;
     let prev = -1;
 
@@ -132,7 +132,7 @@
     const n = poly.length, gap = Math.ceil(320 / STEP);
     for (let i = 0; i < n; i += 3) for (let j = i + gap; j < n; j += 3) {
       const dx = poly[i][0] - poly[j][0], dy = poly[i][1] - poly[j][1];
-      const need = (j - i) * STEP < 700 ? 84 : 190; // zigzags cercanos permitidos
+      const need = (j - i) * STEP < 700 ? 104 : 170; // zigzags cercanos permitidos
       if (dx * dx + dy * dy < need * need) return null;
     }
     return { poly, flags, marks, startS, finishS, length: s, h0 };
