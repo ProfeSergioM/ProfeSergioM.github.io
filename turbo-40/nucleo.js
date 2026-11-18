@@ -464,6 +464,7 @@
     if (!c.dmg || amt <= 0 || c.dead) return;
     const st = c.stats;
     if (part !== 'gomas') amt *= (1 - st.armor) * (1 + st.fragil);
+    if (part === 'chasis') amt *= 0.78; // chasis algo más resistente
     const v = Math.min(c.dmg[part], amt);
     c.dmg[part] -= v; race.hurt[part] += v;
     if (c.dmg.chasis <= 0 && !c.dead) {

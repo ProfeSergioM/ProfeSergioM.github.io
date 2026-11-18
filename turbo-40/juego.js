@@ -186,7 +186,7 @@
 
   function msg(text, dur, style, sub) { msgs.push({ text, dur, t: 0, style: style || 'big', sub }); }
   function pop(x, y, text, col) { pops.push({ x, y, z: 14, text, col, t: 0 }); }
-  function addP(o) { if (parts.length < 700) parts.push(o); }
+  function addP(o) { if (parts.length < 1100) parts.push(o); }
   function smoke(x, y, n, col, z) { for (let i = 0; i < n; i++) addP({ x: x + rnd(-3, 3), y: y + rnd(-3, 3), z: z || 1, vx: rnd(-8, 8), vy: rnd(-8, 8), vz: rnd(6, 14), life: 0, max: rnd(0.5, 0.9), type: 'smoke', col: col || '#d8d8e0' }); }
   function sparks(x, y, n) { for (let i = 0; i < n; i++) addP({ x, y, z: 3, vx: rnd(-90, 90), vy: rnd(-90, 90), vz: rnd(20, 70), life: 0, max: rnd(0.25, 0.5), type: 'spark' }); }
 
@@ -380,26 +380,53 @@
   }
   const ORD = n => n + '°';
 
+  // colores de huellas y polvo por paisaje
+  const POLVO = {
+    nieve: { huella: 'rgba(120,140,170,0.45)', salta: '#ffffff', nube: '#f0f4fa', ruta: '#e8eef6' },
+    bosque: { huella: 'rgba(30,60,20,0.4)', salta: '#2c6a24', nube: '#8a7a5a', ruta: null },
+    california: { huella: 'rgba(120,90,40,0.4)', salta: '#c8a050', nube: '#d8c08a', ruta: '#d8c8a0' },
+    desierto: { huella: 'rgba(150,90,40,0.4)', salta: '#d8a060', nube: '#e8c090', ruta: '#e8cca0' },
+    selva: { huella: 'rgba(60,40,20,0.45)', salta: '#5a3a1a', nube: '#7a6040', ruta: null },
+    andes: { huella: 'rgba(110,90,50,0.4)', salta: '#a08850', nube: '#c8b080', ruta: '#d0bc90' },
+    atacama: { huella: 'rgba(150,80,40,0.4)', salta: '#d08858', nube: '#e8b088', ruta: '#ecc0a0' },
+    estepa: { huella: 'rgba(120,100,50,0.4)', salta: '#b8a060', nube: '#d0c08a', ruta: '#dccca0' },
+  };
   function perCarFx(dt) {
     for (const c of race.cars) {
       const sp = Math.hypot(c.vx, c.vy), fx = Math.cos(c.a), fy = Math.sin(c.a);
-      const skid = (c.slip > 30 && sp > 40) || (c.brk > 0 && sp > 60 && c.vf > 0);
-      if (skid && (c.surf === 0 || c.surf === 1 || c.surf === 4)) {
-        const col = c.surf === 4 ? 'rgba(70,40,15,0.35)' : 'rgba(22,22,28,0.35)';
-        [[-8, -5], [-8, 5]].forEach(([a, b], w) => {
+      // las ruedas en el suelo: marcas, humo, goma y polvo
+      const tema = race.trk.tema, PV = POLVO[tema] || POLVO.bosque;
+      const asf = c.surf === 0 || c.surf === 1, fuera = !asf && c.surf !== 4;
+      const derrape = c.slip > 16 && sp > 30 ? Math.min(1, (c.slip - 16) / 28) : 0;
+      const frenada = c.brk > 0.4 && c.vf > 40 ? c.brk : 0;
+      const patina = c.thr > 0.9 && c.vf > 2 && c.vf < 42 && !c.dead ? 0.7 : 0; // arranque patinando
+      const k = Math.max(derrape, frenada, patina);
+      const ruedas = frenada ? [[-8, -5], [-8, 5], [8, -5], [8, 5]] : [[-8, -5], [-8, 5]];
+      if ((k > 0 && asf) || (fuera && sp > 15)) {
+        const col = asf ? 'rgba(16,16,20,' + (0.25 + 0.4 * k).toFixed(2) + ')' : PV.huella;
+        ruedas.forEach(([a, b], w) => {
           const x = c.x + fx * a - fy * b, y = c.y + fy * a + fx * b, last = c['sk' + w];
           if (last) {
             const n = Math.ceil(Math.hypot(x - last[0], y - last[1]) / 1.5);
-            if (n < 12) for (let i = 1; i <= n; i++) { const X = last[0] + (x - last[0]) * i / n, Y = last[1] + (y - last[1]) * i / n; ground.mark(X - Y, (X + Y) / 2, col); }
+            if (n < 14) for (let i = 1; i <= n; i++) { const X = last[0] + (x - last[0]) * i / n, Y = last[1] + (y - last[1]) * i / n; ground.mark(X - Y, (X + Y) / 2, col); }
           }
           c['sk' + w] = [x, y];
         });
-        if (Math.random() < dt * (c.slip > 45 ? 30 : 10)) smoke(c.x - fx * 9, c.y - fy * 9, 1, c.surf === 4 ? '#c8a070' : null);
-      } else { c.sk0 = c.sk1 = null; }
-      if ((c.surf >= 2 && c.surf !== 4 && sp > 30) || (c.surf === 4 && sp > 80)) if (Math.random() < dt * 25) {
-        const col = { 2: '#3c8a2a', 3: '#d8b860', 4: '#b88850', 5: '#e0c080' }[c.surf];
-        addP({ x: c.x - fx * 10 + rnd(-4, 4), y: c.y - fy * 10 + rnd(-4, 4), z: 1, vx: -c.vx * 0.2 + rnd(-15, 15), vy: -c.vy * 0.2 + rnd(-15, 15), vz: rnd(20, 50), life: 0, max: 0.45, type: c.surf === 4 || c.surf === 5 ? 'smoke' : 'dirt', col });
+        if (ruedas.length === 2) c.sk2 = c.sk3 = null;
+      } else { c.sk0 = c.sk1 = c.sk2 = c.sk3 = null; }
+      if (k > 0 && asf) {
+        // humo de goma quemada desde las ruedas traseras
+        if (Math.random() < dt * (6 + 40 * k)) for (const b of [-5, 5]) addP({ x: c.x - fx * 9 - fy * b + rnd(-2, 2), y: c.y - fy * 9 + fx * b + rnd(-2, 2), z: 1, vx: -c.vx * 0.1 + rnd(-12, 12), vy: -c.vy * 0.1 + rnd(-12, 12), vz: rnd(4, 14), life: 0, max: rnd(0.5, 1.0) + k * 0.6, type: 'smoke', col: k > 0.6 ? '#f0f0f4' : '#c8c8d0' });
+        // pedacitos de goma
+        if (k > 0.5 && Math.random() < dt * 20 * k) addP({ x: c.x - fx * 9 + rnd(-5, 5), y: c.y - fy * 9 + rnd(-5, 5), z: 1, vx: rnd(-30, 30), vy: rnd(-30, 30), vz: rnd(15, 35), life: 0, max: 0.4, type: 'dirt', col: '#141416' });
       }
+      // tierra, nieve o pasto que salta fuera del camino
+      if (fuera && sp > 25 && Math.random() < dt * (14 + sp * 0.12)) {
+        for (const b of [-5, 5]) addP({ x: c.x - fx * 10 - fy * b + rnd(-2, 2), y: c.y - fy * 10 + fx * b + rnd(-2, 2), z: 1, vx: -c.vx * 0.25 + rnd(-15, 15), vy: -c.vy * 0.25 + rnd(-15, 15), vz: rnd(20, 55), life: 0, max: 0.5, type: 'dirt', col: PV.salta });
+        if (Math.random() < 0.5) smoke(c.x - fx * 12, c.y - fy * 12, 1, PV.nube);
+      }
+      // polvo del camino en los paisajes secos; agua levantada en la nieve
+      if (asf && sp > 70 && PV.ruta && Math.random() < dt * (sp / 40)) addP({ x: c.x - fx * 13 + rnd(-5, 5), y: c.y - fy * 13 + rnd(-5, 5), z: 1, vx: -c.vx * 0.12 + rnd(-8, 8), vy: -c.vy * 0.12 + rnd(-8, 8), vz: rnd(3, 9), life: 0, max: rnd(0.4, 0.8), type: 'smoke', col: PV.ruta });
       if (race.rain && sp > 60 && Math.random() < dt * 20) addP({ x: c.x - fx * 12 + rnd(-5, 5), y: c.y - fy * 12 + rnd(-5, 5), z: 1, vx: -c.vx * 0.15 + rnd(-10, 10), vy: -c.vy * 0.15 + rnd(-10, 10), vz: rnd(10, 25), life: 0, max: 0.35, type: 'smoke', col: '#c8d8f0' });
       if (c.isPlayer) {
         if (c.nitroT > 0) for (let i = 0; i < 2; i++) addP({ x: c.x - fx * 14, y: c.y - fy * 14, z: 2, vx: -fx * rnd(40, 90), vy: -fy * rnd(40, 90), vz: rnd(-5, 5), life: 0, max: rnd(0.1, 0.25), type: 'flame', blue: true });
