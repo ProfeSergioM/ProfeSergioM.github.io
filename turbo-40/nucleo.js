@@ -13,7 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
-  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, linea: 0, defensa: 0.8, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, linea: 1, lim: 15, klw: 0, defensa: 0.8, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -87,18 +87,32 @@
       p.curb = !p.dirt && Math.abs(kb[i]) > 1 / 200;
       p.sand = !p.dirt && Math.abs(kb[i]) > 1 / 140 ? -Math.sign(kb[i]) : 0;
     }
-    // curvatura de la trazada (la línea que usa la IA, abriéndose en el camino ancho)
+    // trazada de carrera: una banda elástica dentro del ancho del camino (endereza chicanas y eses,
+    // abre las curvas). La IA la sigue y calcula su velocidad con la curvatura de esta línea.
     {
-      const lx = pts.map(p => p.x + p.nx * p.rl * 0.9), ly = pts.map(p => p.y + p.ny * p.rl * 0.9), kl = [];
-      for (let i = 0; i < N; i++) {
-        const a = Math.max(0, i - 2), b = Math.min(N - 1, i + 2), c = Math.min(N - 1, b + 1), a0 = Math.max(0, a - 1);
-        const h1 = Math.atan2(ly[b] - ly[a], lx[b] - lx[a]), h0 = Math.atan2(ly[a] - ly[a0], lx[a] - lx[a0]) , h2 = Math.atan2(ly[c] - ly[b], lx[c] - lx[b]);
-        const len = Math.hypot(lx[c] - lx[a0], ly[c] - ly[a0]) || 1;
-        kl.push(wrapA(h2 - h0) / len);
-        void h1;
+      const LIM = HW - (T.AI.lim || 9), o = pts.map(p => clamp(p.rl, -LIM, LIM));
+      for (const [k, it] of [[32, 30], [16, 30], [8, 30], [4, 25], [2, 15]]) {
+        for (let r = 0; r < it; r++) for (let i = k; i < N - k; i++) {
+          const a = pts[i - k], b = pts[i + k], p = pts[i];
+          const mx = (a.x + a.nx * o[i - k] + b.x + b.nx * o[i + k]) / 2, my = (a.y + a.ny * o[i - k] + b.y + b.ny * o[i + k]) / 2;
+          const t = (mx - p.x) * p.nx + (my - p.y) * p.ny;
+          o[i] = clamp(o[i] + (t - o[i]) * 0.9, -LIM, LIM);
+        }
       }
-      const kls = smoothOpen(kl, 3, 2);
-      for (let i = 0; i < N; i++) pts[i].kl = Math.abs(kls[i]) < Math.abs(pts[i].k) ? kls[i] : pts[i].k; // nunca más cerrada que el centro
+      const lx = pts.map((p, i) => p.x + p.nx * o[i]), ly = pts.map((p, i) => p.y + p.ny * o[i]), kl = [];
+      for (let i = 0; i < N; i++) {
+        const a = Math.max(0, i - 3), b = Math.min(N - 1, i + 3), a1 = Math.min(N - 1, a + 1), b0 = Math.max(0, b - 1);
+        const h0 = Math.atan2(ly[a1] - ly[a], lx[a1] - lx[a]), h1 = Math.atan2(ly[b] - ly[b0], lx[b] - lx[b0]);
+        let len = 0; for (let j = a; j < b; j++) len += Math.hypot(lx[j + 1] - lx[j], ly[j + 1] - ly[j]);
+        kl.push(len > 0 ? wrapA(h1 - h0) / len : 0);
+      }
+      const kls = smoothOpen(kl, 2, 2);
+      const W = T.AI.klw || 0;
+      for (let i = 0; i < N; i++) {
+        let mk = kls[i];
+        for (let j = Math.max(0, i - W); j <= Math.min(N - 1, i + W); j++) if (Math.abs(kls[j]) > Math.abs(mk)) mk = kls[j];
+        pts[i].ol = o[i]; pts[i].kl = mk;
+      }
     }
     // zonas de frenada: tramo recto antes de una curva cerrada
     for (let i = 0; i < N; i++) {
@@ -649,7 +663,7 @@
     const sp = Math.hypot(c.vx, c.vy);
     const sk = c.skillEff;
     if (race.t < c.react) { c.thr = 0; c.brk = 0; c.steer = 0; return; }
-    const look = 24 + sp * 0.3;
+    const look = (T.AI.l0 || 24) + sp * (T.AI.l1 || 0.3);
     const li = Math.min(N - 1, c.i + Math.round(look / trk.DS));
     const pt = pts[li];
     const fx = Math.cos(c.a), fy = Math.sin(c.a);
@@ -673,7 +687,7 @@
     }
     for (const o of trk.scen.oil) if (Math.abs(o.x - c.x) < 120 && Math.abs(o.y - c.y) < 120) obstacle(o.x - c.x, o.y - c.y, 0, o.r + 6);
     for (const o of race.crossers) if (!o.hit) obstacle(o.x + o.vx * 0.4 - c.x, o.y + o.vy * 0.4 - c.y, 0, 16);
-    let lane = pt.rl * c.lineUse + c.laneOff + c.avoid;
+    let lane = T.AI.linea ? pt.ol + c.laneOff * 0.4 + c.avoid : pt.rl * c.lineUse + c.laneOff + c.avoid;
     if (Math.abs(c.lat) > HW + 4) lane = 0;
     // en amarilla, pasar el auto averiado por el lado libre
     for (const yz of trk.scen.yellows) if (c.s > yz.s - 420 && c.s < yz.s + 40) lane = -Math.sign(yz.blat) * 20;

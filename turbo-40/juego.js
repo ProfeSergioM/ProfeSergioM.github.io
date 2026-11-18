@@ -758,8 +758,6 @@
     const q = o.q, w = T.HW2 + 3, Z = 15, th = 10 * o.dir;
     const P = (lat, z, al) => proj(q.x + q.nx * lat + q.tx * (al || 0), q.y + q.ny * lat + q.ty * (al || 0), z);
     const poly = (pts, col) => { ctx.fillStyle = col; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); };
-    // cerro de tierra encima
-    poly([P(-w, 0, th * 2.6), P(-w, Z + 4, th), P(w, Z + 4, th), P(w, 0, th * 2.6)], race.trk.tema === 'desierto' || race.trk.tema === 'atacama' ? '#9a6a3a' : '#4a6a2a');
     poly([P(-w, 0), P(-w, Z), P(w, Z), P(w, 0)], '#a8a8a0');
     poly([P(-w + 3, 0), P(-w + 3, Z - 4), P(w - 3, Z - 4), P(w - 3, 0)], '#0a0a0e');
     poly([P(-w, Z), P(-w, Z, th), P(w, Z, th), P(w, Z)], '#d0d0c8');
