@@ -115,10 +115,16 @@
         let hit = false;
         // si quedó metido en un edificio al enganchar o aparecer, se le deja salir (solo de edificios y agua)
         if (mundo && !c.atrapado) { if (mundo.chocaEdif(x, y, r)) hit = true; else if (mundo.agua(x, y)) hit = true; }
-        // contra un auto solo cuenta si el paso lo acerca más (así puede alejarse si quedó pegado)
+        // contra un auto solo cuenta al entrar en contacto (así puede alejarse si quedó pegado)
         if (!hit && obst) for (const o of obst) {
           const d2 = (x - o.x) ** 2 + (y - o.y) ** 2;
-          if (d2 < (r + o.r) ** 2) { const q = antes && antes[ci]; if (!q || d2 < (q[0] - o.x) ** 2 + (q[1] - o.y) ** 2 - 1e-6) { hit = true; golpeAuto = true; o.tocado = 1; break; } }
+          if (d2 < (r + o.r) ** 2) {
+            // si ya estaban superpuestos antes del paso, no bloquea: el camión puede irse en cualquier dirección
+            const q = antes && antes[ci];
+            // maniobrando despacio, el camión tiene prioridad: empuja al auto (que retrocede) en vez de trabarse
+            if (o.a && Math.abs(c.v) < N.VEL_EMPUJE) { o.a.empujado = 0.4; continue; }
+            if (!q || (q[0] - o.x) ** 2 + (q[1] - o.y) ** 2 >= (r + o.r) ** 2) { hit = true; golpeAuto = true; o.tocado = 1; break; }
+          }
         }
         if (hit) { golpe = Math.max(golpe, Math.abs(c.v), golpeAuto ? 0.01 : 0); break; }
       }
@@ -163,6 +169,8 @@
     return out;
   }
   N.posEje = posEje;
+  N.FRENO_AUTO = 8; // m/s²: los autos frenan fuerte si se les cruza el camión
+  N.VEL_EMPUJE = 2; // m/s: bajo esta velocidad el camión empuja a los autos en vez de chocar
   const _p = {};
   N.ubicarAuto = function (a) {
     // pista a la derecha del sentido de avance (en Chile se maneja por la derecha)
@@ -205,18 +213,27 @@
       const lat = Math.abs(-dx * fy + dy * fx);
       if (lat < (o.ancho || 1.8)) { const l = d - (o.largo || 5) * 0.5 - a.largo * 0.5; libre = Math.min(libre, l); if (o.fijo) libreFijo = Math.min(libreFijo, l); }
     }
-    // el camión (tracto y remolque) es sólido: si la trompa del auto va a tocar alguno de sus círculos, se detiene
+    // el camión (tracto y remolque) es sólido: se revisa la pista hasta la distancia de frenado
+    const alcance = a.v * a.v / (2 * N.FRENO_AUTO) + 4;
+    a.pegado = 0;
     for (const o of obst) {
       if (!o.fijo) continue;
-      for (let k = 0; k <= 2; k++) {
-        const px = a.x + fx * (a.largo / 2 + 0.6 + k * 1.4), py = a.y + fy * (a.largo / 2 + 0.6 + k * 1.4);
-        if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.1) ** 2) { libre = Math.min(libre, k * 1.4); libreFijo = Math.min(libreFijo, k * 1.4); }
+      if (Math.abs(o.x - a.x) > alcance + 8 || Math.abs(o.y - a.y) > alcance + 8) continue;
+      for (let k = 0; k * 1.0 <= alcance; k++) {
+        const px = a.x + fx * (a.largo / 2 + k), py = a.y + fy * (a.largo / 2 + k);
+        if ((px - o.x) ** 2 + (py - o.y) ** 2 < (o.r + 1.15) ** 2) { const l = Math.max(0, k - 1); libre = Math.min(libre, l); libreFijo = Math.min(libreFijo, l); break; }
       }
+      // ¿ya quedó encima del camión? (el camión se le cruzó encima): retrocede por su pista
+      const h = a.largo / 2 - 1;
+      for (const sg of [1, -1]) if ((a.x + fx * h * sg - o.x) ** 2 + (a.y + fy * h * sg - o.y) ** 2 < (o.r + 1.0) ** 2) a.pegado = 1;
     }
     a.espera = libre < 4 ? (a.espera || 0) + dt : 0;
     if (a.espera > 6) libre = libreFijo; // destrabar cruces entre autos, pero nunca pasar a través del camión
-    const vObj = Math.min(a.vmax, Math.max(0, (libre - 2.5) * 0.9));
-    a.v += Math.max(-6 * dt, Math.min(1.8 * dt, vObj - a.v));
+    // velocidad que permite detenerse antes del obstáculo
+    const vObj = Math.min(a.vmax, Math.sqrt(2 * N.FRENO_AUTO * Math.max(0, libre - 1.5)), Math.max(0, (libre - 1.5) * 1.2) + (libre > 6 ? 99 : 0));
+    a.v += Math.max(-N.FRENO_AUTO * dt, Math.min(1.8 * dt, vObj - a.v));
+    if (a.empujado > 0) { a.empujado -= dt; a.pegado = 1; }
+    if (a.pegado) { a.v = 0; a.tPegado = (a.tPegado || 0) + dt; a.s -= a.dir * 2.5 * dt; } else a.tPegado = 0;
     a.s += a.v * dt * a.dir;
     let guard = 0;
     while ((a.dir > 0 && a.s > a.e.len) || (a.dir < 0 && a.s < 0)) {

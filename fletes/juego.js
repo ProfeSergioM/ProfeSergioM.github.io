@@ -262,7 +262,7 @@
     for (let i = autos.length - 1; i >= 0; i--) {
       const a = autos[i], d = Math.hypot(a.x - cam.x, a.y - cam.y);
       // tráfico de decorado: un auto trabado mucho rato se retira (fuera de la vista, antes)
-      const trabado = (a.espera || 0) > (d > 70 ? 4 : 10);
+      const trabado = (a.espera || 0) > (d > 70 ? 4 : 10) || (a.tPegado || 0) > 3;
       if (a.muerto || d > 330 || trabado) autos.splice(i, 1);
     }
     if (autos.length >= max) return;
@@ -363,7 +363,7 @@
         const d = C.golpe(partida, golpe);
         AU.thud(golpe * 12); if (golpe > 3) AU.crash(golpe * 10);
         if (d > 0.5) msg('CARGA DAÑADA ' + Math.round(partida.encargo.dano) + '%', 2, 'small');
-        for (const o of obst) if (o.tocado && o.a) { o.a.espera = -3; o.a.v = 0; }
+        for (const o of obst) if (o.tocado && o.a) o.a.v = 0;
       }
       pasoAutos(DT);
     }
