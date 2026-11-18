@@ -77,38 +77,11 @@
 
   function pickW(R, list) { const tot = list.reduce((a, b) => a + b[1], 0); let r = R() * tot; for (const [v, w] of list) if ((r -= w) < 0) return v; return list[0][0]; }
 
+  // ruta lineal: una etapa por pueblo y la gran etapa al final del tramo (al llegar a cada pueblo hay taller)
   function genRegion(R, ri) {
-    const rows = [];
-    const NR = E.REGIONES[ri].pueblos.length - 1; // filas normales; el último pueblo es la gran etapa
-    for (let r = 0; r < NR; r++) {
-      const n = 2 + (R() < 0.55 ? 1 : 0);
-      const row = [];
-      for (let i = 0; i < n; i++) {
-        let type;
-        if (r === 0) type = pickW(R, [['carrera', 5], ['rally', 3]]);
-        else type = pickW(R, [['carrera', 4], ['rally', 3], ['taller', 2], ['evento', 2], ['campamento', 2]]);
-        row.push({ type, seed: Math.floor(R() * 1e9) });
-      }
-      rows.push(row);
-    }
-    // al menos un taller en la región (filas 1 o 2), y al menos una etapa por fila
-    if (!rows.slice(1).some(r => r.some(n => n.type === 'taller'))) rows[1 + Math.floor(R() * (NR - 1))][0].type = 'taller';
-    rows.forEach(r => { if (!r.some(n => n.type === 'carrera' || n.type === 'rally')) r[r.length - 1].type = 'carrera'; });
+    const NR = E.REGIONES[ri].pueblos.length - 1, rows = [];
+    for (let r = 0; r < NR; r++) rows.push([{ type: r > 0 && R() < 0.4 ? 'rally' : 'carrera', seed: Math.floor(R() * 1e9), next: [0] }]);
     rows.push([{ type: 'jefe', seed: Math.floor(R() * 1e9) }]);
-    // conexiones: cada nodo conecta con los de la fila siguiente cercanos
-    for (let r = 0; r < rows.length - 1; r++) {
-      const a = rows[r], b = rows[r + 1];
-      a.forEach((nd, i) => {
-        const fi = a.length > 1 ? i / (a.length - 1) : 0.5;
-        nd.next = [];
-        b.forEach((_, j) => { const fj = b.length > 1 ? j / (b.length - 1) : 0.5; if (Math.abs(fi - fj) <= 0.51) nd.next.push(j); });
-      });
-      // asegurar que todos los de la fila siguiente tengan entrada
-      b.forEach((_, j) => { if (!a.some(nd => nd.next.includes(j))) a[Math.min(a.length - 1, Math.round(j / Math.max(1, b.length - 1) * (a.length - 1)))].next.push(j); });
-    }
-    // desde cada nodo de la fila 1 tiene que haber al menos una etapa alcanzable en la fila 2
-    const isStage = n => n.type === 'carrera' || n.type === 'rally';
-    if (NR >= 3) rows[1].forEach(nd => { if (!nd.next.some(j => isStage(rows[2][j]))) rows[2][nd.next[0]].type = 'carrera'; });
     return { rows, ri };
   }
 
@@ -162,7 +135,7 @@
     const lluvia = X() < LL[run.region], amarilla = X() < 0.5, colR = X();
     return {
       lluvia, amarilla, coleccion: falta.length && colR < 0.35 ? falta[Math.floor(X() * falta.length)].id : null,
-      seed: node.seed, region: reg.id, tema: pueblo.tema || reg.tema, tipo, origen: tr.origen.n, destino: pueblo.n,
+      seed: node.seed, region: reg.id, tema: pueblo.tema || reg.tema, tipo, origen: tr.origen.n, destino: pueblo.n, urbano: !!pueblo.urbano,
       largo: tipo === 'jefe' ? 30000 : 24500,
       aiBase: AIBASE[run.region] + (tipo === 'jefe' ? 0.015 : 0) + (run.ritmo || 0),
     };
@@ -171,7 +144,7 @@
   TOUR.buildRace = function (run, node) {
     const sp = TOUR.stageParams(run, node);
     const gen = E.generar(sp.seed, { region: sp.region, tipo: sp.tipo === 'jefe' ? 'carrera' : sp.tipo, largo: sp.largo });
-    const trk = T.buildStage(gen, { tema: sp.tema, region: sp.region, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion });
+    const trk = T.buildStage(gen, { tema: sp.tema, region: sp.region, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion, urbano: sp.urbano });
     // orden de largada: según la general (el líder adelante); en la primera etapa, el jugador último
     let order;
     if (run.stage === 0) order = run.rivals.map((r, i) => i).concat([-1]);

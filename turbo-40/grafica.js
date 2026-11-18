@@ -385,6 +385,26 @@
             }
         }
       }
+      // autopista (calzada paralela de decorado): campo de distancia propio
+      let fh = null, hq = null;
+      const AU2 = trk.scen.autopista;
+      if (AU2 && AU2.runs.length) {
+        const hc = [];
+        for (let gx = Math.floor(xmin / 64) - 1; gx <= Math.floor(xmax / 64) + 1; gx++)
+          for (let gy = Math.floor(ymin / 64) - 1; gy <= Math.floor(ymax / 64) + 1; gy++) { const l = AU2.grid.get(gx + ',' + gy); if (l) for (const q of l) hc.push(q); }
+        if (hc.length) {
+          const RH = T.HW2 + 4, rc = Math.ceil(RH / G2);
+          fh = new Int32Array(gw * gh).fill(-1); const fd = new Float32Array(gw * gh).fill(1e12); hq = hc;
+          hc.forEach((q, n) => {
+            const gx0 = Math.floor((q.x - xmin) / G2), gy0 = Math.floor((q.y - ymin) / G2);
+            for (let gy = Math.max(0, gy0 - rc); gy <= Math.min(gh - 1, gy0 + rc); gy++)
+              for (let gx = Math.max(0, gx0 - rc); gx <= Math.min(gw - 1, gx0 + rc); gx++) {
+                const dx = xmin + (gx + 0.5) * G2 - q.x, dy = ymin + (gy + 0.5) * G2 - q.y, d2 = dx * dx + dy * dy, k = gy * gw + gx;
+                if (d2 < fd[k] && d2 < RH * RH) { fd[k] = d2; fh[k] = n; }
+              }
+          });
+        }
+      }
       const sS = trk.startS, fS = trk.finishS;
       for (let py = 0; py < CS; py++) for (let px = 0; px < CS; px++) {
         const u = u0 + px, v = v0 + py, x = v + u / 2, y = v - u / 2;
@@ -399,11 +419,13 @@
           if (vnoise(x / 70, y / 70) < 0.22) col = P.out;
         }
         if (hz > 0.994) col = P.flor;
+        let aT = 1e9;
         if (fi) {
           const k = Math.floor((y - ymin) / G2) * gw + Math.floor((x - xmin) / G2), i = fi[k];
           if (i >= 0) {
             const p = trk.pts[i], dx = x - p.x, dy = y - p.y;
             const lat = dx * p.nx + dy * p.ny, s = p.s + dx * p.tx + dy * p.ty, a = Math.abs(lat);
+            aT = a;
             const edge = p.dirt ? (hash(ix >> 2, iy >> 2) - 0.5) * 6 : 0;
             if (a < HW + edge) {
               if (p.dirt) {
@@ -442,6 +464,18 @@
             } else if (p.sand && Math.sign(lat) === p.sand && a < HW + T.SAND) {
               col = hz < 0.15 ? P.t[1] : (hz > 0.93 ? P.t[2] : P.t[0]);
             } else if (a < HW + 1.6 && !p.dirt) col = P.gedge;
+          }
+        }
+        if (fh && aT > HW + T.CURB + 4) {
+          const k = Math.floor((y - ymin) / G2) * gw + Math.floor((x - xmin) / G2), n = fh[k];
+          if (n >= 0) {
+            const q = hq[n], dx = x - q.x, dy = y - q.y, l2 = dx * q.nx + dy * q.ny, d2 = q.d + dx * q.tx + dy * q.ty, a2 = Math.abs(l2);
+            if (a2 < T.HW2) {
+              const h2 = hash(ix >> 1, iy >> 1);
+              col = h2 < 0.13 ? P.a2 : (h2 > 0.95 ? P.a3 : P.a1);
+              if (a2 > T.HW2 - 2.6 && a2 < T.HW2 - 1.4) col = P.line;
+              if (a2 < 0.8 && (((d2 % 28) + 28) % 28) < 14) col = P.line;
+            } else if (a2 < T.HW2 + 1.6) col = P.gedge;
           }
         }
         D[py * CS + px] = col;
@@ -586,6 +620,33 @@
       outlineCanvas(cv, '#0c0c10');
       return { cv, ox: 6, oy: 23 };
     });
+    return S;
+  };
+  // ---------- tráfico de la autopista: sedanes y camiones de vóxeles ----------
+  GR.buildTrafico = function () {
+    const sedan = { nx: 20, ny: 10, nz: 6, cx: 10, cy: 5, sub: 2, get: (x, y, z) => {
+      const rueda = (x >= 3 && x <= 5 || x >= 14 && x <= 16) && (y === 0 || y === 9) && z <= 1;
+      if (rueda) return 2;
+      if (y === 0 || y === 9) { if (z >= 1 && z <= 2) return 0; }
+      if (z <= 2 && y > 0 && y < 9) return 0;
+      if (z >= 3 && z <= 4 && x >= 6 && x <= 14 && y >= 1 && y <= 8) return (x === 6 || x === 14 || y === 1 || y === 8) && z === 3 ? 1 : (z === 4 ? 0 : 1);
+      return null;
+    } };
+    const camion = { nx: 32, ny: 11, nz: 11, cx: 16, cy: 5.5, sub: 2, get: (x, y, z) => {
+      const rueda = (x >= 2 && x <= 4 || x >= 9 && x <= 11 || x >= 26 && x <= 28) && (y === 0 || y === 10) && z <= 1;
+      if (rueda) return 2;
+      if (z === 0 && y > 0 && y < 10) return 2;
+      if (x <= 22 && z >= 1 && z <= 10 && y >= 0 && y <= 10) return 3;
+      if (x >= 24 && z >= 1 && z <= 7 && y >= 1 && y <= 9) return z >= 4 && z <= 6 && x === 31 ? 1 : 0;
+      return null;
+    } };
+    const bufs = m => { const out = []; for (let k = 0; k < GR.NANG; k++) { const a = k / GR.NANG * Math.PI * 2; out.push(voxRender(m, [Math.cos(a), Math.sin(a)], [-Math.sin(a), Math.cos(a)])); } return out; };
+    const bs = bufs(sedan), bc = bufs(camion);
+    const S = { sedan: [], camion: [] };
+    for (const col of ['#d8d8e0', '#3060c0', '#c03030', '#e8c840', '#3a9a5a', '#34343c', '#e07020'])
+      S.sedan.push(bs.map(b => paint(b, palette([col, '#1c2a40', '#141418', col]), '#0c0c10')));
+    for (const [cab, caja] of [['#c03030', '#f0f0f0'], ['#3060c0', '#e8e0d0'], ['#f0c020', '#a0a8b0']])
+      S.camion.push(bc.map(b => paint(b, palette([cab, '#1c2a40', '#141418', caja]), '#0c0c10')));
     return S;
   };
   // ---------- road trip: árboles, cactus, postes, carteles y casas ----------

@@ -97,7 +97,7 @@
   addEventListener('resize', fit); fit();
 
   // ---------- recursos ----------
-  let carSpr, palms, tiresSpr, decoSpr, pickSpr, crossSpr, colSpr, rutaSpr;
+  let carSpr, palms, tiresSpr, decoSpr, pickSpr, crossSpr, colSpr, rutaSpr, trafSpr, trafico = [], trafT = 0;
   const titleCache = new Map();
   const standCache = new Map();
   let rec = { best: 0, wins: 0, runs: 0, owned: ['rojo'], livery: 'rojo' };
@@ -106,7 +106,7 @@
   function buildAll() {
     carSpr = GR.buildCars(T.COLORS);
     palms = GR.buildPalms(); tiresSpr = GR.buildTires(); decoSpr = GR.buildDecor(); pickSpr = GR.buildPickups();
-    crossSpr = GR.buildCrossers(); colSpr = GR.buildColeccion(); rutaSpr = GR.buildRuta();
+    crossSpr = GR.buildCrossers(); colSpr = GR.buildColeccion(); rutaSpr = GR.buildRuta(); trafSpr = GR.buildTrafico();
     applyLivery();
   }
   const liv = () => TOUR.COLECCION.find(c => c.id === rec.livery) || TOUR.COLECCION[0];
@@ -159,6 +159,7 @@
     bigMini = GR.buildMinimap(trk, 200, 124);
     buildStatics(trk);
     BOARD_TXT = BOARDS[trk.tema] || BOARDS.bosque;
+    trafico = []; trafT = 0;
     parts = []; conf = []; msgs = []; pops = []; banner = null; secIdx = -1; lastHurt = 0; finT = 0; bannerT = -99; vistos = new Set();
     prepS = trk.startS + 1800; prepTot = Math.max(1, ground.queue.filter(q => q[2] <= prepS).length);
     const p = race.player, [ix, iy] = GR.iso(p.x, p.y); cam.x = ix; cam.y = iy;
@@ -175,6 +176,8 @@
     sc.decor.forEach(o => { if (o.kind !== 'duna') add(o, 'deco'); });
     sc.tires.forEach(o => { if (o.kind === 'tire') add(o, 'tire'); }); sc.rocks.forEach(o => add(o, 'rock'));
     (sc.lines || []).forEach(o => add({ x: (o.x + o.x2) / 2, y: (o.y + o.y2) / 2, l: o }, 'line'));
+    // bocas de túnel en los extremos de cada tramo de autopista
+    if (sc.autopista) for (const r of sc.autopista.runs) for (const [q, dir] of [[r[0], -1], [r[r.length - 1], 1]]) add({ x: q.x, y: q.y, q, dir }, 'tunel');
     sc.boards.forEach(o => add(o, 'board')); sc.stands.forEach(o => add(o, 'stand', -30));
     sc.pickups.forEach(o => add(o, 'pick'));
     sc.marshals.forEach(o => add(o, 'marshal')); sc.broken.forEach(o => add(o, 'averiado'));
@@ -231,11 +234,51 @@
     pressed.clear();
   }
 
+  // ---------- tráfico en contra por la autopista (decorado: no choca con nadie) ----------
+  function trafPos(t) {
+    const r = t.r, k = Math.max(0, Math.min(r.length - 2, t.k)), a = r[k], b = r[k + 1];
+    const f = Math.max(0, Math.min(1, (t.d - a.d) / ((b.d - a.d) || 1)));
+    const x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+    return { x: x + a.nx * t.lane, y: y + a.ny * t.lane, ts: a.ts + (b.ts - a.ts) * f, ang: Math.atan2(-a.ty, -a.tx) };
+  }
+  function sumarTrafico(ts) {
+    const AU2 = race.trk.scen.autopista;
+    for (const r of AU2.runs) {
+      if (ts < r[0].ts || ts > r[r.length - 1].ts) continue;
+      let lo = 0, hi = r.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (r[m].ts < ts) lo = m; else hi = m; }
+      const rapido = Math.random() < 0.6, camion = !rapido && Math.random() < 0.6;
+      const lane = (rapido ? -9 : 9) * AU2.lado;
+      if (r[lo].d < 30 || r[lo].d > r.len - 10) return;
+      const t = { r, k: lo, d: r[lo].d, lane, v: rapido ? rnd(125, 150) : camion ? rnd(80, 95) : rnd(100, 115), tipo: camion ? 'camion' : 'sedan' };
+      t.col = Math.floor(Math.random() * trafSpr[t.tipo].length);
+      if (trafico.some(o => o.r === r && o.lane === lane && Math.abs(o.d - t.d) < 50)) return;
+      trafico.push(t); return;
+    }
+  }
+  function updTrafico(dt) {
+    const AU2 = race.trk.scen.autopista;
+    if (!AU2 || !AU2.runs.length) return;
+    const p = race.player;
+    if (!trafico.length && race.t < 1) for (let k = 0; k < 9; k++) sumarTrafico(p.s - 150 + k * 120);
+    trafT -= dt;
+    if (trafT <= 0 && trafico.length < 11) { trafT = rnd(0.25, 0.8); sumarTrafico(p.s + rnd(500, 950)); }
+    for (const t of trafico) {
+      // no atravesar al de adelante en el mismo carril
+      let v = t.v;
+      for (const o of trafico) if (o !== t && o.r === t.r && o.lane === t.lane && o.d < t.d && t.d - o.d < 36) v = Math.min(v, o.v);
+      t.v = v; t.d -= v * dt;
+      while (t.k > 0 && t.r[t.k].d > t.d) t.k--;
+      const q = trafPos(t); t.x = q.x; t.y = q.y; t.ts = q.ts; t.ang = q.ang;
+    }
+    trafico = trafico.filter(t => t.d > 4 && t.ts > p.s - 500);
+  }
+
   function updRace(dt) {
     acc += dt;
     while (acc >= DT) { acc -= DT; T.step(race, DT, keys); handleEvents(); }
     const p = race.player;
-    perCarFx(dt); brokenSmoke();
+    perCarFx(dt); brokenSmoke(); updTrafico(dt);
     // daño recibido: avisos
     const h = race.hurt.chasis + race.hurt.motor;
     if (h - lastHurt > 1.5) { pop(p.x, p.y, '-' + Math.round(h - lastHurt), '#ff4040'); hurtFlash = Math.min(1, (h - lastHurt) / 10); lastHurt = h; }
@@ -378,8 +421,10 @@
   function afterStage() {
     if (node.type === 'jefe' && run.region >= E.REGIONES.length - 1) { TOUR.nextRegion(run); finishRun(); return; }
     if (node.type === 'jefe') { perks = TOUR.perkChoices(run); go(perks.length ? 'perk' : 'shop'); if (!perks.length) stock = TOUR.stock(run); }
-    else { mapSel = 0; go('map'); }
+    else if (run.R() < 0.35) { ev = TOUR.randomEvent(run); evResult = null; go('event'); } // algo pasa al llegar al pueblo
+    else llegarTaller();
   }
+  function llegarTaller() { stock = TOUR.stock(run); go('shop'); }
   function finishRun() {
     const gp = TOUR.gcPos(run);
     if (run.won) { rec.wins++; go('victory'); AU.jingle('win'); }
@@ -391,9 +436,8 @@
   // ---------- menús ----------
   function updMap() {
     const opts = TOUR.options(run);
-    if (P('up')) { mapSel = (mapSel - 1 + opts.length) % opts.length; AU.move(); }
-    if (P('down')) { mapSel = (mapSel + 1) % opts.length; AU.move(); }
-    if (P('right')) enterNode(opts[mapSel]);
+    mapSel = 0;
+    if (P('right') || P('up')) enterNode(opts[0]);
     if (P('left')) { bagFrom = 'map'; go('bag'); }
   }
   function listNav(n) {
@@ -468,7 +512,7 @@
     mapSel = 0; go('map');
   }
   function updEvent() {
-    if (evResult) { if (P('right') || P('up')) { mapSel = 0; go('map'); } return; }
+    if (evResult) { if (P('right') || P('up')) llegarTaller(); return; }
     listNav(ev.ops.length);
     if (P('right')) {
       const o = ev.ops[sel];
@@ -540,6 +584,7 @@
       }
     for (const c of race.cars) { const [X, Y] = proj(c.x, c.y); if (inView(X, Y, 40)) list.push({ d: c.x + c.y, k: 'car', o: c, X, Y }); }
     for (const o of race.crossers) { const [X, Y] = proj(o.x, o.y, o.z); if (inView(X, Y, 30)) list.push({ d: o.x + o.y, k: 'cross', o, X, Y }); }
+    for (const o of trafico) { if (o.x == null) continue; const [X, Y] = proj(o.x, o.y); if (inView(X, Y, 50)) list.push({ d: o.x + o.y, k: 'traf', o, X, Y }); }
     list.sort((a, b) => a.d - b.d);
     for (const e of list) {
       const { X, Y, o } = e;
@@ -556,6 +601,12 @@
       else if (e.k === 'stand') {
         const fr = standSpr(o), s = fr[(Math.floor(stT * (state !== 'race' ? 8 : 2.5)) + (o.x | 0)) % 2];
         ctx.drawImage(s.cv, X - s.ox, Y - s.oy);
+      } else if (e.k === 'tunel') drawTunel(o);
+      else if (e.k === 'traf') {
+        const s = trafSpr[o.tipo][o.col][((Math.round(o.ang / (Math.PI * 2) * 32) % 32) + 32) % 32];
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(X - 9, Y - 2, 18, 5);
+        ctx.drawImage(s.cv, X - s.ox, Y - s.oy);
+        if (frame & 8) { const fx = Math.cos(o.ang), fy = Math.sin(o.ang), [hx, hy] = proj(o.x + fx * (o.tipo === 'camion' ? 16 : 10), o.y + fy * (o.tipo === 'camion' ? 16 : 10), 3); ctx.fillStyle = '#fff8c0'; ctx.fillRect(hx - 1, hy, 2, 1); }
       } else if (e.k === 'cross') {
         const fr = o.hit ? 0 : Math.floor(o.t * 8) % 2, s = crossSpr[o.type][o.v][fr];
         const flip = (o.vx - o.vy) < 0;
@@ -637,17 +688,30 @@
 
   // barandas, cables de teléfono, alambrados y oleoducto (segmentos entre postes)
   const LINEA = { baranda: { z: 4, w: 2, c: '#9aa0ae', h: '#eef0f4', post: '#3a3a44', pz: 4 }, cable: { z: 26, w: 1, c: '#18181c' },
-    alambre: { z: 5, w: 1, c: '#7a7a70', post: '#6a4a2a', pz: 6 }, tubo: { z: 7, w: 3, c: '#a8acb6', h: '#e8eaf0', post: '#50505a', pz: 7 } };
+    alambre: { z: 5, w: 1, c: '#7a7a70', post: '#6a4a2a', pz: 6 }, muro: { z: 5, w: 4, c: '#b8b8b0', h: '#f0f0e8' }, tubo: { z: 7, w: 3, c: '#a8acb6', h: '#e8eaf0', post: '#50505a', pz: 7 } };
   function drawLinea(l) {
     const st = LINEA[l.e] || LINEA.baranda;
     const [ax, ay] = proj(l.x, l.y, st.z), [bx, by] = proj(l.x2, l.y2, st.z);
     if (st.post) { const [px0, py0] = proj(l.x, l.y, 0); ctx.fillStyle = st.post; ctx.fillRect(px0, py0 - Math.round(st.pz * 1.15), l.e === 'tubo' ? 2 : 1, Math.round(st.pz * 1.15) + 1); }
-    if (l.e === 'baranda' || l.e === 'tubo') { ctx.strokeStyle = '#26282e'; ctx.lineWidth = st.w + 2; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); ctx.stroke(); }
+    if (l.e === 'baranda' || l.e === 'tubo' || l.e === 'muro') { ctx.strokeStyle = '#26282e'; ctx.lineWidth = st.w + 2; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); ctx.stroke(); }
     ctx.strokeStyle = st.c; ctx.lineWidth = st.w; ctx.beginPath();
     if (l.e === 'cable') { const mx = (ax + bx) / 2, my = (ay + by) / 2 + 3; ctx.moveTo(ax + 0.5, ay + 0.5); ctx.quadraticCurveTo(mx, my, bx + 0.5, by + 0.5); }
     else { ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); }
     ctx.stroke();
     if (st.h) { ctx.strokeStyle = st.h; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay - 0.5 - (st.w > 2 ? 1 : 0)); ctx.lineTo(bx + 0.5, by - 0.5 - (st.w > 2 ? 1 : 0)); ctx.stroke(); }
+  }
+
+  // boca de túnel: la autopista pasa por debajo del camino
+  function drawTunel(o) {
+    const q = o.q, w = T.HW2 + 3, Z = 15, th = 10 * o.dir;
+    const P = (lat, z, al) => proj(q.x + q.nx * lat + q.tx * (al || 0), q.y + q.ny * lat + q.ty * (al || 0), z);
+    const poly = (pts, col) => { ctx.fillStyle = col; ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fill(); };
+    // cerro de tierra encima
+    poly([P(-w, 0, th * 2.6), P(-w, Z + 4, th), P(w, Z + 4, th), P(w, 0, th * 2.6)], race.trk.tema === 'desierto' || race.trk.tema === 'atacama' ? '#9a6a3a' : '#4a6a2a');
+    poly([P(-w, 0), P(-w, Z), P(w, Z), P(w, 0)], '#a8a8a0');
+    poly([P(-w + 3, 0), P(-w + 3, Z - 4), P(w - 3, Z - 4), P(w - 3, 0)], '#0a0a0e');
+    poly([P(-w, Z), P(-w, Z, th), P(w, Z, th), P(w, Z)], '#d0d0c8');
+    ctx.fillStyle = '#f0c020'; const [lx, ly] = P(0, Z - 2); ctx.fillRect(lx - 1, ly, 3, 1);
   }
 
   function drawBoard(X, Y, k, fade) {
@@ -948,7 +1012,7 @@
       if (n.type === 'carrera' || n.type === 'rally' || n.type === 'jefe') GR.text(ctx, ((GR.TEMAS[tr.destino.tema] || {}).n || ''), 136, 199, { color: '#a0a0c0' });
     }
     status(302, 140, true, 94);
-    hints('↑↓ ELEGIR RUTA   → IR   ← MOCHILA');
+    hints('→ SEGUIR VIAJE   ← MOCHILA');
   }
   function drawList(x, y, w, rows, rowH) {
     rows.forEach((r, i) => {
@@ -961,7 +1025,7 @@
   }
   function drawShop() {
     bg();
-    header(node && node.type === 'jefe' ? 'TALLER DE FIN DE TRAMO' : 'TALLER', null);
+    header(node && node.type === 'jefe' ? 'TALLER DE FIN DE TRAMO' : 'TALLER', node ? TOUR.tramo(run, node).destino.n : null);
     const rows = shopRows(), x = 8, w = 232, rh = 10;
     panel(x, 28, w, rows.length * rh + 6);
     rows.forEach((r, i) => {
