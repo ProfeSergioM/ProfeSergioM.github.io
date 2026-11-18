@@ -1,4 +1,4 @@
-// TURBO 40 — RALLY TOUR: bucle principal, pantallas del roguelike, HUD y efectos noventeros.
+// TURBO 40 — ROAD TRIP DE ALASKA A TIERRA DEL FUEGO: bucle principal, pantallas del roguelike, HUD y efectos noventeros.
 (function () {
   'use strict';
   const T = window.T40, GR = window.GR, AU = window.AU, TOUR = window.TOUR, E = window.ETAPAS;
@@ -97,7 +97,7 @@
   addEventListener('resize', fit); fit();
 
   // ---------- recursos ----------
-  let carSpr, palms, tiresSpr, decoSpr, pickSpr, crossSpr, colSpr;
+  let carSpr, palms, tiresSpr, decoSpr, pickSpr, crossSpr, colSpr, rutaSpr;
   const titleCache = new Map();
   const standCache = new Map();
   let rec = { best: 0, wins: 0, runs: 0, owned: ['rojo'], livery: 'rojo' };
@@ -106,7 +106,7 @@
   function buildAll() {
     carSpr = GR.buildCars(T.COLORS);
     palms = GR.buildPalms(); tiresSpr = GR.buildTires(); decoSpr = GR.buildDecor(); pickSpr = GR.buildPickups();
-    crossSpr = GR.buildCrossers(); colSpr = GR.buildColeccion();
+    crossSpr = GR.buildCrossers(); colSpr = GR.buildColeccion(); rutaSpr = GR.buildRuta();
     applyLivery();
   }
   const liv = () => TOUR.COLECCION.find(c => c.id === rec.livery) || TOUR.COLECCION[0];
@@ -158,6 +158,7 @@
     mini = GR.buildMinimap(trk, 92, 58);
     bigMini = GR.buildMinimap(trk, 200, 124);
     buildStatics(trk);
+    BOARD_TXT = BOARDS[trk.tema] || BOARDS.bosque;
     parts = []; conf = []; msgs = []; pops = []; banner = null; secIdx = -1; lastHurt = 0; finT = 0; bannerT = -99; vistos = new Set();
     prepS = trk.startS + 1800; prepTot = Math.max(1, ground.queue.filter(q => q[2] <= prepS).length);
     const p = race.player, [ix, iy] = GR.iso(p.x, p.y); cam.x = ix; cam.y = iy;
@@ -172,7 +173,8 @@
     };
     const sc = trk.scen;
     sc.decor.forEach(o => { if (o.kind !== 'duna') add(o, 'deco'); });
-    sc.tires.forEach(o => add(o, 'tire')); sc.rocks.forEach(o => add(o, 'rock'));
+    sc.tires.forEach(o => { if (o.kind === 'tire') add(o, 'tire'); }); sc.rocks.forEach(o => add(o, 'rock'));
+    (sc.lines || []).forEach(o => add({ x: (o.x + o.x2) / 2, y: (o.y + o.y2) / 2, l: o }, 'line'));
     sc.boards.forEach(o => add(o, 'board')); sc.stands.forEach(o => add(o, 'stand', -30));
     sc.pickups.forEach(o => add(o, 'pick'));
     sc.marshals.forEach(o => add(o, 'marshal')); sc.broken.forEach(o => add(o, 'averiado'));
@@ -298,8 +300,9 @@
       } else if (e.type === 'crosser') {
         if (e.car === p) {
           if (e.kind === 'persona') { pop(e.x, e.y, '¡MULTA -$40!', '#ff8040'); AU.honk(); }
-          else if (e.kind === 'ciervo') { pop(e.x, e.y, '¡CIERVO!', '#ff4040'); AU.thud(90); shake = 3; }
-          else if (e.kind === 'perro' || e.kind === 'gallina') { pop(e.x, e.y, '¡UPS!', '#ff8040'); AU.thud(50); }
+          else if (e.kind === 'alce' || e.kind === 'oso') { pop(e.x, e.y, e.kind === 'alce' ? '¡ALCE!' : '¡OSO!', '#ff4040'); AU.thud(110); shake = 4; vibrar(120); }
+          else if (e.kind === 'ciervo' || e.kind === 'llama' || e.kind === 'guanaco') { pop(e.x, e.y, '¡' + e.kind.toUpperCase() + '!', '#ff4040'); AU.thud(90); shake = 3; }
+          else if (e.kind === 'perro' || e.kind === 'gallina' || e.kind === 'oveja') { pop(e.x, e.y, '¡UPS!', '#ff8040'); AU.thud(50); }
           else { pop(e.x, e.y, '¡PAF!', '#f9f871'); AU.blip(); }
         }
         for (let i = 0; i < 6; i++) addP({ x: e.x, y: e.y, z: 3, vx: rnd(-40, 40), vy: rnd(-40, 40), vz: rnd(20, 60), life: 0, max: 0.4, type: 'dirt', col: e.kind === 'rodadora' ? '#a08048' : e.kind === 'gallina' ? '#ffffff' : '#c0b0a0' });
@@ -441,7 +444,7 @@
     });
     if (!stock.length) rows.push({ kind: 'nada', t: 'SIN STOCK', ok: false, title: 'SIN REPUESTOS', d: 'YA COMPRASTE TODO LO QUE HABÍA.' });
     const fin = node && node.type === 'jefe';
-    rows.push({ kind: 'exit', t: fin ? 'SEGUIR A LA PRÓXIMA REGIÓN' : 'SALIR AL MAPA', exit: true, ok: true, title: 'SALIR', d: fin ? 'TERMINAR EN EL TALLER Y SEGUIR A LA PRÓXIMA REGIÓN.' : 'VOLVER AL MAPA DE RUTAS.' });
+    rows.push({ kind: 'exit', t: fin ? 'SEGUIR AL PRÓXIMO TRAMO' : 'SALIR AL MAPA', exit: true, ok: true, title: 'SALIR', d: fin ? 'TERMINAR EN EL TALLER Y SEGUIR AL PRÓXIMO TRAMO DEL VIAJE.' : 'VOLVER AL MAPA DE RUTAS.' });
     return rows;
   }
   function updShop() {
@@ -485,12 +488,22 @@
 
   // ---------- dibujo del mundo ----------
   const proj = (x, y, z) => [Math.round(x - y - cam.x + W / 2), Math.round((x + y) / 2 - (z || 0) * 1.15 - cam.y + H / 2)];
-  const BOARD_TXT = ['TURBO', 'RAD!', 'NEON', '1990', 'MAX', 'HYPER', 'DAKAR', 'RALLY'];
-  const TALL = { pino: 1, arbol: 1, cerezo: 1, palmera: 1 };
+  const BOARDS = {
+    nieve: ['MOTEL', 'GAS', 'CAFÉ', 'YUKON', 'ALCES', 'TURBO'], bosque: ['LODGE', 'GAS', 'CAFÉ', 'PESCA', 'TURBO', 'ARCE'],
+    california: ['MOTEL', 'DINER', 'GAS', 'SURF', 'RUTA1', 'TURBO'], desierto: ['TACOS', 'GAS', 'MOTEL', 'HOTEL', 'AGUA', 'TURBO'],
+    selva: ['CAFÉ', 'FRUTA', 'GAS', 'HOTEL', 'COCO', 'TURBO'], andes: ['HOTEL', 'CAFÉ', 'PISCO', 'GAS', 'MATE', 'TURBO'],
+    atacama: ['GAS', 'AGUA', 'HOTEL', 'SAL', 'COBRE', 'TURBO'], estepa: ['ASADO', 'MATE', 'GAS', 'HOTEL', 'LANA', 'TURBO'],
+  };
+  let BOARD_TXT = BOARDS.bosque;
+  const TALL = { pino: 1, arbol: 1, cerezo: 1, palmera: 1, pinoNieve: 1, roble: 1, ceiba: 1, saguaro: 1, cardon: 1, poste: 1, banano: 1, ventoso: 1, cabana: 1, motel: 1, adobe: 1, casaColor: 1, galpon: 1 };
 
   function decoSprite(o) {
-    const sah = race.trk.tema === 'sahara';
+    const sah = !!T.ARENOSO[race.trk.tema];
+    const rs = rutaSpr[o.kind];
+    if (rs) return rs[o.v % rs.length];
     switch (o.kind) {
+      case 'seco': return decoSpr.seco[o.v];
+      case 'rocaArena': return decoSpr.rocaArena[o.v];
       case 'palmera': return palms[o.v];
       case 'pino': return decoSpr.pino[o.v];
       case 'arbol': return decoSpr.arbol[o.v];
@@ -537,6 +550,7 @@
         if (occl) ctx.globalAlpha = 0.4;
         ctx.drawImage(s.cv, x0, y0); ctx.globalAlpha = 1;
       } else if (e.k === 'tire') { const s = tiresSpr[o.c]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); }
+      else if (e.k === 'line') drawLinea(o.l);
       else if (e.k === 'rock') { const s = decoSpr.peligro[o.v]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); }
       else if (e.k === 'board') drawBoard(X, Y, o.k, e.d > pd && Math.abs(PX - X) < 22 && PY < Y && PY > Y - 34);
       else if (e.k === 'stand') {
@@ -583,7 +597,14 @@
       else if (q.type === 'dirt') { ctx.fillStyle = q.col; ctx.fillRect(X, Y, 2, 2); }
     }
     drawGantry(race.trk.startS, true); drawGantry(race.trk.finishS, false);
-    if (race.rain) {
+    if (race.rain && race.trk.tema === 'nieve') {
+      ctx.fillStyle = 'rgba(200,215,240,0.16)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      for (let i = 0; i < 140; i++) {
+        const x = (GR.hash(i, 3) * W + frame * (0.6 + GR.hash(i, 4)) + Math.sin(frame * 0.03 + i) * 6) % W, y = (GR.hash(i, 9) * H + frame * (1 + GR.hash(i, 5) * 1.5)) % H;
+        ctx.fillRect(x | 0, y | 0, i % 5 ? 1 : 2, i % 5 ? 1 : 2);
+      }
+    } else if (race.rain) {
       ctx.fillStyle = 'rgba(20,30,70,0.28)'; ctx.fillRect(0, 0, W, H);
       ctx.strokeStyle = 'rgba(180,200,255,0.55)'; ctx.lineWidth = 1; ctx.beginPath();
       for (let i = 0; i < 110; i++) {
@@ -612,6 +633,21 @@
       ctx.stroke();
     }
     cam.x = rx; cam.y = ry;
+  }
+
+  // barandas, cables de teléfono, alambrados y oleoducto (segmentos entre postes)
+  const LINEA = { baranda: { z: 4, w: 2, c: '#9aa0ae', h: '#eef0f4', post: '#3a3a44', pz: 4 }, cable: { z: 26, w: 1, c: '#18181c' },
+    alambre: { z: 5, w: 1, c: '#7a7a70', post: '#6a4a2a', pz: 6 }, tubo: { z: 7, w: 3, c: '#a8acb6', h: '#e8eaf0', post: '#50505a', pz: 7 } };
+  function drawLinea(l) {
+    const st = LINEA[l.e] || LINEA.baranda;
+    const [ax, ay] = proj(l.x, l.y, st.z), [bx, by] = proj(l.x2, l.y2, st.z);
+    if (st.post) { const [px0, py0] = proj(l.x, l.y, 0); ctx.fillStyle = st.post; ctx.fillRect(px0, py0 - Math.round(st.pz * 1.15), l.e === 'tubo' ? 2 : 1, Math.round(st.pz * 1.15) + 1); }
+    if (l.e === 'baranda' || l.e === 'tubo') { ctx.strokeStyle = '#26282e'; ctx.lineWidth = st.w + 2; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); ctx.stroke(); }
+    ctx.strokeStyle = st.c; ctx.lineWidth = st.w; ctx.beginPath();
+    if (l.e === 'cable') { const mx = (ax + bx) / 2, my = (ay + by) / 2 + 3; ctx.moveTo(ax + 0.5, ay + 0.5); ctx.quadraticCurveTo(mx, my, bx + 0.5, by + 0.5); }
+    else { ctx.moveTo(ax + 0.5, ay + 0.5); ctx.lineTo(bx + 0.5, by + 0.5); }
+    ctx.stroke();
+    if (st.h) { ctx.strokeStyle = st.h; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ax + 0.5, ay - 0.5 - (st.w > 2 ? 1 : 0)); ctx.lineTo(bx + 0.5, by - 0.5 - (st.w > 2 ? 1 : 0)); ctx.stroke(); }
   }
 
   function drawBoard(X, Y, k, fade) {
@@ -777,10 +813,11 @@
     GR.text(ctx, '$' + run.money, W - 8, 20, { align: 'right', color: '#7cff4f' });
   }
   function hints(t) { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, H - 11, W, 11); GR.text(ctx, t, W / 2, H - 9, { align: 'center', color: '#a0a0c0' }); }
-  function status(x, y, corto) {
-    panel(x, y, 120, corto ? 70 : 136);
+  function status(x, y, corto, ancho) {
+    const pw = ancho || 120;
+    panel(x, y, pw, corto ? 70 : 136);
     GR.text(ctx, 'TU AUTO', x + 6, y + 5, { color: '#05d9e8' });
-    bar(x + 6, y + 16, 108, run.dmg.chasis, 'CHASIS', 38); bar(x + 6, y + 25, 108, run.dmg.motor, 'MOTOR', 38); bar(x + 6, y + 34, 108, run.dmg.gomas, 'GOMAS', 38);
+    bar(x + 6, y + 16, pw - 12, run.dmg.chasis, 'CHASIS', 38); bar(x + 6, y + 25, pw - 12, run.dmg.motor, 'MOTOR', 38); bar(x + 6, y + 34, pw - 12, run.dmg.gomas, 'GOMAS', 38);
     GR.text(ctx, 'MOCHILA ' + run.items.length + '/' + run.maxItems, x + 6, y + 46, { color: '#a0a0c0' });
     run.items.slice(0, 8).forEach((id, i) => { ctx.fillStyle = itemColor(id); ctx.fillRect(x + 6 + i * 13, y + 56, 10, 8); ctx.fillStyle = '#000'; ctx.fillRect(x + 6 + i * 13, y + 63, 10, 1); });
     if (corto) return;
@@ -803,38 +840,114 @@
     } else GR.text(ctx, NODE_GLY[n.type], x + 1, y - 3, { align: 'center', color: dim ? '#606070' : '#000' });
     if (hi) { ctx.strokeStyle = frame % 20 < 12 ? '#fff' : '#f9f871'; ctx.lineWidth = 1; ctx.strokeRect(x - r - 3.5, y - r - 3.5, r * 2 + 7, r * 2 + 7); }
   }
+  // ---------- mapa del road trip: las Américas con la ruta ----------
+  const AMERICAS = [[-166, 68.5], [-163, 70.5], [-156, 71.3], [-148, 70.4], [-141, 69.7], [-130, 70], [-120, 69], [-110, 68], [-100, 68], [-94, 70], [-90, 68], [-82, 67], [-80, 63], [-94, 61], [-93, 58], [-88, 56], [-82, 55], [-79, 52], [-78, 56], [-77, 60], [-72, 62], [-65, 60], [-61, 56], [-57, 52], [-55, 50], [-53, 47], [-60, 47], [-61, 45.5], [-66, 44.5], [-70, 43.5], [-70, 41.7], [-74, 40.5], [-76, 38], [-76, 35], [-79, 33.5], [-81, 31.5], [-80.5, 28], [-80, 25.5], [-81.5, 25.5], [-82.7, 28], [-84, 30], [-87, 30.3], [-89.5, 30], [-91, 29.3], [-94, 29.6], [-97, 27.8], [-97.3, 25], [-97.8, 22], [-96.5, 19.5], [-94.5, 18.2], [-91.5, 18.5], [-90.4, 21], [-87, 21.5], [-87.6, 18.5], [-88.2, 16], [-86, 15.9], [-83.3, 15], [-83.6, 11], [-82, 9.2], [-79.5, 9.6], [-77.5, 8.6],
+    [-76, 9.5], [-75.5, 10.8], [-73, 11.3], [-71.5, 12.4], [-70, 11.5], [-68, 10.5], [-64, 10.6], [-61, 10.6], [-60, 8.5], [-57, 6], [-53, 5.5], [-51, 4], [-50, 1.5], [-49.5, 0], [-48, -1], [-44, -2.5], [-40, -2.8], [-37, -4.8], [-35, -6], [-35, -9], [-37, -11.5], [-39, -13.5], [-39, -17.5], [-40.5, -21], [-42, -23], [-45, -23.8], [-48.5, -26], [-48.7, -28.5], [-50.5, -31], [-53, -34], [-55, -34.8], [-58.5, -34.2], [-57, -36.5], [-57.5, -38.2], [-62, -38.8], [-62.3, -40.5], [-65, -41], [-65, -42.5], [-64.5, -43], [-65.5, -45], [-67.5, -46.3], [-66, -47.8], [-67.8, -49.5], [-69, -51.5], [-68.4, -52.4], [-66.5, -54.5], [-65, -55], [-67, -55.2], [-69.5, -55.5], [-71.5, -54.6], [-74, -52.5], [-75.3, -50], [-75.5, -47], [-74, -44], [-73.5, -41.5], [-73.6, -38], [-72.6, -35], [-71.5, -32], [-71.4, -28], [-70.4, -24], [-70.2, -20], [-70.3, -18.4], [-72, -17], [-75.2, -15.3], [-76.3, -13.5], [-77.2, -12], [-79, -8.5], [-80.5, -6.5], [-81.2, -4.5], [-80.2, -3.3], [-80.9, -2], [-80, 0], [-80, 1], [-79, 1.5], [-78, 2.8], [-77.3, 4], [-77.4, 6.8], [-78, 7.5],
+    [-80, 7.4], [-81.6, 8], [-83, 8.3], [-85.7, 10], [-85.7, 11], [-87.5, 13], [-89.5, 13.5], [-91.5, 14], [-93, 15.5], [-94.8, 16.2], [-96.5, 15.7], [-98.5, 16.3], [-101, 17.2], [-103.5, 18.3], [-105.5, 20.3], [-105.4, 22.5], [-106.5, 23.5], [-108.5, 25.3], [-109.5, 27], [-111, 28.5], [-112.5, 30], [-113.8, 31.4],
+    [-114.8, 31.8], [-114.5, 30], [-112.5, 27.5], [-110, 24], [-110.3, 23], [-112, 24.8], [-114, 28], [-115.6, 30.3], [-117.1, 32.5],
+    [-118.4, 34], [-120.6, 34.6], [-121.9, 36.6], [-122.5, 37.8], [-123.8, 39.5], [-124.2, 42], [-124, 46.2], [-124.7, 48.4], [-125, 50], [-127.5, 51], [-130, 54], [-133, 57], [-136, 58.5], [-139.5, 59.6], [-143, 60], [-146.5, 61], [-150, 61], [-151.5, 59.5], [-154, 58.5], [-157, 57.2], [-160, 55.8], [-163, 54.8], [-164.7, 54.6], [-161, 56.2], [-158, 58.6], [-161.8, 59.2], [-164.5, 60.5], [-165.4, 62.5], [-164, 63.5], [-161, 64.3], [-166, 64.6], [-168, 65.6], [-164, 66.5]];
+  const MAPX = 6, MAPY = 30;
+  const geo = (lon, lat) => [MAPX + 2 + (lon + 170) * 0.8, MAPY + 2 + (72 - lat) * 1.36];
+  let mapaCv = null;
+  function landCol(lon, lat, h) {
+    let c;
+    if (lat > 60 || lat < -52) c = ['#dfe8f2', '#c8d6e6'];
+    else if (lat > 47) c = ['#2e7a3a', '#26682f'];
+    else if (lat > 29) c = lon < -104 ? ['#c8a050', '#b89044'] : ['#5a9a3a', '#4c8a32'];
+    else if (lat > 15) c = lon < -97 ? ['#d8a060', '#c89050'] : ['#2a8a34', '#227a2c'];
+    else if (lat > -24) c = lon < -76 + (lat < -5 ? 6 : 0) && lat < 8 ? ['#a8845a', '#98744c'] : ['#2a8a34', '#227a2c'];
+    else if (lat > -40) c = lon < -68.5 ? ['#a89a5a', '#988a4c'] : ['#9aaa50', '#8a9a44'];
+    else c = ['#c8b060', '#b8a052'];
+    return c[h < 0.5 ? 0 : 1];
+  }
+  function mapaAmericas() {
+    if (mapaCv) return mapaCv;
+    const w = 118, h = 182, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const c = cv.getContext('2d'), P = AMERICAS.map(([lo, la]) => geo(lo, la));
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const X = x + MAPX + 0.5, Y = y + MAPY + 0.5;
+      let inside = false;
+      for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+        const [xi, yi] = P[i], [xj, yj] = P[j];
+        if ((yi > Y) !== (yj > Y) && X < (xj - xi) * (Y - yi) / (yj - yi) + xi) inside = !inside;
+      }
+      const lon = (X - MAPX - 2) / 0.8 - 170, lat = 72 - (Y - MAPY - 2) / 1.36;
+      c.fillStyle = inside ? landCol(lon, lat, GR.hash(x >> 1, y >> 1)) : ((x + y) % 4 === 0 ? '#14306a' : '#102458');
+      c.fillRect(x, y, 1, 1);
+    }
+    // costa
+    const img = c.getImageData(0, 0, w, h), d = img.data, agua = (x, y) => d[(y * w + x) * 4 + 2] > d[(y * w + x) * 4] + 30;
+    for (let y = 1; y < h - 1; y++) for (let x = 1; x < w - 1; x++) if (!agua(x, y) && (agua(x - 1, y) || agua(x + 1, y) || agua(x, y - 1) || agua(x, y + 1))) { c.fillStyle = 'rgba(255,255,255,0.35)'; c.fillRect(x, y, 1, 1); }
+    mapaCv = cv; return cv;
+  }
+  // recorrido completo: [pueblo, tramo, fila] (fila -1 = punto de partida del tramo)
+  function recorrido() {
+    const L = [[E.SALIDA, 0, -1]];
+    E.REGIONES.forEach((reg, ri) => { if (reg.desde) L.push([reg.desde, ri, -1]); reg.pueblos.forEach((p, k) => L.push([p, ri, k])); });
+    return L;
+  }
+  function drawAmericas() {
+    panel(MAPX - 2, MAPY - 2, 122, 186);
+    ctx.drawImage(mapaAmericas(), MAPX, MAPY);
+    const L = recorrido();
+    let aqui = L.findIndex(([, ri, k]) => ri === run.region && k === run.row);
+    if (aqui < 0) aqui = L.findIndex(([, ri, k]) => ri === run.region - 1 && k === E.REGIONES[ri].pueblos.length - 1);
+    if (aqui < 0 || (run.row < 0 && E.REGIONES[run.region].desde)) aqui = L.findIndex(([, ri, k]) => ri === run.region && k === -1);
+    if (aqui < 0) aqui = 0;
+    for (let i = 1; i < L.length; i++) {
+      const [a] = L[i - 1], [b] = L[i], [ax, ay] = geo(a.lon, a.lat), [bx, by] = geo(b.lon, b.lat);
+      const mar = L[i][2] === -1 && i > 1; // el barco por el Darién
+      ctx.strokeStyle = i <= aqui ? '#f9f871' : mar ? '#60a0ff' : '#ff2a6d'; ctx.lineWidth = 1;
+      if (mar || i > aqui) ctx.setLineDash([2, 2]);
+      ctx.beginPath(); ctx.moveTo(Math.round(ax) + 0.5, Math.round(ay) + 0.5); ctx.lineTo(Math.round(bx) + 0.5, Math.round(by) + 0.5); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    L.forEach(([p, ri], i) => { const [x, y] = geo(p.lon, p.lat); ctx.fillStyle = ri === run.region ? '#ffffff' : i <= aqui ? '#f9f871' : '#ff6ec7'; ctx.fillRect(Math.round(x) - 1, Math.round(y) - 1, 2, 2); });
+    const [cx, cy] = geo(L[aqui][0].lon, L[aqui][0].lat);
+    if (frame % 24 < 16) { ctx.fillStyle = '#000'; ctx.fillRect(Math.round(cx) - 3, Math.round(cy) - 3, 6, 6); ctx.fillStyle = '#ff2020'; ctx.fillRect(Math.round(cx) - 2, Math.round(cy) - 2, 4, 4); }
+    GR.text(ctx, 'ALASKA', MAPX + 4, MAPY + 4, { color: '#ffffff', outline: '#102458' });
+    GR.text(ctx, 'USHUAIA', MAPX + 116, MAPY + 172, { align: 'right', color: '#ffffff', outline: '#102458' });
+  }
   function drawMap() {
     bg();
     const reg = TOUR.region(run), map = run.map[run.region];
-    header('REGIÓN ' + (run.region + 1) + '/4 · ' + reg.nombre, 'GENERAL ' + (run.stage ? TOUR.gcPos(run) + '°' : '-'));
+    header('TRAMO ' + (run.region + 1) + '/' + E.REGIONES.length + ' · ' + reg.nombre, 'GENERAL ' + (run.stage ? TOUR.gcPos(run) + '°' : '-'));
+    drawAmericas();
     const opts = TOUR.options(run);
-    const colX = r => 70 + r * 82, rowY = (r, i) => { const n = map.rows[r].length; return 92 + (i - (n - 1) / 2) * 40; };
+    const step = 222 / map.rows.length, colX = r => Math.round(152 + (r + 1) * step), rowY = (r, i) => { const n = map.rows[r].length; return 98 + (i - (n - 1) / 2) * 32; };
+    // pueblos de cada columna
+    const ini = TOUR.tramo(run, null, 0).inicio;
+    GR.text(ctx, ini.n.split(' ')[0], 152, 46, { align: 'center', color: '#a0a0c0' });
+    map.rows.forEach((row, r) => {
+      const pu = reg.pueblos[Math.min(r, reg.pueblos.length - 1)], prox = r === run.row + 1;
+      const tx = Math.min(colX(r), 396 - GR.textW(pu.n) / 2);
+      GR.text(ctx, pu.n, tx, r % 2 ? 46 : 36, { align: 'center', color: prox ? '#f9f871' : r <= run.row ? '#706890' : '#d0d0e0', outline: '#000' });
+    });
     // conexiones
     ctx.strokeStyle = '#504070'; ctx.lineWidth = 1; ctx.beginPath();
     map.rows.forEach((row, r) => row.forEach((n, i) => (n.next || []).forEach(j => { ctx.moveTo(colX(r) + 0.5, rowY(r, i) + 0.5); ctx.lineTo(colX(r + 1) + 0.5, rowY(r + 1, j) + 0.5); })));
     ctx.stroke();
     // posición actual
-    GR.text(ctx, 'SALIDA', 22, 88, { align: 'center', color: '#a0a0c0' });
+    ctx.strokeStyle = '#504070'; ctx.beginPath(); map.rows[0].forEach((n, i) => { ctx.moveTo(152.5, 98.5); ctx.lineTo(colX(0) + 0.5, rowY(0, i) + 0.5); }); ctx.stroke();
     map.rows.forEach((row, r) => row.forEach((n, i) => {
       const reach = r === run.row + 1 && opts.includes(i), hi = reach && opts[mapSel] === i;
       const past = r <= run.row, cur = r === run.row && i === run.col;
       nodeIcon(colX(r), rowY(r, i), n, hi, past && !cur || (!reach && r === run.row + 1));
       if (cur) GR.text(ctx, '↓', colX(r), rowY(r, i) - 22, { align: 'center', color: '#fff' });
     }));
-    if (run.row < 0) { ctx.fillStyle = frame % 20 < 12 ? '#fff' : '#f9f871'; ctx.fillRect(18, 98, 9, 9); }
+    ctx.fillStyle = '#000'; ctx.fillRect(148, 94, 9, 9);
+    ctx.fillStyle = run.row < 0 ? (frame % 20 < 12 ? '#fff' : '#f9f871') : '#504070'; ctx.fillRect(149, 95, 7, 7);
     // descripción
     const n = map.rows[run.row + 1] && map.rows[run.row + 1][opts[mapSel]];
-    panel(8, 158, 252, 52);
+    panel(130, 140, 170, 70);
     if (n) {
-      const info = TOUR.NODOS[n.type];
-      GR.text(ctx, info.n, 14, 163, { scale: 2, color: NODE_COL[n.type] });
-      GR.text(ctx, info.d, 14, 181, { color: '#fff' });
-      if (n.type === 'carrera' || n.type === 'rally' || n.type === 'jefe') {
-        const secs = E.SECCIONES[reg.id].map(s => s.ref).filter((v, i, a) => a.indexOf(v) === i).slice(0, 4).join(', ');
-        GR.text(ctx, 'ESTILO ' + secs, 14, 192, { color: '#a0a0c0' });
-      }
+      const info = TOUR.NODOS[n.type], tr = TOUR.tramo(run, n, run.row + 1);
+      GR.text(ctx, info.n, 136, 145, { scale: 2, color: NODE_COL[n.type] });
+      GR.text(ctx, 'A ' + tr.destino.n, 136, 162, { color: '#f9f871' });
+      GR.wrap(info.d, 26).slice(0, 2).forEach((l, k) => GR.text(ctx, l, 136, 172 + k * 9, { color: '#fff' }));
+      if (n.type === 'carrera' || n.type === 'rally' || n.type === 'jefe') GR.text(ctx, ((GR.TEMAS[tr.destino.tema] || {}).n || ''), 136, 199, { color: '#a0a0c0' });
     }
-    status(270, 112, true);
+    status(302, 140, true, 94);
     hints('↑↓ ELEGIR RUTA   → IR   ← MOCHILA');
   }
   function drawList(x, y, w, rows, rowH) {
@@ -848,7 +961,7 @@
   }
   function drawShop() {
     bg();
-    header(node && node.type === 'jefe' ? 'TALLER DE FIN DE REGIÓN' : 'TALLER', null);
+    header(node && node.type === 'jefe' ? 'TALLER DE FIN DE TRAMO' : 'TALLER', null);
     const rows = shopRows(), x = 8, w = 232, rh = 10;
     panel(x, 28, w, rows.length * rh + 6);
     rows.forEach((r, i) => {
@@ -934,10 +1047,16 @@
     header('ETAPA ' + (run.stage + 1) + ' · ' + TOUR.NODOS[sp.tipo].n, reg.nombre);
     panel(8, 30, 206, 132); ctx.drawImage(bigMini.cv, 11, 34);
     panel(218, 30, 176, 132);
-    GR.text(ctx, 'SECCIONES', 224, 35, { color: '#05d9e8' });
-    race.trk.marks.slice(0, 11).forEach((m, i) => {
-      GR.text(ctx, m.n, 224, 46 + i * 10, { color: m.rocks ? '#ff8040' : '#fff' });
-      GR.text(ctx, m.ref.slice(0, 11), 390, 46 + i * 10, { align: 'right', color: '#606080' });
+    GR.text(ctx, 'RUTA', 224, 35, { color: '#05d9e8' });
+    GR.text(ctx, 'DE ' + sp.origen, 224, 46, { color: '#d0d0e0' });
+    GR.text(ctx, 'A  ' + sp.destino, 224, 56, { color: '#f9f871' });
+    GR.text(ctx, (GR.TEMAS[sp.tema] || {}).n || '', 224, 68, { color: '#a0a0c0' });
+    GR.text(ctx, 'EN EL CAMINO', 224, 82, { color: '#05d9e8' });
+    const cuenta = {};
+    race.trk.marks.forEach(m => { cuenta[m.n] = (cuenta[m.n] || 0) + 1; });
+    Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a]).slice(0, 7).forEach((k, i) => {
+      GR.text(ctx, k, 224, 93 + i * 9, { color: '#fff' });
+      GR.text(ctx, '×' + cuenta[k], 388, 93 + i * 9, { align: 'right', color: '#a0a0c0' });
     });
     const km = (race.trk.finishS - race.trk.startS) * 0.45 / 1000;
     GR.text(ctx, km.toFixed(1).replace('.', ',') + ' KM · LARGAS ' + ((race.cars.indexOf(race.player)) + 1) + '°', 14, 168, { color: '#f9f871' });
@@ -978,8 +1097,10 @@
     if (stT > 0.8 && frame % 40 < 28) GR.text(ctx, 'PULSA → PARA SEGUIR', 300, 186, { align: 'center', rows: HOT });
   }
   function drawPerk() {
-    bg(); header('¡REGIÓN SUPERADA!', TOUR.region(run).nombre);
-    GR.text(ctx, 'ELIGE UNA VENTAJA PARA EL RESTO DEL TOUR', W / 2, 36, { align: 'center', color: '#fff' });
+    bg(); header('¡TRAMO SUPERADO!', TOUR.region(run).nombre);
+    const sig = E.REGIONES[run.region + 1];
+    GR.text(ctx, sig && sig.nota ? sig.nota : 'ELIGE UNA VENTAJA PARA EL RESTO DEL VIAJE', W / 2, 36, { align: 'center', color: sig && sig.nota ? '#60c0ff' : '#fff' });
+    if (sig && sig.nota) GR.text(ctx, 'ELIGE UNA VENTAJA PARA EL RESTO DEL VIAJE', W / 2, 172, { align: 'center', color: '#fff' });
     perks.forEach((pk, i) => {
       const x = 14 + i * 128, me = i === sel;
       panel(x, 52, 118, 110);
@@ -995,7 +1116,7 @@
     GR.text(ctx, t, W / 2, 26, { align: 'center', scale: 3, rows: won ? HOT : r => r < 3 ? '#ff8080' : '#ff2a2a', outline: '#000', wave: stT * 6 });
     panel(60, 62, 280, 120);
     const lines = [
-      ['REGIÓN ALCANZADA', TOUR.region(run).nombre],
+      ['LLEGASTE HASTA', run.won ? 'USHUAIA' : (TOUR.region(run).pueblos[Math.max(0, run.row)] || {}).n || TOUR.region(run).nombre],
       ['ETAPAS CORRIDAS', String(run.stage)],
       ['POSICIÓN EN LA GENERAL', (run.finalPos || TOUR.gcPos(run)) + '°'],
       ['DINERO', '$' + run.money],
@@ -1004,6 +1125,7 @@
     ];
     lines.forEach(([a, b], i) => { GR.text(ctx, a, 70, 72 + i * 15, { color: '#a0a0c0' }); GR.text(ctx, b, 330, 72 + i * 15, { align: 'right', color: '#fff' }); });
     if (!won) GR.text(ctx, 'TU AUTO QUEDÓ DESTRUIDO EN LA RUTA', W / 2, 190, { align: 'center', color: '#ff8080' });
+    else GR.text(ctx, '¡DE ALASKA AL FIN DEL MUNDO!', W / 2, 190, { align: 'center', rows: HOT });
     if (stT > 1.5 && frame % 40 < 28) GR.text(ctx, 'PULSA ↑ PARA VOLVER', W / 2, 204, { align: 'center', rows: HOT });
   }
 
@@ -1034,10 +1156,11 @@
     const chrome = r => ['#ffffff', '#d0f8ff', '#80e8ff', '#30a0ff', '#ff60c0', '#ff9040', '#ffe060'][r];
     GR.text(ctx, 'TURBO 40', W / 2 + 3, 18 + 3, { align: 'center', scale: 6, color: '#2a0040' });
     GR.text(ctx, 'TURBO 40', W / 2, 18, { align: 'center', scale: 6, rows: chrome, outline: '#12002a' });
-    GR.text(ctx, '* RALLY TOUR *', W / 2, 66, { align: 'center', scale: 2, rows: r => NEON[(r + (frame >> 3)) % 6], outline: '#000' });
-    if (frame % 50 < 34) GR.text(ctx, 'PULSA ↑ PARA EMPEZAR', W / 2, 92, { align: 'center', scale: 2, rows: HOT, outline: '#200' });
+    GR.text(ctx, '* ROAD TRIP *', W / 2, 62, { align: 'center', scale: 2, rows: r => NEON[(r + (frame >> 3)) % 6], outline: '#000' });
+    GR.text(ctx, 'DE ALASKA A TIERRA DEL FUEGO', W / 2, 79, { align: 'center', color: '#ffffff', outline: '#000' });
+    if (frame % 50 < 34) GR.text(ctx, 'PULSA ↑ PARA EMPEZAR', W / 2, 95, { align: 'center', scale: 2, rows: HOT, outline: '#200' });
     const own = rec.owned.length;
-    GR.text(ctx, (own > 1 ? '← ' : '') + liv().n + (own > 1 ? ' →' : ''), W / 2, 112, { align: 'center', color: '#fff', outline: '#000' });
+    GR.text(ctx, (own > 1 ? '← ' : '') + liv().n + (own > 1 ? ' →' : ''), W / 2, 115, { align: 'center', color: '#fff', outline: '#000' });
     GR.text(ctx, 'COLECCIÓN ' + own + '/' + TOUR.COLECCION.length + ' · BUSCA AUTOS DORADOS EN LA PISTA', W / 2, 202, { align: 'center', color: '#05d9e8', outline: '#000' });
     GR.text(ctx, 'TOURS: ' + rec.runs + '   GANADOS: ' + rec.wins + '   M: SONIDO', W / 2, 213, { align: 'center', color: '#a080c0', outline: '#000' });
   }

@@ -1,52 +1,48 @@
-// TURBO 40 — generador de etapas punto a punto con secciones inspiradas en circuitos reales.
+// TURBO 40 — road trip de Alaska a Tierra del Fuego: generador de etapas punto a punto.
 // Cada sección es una lista de pasos: ['S', largo] recta, ['C', grados, radio] curva (+ = derecha).
 (function (G) {
   'use strict';
   const E = {};
 
+  // road trip por la Panamericana: de Alaska a Tierra del Fuego.
+  // Cada tramo tiene pueblos de destino (filas del mapa; el último es la gran etapa) y cada pueblo su paisaje.
+  E.SALIDA = { n: 'DEADHORSE', lon: -148.4, lat: 70.2 };
   E.REGIONES = [
-    { id: 'europa', nombre: 'EUROPA', tema: 'europa' },
-    { id: 'japon', nombre: 'JAPÓN', tema: 'japon' },
-    { id: 'america', nombre: 'AMÉRICAS', tema: 'america' },
-    { id: 'oriente', nombre: 'MEDIO ORIENTE', tema: 'sahara' },
+    { id: 'alaska', nombre: 'ALASKA', tema: 'nieve', pool: { rectaLarga: 1, recta: 1, curva90: 3, curvaLarga: 2, eses: 2, curvaCiega: 2, chicana: 1 },
+      pueblos: [{ n: 'FAIRBANKS', lon: -147.7, lat: 64.8, tema: 'nieve' }, { n: 'TOK', lon: -143, lat: 63.3, tema: 'nieve' }, { n: 'WHITEHORSE', lon: -135, lat: 60.7, tema: 'nieve', jefe: 'AUTOPISTA DE ALASKA' }] },
+    { id: 'canada', nombre: 'CANADÁ', tema: 'bosque', pool: { eses: 3, horquilla: 2, zigzag: 2, curvaCiega: 3, curvaLarga: 2, recta: 1 },
+      pueblos: [{ n: 'FORT NELSON', lon: -122.7, lat: 58.8, tema: 'bosque' }, { n: 'PRINCE GEORGE', lon: -122.7, lat: 53.9, tema: 'bosque' }, { n: 'VANCOUVER', lon: -123.1, lat: 49.3, tema: 'bosque', jefe: 'CAÑÓN DEL FRASER' }] },
+    { id: 'eeuu', nombre: 'ESTADOS UNIDOS', tema: 'california', pool: { costa: 3, rectaLarga: 2, curva90: 2, eses: 2, chicana: 2, horquilla: 1 },
+      pueblos: [{ n: 'SAN FRANCISCO', lon: -122.4, lat: 37.8, tema: 'california' }, { n: 'LOS ÁNGELES', lon: -118.2, lat: 34, tema: 'california' }, { n: 'NOGALES', lon: -111, lat: 31.3, tema: 'desierto', jefe: 'DESIERTO DE SONORA' }] },
+    { id: 'centro', nombre: 'MÉXICO Y CENTROAMÉRICA', tema: 'desierto', pool: { esquina: 3, curva90: 2, eses: 2, horquilla: 2, zigzag: 1, costa: 2 },
+      pueblos: [{ n: 'CIUDAD DE MÉXICO', lon: -99.1, lat: 19.4, tema: 'desierto' }, { n: 'GUATEMALA', lon: -90.5, lat: 14.6, tema: 'selva' }, { n: 'PANAMÁ', lon: -79.5, lat: 9, tema: 'selva', jefe: 'RUTA DE LOS VOLCANES' }],
+      nota: 'EN EL TAPÓN DEL DARIÉN NO HAY CAMINO: EMBARCAS EL AUTO DE PANAMÁ A CARTAGENA.' },
+    { id: 'andes', nombre: 'LOS ANDES', tema: 'andes', pool: { horquilla: 3, zigzag: 3, curvaCiega: 2, eses: 2, curva90: 1, rectaLarga: 1 },
+      pueblos: [{ n: 'QUITO', lon: -78.5, lat: -0.2, tema: 'andes' }, { n: 'LIMA', lon: -77, lat: -12, tema: 'atacama' }, { n: 'ARICA', lon: -70.3, lat: -18.5, tema: 'atacama', jefe: 'PAMPA DE NAZCA' }],
+      desde: { n: 'CARTAGENA', lon: -75.5, lat: 10.4 } },
+    { id: 'patagonia', nombre: 'PATAGONIA', tema: 'estepa', pool: { rectaLarga: 2, curva90: 2, curvaCiega: 2, eses: 2, horquilla: 1, curvaLarga: 2 },
+      pueblos: [{ n: 'SANTIAGO', lon: -70.7, lat: -33.4, tema: 'andes' }, { n: 'BARILOCHE', lon: -71.3, lat: -41.1, tema: 'bosque' }, { n: 'EL CALAFATE', lon: -72.3, lat: -50.3, tema: 'estepa' }, { n: 'USHUAIA', lon: -68.3, lat: -54.8, tema: 'nieve', jefe: 'FIN DEL MUNDO' }] },
   ];
 
-  E.SECCIONES = {
-    europa: [
-      { n: 'VARIANTE', ref: 'MONZA', p: [['S', 320], ['C', -70, 55], ['C', 70, 55], ['S', 220]] },
-      { n: 'PARABÓLICA', ref: 'MONZA', p: [['S', 260], ['C', 105, 135], ['S', 320]] },
-      { n: 'EAU ROUGE', ref: 'SPA', p: [['C', -35, 110], ['C', 70, 110], ['C', -40, 170], ['S', 520]] },
-      { n: 'POUHON', ref: 'SPA', p: [['C', -95, 150], ['S', 180]] },
-      { n: 'HORQUILLA', ref: 'MÓNACO', p: [['S', 140], ['C', 140, 52], ['S', 160]] },
-      { n: 'PISCINA', ref: 'MÓNACO', p: [['C', -30, 70], ['C', 30, 70], ['S', 70], ['C', 30, 70], ['C', -30, 70], ['S', 140]] },
-      { n: 'KARUSSELL', ref: 'NÜRBURGRING', p: [['C', 130, 75], ['S', 220]] },
-      { n: 'INFIERNO VERDE', ref: 'NORDSCHLEIFE', p: [['C', 35, 140], ['C', -50, 120], ['C', 45, 130], ['C', -35, 170], ['S', 160]] },
-    ],
-    japon: [
-      { n: 'LAS S', ref: 'SUZUKA', p: [['C', 45, 100], ['C', -60, 100], ['C', 60, 100], ['C', -45, 100], ['S', 160]] },
-      { n: '130R', ref: 'SUZUKA', p: [['S', 360], ['C', -75, 230], ['S', 260]] },
-      { n: 'SPOON', ref: 'SUZUKA', p: [['C', -60, 90], ['C', -50, 120], ['S', 380]] },
-      { n: 'HORQUILLA', ref: 'SUZUKA', p: [['S', 120], ['C', 145, 55], ['S', 180]] },
-      { n: 'TOUGE', ref: 'HAKONE', p: [['C', 100, 62], ['S', 60], ['C', -100, 62], ['S', 60], ['C', 80, 70], ['S', 120]] },
-      { n: 'RECTA FUJI', ref: 'FUJI', p: [['S', 700], ['C', 90, 70], ['S', 120]] },
-    ],
-    america: [
-      { n: 'S DE SENNA', ref: 'INTERLAGOS', p: [['C', -80, 70], ['C', 55, 90], ['S', 260]] },
-      { n: 'CURVA DO LAGO', ref: 'INTERLAGOS', p: [['C', 100, 120], ['S', 240]] },
-      { n: 'SACACORCHOS', ref: 'LAGUNA SECA', p: [['C', -60, 60], ['C', 85, 60], ['S', 200]] },
-      { n: 'PERALTADA', ref: 'MÉXICO', p: [['S', 200], ['C', 120, 130], ['S', 260]] },
-      { n: 'LAS S', ref: 'AUSTIN', p: [['C', -45, 100], ['C', 55, 100], ['C', -55, 100], ['C', 45, 100], ['S', 180]] },
-      { n: 'HORQUILLA', ref: 'MONTREAL', p: [['S', 300], ['C', 150, 52], ['S', 280]] },
-    ],
-    oriente: [
-      { n: 'CURVA 4', ref: 'BAHRÉIN', p: [['S', 600], ['C', 95, 60], ['S', 200]] },
-      { n: 'CURVAS 9 Y 10', ref: 'BAHRÉIN', p: [['C', -80, 90], ['C', -60, 70], ['S', 240]] },
-      { n: 'CHICANA', ref: 'ABU DABI', p: [['S', 300], ['C', -60, 55], ['C', 60, 55], ['S', 300]] },
-      { n: 'RECTA LARGA', ref: 'ABU DABI', p: [['S', 750], ['C', 90, 75], ['S', 120]] },
-      { n: 'CURVAS RÁPIDAS', ref: 'YEDA', p: [['C', 30, 220], ['C', -35, 200], ['C', 30, 220], ['C', -30, 220], ['S', 200]] },
-      { n: 'HORQUILLA', ref: 'YEDA', p: [['S', 200], ['C', 140, 55], ['S', 200]] },
-    ],
+  // piezas de camino (todas con curvas que obligan a frenar; + = derecha)
+  E.PIEZAS = {
+    recta: { n: 'RECTA', p: [['S', 520]] },
+    rectaLarga: { n: 'RECTA LARGA', p: [['S', 950]] },
+    curva90: { n: 'CURVA DE 90', p: [['S', 140], ['C', 90, 44], ['S', 150]] },
+    curvaCiega: { n: 'CURVA CIEGA', p: [['C', 80, 36], ['S', 170]] },
+    horquilla: { n: 'HORQUILLA', p: [['S', 90], ['C', 155, 38], ['S', 110]] },
+    zigzag: { n: 'ZIGZAG', p: [['C', 75, 40], ['S', 40], ['C', -150, 36], ['S', 40], ['C', 75, 40], ['S', 80]] },
+    eses: { n: 'ESES', p: [['C', 55, 52], ['C', -75, 46], ['C', 75, 46], ['C', -55, 52], ['S', 120]] },
+    chicana: { n: 'CHICANA', p: [['S', 220], ['C', -55, 32], ['C', 55, 32], ['S', 200]] },
+    curvaLarga: { n: 'CURVA LARGA', p: [['C', 125, 78], ['S', 200]] },
+    esquina: { n: 'PUEBLO', p: [['S', 150], ['C', 90, 26], ['S', 110], ['C', -90, 26], ['S', 150]] },
+    costa: { n: 'CAMINO COSTERO', p: [['C', 45, 62], ['C', -70, 50], ['C', 55, 58], ['C', -50, 66], ['S', 110]] },
   };
+  E.SECCIONES = {};
+  for (const reg of E.REGIONES) {
+    E.SECCIONES[reg.id] = [];
+    for (const k in reg.pool) for (let w = 0; w < reg.pool[k]; w++) E.SECCIONES[reg.id].push(Object.assign({ id: k, ref: reg.nombre }, E.PIEZAS[k]));
+  }
 
   function rng(seed) {
     let s = seed >>> 0;
@@ -114,7 +110,7 @@
       if (!pick) { // enderezar hacia el rumbo inicial
         const d = h0 - h;
         cur = { dirt: cur.dirt, rocks: false };
-        curve(d / D2R, 160); straight(150);
+        curve(d / D2R, 70); straight(150);
         continue;
       }
       prev = pick.j;
@@ -123,7 +119,7 @@
       const rocks = opts.tipo === 'rally' && R() < 0.5; // obstáculos en la pista
       // conector
       cur = { dirt: false, rocks: false };
-      straight(80 + R() * 170);
+      straight(60 + R() * 150);
       cur = { dirt, rocks };
       const s0 = s;
       runSteps(sec.p, pick.sg);
@@ -136,7 +132,7 @@
     const n = poly.length, gap = Math.ceil(320 / STEP);
     for (let i = 0; i < n; i += 3) for (let j = i + gap; j < n; j += 3) {
       const dx = poly[i][0] - poly[j][0], dy = poly[i][1] - poly[j][1];
-      const need = (j - i) * STEP < 700 ? 118 : 230; // zigzags cercanos permitidos
+      const need = (j - i) * STEP < 700 ? 84 : 190; // zigzags cercanos permitidos
       if (dx * dx + dy * dy < need * need) return null;
     }
     return { poly, flags, marks, startS, finishS, length: s, h0 };

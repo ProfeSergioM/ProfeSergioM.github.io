@@ -20,9 +20,9 @@
       'Truck simulator on the real streets of a city, built from OpenStreetMap with its buildings. Pick Temuco, Santiago, Concepción or any point on the map, drive a tractor with a semitrailer or a rigid truck and deliver loads between corners, with mirrors, collisions and a dispatch sheet.',
     'Calles reales': 'Real streets',
 
-    // ---- Turbo 40 Rally Tour
-    'Tour de carreras roguelike en pixel art isométrico, con un auto inspirado en el F40. Cuatro regiones de etapas de punto a punto armadas con curvas de circuitos famosos, daño que se arrastra de una etapa a otra, taller, mejoras, lluvia, banderas amarillas y autos coleccionables. Si el auto se rompe, se acaba el tour.':
-      'Roguelike racing tour in isometric pixel art, with a car inspired by the F40. Four regions of point-to-point stages built from corners of famous circuits, damage that carries over from one stage to the next, a workshop, upgrades, rain, yellow flags and collectible cars. If the car breaks down, the tour is over. In Spanish.',
+    // ---- Turbo 40 Road Trip
+    'Road trip de carreras roguelike en pixel art isométrico, con un auto inspirado en el F40. Seis tramos por la Panamericana, de Alaska a Tierra del Fuego: nieve, bosques, desiertos, selva, los Andes y la Patagonia, con curvas cerradas entre barandas, animales que cruzan, daño que se arrastra de una etapa a otra, taller y mejoras. Si el auto se rompe, se acaba el viaje.':
+      'Roguelike racing road trip in isometric pixel art, with a car inspired by the F40. Six legs along the Pan-American Highway, from Alaska to Tierra del Fuego: snow, forests, deserts, jungle, the Andes and Patagonia, with tight corners between guard rails, animals crossing, damage that carries over from one stage to the next, a workshop and upgrades. If the car breaks down, the trip is over. In Spanish.',
     'Teclado o táctil': 'Keyboard or touch',
 
     // ---- True o Poser

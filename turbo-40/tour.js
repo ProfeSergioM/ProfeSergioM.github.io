@@ -34,11 +34,11 @@
   ];
   TOUR.NODOS = {
     carrera: { n: 'CARRERA', d: 'ETAPA DE VELOCIDAD' },
-    rally: { n: 'ACCIDENTADA', d: 'BARRILES Y ACEITE EN LA PISTA: MÁS RIESGO, MÁS PREMIO' },
+    rally: { n: 'ACCIDENTADA', d: 'BARRILES Y ACEITE: MÁS RIESGO Y MÁS PREMIO' },
     taller: { n: 'TALLER', d: 'REPARACIONES, MEJORAS Y REPUESTOS' },
     evento: { n: 'EVENTO', d: '¿QUIÉN SABE?' },
     campamento: { n: 'CAMPAMENTO', d: 'DESCANSO: REPARA O BUSCA REPUESTOS' },
-    jefe: { n: 'GRAN ETAPA', d: 'ETAPA LARGA CONTRA RIVALES MÁS RÁPIDOS' },
+    jefe: { n: 'GRAN ETAPA', d: 'ETAPA LARGA AL FINAL DEL TRAMO, RIVALES MÁS RÁPIDOS' },
   };
   // pinturas del F40: la primera viene de serie, las demás se encuentran en la pista
   TOUR.COLECCION = [
@@ -57,14 +57,14 @@
   ];
   const RIVALS = [['BLAZE', 0.97], ['VIPER', 0.955], ['NOVA', 0.94], ['RICO', 0.93], ['AKIRA', 0.915], ['LUNA', 0.9], ['DUKE', 0.885], ['ZED', 0.87], ['MIKA', 0.85]];
   const PRIZE = [280, 220, 180, 150, 125, 105, 90, 75, 60, 50];
-  const AIBASE = [0.80, 0.85, 0.90, 0.95];
+  const AIBASE = [0.80, 0.83, 0.86, 0.89, 0.92, 0.95];
 
   const R0 = T.rng;
   TOUR.newRun = function (seed, owned) {
     seed = seed >>> 0;
     const R = R0(seed);
     const run = {
-      seed, R, money: 150, dmg: { motor: 100, gomas: 100, chasis: 100 },
+      seed, R, money: 150, ritmo: 0, dmg: { motor: 100, gomas: 100, chasis: 100 },
       up: { motor: 0, turbo: 0, gomas: 0, blindaje: 0, susp: 0, frenos: 0 },
       items: ['cinta', 'parche'], maxItems: 5, perks: [], mods: { vmax: 0 },
       region: 0, row: -1, col: 0, rivals: RIVALS.map(([name, skill], i) => ({ name, skill, color: i + 1 })),
@@ -79,7 +79,8 @@
 
   function genRegion(R, ri) {
     const rows = [];
-    for (let r = 0; r < 3; r++) {
+    const NR = E.REGIONES[ri].pueblos.length - 1; // filas normales; el último pueblo es la gran etapa
+    for (let r = 0; r < NR; r++) {
       const n = 2 + (R() < 0.55 ? 1 : 0);
       const row = [];
       for (let i = 0; i < n; i++) {
@@ -91,7 +92,7 @@
       rows.push(row);
     }
     // al menos un taller en la región (filas 1 o 2), y al menos una etapa por fila
-    if (!rows.slice(1).some(r => r.some(n => n.type === 'taller'))) rows[1 + Math.floor(R() * 2)][0].type = 'taller';
+    if (!rows.slice(1).some(r => r.some(n => n.type === 'taller'))) rows[1 + Math.floor(R() * (NR - 1))][0].type = 'taller';
     rows.forEach(r => { if (!r.some(n => n.type === 'carrera' || n.type === 'rally')) r[r.length - 1].type = 'carrera'; });
     rows.push([{ type: 'jefe', seed: Math.floor(R() * 1e9) }]);
     // conexiones: cada nodo conecta con los de la fila siguiente cercanos
@@ -107,11 +108,21 @@
     }
     // desde cada nodo de la fila 1 tiene que haber al menos una etapa alcanzable en la fila 2
     const isStage = n => n.type === 'carrera' || n.type === 'rally';
-    rows[1].forEach(nd => { if (!nd.next.some(j => isStage(rows[2][j]))) rows[2][nd.next[0]].type = 'carrera'; });
+    if (NR >= 3) rows[1].forEach(nd => { if (!nd.next.some(j => isStage(rows[2][j]))) rows[2][nd.next[0]].type = 'carrera'; });
     return { rows, ri };
   }
 
   TOUR.region = run => E.REGIONES[run.region];
+  // de qué pueblo a qué pueblo va un nodo (fila actual del mapa)
+  TOUR.tramo = function (run, node, row) {
+    const reg = E.REGIONES[run.region], ps = reg.pueblos;
+    let r = row != null ? row : Math.max(0, run.row);
+    if (node && node.type === 'jefe') r = ps.length - 1;
+    r = Math.min(ps.length - 1, r);
+    const prevReg = E.REGIONES[run.region - 1];
+    const inicio = reg.desde || (prevReg ? prevReg.pueblos[prevReg.pueblos.length - 1] : E.SALIDA);
+    return { origen: r === 0 ? inicio : ps[r - 1], destino: ps[r], inicio };
+  };
   // nodos alcanzables desde la posición actual
   TOUR.options = function (run) {
     const reg = run.map[run.region];
@@ -145,12 +156,13 @@
   TOUR.stageParams = function (run, node) {
     const reg = E.REGIONES[run.region];
     const tipo = node.type === 'jefe' ? 'jefe' : node.type;
-    const X = R0(node.seed ^ 0x5bd1e995), LL = [0.35, 0.35, 0.25, 0.08];
+    const X = R0(node.seed ^ 0x5bd1e995), LL = [0.25, 0.45, 0.15, 0.4, 0.2, 0.4];
+    const tr = TOUR.tramo(run, node), pueblo = tr.destino;
     const falta = TOUR.COLECCION.filter(c => !run.owned.includes(c.id));
     const lluvia = X() < LL[run.region], amarilla = X() < 0.5, colR = X();
     return {
       lluvia, amarilla, coleccion: falta.length && colR < 0.35 ? falta[Math.floor(X() * falta.length)].id : null,
-      seed: node.seed, region: reg.id, tema: reg.tema, tipo,
+      seed: node.seed, region: reg.id, tema: pueblo.tema || reg.tema, tipo, origen: tr.origen.n, destino: pueblo.n,
       largo: tipo === 'jefe' ? 30000 : 24500,
       aiBase: AIBASE[run.region] + (tipo === 'jefe' ? 0.015 : 0) + (run.ritmo || 0),
     };
@@ -159,7 +171,7 @@
   TOUR.buildRace = function (run, node) {
     const sp = TOUR.stageParams(run, node);
     const gen = E.generar(sp.seed, { region: sp.region, tipo: sp.tipo === 'jefe' ? 'carrera' : sp.tipo, largo: sp.largo });
-    const trk = T.buildStage(gen, { tema: sp.tema, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion });
+    const trk = T.buildStage(gen, { tema: sp.tema, region: sp.region, tipo: sp.tipo, seed: sp.seed, lluvia: sp.lluvia, amarilla: sp.amarilla, coleccion: sp.coleccion });
     // orden de largada: según la general (el líder adelante); en la primera etapa, el jugador último
     let order;
     if (run.stage === 0) order = run.rivals.map((r, i) => i).concat([-1]);
@@ -213,9 +225,9 @@
     run.money = Math.max(0, run.money + out.money);
     // ritmo adaptativo: si ganas con holgura, los rivales aprietan en la próxima etapa; si quedas atrás, aflojan un poco
     const antes = run.ritmo || 0;
-    let d = [0, 0.006, 0.003, 0, 0, 0, -0.006, -0.01, -0.015, -0.02][pos - 1];
-    if (pos === 1 && res[1]) d = 0.01 + Math.min(0.05, (res[1].time - res[0].time) / 150);
-    run.ritmo = Math.max(-0.08, Math.min(0.22, antes + d));
+    let d = [0, 0.012, 0.006, 0, 0, 0, -0.006, -0.01, -0.015, -0.02][pos - 1];
+    if (pos === 1 && res[1]) d = 0.02 + Math.min(0.06, (res[1].time - res[0].time) / 120);
+    run.ritmo = Math.max(-0.08, Math.min(0.25, antes + d));
     out.ritmo = Math.round(run.ritmo * 100); out.ritmoD = Math.round((run.ritmo - antes) * 100);
     run.stage++;
     run.log.push({ region: run.region, tipo: sp.tipo, pos, time: res.find(r => r.car === pl).time });

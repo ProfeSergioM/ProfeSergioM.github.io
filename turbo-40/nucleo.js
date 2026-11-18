@@ -3,9 +3,9 @@
 (function (G) {
   'use strict';
   const T = {};
-  const HW = 34;          // medio ancho de pista
+  const HW = 26;          // medio ancho del camino (dos carriles)
   const DS = 4;           // separación de muestras de la línea central
-  T.HW = HW; T.DS = DS; T.CURB = 6; T.SAND = 34;
+  T.HW = HW; T.DS = DS; T.CURB = 6; T.SAND = 12;
   T.NCARS = 10;
   T.PH = {
     VMAX: 172, ACC: 150, BRAKE: 430, DRAG: 32, REV: 70,
@@ -13,7 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
-  T.AI = { m0: 0.82, m1: 0.30, bd: 0.85, cerca: 18, afloja: 6, caza: 0.25, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -80,7 +80,7 @@
     const kr = [];
     for (let i = 0; i < N; i++) kr.push(i < N - 1 ? wrapA(pts[i + 1].ang - pts[i].ang) / DS : 0);
     const ks = smoothOpen(kr, 3, 2), kb = smoothOpen(kr, 14, 3);
-    const rl = smoothOpen(kb.map(k => clamp(k * 2600, -22, 22)), 6, 2);
+    const rl = smoothOpen(kb.map(k => clamp(k * 2600, -17, 17)), 6, 2);
     // suavizar transiciones de tierra (evita parches de un punto)
     for (let i = 0; i < N; i++) {
       const p = pts[i]; p.k = ks[i]; p.rl = rl[i];
@@ -109,7 +109,7 @@
     });
     const trk = {
       pts, N, DS, L: (N - 1) * DS, grid, startS: gen.startS, finishS: gen.finishS, marks: gen.marks,
-      tema: opts.tema, tipo: opts.tipo, W: maxx - minx + 2 * M, H: maxy - miny + 2 * M,
+      tema: opts.tema, region: opts.region, tipo: opts.tipo, W: maxx - minx + 2 * M, H: maxy - miny + 2 * M,
     };
     trk.extra = { lluvia: !!opts.lluvia, amarilla: !!opts.amarilla, coleccion: opts.coleccion || null };
     trk.scen = buildScenery(trk, opts.seed || 1);
@@ -152,30 +152,78 @@
     if (a < HW) return p.dirt ? TIERRA : ASF;
     if (a < HW + T.CURB && p.curb) return CURB;
     if (p.sand && Math.sign(lat) === p.sand && a < HW + T.SAND) return TRAMPA;
-    return trk.tema === 'sahara' ? ARENA : PASTO;
+    return ARENOSO[trk.tema] ? ARENA : PASTO;
   };
 
   // ---------- escenario (determinista) ----------
+  const ARENOSO = { desierto: 1, atacama: 1 };
+  T.ARENOSO = ARENOSO;
+  // decoración lejana, objetos sólidos junto a las curvas, casas de los pueblos y carteles por paisaje
   const DECOR = {
-    europa: ['pino', 'arbol', 'pino', 'arbol', 'arbusto'],
-    japon: ['cerezo', 'pino', 'cerezo', 'arbol'],
-    america: ['palmera', 'palmera', 'arbol', 'arbusto'],
-    sahara: ['roca', 'arbusto', 'roca', 'duna', 'palmera', 'palmera'],
+    nieve: ['pinoNieve', 'pinoNieve', 'pinoNieve', 'nieve', 'nieve', 'roca'],
+    bosque: ['pino', 'pino', 'pino', 'arbol', 'roca', 'arbusto'],
+    california: ['roble', 'roble', 'palmera', 'seco', 'arbusto', 'roca'],
+    desierto: ['saguaro', 'saguaro', 'nopal', 'nopal', 'rocaArena', 'seco'],
+    selva: ['ceiba', 'ceiba', 'palmera', 'palmera', 'banano', 'banano', 'arbusto'],
+    andes: ['seco', 'seco', 'seco', 'roca', 'cardon', 'pirca'],
+    atacama: ['rocaArena', 'rocaArena', 'duna', 'seco', 'cardon'],
+    estepa: ['seco', 'seco', 'seco', 'calafate', 'roca', 'ventoso'],
   };
+  const SOLIDO = {
+    nieve: ['pinoNieve', 'roca'], bosque: ['pino', 'roca', 'pino'], california: ['roble', 'roca'], desierto: ['saguaro', 'rocaArena'],
+    selva: ['ceiba', 'palmera'], andes: ['roca', 'pirca'], atacama: ['rocaArena'], estepa: ['roca', 'ventoso'],
+  };
+  const CASA = { nieve: 'cabana', bosque: 'cabana', california: 'motel', desierto: 'adobe', selva: 'casaColor', andes: 'adobe', atacama: 'adobe', estepa: 'galpon' };
+  T.DECOR = DECOR;
   function buildScenery(trk, seed) {
     const R = rng(seed * 31 + 7);
     const tires = [], rocks = [], decor = [], boards = [], stands = [], pickups = [];
     const dist = (x, y) => T.distTrack(trk, x, y, 200);
-    // barreras de neumáticos al exterior de curvas fuertes de asfalto
-    for (let i = 0; i < trk.N; i += 2) {
-      const p = trk.pts[i];
-      if (!p.sand) continue;
-      const off = (HW + T.SAND + 4) * p.sand;
-      const x = p.x + p.nx * off, y = p.y + p.ny * off;
-      if (dist(x, y) < HW + T.SAND) continue;
-      const last = tires[tires.length - 1];
-      if (last && (last.x - x) ** 2 + (last.y - y) ** 2 < 64) continue;
-      tires.push({ x, y, r: 4.5, c: (tires.length >> 1) & 1, kind: 'tire' });
+    const lines = []; // barandas, cables, alambrados, oleoducto: segmentos {x,y,x2,y2,e}
+    const tema = trk.tema;
+    // tira de postes a lo largo del camino: cond(p) decide dónde hay; lat(p) a qué distancia y de qué lado
+    function tira(paso, cond, lat, e, solido, minD) {
+      let prev = null;
+      for (let i = 0; i < trk.N; i += paso) {
+        const p = trk.pts[i];
+        if (p.s < trk.startS - 200 || p.s > trk.finishS + 150 || !cond(p, i)) { prev = null; continue; }
+        const l = lat(p), x = p.x + p.nx * l, y = p.y + p.ny * l;
+        if (dist(x, y) < (minD || Math.abs(l) - 1)) { prev = null; continue; }
+        if (prev && Math.hypot(prev.x - x, prev.y - y) < 40) {
+          lines.push({ x: prev.x, y: prev.y, x2: x, y2: y, e });
+          if (solido) { tires.push({ x, y, r: 2.6, kind: 'rail' }); tires.push({ x: (x + prev.x) / 2, y: (y + prev.y) / 2, r: 2.6, kind: 'rail' }); }
+        }
+        prev = { x, y };
+      }
+    }
+    // barandas al exterior de las curvas y al interior de las horquillas (no se puede cortar camino)
+    tira(2, p => p.sand !== 0, p => (HW + 9) * p.sand, 'baranda', true);
+    tira(2, p => Math.abs(p.k) > 1 / 48, p => (HW + 7) * Math.sign(p.k), 'baranda', true);
+    // postes de teléfono con cables en un costado
+    const ladoPostes = R() < 0.5 ? 1 : -1;
+    {
+      let prev = null, next = trk.startS + 60;
+      for (let i = 0; i < trk.N; i++) {
+        const p = trk.pts[i]; if (p.s < next) continue; next = p.s + 150;
+        if (p.s > trk.finishS + 100) break;
+        const l = (HW + 24) * ladoPostes, x = p.x + p.nx * l, y = p.y + p.ny * l;
+        if (dist(x, y) < HW + 20 || Math.abs(p.k) > 1 / 120) { prev = null; continue; }
+        decor.push({ x, y, kind: 'poste', v: 0, solid: 2.4 });
+        if (prev && Math.hypot(prev.x - x, prev.y - y) < 190) lines.push({ x: prev.x, y: prev.y, x2: x, y2: y, e: 'cable' });
+        prev = { x, y };
+      }
+    }
+    // alambrados en la estepa y el oleoducto de Alaska
+    if (tema === 'estepa' || tema === 'andes') for (const sd of [-1, 1]) tira(6, () => true, () => (HW + 36) * sd, 'alambre', false, HW + 30);
+    if (trk.region === 'alaska') tira(10, () => true, () => (HW + 70) * -ladoPostes, 'tubo', false, HW + 60);
+    // carteles de curva peligrosa antes de cada curva cerrada
+    for (let i = 1; i < trk.N; i++) {
+      const p = trk.pts[i], q = trk.pts[i - 1];
+      if (!(Math.abs(p.k) > 1 / 70 && Math.abs(q.k) <= 1 / 70) || p.s < trk.startS + 100 || p.s > trk.finishS) continue;
+      const sd = -Math.sign(p.k), b = trk.pts[Math.max(0, i - 28)], l = (HW + 12) * sd;
+      const x = b.x + b.nx * l, y = b.y + b.ny * l;
+      if (dist(x, y) < HW + 8) continue;
+      decor.push({ x, y, kind: p.k > 0 ? 'curvaD' : 'curvaI', v: 0, solid: 2 });
     }
     // rocas sobre secciones rocosas
     let nextRock = trk.startS + 500;
@@ -183,8 +231,8 @@
       const p = trk.pts[i];
       if (p.s < nextRock || p.s > trk.finishS - 100) continue;
       if (!p.rocky) continue;
-      nextRock = p.s + 340 + R() * 460;
-      const lat = (R() * 2 - 1) * (HW - 8);
+      nextRock = p.s + 620 + R() * 700;
+      const lat = (R() * 2 - 1) * (HW - 11);
       rocks.push({ x: p.x + p.nx * lat, y: p.y + p.ny * lat, r: 5 + R() * 2.5, kind: 'rock', v: Math.floor(R() * 3) });
     }
     // manchas de aceite en secciones con obstáculos
@@ -207,7 +255,16 @@
         stands.push({ x: p.x + p.nx * off, y: p.y + p.ny * off, a: p.ang, side });
       }
     }
-    // carteles de neón cada tanto
+    // pueblos: casas cerca de la largada y de la meta
+    for (const base of [trk.startS, trk.finishS]) {
+      for (let k = 0; k < 9; k++) {
+        const s = base - 260 + R() * 560, p = trk.pts[iAt(s)], sd = R() < 0.5 ? 1 : -1, off = (HW + 46 + R() * 70) * sd;
+        const x = p.x + p.nx * off, y = p.y + p.ny * off;
+        if (dist(x, y) < HW + 40 || stands.some(o => (o.x - x) ** 2 + (o.y - y) ** 2 < 60 * 60) || decor.some(o => o.casa && (o.x - x) ** 2 + (o.y - y) ** 2 < 42 * 42)) continue;
+        decor.push({ x, y, kind: CASA[tema] || 'cabana', v: Math.floor(R() * 3), casa: true, solid: 9 });
+      }
+    }
+    // carteles de ruta cada tanto
     for (let s = trk.startS + 600, k = 0; s < trk.finishS - 200; s += 900 + R() * 600, k++) {
       const p = trk.pts[iAt(s)], sd = R() < 0.5 ? 1 : -1, off = (HW + 30) * sd;
       const x = p.x + p.nx * off, y = p.y + p.ny * off;
@@ -215,7 +272,7 @@
       boards.push({ x, y, k: Math.floor(R() * 8) });
     }
     // decoración por tema
-    const kinds = DECOR[trk.tema] || DECOR.europa;
+    const kinds = DECOR[tema] || DECOR.bosque;
     const dgrid = new Map(), dkey = (x, y) => Math.floor(x / 40) + ',' + Math.floor(y / 40);
     const free = (x, y, r) => {
       const gx = Math.floor(x / 40), gy = Math.floor(y / 40);
@@ -224,8 +281,22 @@
         for (const o of l) if ((o.x - x) ** 2 + (o.y - y) ** 2 < r * r) return false;
       }
       for (const s of stands) if ((s.x - x) ** 2 + (s.y - y) ** 2 < 55 * 55) return false;
+      for (const s of decor) if (s.casa && (s.x - x) ** 2 + (s.y - y) ** 2 < 30 * 30) return false;
       return true;
     };
+    const ponerDeco = o => { decor.push(o); const kk = dkey(o.x, o.y); let l = dgrid.get(kk); if (!l) dgrid.set(kk, l = []); l.push(o); };
+    // árboles y rocas sólidos al interior de las curvas: cortar camino cuesta caro
+    const solidos = SOLIDO[tema] || SOLIDO.bosque;
+    for (let i = 0; i < trk.N; i += 3) {
+      const p = trk.pts[i];
+      if (Math.abs(p.k) < 1 / 140 || p.s < trk.startS || p.s > trk.finishS) continue;
+      if (R() < 0.35) continue;
+      const sd = Math.sign(p.k), off = (HW + 13 + R() * 30) * sd;
+      const x = p.x + p.nx * off + (R() - 0.5) * 8, y = p.y + p.ny * off + (R() - 0.5) * 8;
+      if (dist(x, y) < HW + 11 || !free(x, y, 13)) continue;
+      const kind = solidos[Math.floor(R() * solidos.length)];
+      ponerDeco({ x, y, kind, v: Math.floor(R() * 3), solid: kind === 'pirca' ? 6 : 4 });
+    }
     for (let i = 0; i < trk.N; i += 5) {
       const p = trk.pts[i];
       for (const sd of [-1, 1]) {
@@ -235,9 +306,7 @@
         const kind = kinds[Math.floor(R() * kinds.length)];
         if (dist(x, y) < HW + (kind === 'duna' ? 90 : 44)) continue;
         if (!free(x, y, kind === 'duna' ? 50 : 20)) continue;
-        const o = { x, y, kind, v: Math.floor(R() * 3) };
-        decor.push(o);
-        const kk = dkey(x, y); let l = dgrid.get(kk); if (!l) dgrid.set(kk, l = []); l.push(o);
+        ponerDeco({ x, y, kind, v: Math.floor(R() * 3) });
       }
     }
     // objetos recogibles
@@ -293,11 +362,12 @@
     }
     // colisionadores estáticos
     const cgrid = new Map();
+    decor.forEach(o => { if (o.solid) tires.push({ x: o.x, y: o.y, r: o.solid, kind: 'solido' }); });
     tires.concat(rocks).forEach(t => {
       const key = Math.floor(t.x / 64) + ',' + Math.floor(t.y / 64);
       let l = cgrid.get(key); if (!l) cgrid.set(key, l = []); l.push(t);
     });
-    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellows, coleccion, cruces };
+    return { tires, rocks, oil, decor, boards, stands, pickups, cgrid, marshals, broken, yellows, coleccion, cruces, lines };
   }
 
   // ---------- autos ----------
@@ -470,7 +540,7 @@
             if (-vr > 25 && a.hitT <= 0 && b.hitT <= 0) {
               a.hitT = b.hitT = 0.25;
               race.events.push({ type: 'hit', car: a, other: b, x: (pa[0] + pb[0]) / 2, y: (pa[1] + pb[1]) / 2, v: -vr });
-              for (const c of [a, b]) if (c.dmg) { hurt(race, c, 'chasis', (-vr - 24) * 0.10); hurt(race, c, 'motor', (-vr - 24) * 0.025); }
+              for (const c of [a, b]) if (c.dmg) { hurt(race, c, 'chasis', (-vr - 24) * 0.08); hurt(race, c, 'motor', (-vr - 24) * 0.02); }
             }
           }
         }
@@ -499,7 +569,7 @@
               c.hitT = 0.3;
               race.events.push({ type: rock ? 'rock' : 'tire', car: c, x: t.x, y: t.y, v: -vn });
               if (c.dmg) {
-                if (rock) { hurt(race, c, 'chasis', 2 + -vn * 0.05); hurt(race, c, 'gomas', 1 + -vn * 0.025); hurt(race, c, 'motor', -vn * 0.02); }
+                if (rock) { hurt(race, c, 'chasis', 2 + -vn * 0.04); hurt(race, c, 'gomas', 1 + -vn * 0.025); hurt(race, c, 'motor', -vn * 0.02); }
                 else hurt(race, c, 'chasis', (-vn - 15) * 0.26);
               }
             }
@@ -681,10 +751,13 @@
 
   // gente, animales y objetos que cruzan la pista
   const CRUZAN = {
-    europa: ['persona', 'perro', 'ciervo', 'persona'], japon: ['persona', 'perro', 'ciervo', 'persona'],
-    america: ['persona', 'perro', 'gallina', 'pelota'], sahara: ['persona', 'perro', 'rodadora', 'rodadora'],
+    nieve: ['alce', 'alce', 'persona', 'perro'], bosque: ['oso', 'alce', 'ciervo', 'persona'],
+    california: ['persona', 'perro', 'pelota', 'ciervo'], desierto: ['persona', 'perro', 'gallina', 'rodadora'],
+    selva: ['persona', 'gallina', 'perro', 'persona'], andes: ['llama', 'llama', 'persona', 'perro'],
+    atacama: ['rodadora', 'persona', 'llama', 'perro'], estepa: ['oveja', 'oveja', 'guanaco', 'guanaco'],
   };
-  const VEL = { persona: 30, perro: 48, ciervo: 58, gallina: 34, rodadora: 44, pelota: 50 };
+  const VEL = { persona: 30, perro: 48, ciervo: 58, gallina: 34, rodadora: 44, pelota: 50, alce: 40, oso: 36, llama: 34, guanaco: 60, oveja: 30 };
+  const GRANDE = { ciervo: 1, alce: 1, oso: 1, llama: 1, guanaco: 1 };
   T.CRUZAN = CRUZAN;
   function updCrossers(race, dt) {
     const trk = race.trk, pl = race.player, R = race.R;
@@ -693,8 +766,8 @@
       race.cruceUsado.add(cs);
       if (R() < 0.2) continue; // a veces no cruza nadie
       const p = trk.pts[clamp(Math.round(cs / trk.DS), 0, trk.N - 1)], side = R() < 0.5 ? 1 : -1;
-      const pool = CRUZAN[trk.tema] || CRUZAN.europa, type = pool[Math.floor(R() * pool.length)];
-      const cuantos = type === 'persona' && R() < 0.35 ? 2 : 1;
+      const pool = CRUZAN[trk.tema] || CRUZAN.bosque, type = pool[Math.floor(R() * pool.length)];
+      const cuantos = (type === 'persona' && R() < 0.35) || type === 'oveja' ? (type === 'oveja' ? 3 + Math.floor(R() * 3) : 2) : 1;
       for (let k = 0; k < cuantos; k++) {
         const v = VEL[type] * (0.8 + R() * 0.4), lat = side * (HW + 24 + k * 12), off = (R() - 0.5) * 8;
         race.crossers.push({ type, x: p.x + p.nx * lat + p.tx * off, y: p.y + p.ny * lat + p.ty * off, vx: -p.nx * side * v, vy: -p.ny * side * v, z: 0, vz: 0, t: 0, hit: false, v: Math.floor(R() * 3) });
@@ -715,11 +788,12 @@
             const d = Math.hypot(dx, dy) || 1; o.vx = dx / d * 140; o.vy = dy / d * 140; o.vz = 90;
             if (c.dmg) race.fines += 40;
           } else { o.vx = c.vx * 0.7 + dx * 4; o.vy = c.vy * 0.7 + dy * 4; o.vz = 60 + sp * 0.3; }
-          const slow = o.type === 'ciervo' ? 0.7 : o.type === 'rodadora' || o.type === 'pelota' ? 0.97 : 0.88;
+          const slow = o.type === 'alce' || o.type === 'oso' ? 0.55 : GRANDE[o.type] ? 0.7 : o.type === 'rodadora' || o.type === 'pelota' ? 0.97 : 0.88;
           c.vx *= slow; c.vy *= slow;
           if (c.dmg) {
-            if (o.type === 'ciervo') hurt(race, c, 'chasis', 12 + sp * 0.06);
-            else if (o.type === 'perro' || o.type === 'gallina') hurt(race, c, 'chasis', 6);
+            if (o.type === 'alce' || o.type === 'oso') hurt(race, c, 'chasis', 18 + sp * 0.08);
+            else if (GRANDE[o.type]) hurt(race, c, 'chasis', 12 + sp * 0.06);
+            else if (o.type === 'perro' || o.type === 'gallina' || o.type === 'oveja') hurt(race, c, 'chasis', 6);
           }
           race.events.push({ type: 'crosser', kind: o.type, car: c, x: o.x, y: o.y });
           break;

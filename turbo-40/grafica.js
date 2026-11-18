@@ -317,6 +317,15 @@
     japon: { g1: '#64ac4c', g2: '#58a040', gedge: '#33702a', flor: '#ffb8d8', out: '#356e2c', dirt: ['#94704c', '#84603e', '#a8845c'], rut: '#664828', trap: ['#e0c878', '#cfb464', '#f0dc98'] },
     america: { g1: '#48a040', g2: '#3c9034', gedge: '#2a6a24', flor: '#ffe060', out: '#24601e', dirt: ['#b0603a', '#9c5230', '#c4744a'], rut: '#7a3a20', trap: ['#e0c070', '#cfae5c', '#f0d890'] },
     sahara: { g1: '#e2bc78', g2: '#d8b06a', gedge: '#c49a58', flor: '#f0d49a', out: '#d0a460', dirt: ['#a8703e', '#986234', '#b8824e'], rut: '#74481e', trap: ['#ecd090', '#e0c07c', '#f6e2aa'], arena: true },
+    // road trip: de Alaska a Tierra del Fuego
+    nieve: { n: 'TAIGA NEVADA', g1: '#e6edf5', g2: '#dce5ef', gedge: '#8e9cb0', flor: '#ffffff', out: '#c8d6e6', trap: ['#f2f6fc', '#d6e0ee', '#ffffff'], berma: ['#b4bcc8', '#a2aab6'] },
+    bosque: { n: 'BOSQUE DE PINOS', g1: '#3e8a3a', g2: '#367f33', gedge: '#24561f', flor: '#c8e070', out: '#2a6a28', trap: ['#9a968a', '#88847a', '#b4b0a4'], berma: ['#8a8a84', '#7a7a74'] },
+    california: { n: 'COLINAS DORADAS', g1: '#d2ac5c', g2: '#c8a252', gedge: '#8a6a30', flor: '#f0d888', out: '#8e9a44', trap: ['#d8c890', '#c8b47c', '#e8dca8'], berma: ['#a89878', '#988868'] },
+    desierto: { n: 'DESIERTO', g1: '#e2aa6a', g2: '#d89e5e', gedge: '#a46c3a', flor: '#f4cc94', out: '#cc9050', trap: ['#eccc94', '#e0bc80', '#f6dcaa'], berma: ['#b49270', '#a48262'] },
+    selva: { n: 'SELVA', g1: '#2c8a30', g2: '#287e2c', gedge: '#1a4e1c', flor: '#ff5080', out: '#1c6620', trap: ['#7a5a34', '#6a4c2a', '#8c6c44'], berma: ['#7a6a52', '#6a5a44'] },
+    andes: { n: 'ALTIPLANO', g1: '#b49858', g2: '#aa8e4e', gedge: '#76602e', flor: '#d8c486', out: '#98884a', trap: ['#c4ac7c', '#b49c6c', '#d4c090'], berma: ['#9a8a6c', '#8a7a5e'] },
+    atacama: { n: 'DESIERTO DE ATACAMA', g1: '#d48c5c', g2: '#ca8050', gedge: '#985830', flor: '#eab088', out: '#c07848', trap: ['#e8b890', '#dca880', '#f2c8a4'], berma: ['#a8806a', '#98705a'], arena: true, duna: ['#b46a40', '#ecb48a'] },
+    estepa: { n: 'ESTEPA PATAGÓNICA', g1: '#c6b064', g2: '#bca658', gedge: '#867636', flor: '#e4d496', out: '#a49c52', trap: ['#c8b88c', '#b8a87c', '#d8c8a0'], berma: ['#a09a80', '#908a70'] },
   };
   function vnoise(x, y) {
     const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
@@ -331,11 +340,13 @@
   GR.Ground = function (trk) {
     const HW = T.HW, th = GR.TEMAS[trk.tema] || GR.TEMAS.europa;
     const P = {};
-    for (const k of ['g1', 'g2', 'gedge', 'flor', 'out', 'rut']) P[k] = packH(th[k]);
-    P.d = th.dirt.map(packH); P.t = th.trap.map(packH);
+    for (const k of ['g1', 'g2', 'gedge', 'flor', 'out']) P[k] = packH(th[k]);
+    P.rut = packH(th.rut || '#6e4c2c');
+    P.d = (th.dirt || ['#9a7048', '#8a6038', '#ae845a']).map(packH); P.t = th.trap.map(packH);
+    P.b = (th.berma || ['#8a8a84', '#7a7a74']).map(packH);
     P.a1 = packH('#5c5c68'); P.a2 = packH('#50505c'); P.a3 = packH('#686874'); P.line = packH('#e8e8ec');
-    P.cr = packH('#d82818'); P.goma = packH('#46464f'); P.fren = packH('#2a2a31'); P.raya = packH('#d8d8dc'); P.cw = packH('#f0f0f0'); P.blk = packH('#18181c'); P.wht = packH('#f4f4f4');
-    const sh = th.arena ? [packH('#c89a5a'), packH('#f0d090')] : null;
+    P.cr = packH('#d82818'); P.goma = packH('#46464f'); P.fren = packH('#2a2a31'); P.raya = packH('#e8c030'); P.cw = packH('#f0f0f0'); P.blk = packH('#18181c'); P.wht = packH('#f4f4f4');
+    const sh = th.arena ? (th.duna || ['#c89a5a', '#f0d090']).map(packH) : null;
     const chunks = new Map();
     const RM = HW + T.SAND + 14;
     // grilla de largada
@@ -426,7 +437,7 @@
                 if ((q > 11 && q < 12.8 && Math.abs(dl) < 9) || (Math.abs(Math.abs(dl) - 9) < 0.9 && q > 3 && q < 12.8)) col = P.wht;
               }
             } else if (a < HW + T.CURB && p.curb) {
-              col = (Math.floor(s / 9) & 1) ? P.cr : P.cw;
+              col = th.berma ? (hz < 0.55 ? P.b[0] : P.b[1]) : ((Math.floor(s / 9) & 1) ? P.cr : P.cw);
               if (a > HW + T.CURB - 1) col = P.gedge;
             } else if (p.sand && Math.sign(lat) === p.sand && a < HW + T.SAND) {
               col = hz < 0.15 ? P.t[1] : (hz > 0.93 ? P.t[2] : P.t[0]);
@@ -456,6 +467,8 @@
             cx.fillStyle = 'rgba(255,240,200,0.35)'; ditherEllipse(cx, X - 6, Y - 4, 40, 16);
             cx.fillStyle = 'rgba(150,100,40,0.35)'; ditherEllipse(cx, X + 14, Y + 8, 34, 12);
           } else if (o.side !== undefined) { cx.fillStyle = 'rgba(10,30,10,0.4)'; ditherEllipse(cx, X + 8, Y + 6, 30, 14); }
+          else if (o.casa) { cx.fillStyle = 'rgba(20,20,30,0.35)'; ditherEllipse(cx, X + 10, Y + 4, 26, 12); }
+          else if (o.kind === 'poste' || o.kind === 'curvaD' || o.kind === 'curvaI' || o.kind === 'senal') { cx.fillStyle = 'rgba(20,20,30,0.35)'; ditherEllipse(cx, X + 2, Y + 1, 3, 1); }
           else if (o.kind !== 'arbusto') { cx.fillStyle = th.arena ? 'rgba(90,60,20,0.4)' : 'rgba(10,40,10,0.45)'; ditherEllipse(cx, X + 6, Y + 2, o.kind === 'roca' ? 8 : 10, 4); }
         }
       }
@@ -575,6 +588,137 @@
     });
     return S;
   };
+  // ---------- road trip: árboles, cactus, postes, carteles y casas ----------
+  GR.buildRuta = function () {
+    const S = {};
+    const tree = (cols, trunk, rx, ry, w, h) => [0, 1, 2].map(v => {
+      const { cv, c, px } = canvasPx(w, h);
+      const cx = w >> 1, cy = ry + 2;
+      c.fillStyle = trunk; c.fillRect(cx - 1, cy + ry - 3, 3, h - (cy + ry - 3) - 2); c.fillStyle = '#3a2410'; c.fillRect(cx + 1, cy + ry - 3, 1, h - (cy + ry - 3) - 2);
+      blob(px, cx, cy, rx + v, ry, cols, v * 13 + rx);
+      outlineCanvas(cv, '#102010');
+      return { cv, ox: cx, oy: h - 3 };
+    });
+    S.roble = tree(['#4a6626', '#6a8a34', '#98b052'], '#5a3a1c', 12, 8, 32, 32);
+    S.ceiba = tree(['#16561a', '#2a8030', '#5cb444'], '#8a6a4a', 14, 10, 36, 40);
+    S.ventoso = [0, 1, 2].map(v => { // árbol doblado por el viento patagónico
+      const { cv, c, px } = canvasPx(30, 30);
+      for (let i = 0; i < 16; i++) { const x = 10 + i * 0.5, y = 27 - i; px(x, y, '#5a3a1c'); px(x + 1, y, '#3a2410'); }
+      blob(px, 20, 9, 9, 4, ['#4a5a26', '#66783a', '#8a9a50'], v * 7);
+      blob(px, 25, 11, 4, 3, ['#4a5a26', '#66783a', '#8a9a50'], v * 5 + 3);
+      outlineCanvas(cv, '#141c08');
+      return { cv, ox: 10, oy: 27 };
+    });
+    S.pinoNieve = [0, 1, 2].map(v => {
+      const h = 30 + v * 3, { cv, c, px } = canvasPx(24, h + 4);
+      c.fillStyle = '#5a3a18'; c.fillRect(11, h - 6, 2, 7);
+      for (let l = 0; l < 4; l++) {
+        const top = 2 + l * (h / 5.2), w = 4 + l * 2.6, hh = h / 3.4;
+        for (let y = 0; y < hh; y++) for (let x = -w * y / hh; x <= w * y / hh; x++) {
+          const nieve = y < hh * 0.35 || (y > hh - 2 && hash(x | 0, l * 7 + y) < 0.6);
+          px(12 + x, top + y, nieve ? (x < 0 ? '#ffffff' : '#d4e0ee') : x < -w * y / hh / 3 ? '#3a7a50' : x > w * y / hh / 3 ? '#143e26' : '#225a36');
+        }
+      }
+      outlineCanvas(cv, '#0a1a18');
+      return { cv, ox: 12, oy: h };
+    });
+    S.nieve = [0, 1, 2].map(v => { const { cv, px } = canvasPx(22, 12); blob(px, 11, 7, 9 - v, 4, ['#b0c2da', '#dfe8f4', '#ffffff'], v * 11); outlineCanvas(cv, '#7a8aa4'); return { cv, ox: 11, oy: 10 }; });
+    const cactus = (body, light, dark, brazos) => [0, 1, 2].map(v => {
+      const H = 24 + v * 4, { cv, px } = canvasPx(18, H + 3);
+      const col = x => x === 0 ? light : x === 2 ? dark : body;
+      for (let y = 2; y <= H; y++) for (let x = 0; x < 3; x++) px(7 + x, y, col(x));
+      px(8, 1, light);
+      brazos.forEach(([lado, alto, largo], k) => {
+        const y0 = H - alto - v * 2, x0 = lado < 0 ? 3 : 11;
+        for (let x = 0; x < 4; x++) for (let t = 0; t < 2; t++) px(lado < 0 ? 7 - x : 10 + x, y0 + t, body);
+        for (let y = y0 - largo; y <= y0 + 1; y++) for (let x = 0; x < 2; x++) px(x0 + x, y, x ? dark : light);
+      });
+      outlineCanvas(cv, '#10200c');
+      return { cv, ox: 8, oy: H };
+    });
+    S.saguaro = cactus('#3e8a3e', '#6ab45a', '#24602a', [[-1, 12, 7], [1, 8, 9]]);
+    S.cardon = cactus('#5a8a4a', '#86ae6a', '#3a6034', [[-1, 10, 5], [1, 13, 6], [1, 6, 4]]);
+    S.nopal = [0, 1, 2].map(v => { // agave
+      const { cv, px } = canvasPx(20, 14);
+      for (let k = 0; k < 9; k++) {
+        const a = -Math.PI * (0.05 + 0.9 * k / 8), L = 6 + hash(k, v) * 4;
+        for (let t = 0; t < L; t++) { const x = 10 + Math.cos(a) * t, y = 12 + Math.sin(a) * t * 0.9; px(x, y, t > L - 2 ? '#a8d0a0' : k % 2 ? '#4a9070' : '#356a52'); px(x + 1, y, '#2a5442'); }
+      }
+      outlineCanvas(cv, '#0c1c14');
+      return { cv, ox: 10, oy: 12 };
+    });
+    S.banano = [0, 1, 2].map(v => {
+      const { cv, c, px } = canvasPx(30, 30);
+      c.fillStyle = '#6a8a3a'; c.fillRect(14, 14, 3, 14);
+      [[-1, -0.3], [1, -0.4], [-0.8, -0.9], [0.7, -1], [0, -1.2]].forEach(([dx, dy], li) => {
+        const L = 11 + ((li + v) % 3);
+        for (let s = 0; s <= L; s++) {
+          const t = s / L, x = 15 + dx * s, y = 15 + dy * s * 0.8 + t * t * 5;
+          for (let k = -2; k <= 2; k++) px(x, y + k * 0.6, k < 0 ? '#7ad050' : k > 0 ? '#2a7a2a' : '#4aa83a');
+        }
+      });
+      outlineCanvas(cv, '#0c240c');
+      return { cv, ox: 15, oy: 28 };
+    });
+    S.pirca = [0, 1, 2].map(v => { // pirca: muro bajo de piedras
+      const { cv, px } = canvasPx(26, 12);
+      for (let k = 0; k < 6; k++) blob(px, 4 + k * 3.6, 7 - (k % 2), 2 + (k + v) % 2, 2, ['#6a5e4c', '#8c806a', '#b0a48a'], k * 5 + v);
+      outlineCanvas(cv, '#1c140c');
+      return { cv, ox: 13, oy: 10 };
+    });
+    S.calafate = [0, 1, 2].map(v => {
+      const { cv, px } = canvasPx(18, 12);
+      blob(px, 9, 7, 7, 4, ['#2a4a2a', '#3e6a36', '#5a8a48'], v * 9);
+      for (let k = 0; k < 6; k++) px(4 + hash(k, v) * 10, 4 + hash(v, k) * 6, '#6a3a9a');
+      outlineCanvas(cv, '#0c180c');
+      return { cv, ox: 9, oy: 10 };
+    });
+    // poste de teléfono (el cable sale de la punta, a ~26 de altura)
+    S.poste = [(() => {
+      const { cv, c, px } = canvasPx(12, 34);
+      c.fillStyle = '#6a4a2a'; c.fillRect(5, 3, 2, 30); c.fillStyle = '#4a321c'; c.fillRect(6, 3, 1, 30);
+      c.fillStyle = '#5a3a20'; c.fillRect(1, 5, 10, 1);
+      px(1, 4, '#e8e8f0'); px(10, 4, '#e8e8f0'); px(5, 4, '#e8e8f0');
+      outlineCanvas(cv, '#100c08');
+      return { cv, ox: 6, oy: 32 };
+    })()];
+    // cartel amarillo de curva peligrosa
+    const curva = der => {
+      const { cv, c, px } = canvasPx(15, 26);
+      c.fillStyle = '#808088'; c.fillRect(6, 12, 2, 13);
+      for (let y = 0; y <= 12; y++) for (let x = 0; x <= 12; x++) {
+        const d = Math.abs(x - 6) + Math.abs(y - 6);
+        if (d <= 6) px(1 + x, y, d === 6 ? '#181818' : '#f8c818');
+      }
+      const ar = ['..#..', '...#.', '#####', '...#.', '..#..'];
+      ar.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') px(der ? 5 + x : 9 - x, 4 + y, '#181818'); }));
+      outlineCanvas(cv, '#0c0c10');
+      return { cv, ox: 7, oy: 24 };
+    };
+    S.curvaD = [curva(true)]; S.curvaI = [curva(false)];
+    // casas de vóxeles (una sola orientación)
+    const casa = (nx, ny, nz, techo, ventanas) => (cols) => {
+      const get = (x, y, z) => {
+        const borde = x === 0 || y === 0 || x === nx - 1 || y === ny - 1;
+        if (z < nz) {
+          if (borde && z >= 3 && z <= 6 && ((x % 7 >= 3 && x % 7 <= 4 && (y === 0 || y === ny - 1)) || (y % 7 >= 3 && y % 7 <= 4 && (x === 0 || x === nx - 1)))) return ventanas ? 2 : 3;
+          if (borde && z < 7 && x === nx - 1 && Math.abs(y - (ny >> 1)) <= 1) return 3; // puerta
+          return 0;
+        }
+        if (!techo) return z === nz ? 1 : null;
+        const alto = Math.round((ny / 2 - Math.abs(y - ny / 2 + 0.5)) * 0.7);
+        return z - nz <= alto ? 1 : null;
+      };
+      const buf = voxRender({ nx, ny, nz: nz + (techo ? Math.ceil(ny * 0.4) : 1), cx: nx / 2, cy: ny / 2, get, sub: 2 }, [1, 0], [0, 1]);
+      return paint(buf, palette(cols), '#100c08');
+    };
+    S.cabana = [['#8a5a30', '#f0f4fa', '#f0d070', '#4a2e18'], ['#7a4a26', '#3a5a34', '#f0d070', '#3a2414'], ['#946236', '#a03028', '#f0d070', '#4a2e18']].map(casa(20, 16, 9, true, true));
+    S.motel = [['#f0e0c0', '#c04030', '#60c0e0', '#405070'], ['#f8c8d0', '#2a8ac0', '#60c0e0', '#405070'], ['#d0f0e0', '#e08030', '#60c0e0', '#405070']].map(casa(34, 14, 9, false, true));
+    S.adobe = [['#c88a58', '#a86a40', '#3a2a20', '#5a3a20'], ['#d8a070', '#b8805a', '#3a2a20', '#2a4a8a'], ['#e0d0b8', '#b89a78', '#3a2a20', '#8a3a20']].map(casa(18, 16, 8, false, true));
+    S.casaColor = [['#f080a0', '#9aa0a8', '#2a4a6a', '#5a3a20'], ['#40c0b0', '#9aa0a8', '#2a4a6a', '#5a3a20'], ['#f0d040', '#b05030', '#2a4a6a', '#5a3a20']].map(casa(18, 14, 8, true, true));
+    S.galpon = [['#b0302a', '#a8acb4', '#2a2a30', '#5a3a20'], ['#e8e4dc', '#a8acb4', '#2a2a30', '#5a3a20'], ['#3a6a9a', '#a8acb4', '#2a2a30', '#5a3a20']].map(casa(26, 16, 9, true, false));
+    return S;
+  };
   // ---------- gente y animales que cruzan, comisarios, coleccionable ----------
   function sprite(w, h, rows, cols) {
     const { cv, px } = canvasPx(w + 2, h + 2);
@@ -607,6 +751,23 @@
     S.pelota = [0, 1, 2].map(() => [
       ['.rrww.', 'rrwwbb', 'rrwwbb', 'yywwbb', 'yywwgg', '.ywwg.'], ['.wwbb.', 'wwbbgg', 'wwbbgg', 'rrwwgg', 'rrwwyy', '.rwwy.'],
     ].map(r => sprite(6, 6, r, { r: '#ff3030', w: '#ffffff', b: '#3060ff', y: '#ffd020', g: '#30c040' })));
+    S.alce = [0, 1, 2].map(() => [
+      ['.......a..a.', '.......aaaa.', '........hhh.', '.bbbbbbbhhhh', 'bbbbbbbbb.hh', 'bbbbbbbbb...', '.bbbbbbb....', '.l.l..l.l...', '.l.l..l.l...', '.l.l..l.l...'],
+      ['.......a..a.', '.......aaaa.', '........hhh.', '.bbbbbbbhhhh', 'bbbbbbbbb.hh', 'bbbbbbbbb...', '.bbbbbbb....', '..l.l..l.l..', '..l.l..l.l..', '.l...l.l..l.'],
+    ].map(r => sprite(12, 10, r, { a: '#d8c8a0', h: '#4a2e18', b: '#5a3a20', l: '#3a2414' })));
+    S.oso = ['#26221e', '#6a4a2a', '#3a2a1e'].map(col => [
+      ['......ee..', '.bbbbbbbb.', 'bbbbbbbbbn', 'bbbbbbbbb.', '.b.b..b.b.', '.b.b..b.b.'],
+      ['......ee..', '.bbbbbbbb.', 'bbbbbbbbbn', 'bbbbbbbbb.', '..bb..bb..', '..bb..bb..'],
+    ].map(r => sprite(10, 6, r, { b: col, e: col, n: '#c09070' })));
+    const camelido = cols => [
+      ['......ee', '......ww', '......wn', '......w.', '......w.', 'wwwwwww.', 'wwwwwwww', '.bbbbbb.', '.l.l.l.l', '.l.l.l.l'],
+      ['......ee', '......ww', '......wn', '......w.', '......w.', 'wwwwwww.', 'wwwwwwww', '.bbbbbb.', '..l.l.l.', '.l.l..l.'],
+    ].map(r => sprite(8, 10, r, cols));
+    S.llama = [{ w: '#f0ece0', e: '#f0ece0', b: '#e0d8c8', n: '#202020', l: '#5a4a3a' }, { w: '#9a6a3a', e: '#9a6a3a', b: '#8a5a30', n: '#202020', l: '#4a3a2a' }, { w: '#d8d0c8', e: '#3a3030', b: '#c8c0b8', n: '#202020', l: '#5a4a3a' }].map(camelido);
+    S.guanaco = [0, 1, 2].map(() => camelido({ w: '#c88a4a', e: '#c88a4a', b: '#f0e8d8', n: '#303030', l: '#9a6a3a' }));
+    S.oveja = [0, 1, 2].map(() => [
+      ['....kk', 'wwwwkk', 'wwwwww', 'wwwww.', '.k..k.'], ['....kk', 'wwwwkk', 'wwwwww', 'wwwww.', '..kk..'],
+    ].map(r => sprite(6, 5, r, { w: '#f0f0e8', k: '#202020' })));
     // comisario con bandera amarilla (2 cuadros)
     const mk2 = flag => sprite(10, 14, flag.concat(['....oo....', '...oooo...', '...oooo...', '....oo....', '....kk....', '...k..k...']), { y: '#ffe020', l: '#c0c0c0', o: '#ff7010', k: '#202020', f: '#f0b890' });
     S.marshal = [
