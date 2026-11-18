@@ -274,11 +274,36 @@
     trafico = trafico.filter(t => t.d > 4 && t.ts > p.s - 500);
   }
 
+  // la mochila se usa sola en carrera: cuando una pieza baja de su umbral se aplica el mejor repuesto
+  let autoT = 0;
+  const UMBRAL = { chasis: 45, motor: 50, gomas: 45 };
+  function usoAuto(dt) {
+    const p = race.player;
+    autoT -= dt;
+    if (autoT > 0 || p.dead || p.finished || !run.items.length || race.phase !== 'run') return;
+    const d = run.dmg;
+    const partes = ['chasis', 'motor', 'gomas'].filter(k => d[k] < UMBRAL[k]).sort((a, b) => d[a] - d[b]);
+    for (const k of partes) {
+      let best = -1, val = 0;
+      run.items.forEach((id, i) => {
+        const fx = TOUR.ITEMS[id].fx; if (!fx[k]) return;
+        // cuánto repara de verdad (lo que pasa de 100 se pierde); el kit suma todo
+        let v = 0; for (const q in fx) v += Math.min(fx[q], 100 - d[q]) * (q === k ? 1 : 0.5);
+        if (v > val) { val = v; best = i; }
+      });
+      if (best < 0) continue;
+      const id = run.items[best], it = TOUR.ITEMS[id];
+      TOUR.useItem(run, best);
+      pop(p.x, p.y, it.n + ' ' + it.d, '#7cff4f'); AU.pickup('llave');
+      autoT = 1.2; return;
+    }
+  }
+
   function updRace(dt) {
     acc += dt;
     while (acc >= DT) { acc -= DT; T.step(race, DT, keys); handleEvents(); }
     const p = race.player;
-    perCarFx(dt); brokenSmoke(); updTrafico(dt);
+    perCarFx(dt); brokenSmoke(); updTrafico(dt); usoAuto(dt);
     // daño recibido: avisos
     const h = race.hurt.chasis + race.hurt.motor;
     if (h - lastHurt > 1.5) { pop(p.x, p.y, '-' + Math.round(h - lastHurt), '#ff4040'); hurtFlash = Math.min(1, (h - lastHurt) / 10); lastHurt = h; }
@@ -511,7 +536,7 @@
     stock.forEach((id, i) => {
       const it = TOUR.ITEMS[id], llena = run.items.length >= run.maxItems;
       rows.push({ kind: 'item', t: it.n, ef: it.d, price: it.precio, ok: run.money >= it.precio && !llena, act: () => { const r = TOUR.buyItem(run, id); if (r) stock.splice(i, 1); return r; },
-        title: it.n, d: 'NO SE USA AHORA: SE GUARDA EN LA MOCHILA PARA REPARAR DESPUÉS, EN EL MAPA O ANTES DE LARGAR (TECLA ←).', cambio: it.d, falta: llena ? 'MOCHILA LLENA' : null });
+        title: it.n, d: 'VA A LA MOCHILA. EN CARRERA SE USA SOLO CUANDO LA PIEZA SE DAÑA; TAMBIÉN PUEDES USARLO A MANO EN EL MAPA (TECLA ←).', cambio: it.d, falta: llena ? 'MOCHILA LLENA' : null });
     });
     if (!stock.length) rows.push({ kind: 'nada', t: 'SIN STOCK', ok: false, title: 'SIN REPUESTOS', d: 'YA COMPRASTE TODO LO QUE HABÍA.' });
     const fin = node && node.type === 'jefe';
@@ -1115,6 +1140,7 @@
     drawList(10, 35, 196, rows, 12);
     if (rows[sel] && rows[sel].d) { panel(8, 186, 200, 24); GR.text(ctx, rows[sel].d, 14, 194, { color: '#fff' }); }
     if (!run.items.length) GR.text(ctx, 'NO TIENES REPUESTOS', 14, 60, { color: '#a0a0c0' });
+    GR.wrap('EN CARRERA SE USAN SOLOS CUANDO UNA PIEZA BAJA DE 45-50%.', 33).forEach((l, i) => GR.text(ctx, l, 14, 150 + i * 9, { color: '#05d9e8' }));
     status(274, 30);
     if (run.perks.length) { panel(274, 170, 120, 12 + run.perks.length * 9); run.perks.forEach((id, i) => GR.text(ctx, TOUR.PERKS.find(p => p.id === id).n, 280, 175 + i * 9, { color: '#f9f871' })); }
     hints('↑↓ ELEGIR   → USAR   ← VOLVER');

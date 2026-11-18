@@ -57,7 +57,7 @@
   ];
   const RIVALS = [['BLAZE', 0.97], ['VIPER', 0.955], ['NOVA', 0.94], ['RICO', 0.93], ['AKIRA', 0.915], ['LUNA', 0.9], ['DUKE', 0.885], ['ZED', 0.87], ['MIKA', 0.85]];
   const PRIZE = [280, 220, 180, 150, 125, 105, 90, 75, 60, 50];
-  const AIBASE = [0.80, 0.83, 0.86, 0.89, 0.92, 0.95];
+  const AIBASE = [0.82, 0.85, 0.88, 0.91, 0.94, 0.97];
 
   const R0 = T.rng;
   TOUR.newRun = function (seed, owned) {

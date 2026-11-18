@@ -13,7 +13,7 @@
     GRASSV: 100, GRASSDRAG: 300, SANDV: 70, SANDDRAG: 520, DESV: 95, DESDRAG: 320,
     R: 6.5, OFF: 6.5,
   };
-  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
+  T.AI = { m0: 0.86, m1: 0.27, bd: 0.95, cerca: 18, afloja: 6, caza: 0.25, sigue: 1, linea: 0, defensa: 0.8, pm: 0, pbd: 0.9 }; // ritmo de la IA en curvas y frenada
   T.KMH = 1.62; // unidades/s -> km/h (200 u/s ~ 324 km/h)
   T.YLIM = 210 / T.KMH; // límite en bandera amarilla: 210 km/h
   // superficies
@@ -86,6 +86,19 @@
       const p = pts[i]; p.k = ks[i]; p.rl = rl[i];
       p.curb = !p.dirt && Math.abs(kb[i]) > 1 / 200;
       p.sand = !p.dirt && Math.abs(kb[i]) > 1 / 140 ? -Math.sign(kb[i]) : 0;
+    }
+    // curvatura de la trazada (la línea que usa la IA, abriéndose en el camino ancho)
+    {
+      const lx = pts.map(p => p.x + p.nx * p.rl * 0.9), ly = pts.map(p => p.y + p.ny * p.rl * 0.9), kl = [];
+      for (let i = 0; i < N; i++) {
+        const a = Math.max(0, i - 2), b = Math.min(N - 1, i + 2), c = Math.min(N - 1, b + 1), a0 = Math.max(0, a - 1);
+        const h1 = Math.atan2(ly[b] - ly[a], lx[b] - lx[a]), h0 = Math.atan2(ly[a] - ly[a0], lx[a] - lx[a0]) , h2 = Math.atan2(ly[c] - ly[b], lx[c] - lx[b]);
+        const len = Math.hypot(lx[c] - lx[a0], ly[c] - ly[a0]) || 1;
+        kl.push(wrapA(h2 - h0) / len);
+        void h1;
+      }
+      const kls = smoothOpen(kl, 3, 2);
+      for (let i = 0; i < N; i++) pts[i].kl = Math.abs(kls[i]) < Math.abs(pts[i].k) ? kls[i] : pts[i].k; // nunca más cerrada que el centro
     }
     // zonas de frenada: tramo recto antes de una curva cerrada
     for (let i = 0; i < N; i++) {
@@ -664,6 +677,15 @@
     if (Math.abs(c.lat) > HW + 4) lane = 0;
     // en amarilla, pasar el auto averiado por el lado libre
     for (const yz of trk.scen.yellows) if (c.s > yz.s - 420 && c.s < yz.s + 40) lane = -Math.sign(yz.blat) * 20;
+    // defender la posición: en recta, si el jugador viene pegado atrás, cerrarle el paso
+    const pj = race.player;
+    if (!c.isPlayer && pj && !pj.finished && !pj.dead && T.AI.defensa) {
+      const gap = c.p - pj.p;
+      if (gap > 18 && gap < 85 && Math.abs(pts[c.i].k) < 1 / 160 && Math.abs(pts[li].k) < 1 / 160 && !trk.scen.yellows.some(yz => c.s > yz.s0 - 120 && c.s < yz.s1)) {
+        const f = T.AI.defensa * clamp((sk - 0.85) / 0.12, 0.3, 1);
+        lane += clamp(pj.lat - c.lat, -14, 14) * f;
+      }
+    }
     lane = clamp(lane, -HW + 9, HW - 9);
     const tx = pt.x + pt.nx * lane, ty = pt.y + pt.ny * lane;
     const want = Math.atan2(ty - c.y, tx - c.x);
@@ -678,7 +700,7 @@
     const n = Math.ceil((sp * sp / (2 * bd) + 40) / trk.DS);
     for (let k = 0; k <= n; k++) {
       const q = pts[Math.min(N - 1, c.i + k)];
-      const va = vCurve(q.k, q.dirt ? m * 0.9 : m);
+      const va = vCurve(T.AI.linea ? q.kl : q.k, q.dirt ? m * 0.9 : m);
       const vr = Math.sqrt(va * va + 2 * bd * k * trk.DS);
       if (vr < vt) vt = vr;
     }
