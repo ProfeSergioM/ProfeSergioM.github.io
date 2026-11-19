@@ -619,19 +619,22 @@
   // ---------- HUD ----------
   function panel(x, y, w, h, a) { ctx.fillStyle = `rgba(8,10,24,${a || 0.72})`; ctx.fillRect(x, y, w, h); ctx.strokeStyle = 'rgba(5,217,232,0.45)'; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1); }
   const T = (s, x, y, o) => GR.text(ctx, s, x, y, o || {});
-  let miniCv = null, miniT = -9;
+  // minimapa centrado en el camión. Se redibuja en un lienzo con margen y, entre redibujos, se desplaza
+  // cada cuadro según cuánto avanzó el camión, así nunca queda desfasado.
+  let miniCv = null, miniT = -9, miniC = null, miniGps = null;
+  const MSC = 0.32, MMARGEN = 40;
+  const isoMini = (dx, dy) => [(dx - dy) * MSC, (dx + dy) / 2 * MSC];
   function minimapa(x, y, w, h) {
-    // se redibuja cuatro veces por segundo en un lienzo propio
-    if (!miniCv) { miniCv = GR.mk(w, h); }
-    const sc = 0.32;
-    if (stT - miniT > 0.25) {
-      miniT = stT;
+    const W2 = w + 2 * MMARGEN, H2 = h + 2 * MMARGEN;
+    if (!miniCv) miniCv = GR.mk(W2, H2);
+    let [ou, ov] = miniC ? isoMini(cam.x - miniC.x, cam.y - miniC.y) : [1e9, 1e9];
+    if (!miniC || Math.abs(ou) > MMARGEN - 4 || Math.abs(ov) > MMARGEN - 4 || stT - miniT > 1 || miniGps !== gps) {
+      miniT = stT; miniC = { x: cam.x, y: cam.y }; miniGps = gps; ou = ov = 0;
       const c = miniCv.getContext('2d');
-      c.fillStyle = '#1c2c1c'; c.fillRect(0, 0, w, h);
-      const cx = camPos.x, cy = camPos.y;
-      const map = (px, py) => [w / 2 + ((px - cx) - (py - cy)) * sc, h / 2 + ((px - cx) + (py - cy)) / 2 * sc];
-      const R = 300;
-      // agua
+      c.fillStyle = '#1c2c1c'; c.fillRect(0, 0, W2, H2);
+      const cx = miniC.x, cy = miniC.y;
+      const map = (px, py) => { const [a, b] = isoMini(px - cx, py - cy); return [W2 / 2 + a, H2 / 2 + b]; };
+      const R = 340;
       for (let gy = -R; gy < R; gy += 12) for (let gx = -R; gx < R; gx += 12) if (M.agua(cx + gx, cy + gy)) { const [u, v] = map(cx + gx, cy + gy); c.fillStyle = '#24508a'; c.fillRect(u | 0, v | 0, 6, 4); }
       const segs = M.segsRect(cx - R, cy - R, cx + R, cy + R);
       const capas = [['#5a5a62', 1, e => e.c === 'residential' || e.c === 'living_street' || e.c === 'unclassified'], ['#b8b8c0', 1.5, e => e.c === 'secondary' || e.c === 'tertiary'], ['#f0d070', 2, e => e.c === 'primary' || e.c === 'trunk' || e.c === 'link'], ['#f09030', 2.5, e => e.c === 'motorway']];
@@ -640,20 +643,21 @@
         for (let i = 0; i < segs.length; i += 2) { const e = M.ejes[segs[i]]; if (!f(e)) continue; const j = segs[i + 1]; const [a1, b1] = map(e.pts[j][0], e.pts[j][1]), [a2, b2] = map(e.pts[j + 1][0], e.pts[j + 1][1]); c.moveTo(a1, b1); c.lineTo(a2, b2); }
         c.stroke();
       }
-      if (gps) { c.strokeStyle = '#50e0ff'; c.lineWidth = 2; c.beginPath(); for (let k = gpsSt.i; k < gps.pts.length; k++) { const [u, v] = map(gps.pts[k][0], gps.pts[k][1]); k === gpsSt.i ? c.moveTo(u, v) : c.lineTo(u, v); if (Math.abs(u - w / 2) > w && Math.abs(v - h / 2) > h) break; } c.stroke(); }
-      for (const d of M.depositos) { const [u, v] = map(d.x, d.y); if (u < -3 || v < -3 || u > w + 3 || v > h + 3) continue; c.fillStyle = d === destino() ? '#f9f871' : ICONO[d.cat]; c.fillRect(u - 2, v - 1, 4, 3); c.fillRect(u - 1, v - 2, 2, 5); }
+      if (gps) { c.strokeStyle = '#50e0ff'; c.lineWidth = 2; c.beginPath(); let n = 0; for (let k = Math.max(0, gpsSt.i - 2); k < gps.pts.length; k++) { const [u, v] = map(gps.pts[k][0], gps.pts[k][1]); n++ ? c.lineTo(u, v) : c.moveTo(u, v); if (Math.abs(u - W2 / 2) > W2 && Math.abs(v - H2 / 2) > H2) break; } c.stroke(); }
+      for (const d of M.depositos) { const [u, v] = map(d.x, d.y); if (u < -3 || v < -3 || u > W2 + 3 || v > H2 + 3) continue; c.fillStyle = d === destino() ? '#f9f871' : ICONO[d.cat]; c.fillRect(u - 2, v - 1, 4, 3); c.fillRect(u - 1, v - 2, 2, 5); }
     }
-    ctx.drawImage(miniCv, x, y);
+    // recorte del lienzo con margen: corrido exactamente lo que avanzó el camión desde el último redibujo
+    ctx.drawImage(miniCv, Math.round(MMARGEN + ou), Math.round(MMARGEN + ov), w, h, x, y, w, h);
     ctx.strokeStyle = 'rgba(5,217,232,0.6)'; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    // el camión al centro (con la cámara adelantada, se corre un poco)
-    const u = x + w / 2 + ((cam.x - camPos.x) - (cam.y - camPos.y)) * 0.32, v = y + h / 2 + ((cam.x - camPos.x) + (cam.y - camPos.y)) / 2 * 0.32;
+    // el camión, siempre al centro, con una marca hacia donde mira
+    const u = x + w / 2, v = y + h / 2;
     const du = Math.cos(cam.a) - Math.sin(cam.a), dv = (Math.cos(cam.a) + Math.sin(cam.a)) / 2, l = Math.hypot(du, dv) || 1;
     ctx.fillStyle = '#ff2a6d'; ctx.fillRect(Math.round(u) - 1, Math.round(v) - 1, 3, 3);
     ctx.fillStyle = '#fff'; ctx.fillRect(Math.round(u + du / l * 3), Math.round(v + dv / l * 3), 1, 1);
     // flecha hacia el destino si quedó fuera del recuadro
     const d = destino();
     if (d) {
-      const du2 = ((d.x - camPos.x) - (d.y - camPos.y)) * 0.32, dv2 = ((d.x - camPos.x) + (d.y - camPos.y)) / 2 * 0.32;
+      const [du2, dv2] = isoMini(d.x - cam.x, d.y - cam.y);
       if (Math.abs(du2) > w / 2 - 3 || Math.abs(dv2) > h / 2 - 3) {
         const k = Math.min((w / 2 - 4) / Math.abs(du2 || 1e-9), (h / 2 - 4) / Math.abs(dv2 || 1e-9));
         ctx.fillStyle = (frame >> 3) & 1 ? '#f9f871' : '#ff9a20'; ctx.fillRect(Math.round(x + w / 2 + du2 * k) - 1, Math.round(y + h / 2 + dv2 * k) - 1, 3, 3);

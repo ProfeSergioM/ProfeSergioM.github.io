@@ -7,7 +7,7 @@
   // tracto: distancia entre ejes, quinta rueda (adelante del eje trasero), voladizos
   N.CAMION = { L1: 3.9, quinta: 0.45, frente: 5.0, cola: 1.1, ancho: 2.5, L2: 9.6, remFrente: 1.4, remCola: 3.0,
     masaTracto: 8200, masaRemolque: 7000, potencia: 330000, fuerzaMax: 52000, vmax: 25, vmaxAtras: 3.6,
-    freno: 5.5, cdA: 5.4, rodado: 0.0075, rodadoFuera: 0.06, vmaxFuera: 8, giroMax: 0.62, latMax: 2.6 };
+    freno: 5.5, cdA: 5.4, rodado: 0.0075, rodadoFuera: 0.06, vmaxFuera: 8, giroMax: 0.62, latMax: 5.0, volante: 1.6, volanteVuelta: 2.4 }; // latMax: aceleración lateral permitida (arcade: más que un camión real)
 
   N.nuevoCamion = function (x, y, a) {
     const C = N.CAMION;
@@ -56,7 +56,7 @@
     // ---- dirección: el máximo baja con la velocidad (aceleración lateral acotada)
     const dmax = Math.min(C.giroMax, Math.atan(C.latMax * C.L1 / Math.max(1, v * v)));
     const objetivo = (ent.left ? -1 : 0) + (ent.right ? 1 : 0);
-    const tgt = objetivo * dmax, vel = objetivo ? 0.9 : 1.6;
+    const tgt = objetivo * dmax, vel = objetivo ? C.volante : C.volanteVuelta;
     c.delta += Math.max(-vel * dt, Math.min(vel * dt, tgt - c.delta));
     if (Math.abs(c.delta) > dmax && objetivo === 0) c.delta = Math.sign(c.delta) * dmax;
     // ---- terreno
