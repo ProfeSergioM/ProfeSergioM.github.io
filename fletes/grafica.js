@@ -610,12 +610,15 @@
         const segs = M.segsRect(x0 - R, y0 - R, x1 + R, y1 + R);
         const cr = crucesRect(x0 - 12, y0 - 12, x1 + 12, y1 + 12);
         const pa = patios.filter(p => p.x > x0 - 20 && p.x < x1 + 20 && p.y > y0 - 20 && p.y < y1 + 20);
+        // líneas de detención de los semáforos
+        const li = (M.sem ? M.sem.lineas : []).filter(l => Math.max(l[0], l[2]) > x0 - 2 && Math.min(l[0], l[2]) < x1 + 2 && Math.max(l[1], l[3]) > y0 - 2 && Math.min(l[1], l[3]) < y1 + 2);
         for (let py = by; py < by + 16; py++) for (let px = bx; px < bx + 16; px++) {
           const u = u0 + px, v = v0 + py, X = v + u / 2, Y = v - u / 2, x = X / S, y = Y / S;
           const ix = X | 0, iy = Y | 0, hz = hash(ix, iy);
           let col = terreno(x, y, ix, iy, hz);
           // patio del depósito: losa de hormigón
           for (const p of pa) { const d = Math.hypot(x - p.x, y - p.y); if (d < p.r) { col = hz < 0.15 ? TP.patio[1] : hz > 0.9 ? TP.patio[2] : TP.patio[0]; if (d > p.r - 0.5) col = TP.solera; } }
+          let enAsfalto = false;
           if (segs.length) {
             let bm = 1e9, be = null, bj = 0, bt = 0, bl = 0, bs = 0, bL = 1;
             for (let i = 0; i < segs.length; i += 2) {
@@ -629,6 +632,7 @@
             if (be) {
               const cl = be.cl;
               if (bm < 0) {
+                enAsfalto = true;
                 const h2 = hash(ix >> 1, iy >> 1);
                 col = h2 < 0.13 ? TP.asf[1] : h2 > 0.95 ? TP.asf[2] : TP.asf[0];
                 // ¿en un cruce?
@@ -654,6 +658,11 @@
                 col = hz < 0.3 ? TP.berma[1] : hz > 0.85 ? TP.berma[2] : TP.berma[0];
               }
             }
+          }
+          if (enAsfalto) for (const l of li) {
+            const dx = l[2] - l[0], dy = l[3] - l[1], L2 = dx * dx + dy * dy || 1e-9;
+            let t = ((x - l[0]) * dx + (y - l[1]) * dy) / L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
+            if (Math.hypot(x - l[0] - dx * t, y - l[1] - dy * t) < 0.32) { col = TP.linea; break; }
           }
           D[py * CS + px] = col;
         }

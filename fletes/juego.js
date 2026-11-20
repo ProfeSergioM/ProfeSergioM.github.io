@@ -2,7 +2,7 @@
 // Motor gráfico tomado de TURBO 40 (lienzo 400x225 pixelado, vista isométrica, vóxeles, CRT).
 (function () {
   'use strict';
-  const GR = window.GR, AU = window.AU, MU = window.MUNDO, N = window.NUCLEO, C = window.CARGAS, RADIO = window.RADIO;
+  const GR = window.GR, AU = window.AU, MU = window.MUNDO, N = window.NUCLEO, C = window.CARGAS, RADIO = window.RADIO, SEM = window.SEMAFOROS;
   const W = 400, H = 225, S = GR.S;
   const cv = document.getElementById('pantalla'), ctx = cv.getContext('2d');
   cv.width = W; cv.height = H;
@@ -116,6 +116,7 @@
 
   function iniciar() {
     M = MU.crear(window.MAPA);
+    M.sem = SEM.crear(M, window.MAPA.semaforos); M.semT = 0; // antes del suelo: pinta las líneas de detención
     suelo = GR.Suelo(M);
     camSpr = GR.buildCamion();
     autoSpr = GR.buildAutos();
@@ -301,9 +302,10 @@
 
   // ---------- actualización ----------
   const DT = N.DT; let acc = 0;
-  let ultGolpe = 0, ultAtras = 0, frenoAire = 0, buscarT = 0;
+  let ultGolpe = 0, ultAtras = 0, frenoAire = 0, buscarT = 0, semPrev = null, semAdelante = null;
   function actualizar(dt) {
     stT += dt; frame++;
+    if (M) M.semT += dt; // los semáforos andan en tiempo real
     if (P('mudo')) { AU.toggleMute(); RADIO.silenciar(AU.muted); msg(AU.muted ? 'SONIDO APAGADO' : 'SONIDO ENCENDIDO', 1.5, 'small'); }
     if (P('radio') && estado !== 'titulo' && estado !== 'cargando') { RADIO.siguiente(); radioMsgT = stT; }
     if (P('radioAtras') && estado !== 'titulo') { RADIO.anterior(); radioMsgT = stT; }
@@ -375,6 +377,20 @@
         for (const o of obst) if (o.tocado && o.a) o.a.v = 0;
       }
       pasoAutos(DT);
+    }
+    // semáforo de adelante (para el indicador) y multa por cruzar con rojo
+    {
+      const fx = cam.x + Math.cos(cam.a) * N.CAMION.frente, fy = cam.y + Math.sin(cam.a) * N.CAMION.frente;
+      const prox = SEM.proximo(M.sem, fx, fy, cam.a, 90);
+      // cruzó la línea: en el cuadro anterior estaba antes y ahora está después
+      if (semPrev) {
+        const a = semPrev.a, d = SEM.distancia(a, fx, fy), lat = Math.abs(-(fx - a.x) * a.ty + (fy - a.y) * a.tx);
+        if (semPrev.dist > 0 && d <= 0 && d > -8 && lat < a.hw + 2.5) {
+          const est = SEM.estado(a.cruce, a.fase, M.semT);
+          if (est === 'rojo' && Math.abs(cam.v) > 1.5) { partida.dinero -= SEM.MULTA; partida.multas = (partida.multas || 0) + 1; AU.error(); msg('PASASTE CON ROJO · MULTA ' + C.fmt(SEM.MULTA), 3, 'big', 'RESPETA LOS SEMÁFOROS'); }
+        }
+      }
+      semPrev = prox; semAdelante = prox;
     }
     // sonidos de cabina
     const vel = Math.abs(cam.v);
@@ -488,6 +504,7 @@
     }
     for (const a of autos) { const [X, Y] = proj(a.x, a.y); if (inView(X, Y, 50)) list.push({ d: a.x + a.y, k: 'auto', o: a, X, Y }); }
     for (const d of M.depositos) { const [X, Y] = proj(d.x, d.y); if (inView(X, Y, 40)) list.push({ d: d.x + d.y + 6, k: 'letrero', o: d, X, Y }); }
+    for (const a of M.sem.accesos) { const [px, py] = a.poste; if (px < x0 || px > x1 || py < y0 || py > y1) continue; const [X, Y] = proj(px, py); if (inView(X, Y, 30)) list.push({ d: px + py, k: 'sem', o: a, X, Y }); }
     let pd = 0, PX = 0, PY = 0;
     if (cam && estado !== 'titulo') {
       // tracto y remolque van juntos, con la profundidad del pivote
@@ -542,6 +559,7 @@
         ctx.globalAlpha = 1;
         if (noche() > 0.3) { const fx = Math.cos(o.ang), fy = Math.sin(o.ang), [hx, hy] = proj(o.x + fx * o.largo / 2, o.y + fy * o.largo / 2, 0.7); ctx.fillStyle = '#fff8c0'; ctx.fillRect(hx - 1, hy, 2, 1); }
       } else if (e.k === 'letrero') dibujarLetrero(o, X, Y);
+      else if (e.k === 'sem') dibujarSemaforo(o, X, Y);
       else if (e.k === 'camion') dibujarCamion(X, Y);
     }
     // cables entre postes de la misma calle
@@ -574,6 +592,15 @@
     const s = GR.edificio(M.edif[i], i); edifCache.set(i, s);
     if (edifCache.size > 900) { const it = edifCache.keys(); for (let n = 0; n < 200; n++) edifCache.delete(it.next().value); }
     return s;
+  }
+  // semáforo: poste con cabezal de tres luces; solo brilla la de la fase actual
+  const LUZ = { rojo: ['#ff3020', '#4a1410'], amarillo: ['#ffc020', '#4a3a10'], verde: ['#40ff70', '#10401c'] };
+  function dibujarSemaforo(a, X, Y) {
+    const est = SEM.estado(a.cruce, a.fase, M.semT);
+    ctx.fillStyle = '#2a2a30'; ctx.fillRect(X, Y - 14, 1, 14);
+    ctx.fillStyle = '#101014'; ctx.fillRect(X - 2, Y - 25, 5, 12);
+    ['rojo', 'amarillo', 'verde'].forEach((c, i) => { ctx.fillStyle = LUZ[c][est === c ? 0 : 1]; ctx.fillRect(X - 1, Y - 24 + i * 4, 3, 3); });
+    if (est && noche() > 0.2) { const i = ['rojo', 'amarillo', 'verde'].indexOf(est); ctx.globalAlpha = 0.35; ctx.fillStyle = LUZ[est][0]; ctx.fillRect(X - 3, Y - 26 + i * 4, 7, 7); ctx.globalAlpha = 1; }
   }
   // quinta rueda del tracto: ahí se ancla el sprite del remolque
   function pivote() { return [cam.x + Math.cos(cam.a) * N.CAMION.quinta, cam.y + Math.sin(cam.a) * N.CAMION.quinta]; }
@@ -676,6 +703,14 @@
     if (lluvia) T('LLUVIA', 136 - 5 - GR.textW('LLUVIA'), 19, { color: '#80b0ff' });
     // minimapa
     minimapa(W - 100, 4, 96, 64);
+    // semáforo de adelante
+    if (semAdelante && semAdelante.dist < 80) {
+      const a = semAdelante.a, est = SEM.estado(a.cruce, a.fase, M.semT);
+      panel(4, H - 52, 78, 16);
+      ['rojo', 'amarillo', 'verde'].forEach((c, i) => { ctx.fillStyle = LUZ[c][est === c ? 0 : 1]; ctx.fillRect(9 + i * 6, H - 47, 5, 5); });
+      const txt = Math.max(0, Math.round(semAdelante.dist)) + ' M';
+      T(txt, 77 - GR.textW(txt), H - 48, { color: est === 'rojo' ? '#ff6060' : est === 'amarillo' ? '#ffd060' : '#7cff4f' });
+    }
     // velocímetro
     panel(4, H - 34, 78, 30);
     const kmh = Math.round(Math.abs(cam.v) * 3.6);

@@ -236,7 +236,8 @@
         continue;
       }
       // no ceder ante un auto que lleva rato detenido: así no se forman esperas en cadena (la mirada hacia adelante igual evita el choque)
-      if (grado < 3 || aFin > 24 || (o.v < 0.5 && (o.espera || 0) > 1.2)) continue;
+      // en los cruces con semáforo mandan las luces, no el que llega primero
+      if (grado < 3 || aFin > 24 || (o.v < 0.5 && (o.espera || 0) > 1.2) || (mundo.sem && mundo.sem.porVert.has(finV))) continue;
       const oFinV = o.dir > 0 ? o.e.b : o.e.a, oFin = o.dir > 0 ? o.e.len - o.s : o.s;
       if (oFinV === finV && o.e !== a.e && (oFin < aFin - 0.5 || (Math.abs(oFin - aFin) <= 0.5 && o.id < a.id)) && aFin > 3) {
         libre = Math.min(libre, aFin - 3.5); // otro llega antes al cruce: esperar en la línea
@@ -244,6 +245,16 @@
       }
       const oIniV = o.dir > 0 ? o.e.a : o.e.b, oSalio = o.dir > 0 ? o.s : o.e.len - o.s;
       if (oIniV === finV && oSalio < o.largo + 4 && aFin > 3) libre = Math.min(libre, aFin - 3.5); // todavía está en el cruce
+    }
+    // semáforo: con rojo se detiene en la línea; con amarillo, solo si alcanza a frenar
+    if (mundo.sem && N.SEM) {
+      const acc = mundo.sem.porAcceso.get(a.e.id + ':' + a.dir);
+      if (acc) {
+        const est = N.SEM.estado(acc.cruce, acc.fase, mundo.semT || 0);
+        const dLinea = aFin - acc.retiro - a.largo / 2; // de la trompa a la línea
+        const alcanza = dLinea > a.v * a.v / (2 * 5) + 0.5;
+        if (dLinea > -0.5 && (est === 'rojo' || (est === 'amarillo' && alcanza))) libre = Math.min(libre, dLinea + 1.5);
+      }
     }
     // el camión (tracto y remolque) es sólido: se revisa la pista hasta la distancia de frenado
     const alcance = a.v * a.v / (2 * N.FRENO_AUTO) + 4;
@@ -324,10 +335,10 @@
       const vc = Math.sqrt(1.6 * Math.max(6, R)), dist = cum[k] - sNow;
       vlim = Math.min(vlim, Math.sqrt(vc * vc + 2 * 2.2 * Math.max(0, dist - 6)));
     }
-    if (st.vmax) vlim = Math.min(vlim, st.vmax);
+    if (st.vmax != null) vlim = Math.min(vlim, st.vmax);
     const resto = ruta.len - sNow;
     vlim = Math.min(vlim, Math.sqrt(2 * 2.0 * Math.max(0, resto - 3)) + 0.3);
-    const ent = { up: c.v < vlim - 0.5, down: c.v > vlim + 1.2, left: false, right: false };
+    const ent = { up: c.v < vlim - 0.5, down: c.v > vlim + 1.2 || (vlim < 0.3 && c.v > 0.05), left: false, right: false };
     // dirección proporcional, con banda muerta (teclado: todo o nada, con pulsos)
     const want = Math.atan(2 * N.CAMION.L1 * Math.sin(ang) / Math.max(4, Math.hypot(tx - c.x, ty - c.y)));
     st.acc = (st.acc || 0) + (want - c.delta) * 0.5;
@@ -335,5 +346,6 @@
     return { ent, resto };
   };
 
+  N.SEM = typeof module !== 'undefined' && module.exports ? require('./semaforos.js') : G.SEMAFOROS;
   if (typeof module !== 'undefined' && module.exports) module.exports = N; else G.NUCLEO = N;
 })(typeof window !== 'undefined' ? window : globalThis);
