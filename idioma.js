@@ -26,8 +26,8 @@
     'Teclado o táctil': 'Keyboard or touch',
 
     // ---- Fletes
-    'Juego de repartos en pixel art entre Puerto Montt y Puerto Varas, por sus calles reales. Empiezas en bicicleta llevando sobres y comida a domicilio, y con lo que ganas compras moto, auto, furgón, camioneta y camiones hasta tener una flota con empleados. La meta: ser la empresa de repartos del sur en el menor tiempo. Con semáforos, lluvia del sur y radios en vivo.':
-      'Delivery game in pixel art between Puerto Montt and Puerto Varas, on their real streets. You start on a bicycle delivering envelopes and food to homes, and with what you earn you buy a motorbike, a car, a van, a pickup and trucks until you have a fleet with employees. The goal: become the delivery company of the south in the shortest time. With traffic lights, southern rain and live radio. In Spanish.',
+    'Juego de repartos en pixel art entre Puerto Montt y Puerto Varas, por sus calles reales. Empiezas en moto llevando encomiendas y comida a domicilio, y con lo que ganas compras auto, furgón, camioneta y camiones hasta tener una flota con empleados. La meta: ser la empresa de repartos del sur en el menor tiempo. Con semáforos, lluvia del sur y radios en vivo.':
+      'Delivery game in pixel art between Puerto Montt and Puerto Varas, on their real streets. You start on a motorbike delivering parcels and food to homes, and with what you earn you buy a car, a van, a pickup and trucks until you have a fleet with employees. The goal: become the delivery company of the south in the shortest time. With traffic lights, southern rain and live radio. In Spanish.',
     'Radios en vivo': 'Live radio',
 
     // ---- True o Poser

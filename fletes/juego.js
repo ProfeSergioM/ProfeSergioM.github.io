@@ -228,12 +228,13 @@
       Object.assign(partida, { dinero: g.dinero, entregas: g.entregas, t: g.t, tReal: g.tReal || 0, vehiculo: g.vehiculo, maxTier: g.maxTier, flota: g.flota || {}, hitos: g.hitos || {}, meta: g.meta || null,
         multas: g.multas || 0, ganadoFlota: g.ganadoFlota || 0, historial: g.hist || [] });
       tractoCol = g.col || 'rojo'; pos = g.pos;
+      if (EMP.veh(partida).tier < EMP.porId[EMP.INICIAL].tier) { partida.vehiculo = EMP.INICIAL; partida.maxTier = Math.max(partida.maxTier, EMP.porId[EMP.INICIAL].tier); } // ya no se empieza en bici
     }
     estacionar(lugar, pos);
     autos = []; parts = []; msgs = [];
     estado = 'manejo'; stT = 0; metaVista = !!partida.meta;
     if (!g) {
-      msg('TU EMPRESA DE REPARTOS EMPIEZA HOY', 6, 'big', 'UNA BICICLETA, ' + C.fmt(partida.dinero) + ' DE AHORROS Y MUCHAS GANAS');
+      msg('TU EMPRESA DE REPARTOS EMPIEZA HOY', 6, 'big', 'UNA MOTO, ' + C.fmt(partida.dinero) + ' DE AHORROS Y MUCHAS GANAS');
       msg(TACTIL ? 'TOCA PEDIDOS PARA VER ENCARGOS' : 'ESPACIO: VER PEDIDOS · E: TU EMPRESA', 6, 'small');
     } else msg('BIENVENIDO DE VUELTA', 2, 'small');
   }
@@ -1085,7 +1086,7 @@
     ctx.fillStyle = 'rgba(4,6,18,0.9)'; ctx.fillRect(30, 24, W - 60, H - 48); ctx.strokeStyle = '#f9f871'; ctx.strokeRect(30.5, 24.5, W - 61, H - 49);
     T('¡LO LOGRASTE!', W / 2, 34, { color: '#f9f871', align: 'center', scale: 2 });
     T('ERES LA EMPRESA DE REPARTOS DEL SUR', W / 2, 56, { color: '#7cff4f', align: 'center' });
-    T('EMPEZASTE EN BICICLETA Y HOY TIENES ' + f.vehiculos + ' VEHÍCULOS', W / 2, 72, { color: '#d1f7ff', align: 'center' });
+    T('EMPEZASTE EN MOTO Y HOY TIENES ' + f.vehiculos + ' VEHÍCULOS', W / 2, 72, { color: '#d1f7ff', align: 'center' });
     T('TIEMPO DE JUEGO: ' + EMP.fmtTiempo(m.real) + ' · DÍA ' + (1 + Math.floor(m.t / 86400)), W / 2, 88, { color: '#fff', align: 'center' });
     T('VALOR DE LA EMPRESA ' + C.fmt(EMP.valor(partida)), W / 2, 100, { color: '#c0d0ff', align: 'center' });
     const r = leerRecord(); if (r) T('TU RÉCORD: ' + EMP.fmtTiempo(r.real), W / 2, 116, { color: '#f9f871', align: 'center' });
@@ -1110,12 +1111,12 @@
     if (orden) { ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); ctx.drawImage(s.cv, bx - s.ox, by - s.oy); }
     else { ctx.drawImage(s.cv, bx - s.ox, by - s.oy); ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); }
     T('FLETES', W / 2, 26, { color: '#f9f871', align: 'center', scale: 4, shadow: '#ff2a6d' });
-    T('DE LA BICICLETA A LA EMPRESA DE REPARTOS DEL SUR', W / 2, 62, { color: '#d1f7ff', align: 'center' });
+    T('DE LA MOTO A LA EMPRESA DE REPARTOS DEL SUR', W / 2, 62, { color: '#d1f7ff', align: 'center' });
     T('PUERTO MONTT · RUTA 5 · PUERTO VARAS', W / 2, 73, { color: '#05d9e8', align: 'center' });
     const g = leerGuardado(), rec = leerRecord();
     if ((frame >> 4) & 1) T(TACTIL ? '↑ ACELERAR PARA ' + (g ? 'SEGUIR' : 'EMPEZAR') : 'ESPACIO PARA ' + (g ? 'SEGUIR' : 'EMPEZAR'), W / 2, 178, { color: '#fff', align: 'center' });
     if (g) T('EN CAJA ' + C.fmt(g.dinero) + ' · ' + (EMP.porId[g.vehiculo] || EMP.VEH[0]).n + ' · ↓ PARTIDA NUEVA', W / 2, 190, { color: '#a0a0c0', align: 'center' });
-    else if (guardadoViejo()) T('NUEVA VERSIÓN: EMPIEZAS DE CERO, EN BICICLETA', W / 2, 190, { color: '#ffd080', align: 'center' });
+    else if (guardadoViejo()) T('NUEVA VERSIÓN: EMPIEZAS DE CERO, EN MOTO', W / 2, 190, { color: '#ffd080', align: 'center' });
     if (rec) T('RÉCORD: LA EMPRESA DEL SUR EN ' + EMP.fmtTiempo(rec.real), W / 2, 200, { color: '#f9f871', align: 'center' });
     ctx.fillStyle = 'rgba(4,6,18,0.75)'; ctx.fillRect(0, H - 16, W, 16);
     T('CALLES REALES DE OPENSTREETMAP · RADIOS EN VIVO', W / 2, H - 12, { color: '#9090b0', align: 'center' });

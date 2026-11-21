@@ -1,5 +1,5 @@
 // FLETES — la empresa: vehículos que se compran, encargos con retiro y entrega, empleados y la meta.
-// Empiezas repartiendo en bicicleta y terminas con una flota que reparte sola. Sin DOM (lo usa medir-empresa.js).
+// Empiezas repartiendo en moto y terminas con una flota que reparte sola. Sin DOM (lo usa medir-empresa.js).
 // Los precios y tarifas son del juego: están equilibrados para el ritmo de la partida, no copian los reales.
 (function (G) {
   'use strict';
@@ -8,7 +8,8 @@
   E.VERSION = 2;
   E.META = 70000000;        // valor de la empresa para ser "la empresa de repartos del sur"
   E.REVENTA = 0.7;           // un vehículo usado vale el 70% de lo que costó
-  E.CAPITAL = 100000;        // los ahorros con que empiezas, además de la bicicleta
+  E.CAPITAL = 100000;        // los ahorros con que empiezas, además de la moto
+  E.INICIAL = 'moto';        // el vehículo con que se empieza (la bicicleta queda para empleados)
   E.BENCINA = 1300; E.DIESEL = 1050;
 
   // ---------- vehículos, en el orden en que se desbloquean ----------
@@ -92,7 +93,7 @@
   // ---------- partida ----------
   E.nuevaPartida = function (seed) {
     const P = C.nuevaPartida(seed);
-    P.version = E.VERSION; P.dinero = E.CAPITAL; P.vehiculo = 'bici'; P.maxTier = 0; P.flota = {}; P.tReal = 0; P.meta = null; P.hitos = {};
+    P.version = E.VERSION; P.dinero = E.CAPITAL; P.vehiculo = E.INICIAL; P.maxTier = E.porId[E.INICIAL].tier; P.flota = {}; P.tReal = 0; P.meta = null; P.hitos = {};
     P.t = 9 * 3600; // las 9 de la mañana del primer día
     return P;
   };
@@ -254,7 +255,6 @@
     P.ganadoFlota = (P.ganadoFlota || 0) + f.neto * dtJuego / 3600;
   };
   E.hitos = [
-    { id: 'moto', t: 'PRIMERA MOTO', f: P => P.maxTier >= 1 },
     { id: 'empleado', t: 'PRIMER EMPLEADO', f: P => E.flotaPorHora(P).vehiculos >= 1 },
     { id: 'auto', t: 'PRIMER AUTO', f: P => P.maxTier >= 2 },
     { id: 'flota5', t: 'CINCO VEHÍCULOS EN LA FLOTA', f: P => E.flotaPorHora(P).vehiculos >= 5 },
