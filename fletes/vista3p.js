@@ -262,14 +262,8 @@
       const qc = proy(cam.x, cam.y, 0);
       items.push({ p: qc ? qc[2] : 0.6, k: 'camion' });
       items.sort((a, b) => b.p - a.p);
-      // línea del GPS y patios sobre el suelo (antes de los objetos)
-      const gps = d.gps();
-      if (gps) {
-        const st = d.gpsSt(); ctx.strokeStyle = 'rgba(80,220,255,0.6)'; ctx.lineWidth = 3; ctx.beginPath();
-        let n = 0;
-        for (let k = Math.max(0, st.i - 1); k < gps.pts.length && gps.cum[k] - gps.cum[st.i] < 400; k++) { const q = proy(gps.pts[k][0], gps.pts[k][1], 0.05); if (!q) { n = 0; continue; } n++ ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); }
-        ctx.stroke();
-      }
+      // flecha del próximo giro pintada en el piso, y los patios (antes de los objetos)
+      d.flecha((x, y) => { const q = proy(x, y, 0.06); return q && q[2] < LEJOS ? q : null; }, 4);
       const dest = d.destino();
       for (const dep of M.depositos) {
         if (Math.abs(dep.x - Cx) > R || Math.abs(dep.y - Cy) > R) continue;

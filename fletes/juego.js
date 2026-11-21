@@ -107,8 +107,8 @@
   let gps = null, gpsSt = { i: 0 }, gpsT = 0, msgs = [], parts = [], lluvia = 0, lluviaT = 0, radioMsgT = -9, mapaZoom = 0, pausaSel = 0;
   let tractoCol = 'rojo';
   // vista: 'iso' (isométrica) o '3p' (tercera persona desde atrás); se recuerda en el navegador
-  let vista = 'iso', vista3 = null, dtCuadro = 1 / 60;
-  try { if (localStorage.getItem('fletesVista') === '3p') vista = '3p'; } catch (e) { /* sin almacenamiento */ }
+  let vista = '3p', vista3 = null, dtCuadro = 1 / 60; // por defecto, la vista desde atrás
+  try { if (localStorage.getItem('fletesVista') === 'iso') vista = 'iso'; } catch (e) { /* sin almacenamiento */ }
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   function guardar() {
@@ -127,7 +127,8 @@
     window.__fletes.M = M;
     vista3 = window.VISTA3P.crear({ ctx, W, H, GR, M, N, suelo, DC, decoCelda, decoSprite, autoSpr,
       cam: () => cam, autos: () => autos, gps: () => gps, gpsSt: () => gpsSt, destino, encargo: () => partida && partida.encargo, colorTracto: () => tractoCol,
-      dibujarLetrero, dibujarSemaforo, frame: () => frame, parts: () => parts });
+      dibujarLetrero, dibujarSemaforo, frame: () => frame, parts: () => parts,
+      flecha: (pr, ancho) => { const fl = flechaGiro(); if (fl) dibujarFlecha(fl, pr, ancho); } });
     estado = 'titulo'; stT = 0;
     // la cámara del título recorre la costanera de Puerto Montt
     camPos = { x: 0, y: 0 };
@@ -257,6 +258,76 @@
     const r = M.rutaA(cam.x + Math.cos(cam.a) * 3, cam.y + Math.sin(cam.a) * 3, cam.a, d);
     if (r) { gps = r; gpsSt = { i: 0 }; }
     else if (forzar) gps = null;
+  }
+  // ---------- ayudas de giro ----------
+  // posición exacta del camión a lo largo de la ruta del GPS [m]
+  let gpsS = 0;
+  function seguirRuta() {
+    if (!gps) { gpsS = 0; return; }
+    M.seguir(gps, cam.x, cam.y, gpsSt);
+    const i = Math.min(gpsSt.i, gps.pts.length - 2), [ax, ay] = gps.pts[i], [bx, by] = gps.pts[i + 1], L = (gps.cum[i + 1] - gps.cum[i]) || 1;
+    gpsS = gps.cum[i] + Math.max(0, Math.min(L, ((cam.x - ax) * (bx - ax) + (cam.y - ay) * (by - ay)) / L));
+  }
+  function puntoRuta(s) {
+    const c = gps.cum; s = Math.max(0, Math.min(gps.len, s));
+    let lo = 0, hi = c.length - 2; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (c[m] <= s) lo = m; else hi = m - 1; }
+    const [ax, ay] = gps.pts[lo], [bx, by] = gps.pts[lo + 1], t = (s - c[lo]) / ((c[lo + 1] - c[lo]) || 1);
+    return [ax + (bx - ax) * t, ay + (by - ay) * t];
+  }
+  // próximo giro o cambio de calle: {g, dist}; g es null cuando ya solo queda llegar al destino
+  function proximoGiro() {
+    if (!gps || !partida || !partida.encargo) return null;
+    const g = gps.indic.find(t => t.s > gpsS + 1);
+    if (g) return { g, dist: g.s - gpsS };
+    return { g: null, dist: gps.len - gpsS };
+  }
+  // flecha en el piso: de 18 m antes del giro hasta 12 m después, por la pista de la derecha
+  function flechaGiro() {
+    const p = proximoGiro();
+    if (!p || !p.g || p.dist > 220 || p.g.giro === 'AUTOPISTA') return null;
+    const s = p.g.s, pts = [];
+    for (const ds of [-18, -9, 0, 6, 12]) {
+      const [x, y] = puntoRuta(s + ds), [x2, y2] = puntoRuta(s + ds + 1), L = Math.hypot(x2 - x, y2 - y) || 1;
+      const q = M.enCalzada(x, y), off = q && !q.e.ow ? Math.min(2, q.e.hw * 0.45) : 0;
+      pts.push([x - (y2 - y) / L * off, y + (x2 - x) / L * off]);
+    }
+    return { pts, dist: p.dist };
+  }
+  // dibuja la flecha con cualquier proyección (pr devuelve [x, y] en pantalla o null); ancho en píxeles
+  function dibujarFlecha(fl, pr, ancho) {
+    const q = fl.pts.map(([x, y]) => pr(x, y)); if (q.some(v => !v)) return;
+    const col = fl.dist < 50 && (frame >> 3) & 1 ? '#ffffff' : '#f9d830';
+    const linea = () => { ctx.beginPath(); q.slice(0, 4).forEach((v, i) => i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.stroke(); };
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(16,16,20,0.6)'; ctx.lineWidth = ancho + 2; linea();
+    ctx.strokeStyle = col; ctx.lineWidth = ancho; linea();
+    // punta: un triángulo al final del último tramo
+    const a = fl.pts[3], b = fl.pts[4], dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+    const tri = [[b[0] + ux * 1.5, b[1] + uy * 1.5], [a[0] - uy * 2.2, a[1] + ux * 2.2], [a[0] + uy * 2.2, a[1] - ux * 2.2]].map(([x, y]) => pr(x, y));
+    ctx.lineCap = 'butt';
+    if (tri.some(v => !v)) return;
+    ctx.fillStyle = col; ctx.strokeStyle = 'rgba(16,16,20,0.6)'; ctx.lineWidth = 1;
+    ctx.beginPath(); tri.forEach((v, i) => i ? ctx.lineTo(v[0], v[1]) : ctx.moveTo(v[0], v[1])); ctx.closePath(); ctx.fill(); ctx.stroke();
+  }
+  // cartel grande arriba al centro: flecha, distancia y calle del próximo giro
+  function ayudaGiro() {
+    const p = proximoGiro(); if (!p) return;
+    let linea1, linea2, col = '#50e0ff';
+    if (p.g && p.dist < 320) {
+      const g = p.g, dd = Math.max(0, Math.round(p.dist / 10) * 10);
+      linea1 = (g.giro === 'AUTOPISTA' ? '↑' : FLECHA[g.giro] || '↑') + ' ' + (dd < 15 ? 'AHORA' : dd + ' M');
+      // la flecha ya dice hacia dónde: abajo va el nombre de la calle (abreviado), o el sentido si no tiene nombre
+      const calle = (g.nombre || '').toUpperCase().replace(/^AVENIDA /, 'AV. ').replace(/^PASAJE /, 'PJE. ');
+      linea2 = g.giro === 'AUTOPISTA' ? 'ENTRA A LA ' + (calle || 'AUTOPISTA') : calle || (g.giro === 'DERECHA' ? 'A LA DERECHA' : 'A LA IZQUIERDA');
+      if (p.dist < 60) col = (frame >> 3) & 1 ? '#ffffff' : '#f9d830';
+    } else if (!p.g && p.dist < 300) {
+      linea1 = '↓ ' + Math.max(0, Math.round(p.dist / 10) * 10) + ' M'; linea2 = 'LLEGANDO AL DESTINO'; col = '#7cff4f';
+    } else return;
+    linea2 = linea2.slice(0, 24); // que quepa entre el panel de la izquierda y el minimapa
+    const w = Math.max(GR.textW(linea1, 2), GR.textW(linea2)) + 14, x = Math.round(W / 2 - w / 2) + 20;
+    panel(x, 4, w, 30, 0.78);
+    T(linea1, x + w / 2, 8, { color: col, align: 'center', scale: 2, outline: '#000' });
+    T(linea2, x + w / 2, 24, { color: '#d1f7ff', align: 'center' });
   }
   function msg(text, dur, style, sub) { msgs.push({ text, dur, t: 0, style: style || 'big', sub }); if (msgs.length > 3) msgs.shift(); }
 
@@ -389,6 +460,7 @@
       }
       pasoAutos(DT);
     }
+    seguirRuta();
     // semáforo de adelante (para el indicador) y multa por cruzar con rojo
     {
       const fx = cam.x + Math.cos(cam.a) * N.CAMION.frente, fy = cam.y + Math.sin(cam.a) * N.CAMION.frente;
@@ -488,14 +560,9 @@
       ctx.fillStyle = col;
       for (let k = 0; k < 32; k++) { if ((k & 1) && !esDest) continue; const a = k / 32 * Math.PI * 2, [X, Y] = proj(d.x + Math.cos(a) * r, d.y + Math.sin(a) * r); ctx.fillRect(X, Y, 2, 1); }
     }
-    // línea del GPS sobre el asfalto
-    if (gps && estado !== 'titulo') {
-      ctx.strokeStyle = 'rgba(80,220,255,0.55)'; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
-      let n = 0;
-      for (let k = Math.max(0, gpsSt.i - 1); k < gps.pts.length && gps.cum[k] - gps.cum[gpsSt.i] < 700; k++) { const [X, Y] = proj(gps.pts[k][0], gps.pts[k][1]); n++ ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(220,250,255,0.8)'; ctx.lineWidth = 1; ctx.setLineDash([3, 5]); ctx.lineDashOffset = -frame * 0.4; ctx.stroke(); ctx.setLineDash([]);
-    }
+    // flecha del próximo giro pintada en el piso (la ruta completa va solo en el minimapa)
+    const fl = estado !== 'titulo' && flechaGiro();
+    if (fl) dibujarFlecha(fl, (x, y) => proj(x, y), 3);
     // sombras de vehículos
     ctx.globalAlpha = 0.32;
     for (const a of autos) { const [X, Y] = proj(a.x, a.y); if (!inView(X, Y, 40)) continue; ctx.fillStyle = '#000'; ctx.fillRect(X - 6, Y - 1, 12, 4); }
@@ -613,6 +680,9 @@
   function dibujarSemaforo(a, X, Y) {
     const est = SEM.estado(a.cruce, a.fase, M.semT);
     ctx.fillStyle = '#2a2a30'; ctx.fillRect(X, Y - 14, 1, 14);
+    // el cabezal mira a quien llega por su acceso: de frente se ven las luces; de lado o de espaldas, solo la caja
+    const r = cam ? cam.a : 0, frente = a.tx * Math.cos(r) + a.ty * Math.sin(r);
+    if (frente < 0.5) { ctx.fillStyle = '#101014'; if (frente > -0.5) ctx.fillRect(X - 1, Y - 25, 2, 12); else ctx.fillRect(X - 2, Y - 25, 5, 12); return; }
     ctx.fillStyle = '#101014'; ctx.fillRect(X - 2, Y - 25, 5, 12);
     ['rojo', 'amarillo', 'verde'].forEach((c, i) => { ctx.fillStyle = LUZ[c][est === c ? 0 : 1]; ctx.fillRect(X - 1, Y - 24 + i * 4, 3, 3); });
     if (est && noche() > 0.2) { const i = ['rojo', 'amarillo', 'verde'].indexOf(est); ctx.globalAlpha = 0.35; ctx.fillStyle = LUZ[est][0]; ctx.fillRect(X - 3, Y - 26 + i * 4, 7, 7); ctx.globalAlpha = 1; }
@@ -745,8 +815,9 @@
     // calle actual
     if (q && q.m < 2 && q.e.nombre) { const n = q.e.nombre.toUpperCase().slice(0, 30); panel(116, H - 15, GR.textW(n) + 10, 12, 0.6); T(n, 121, H - 12, { color: '#d1f7ff' }); }
     // indicaciones del GPS y encargo
+    if (enc && gps) ayudaGiro();
     if (enc && gps) {
-      const sNow = gps.cum[gpsSt.i] || 0;
+      const sNow = gpsS;
       const sig = gps.indic.find(t => t.s > sNow + 2);
       const resto = Math.max(0, gps.len - sNow);
       panel(116, H - 44, W - 120, 28);
@@ -758,7 +829,7 @@
         const txt = (FLECHA[sig.giro] || '') + ' ' + (dd < 15 ? 'AHORA' : 'EN ' + dd + ' M') + ' ' + (sig.giro === 'AUTOPISTA' ? 'TOMA LA ' + sig.nombre.toUpperCase() : 'A LA ' + sig.giro + (sig.nombre ? ' · ' + sig.nombre.toUpperCase() : ''));
         T(txt.slice(0, 44), 121, H - 30, { color: dd < 60 && (frame >> 3) & 1 ? '#ffffff' : '#50e0ff' });
       } else if (resto < 60) T('LLEGANDO: DETENTE EN EL PATIO', 121, H - 30, { color: '#7cff4f' });
-      else T('SIGUE LA LÍNEA AZUL', 121, H - 30, { color: '#50e0ff' });
+      else { const qc = M.enCalzada(cam.x, cam.y); T(('SIGUE DERECHO' + (qc && qc.e.nombre ? ' POR ' + qc.e.nombre.toUpperCase() : '')).slice(0, 44), 121, H - 30, { color: '#50e0ff' }); }
       // datos de la carga
       panel(4, 38, 132, 40);
       T(enc.n.slice(0, 21), 9, 43, { color: '#ffd080' });
