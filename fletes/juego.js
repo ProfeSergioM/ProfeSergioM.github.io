@@ -14,7 +14,7 @@
   const keys = { up: false, down: false, left: false, right: false };
   const pressed = new Set();
   const KM = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
-  const ACC = { ' ': 'accion', Enter: 'accion', r: 'radio', R: 'radioAtras', m: 'mapa', M: 'mapa', s: 'mudo', S: 'mudo', h: 'bocina', H: 'bocina', Escape: 'pausa', p: 'pausa', P: 'pausa', Tab: 'mapa' };
+  const ACC = { ' ': 'accion', Enter: 'accion', r: 'radio', R: 'radioAtras', m: 'mapa', M: 'mapa', s: 'mudo', S: 'mudo', h: 'bocina', H: 'bocina', Escape: 'pausa', p: 'pausa', P: 'pausa', Tab: 'mapa', c: 'camara', C: 'camara' };
   let audioListo = false;
   function despertarAudio() { AU.init(); if (!audioListo) { audioListo = true; } }
   function press(k) { if (!keys[k]) pressed.add(k); keys[k] = true; despertarAudio(); }
@@ -59,7 +59,7 @@
     mandos.appendChild(zona('volante', 'x', ['left', 'right'], '<div class="tecla" data-k="left">◀</div><div class="tecla" data-k="right">▶</div>'));
     mandos.appendChild(zona('pedales', 'y', ['up', 'down'], '<div class="tecla gas" data-k="up">▲<small>ACELERAR</small></div><div class="tecla freno" data-k="down">▼<small>FRENO</small></div>'));
     const botones = document.createElement('div'); botones.className = 'botones';
-    for (const [k, txt] of [['accion', 'CARGA'], ['radio', 'RADIO'], ['mapa', 'MAPA'], ['bocina', 'BOCINA']]) {
+    for (const [k, txt] of [['accion', 'CARGA'], ['radio', 'RADIO'], ['mapa', 'MAPA'], ['camara', 'VISTA'], ['bocina', 'BOCINA']]) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.dataset.a = k;
       b.addEventListener('pointerdown', e => { e.preventDefault(); despertarAudio(); pressed.add(k); });
       botones.appendChild(b);
@@ -106,6 +106,9 @@
   let partida = null, cam = null, camPos = { x: 0, y: 0 }, autos = [], ofertas = [], selOf = 0, depAqui = null, resumen = null;
   let gps = null, gpsSt = { i: 0 }, gpsT = 0, msgs = [], parts = [], lluvia = 0, lluviaT = 0, radioMsgT = -9, mapaZoom = 0, pausaSel = 0;
   let tractoCol = 'rojo';
+  // vista: 'iso' (isométrica) o '3p' (tercera persona desde atrás); se recuerda en el navegador
+  let vista = 'iso', vista3 = null, dtCuadro = 1 / 60;
+  try { if (localStorage.getItem('fletesVista') === '3p') vista = '3p'; } catch (e) { /* sin almacenamiento */ }
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   function guardar() {
@@ -122,6 +125,9 @@
     autoSpr = GR.buildAutos();
     deco = Object.assign(GR.buildDecor(), GR.buildRuta());
     window.__fletes.M = M;
+    vista3 = window.VISTA3P.crear({ ctx, W, H, GR, M, N, suelo, DC, decoCelda, decoSprite, autoSpr,
+      cam: () => cam, autos: () => autos, gps: () => gps, gpsSt: () => gpsSt, destino, encargo: () => partida && partida.encargo, colorTracto: () => tractoCol,
+      dibujarLetrero, dibujarSemaforo, frame: () => frame, parts: () => parts });
     estado = 'titulo'; stT = 0;
     // la cámara del título recorre la costanera de Puerto Montt
     camPos = { x: 0, y: 0 };
@@ -350,6 +356,11 @@
     if (P('pausa')) { estado = 'pausa'; pausaSel = 0; return; }
     if (P('mapa')) { estado = 'mapa'; return; }
     if (P('bocina')) AU.bocina();
+    if (P('camara')) {
+      vista = vista === 'iso' ? '3p' : 'iso'; if (vista3) vista3.reiniciar();
+      try { localStorage.setItem('fletesVista', vista); } catch (e) { /* sin almacenamiento */ }
+      msg(vista === '3p' ? 'VISTA DESDE ATRÁS' : 'VISTA ISOMÉTRICA', 1.5, 'small');
+    }
     // reloj del juego y clima
     partida.t += dt * C.ESCALA;
     lluviaT -= dt;
@@ -569,13 +580,17 @@
     ctx.stroke();
     // humo
     for (const q of parts) { const [X, Y] = proj(q.x, q.y, q.z), f = q.life / q.max, r = 2 + f * 4; ctx.fillStyle = 'rgba(60,60,64,' + (0.5 * (1 - f)).toFixed(2) + ')'; ctx.fillRect(X - r / 2 | 0, Y - r / 2 | 0, r | 0, r | 0); }
-    // noche y lluvia
+    efectos((x, y) => proj(x, y));
+  }
+  // noche y lluvia (en las dos vistas). aPantalla(x, y): punto del mundo en la pantalla, o null
+  function efectos(aPantalla) {
     const n = noche();
     if (n > 0) {
       ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = `rgba(${Math.round(255 - n * 190)},${Math.round(255 - n * 175)},${Math.round(255 - n * 110)},1)`; ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = 'lighter';
-      if (cam && estado !== 'titulo') { // focos del camión
-        const [X, Y] = proj(cam.x + Math.cos(cam.a) * 14, cam.y + Math.sin(cam.a) * 14);
+      const foco = cam && estado !== 'titulo' && aPantalla(cam.x + Math.cos(cam.a) * 14, cam.y + Math.sin(cam.a) * 14);
+      if (foco) { // focos del camión
+        const [X, Y] = foco;
         const g = ctx.createRadialGradient(X, Y, 2, X, Y, 46); g.addColorStop(0, `rgba(255,240,180,${0.5 * n})`); g.addColorStop(1, 'rgba(255,240,180,0)');
         ctx.fillStyle = g; ctx.fillRect(X - 50, Y - 50, 100, 100);
       }
@@ -764,7 +779,8 @@
     if (cam.fuera && Math.abs(cam.v) > 1) T('FUERA DEL CAMINO', W / 2, 60, { color: '#ffb040', align: 'center', outline: '#000' });
   }
   function dibujarMsgs() {
-    let y = estado === 'mapa' ? 24 : 136; // debajo del camión, sobre el panel del GPS
+    // que no tapen el camión: en la isométrica va al centro, en la vista de atrás abajo
+    let y = estado === 'mapa' ? 24 : vista === '3p' ? 98 : 136;
     for (const m of msgs) {
       const a = Math.min(1, (m.dur - m.t) * 3);
       ctx.globalAlpha = a;
@@ -854,7 +870,7 @@
     ctx.fillStyle = 'rgba(4,6,18,0.8)'; ctx.fillRect(0, 0, W, H);
     T('PAUSA', W / 2, 40, { color: '#f9f871', align: 'center', scale: 2 });
     ['SEGUIR MANEJANDO', 'COLOR DEL CAMIÓN: ' + tractoCol.toUpperCase(), 'GUARDAR Y SALIR AL TÍTULO'].forEach((t, i) => T((i === pausaSel ? '> ' : '  ') + t, W / 2, 80 + i * 14, { color: i === pausaSel ? '#fff' : '#8080a0', align: 'center' }));
-    const ayuda = ['FLECHAS: MANEJAR (ABAJO DETENIDO: REVERSA)', 'ESPACIO: CARGAS · R: RADIO (MAYÚS+R: ANTERIOR)', 'M: MAPA · H: BOCINA · S: SILENCIO · ESC: PAUSA'];
+    const ayuda = ['FLECHAS: MANEJAR (ABAJO DETENIDO: REVERSA)', 'ESPACIO: CARGAS · R: RADIO (MAYÚS+R: ANTERIOR)', 'M: MAPA · C: VISTA · H: BOCINA · S: SILENCIO · ESC: PAUSA'];
     ayuda.forEach((t, i) => T(t, W / 2, 140 + i * 11, { color: '#a080c0', align: 'center' }));
     T('CALLES: © COLABORADORES DE OPENSTREETMAP · RADIOS: RADIO-BROWSER.INFO', W / 2, H - 16, { color: '#606070', align: 'center' });
   }
@@ -881,7 +897,8 @@
     if (estado === 'cargando') { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); T('CARGANDO MAPA…'.replace('…', '...'), W / 2, H / 2, { color: '#05d9e8', align: 'center' }); return; }
     if (estado === 'mapa') { dibujarMapa(); dibujarMsgs(); }
     else {
-      dibujarMundo();
+      if (vista === '3p' && estado !== 'titulo' && cam) { vista3.dibujar(dtCuadro); efectos((x, y) => vista3.pantalla(x, y, 0)); }
+      else dibujarMundo();
       if (estado === 'titulo') { dibujarTitulo(); }
       else {
         hud();
@@ -897,7 +914,7 @@
   // ---------- bucle ----------
   let last = performance.now();
   function loop(now) {
-    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    const dt = Math.min(0.05, (now - last) / 1000); last = now; dtCuadro = dt;
     if (estado === 'cargando') { dibujar(); iniciar(); }
     else { actualizar(dt); dibujar(); }
     requestAnimationFrame(loop);
@@ -908,6 +925,7 @@
     get estado() { return estado; }, get cam() { return cam; }, get partida() { return partida; }, get gps() { return gps; }, get autos() { return autos; },
     press(k) { if (KM[k]) { press(KM[k]); setTimeout(() => release(KM[k]), 120); } else pressed.add(ACC[k] || k); },
     teclas: keys,
+    get vista3() { return vista3; }, get vista() { return vista; },
     ff(seg) { for (let t = 0; t < seg; t += 1 / 60) actualizar(1 / 60); },
     ir(x, y, a) { cam.x = x; cam.y = y; cam.a = a || 0; N.ponerRemolque(cam, cam.remolque, cam.carga); camPos = { x, y }; },
   };

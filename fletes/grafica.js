@@ -13,6 +13,7 @@
   GR.hex = hex;
   function hash(x, y) { let h = (x * 374761393 + y * 668265263) | 0; h = (h ^ (h >>> 13)) * 1274126177 | 0; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
   GR.hash = hash;
+  GR.mixP = (c, d, t) => mixP(c, d, t); GR.packH = h => packH(h);
 
   // ---------- fuente 5x7 ----------
   const F = {
@@ -668,6 +669,7 @@
         }
       }
       cx.putImageData(img, 0, 0);
+      cvs.px = D; // los píxeles del suelo, para la vista en perspectiva (sin las sombras horneadas)
       // sombras horneadas de árboles y casas
       if (GR.decoEnBloque) for (const o of GR.decoEnBloque(cu, cv)) {
         const [u, v] = GR.iso(o.x * S, o.y * S), X = u - u0, Y = v - v0;
@@ -680,6 +682,8 @@
       chunks, CS, cruces,
       get(cu, cv) { const k = cu + ',' + cv; let c = chunks.get(k); if (!c) { c = gen(cu, cv); chunks.set(k, c); } return c; },
       has: (cu, cv) => chunks.has(cu + ',' + cv),
+      // píxeles de un bloque ya generado (o null), para muestrear el suelo en perspectiva
+      pixeles(cu, cv) { const c = chunks.get(cu + ',' + cv); return c ? c.px : null; },
       // precalcula hasta n bloques alrededor de un punto de la pantalla (u,v)
       precargar(u, v, W, H, n) {
         for (let cu = Math.floor((u - W) / CS); cu <= Math.floor((u + W) / CS) && n > 0; cu++)
@@ -706,10 +710,13 @@
   // ---------- edificios extruidos (sprite por edificio, con contorno de pixel art) ----------
   const FACHADAS = ['#e8dcc0', '#d8c8a8', '#f0e8d8', '#c8d8e0', '#e0c0a0', '#a8c0a0', '#d0a8a0', '#f0d8a0', '#b8b8c8', '#e8e0e8', '#c89870', '#90a8c8'];
   const TECHOS = ['#a83a2a', '#6a6a72', '#8a3a3a', '#3a4a6a', '#5a6a5a', '#9a8a7a', '#b8603a'];
-  GR.edificio = function (b, idx) {
-    const h = hash(idx, 7), pared = hex(FACHADAS[Math.floor(h * FACHADAS.length)]);
+  // colores de un edificio (los mismos en la vista isométrica y en la de atrás)
+  GR.colorEdificio = function (b, idx) {
     const grande = (b.x1 - b.x0) * (b.y1 - b.y0) > 900 || b.h > 9;
-    const techo = hex(grande ? (b.h > 9 ? '#8a8a92' : '#9a9aa2') : TECHOS[Math.floor(hash(idx, 3) * TECHOS.length)]);
+    return { pared: hex(FACHADAS[Math.floor(hash(idx, 7) * FACHADAS.length)]), techo: hex(grande ? (b.h > 9 ? '#8a8a92' : '#9a9aa2') : TECHOS[Math.floor(hash(idx, 3) * TECHOS.length)]), grande };
+  };
+  GR.edificio = function (b, idx) {
+    const { pared, techo, grande } = GR.colorEdificio(b, idx);
     const zh = Math.round(b.h * S * 1.15);
     const pts = b.pts.map(([x, y]) => { const [u, v] = GR.iso(x * S, y * S); return [u, v]; });
     let u0 = 1e9, u1 = -1e9, v0 = 1e9, v1 = -1e9;
