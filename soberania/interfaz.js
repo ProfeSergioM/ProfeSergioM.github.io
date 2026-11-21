@@ -53,10 +53,11 @@
   function proy(lat, lon, shift) { if (shift && lon < -25) lon += 360; return [(lon + 180) / 360 * MW, (LAT0 - lat) / (LAT0 - LAT1) * MH]; }
   // territorio del país ficticio: una mancha irregular, estable para cada partida
   function territorio(c, yo) {
-    const grados = { pequeno: 1.7, mediano: 3, grande: 5 }[yo.tamano] || 3, R0 = grados * MW / 360;
+    const grados = { pequeno: 1.7, mediano: 3, grande: 5 }[yo.tamano] || 3;
+    const Ry = (yo.km ? yo.km / 111.32 : grados * 0.9) * MW / 360, Rx = (yo.km ? yo.km / (111.32 * Math.cos(yo.lat * Math.PI / 180)) : grados) * MW / 360;
     const o2 = { rng: (yo.semilla || 7) >>> 0 }, fases = [0, 1, 2, 3].map(() => N.rnd(o2) * 6.283), amps = [0.18, 0.12, 0.08, 0.05];
     const pts = [];
-    for (let i = 0; i < 48; i++) { const a = i / 48 * 6.283; let r = 1; amps.forEach((am, j) => (r += am * Math.sin((j + 2) * a + fases[j]))); pts.push((c[0] + Math.cos(a) * R0 * r).toFixed(2) + ',' + (c[1] + Math.sin(a) * R0 * r * 0.9).toFixed(2)); }
+    for (let i = 0; i < 48; i++) { const a = i / 48 * 6.283; let r = 1; amps.forEach((am, j) => (r += am * Math.sin((j + 2) * a + fases[j]))); pts.push((c[0] + Math.cos(a) * Rx * r).toFixed(2) + ',' + (c[1] + Math.sin(a) * Ry * r).toFixed(2)); }
     const col = colorVivo(yo.colores);
     return `<polygon class="territorio" points="${pts.join(' ')}" fill="${col}"/>`;
   }
@@ -73,7 +74,7 @@
     const enCont = N.PAISES.filter(p => p.cont === o.cont);
     if (o.zoom !== 'mundo') {
       const base = o.zoom === 'sub' ? enCont.filter(p => p.sub === o.sub || (o.vecinos || []).includes(p.iso)) : enCont;
-      const pts = base.map(p => proy(p.lat, p.lon, shift)); if (o.yo) pts.push(proy(o.yo.lat, o.yo.lon, shift));
+      const pts = base.map(p => proy(p.lat, p.lon, shift)); if (o.yo) { const g = (o.yo.km || 300) / 111.32 * 1.3; for (const [a, b] of [[g, 0], [-g, 0], [0, g * 1.6], [0, -g * 1.6]]) pts.push(proy(o.yo.lat + a, o.yo.lon + b, shift)); }
       let x0 = Math.min(...pts.map(p => p[0])), x1 = Math.max(...pts.map(p => p[0])), y0 = Math.min(...pts.map(p => p[1])), y1 = Math.max(...pts.map(p => p[1]));
       let w = x1 - x0, h = y1 - y0; const pad = Math.max(w, h) * 0.12 + 14; x0 -= pad; y0 -= pad; w += pad * 2; h += pad * 2;
       const asp = 1.45; if (w / h < asp) { const nw = h * asp; x0 -= (nw - w) / 2; w = nw; } else { const nh = w / asp; y0 -= (nh - h) / 2; h = nh; }
@@ -161,7 +162,15 @@
       ministerios: ['salud', 'educacion', 'economia', 'obras', 'social'], selMin: {} };
     cfg.inst = N.instPorDefecto(cfg.tipo); ubicar(cfg); return cfg;
   }
-  function ubicar(cfg) { const u = N.sugerirUbicacion({ rng: (cfg.semilla + cfg.reroll * 977 + hash(cfg.subregion)) >>> 0 }, cfg.continente, cfg.subregion); cfg.vecinos = u.vecinos; cfg.lat = u.lat; cfg.lon = u.lon; }
+  function ubicar(cfg) {
+    const l = N.ubicacionesDe(cfg.continente);
+    if (!l.some(x => x.id === cfg.ubic)) cfg.ubic = l.length ? l[0].id : null;
+    if (cfg.ubic) N.aplicarUbicacion(cfg);
+    else { const x = N.sugerirUbicacion({ rng: cfg.semilla }, cfg.continente, Object.keys(R.CONTINENTES[cfg.continente].subs)[0]); cfg.vecinos = x.vecinos; cfg.lat = x.lat; cfg.lon = x.lon; }
+  }
+  const TIPO_UBIC = { costa_pocas: 'Costa · pocas fronteras', costa_muchas: 'Costa · muchas fronteras', interior_muchas: 'Interior · muchas fronteras', interior_pocas: 'Interior · pocas fronteras', isla: 'Isla' };
+  function listaNombres(isos) { const n = isos.map(i => N.PX[i].nombre); return n.length <= 1 ? n.join('') : n.slice(0, -1).join(', ') + ' y ' + n[n.length - 1]; }
+  function tituloUbic(u, tam) { const t = u.tam[tam || 'mediano']; return u.isla ? 'Isla cerca de ' + listaNombres(t.vecinos) : t.vecinos.length === 1 ? 'En la región de ' + listaNombres(t.vecinos) : 'Entre ' + listaNombres(t.vecinos); }
   function candsDe(m) { const k = U.cfg.semilla + ':' + m; if (!U.cands[k]) U.cands[k] = N.candidatos({ rng: (U.cfg.semilla ^ hash(m)) >>> 0 }, m, 3); return U.cands[k]; }
   function cfgFinal() {
     const c = Object.assign({}, U.cfg); c.ministros = {};
@@ -182,8 +191,10 @@
     const c = U.cfg, C = R.CONTINENTES[c.continente];
     const opc = (grupo, val, actual, txt, dis) => `<button class="opc ${val === actual ? 'sel' : ''}" data-a="cfg" data-k="${grupo}" data-v="${val}" ${dis ? 'disabled' : ''}>${esc(txt)}</button>`;
     const conts = Object.keys(R.CONTINENTES).map(k => opc('continente', k, c.continente, R.CONTINENTES[k].nombre)).join('');
-    const subs = Object.keys(C.subs).map(k => opc('subregion', k, c.subregion, C.subs[k])).join('');
-    const vec = c.vecinos.map(v => `<span class="vecino">${esc(N.PX[v].nombre)}</span>`).join('');
+    const ubics = N.ubicacionesDe(c.continente).map(x => {
+      const t = x.tam[c.tamano], fr = x.isla ? 'Sin fronteras terrestres' : t.vecinos.length + (t.vecinos.length === 1 ? ' frontera' : ' fronteras'), co = t.costa ? (x.isla ? 'todo costa' : 'con costa') : 'sin salida al mar';
+      return '<button class="instop ' + (c.ubic === x.id ? 'sel' : '') + '" data-a="ubic" data-v="' + x.id + '"><b>' + esc(tituloUbic(x, c.tamano)) + '</b>' + esc(TIPO_UBIC[x.tipo] || '') + ' · ' + esc(C.subs[x.sub] || '') + '<span class="costo">' + fr + ' · ' + co + '</span></button>';
+    }).join('');
     const recs = Object.keys(R.RECURSOS).map(k => { const sel = c.recursos.includes(k); const dis = (R.RECURSOS[k].costa && !c.costa) || (!sel && c.recursos.length >= 2); return `<button class="opc ${sel ? 'sel' : ''}" data-a="recurso" data-v="${k}" ${dis ? 'disabled' : ''}>${esc(R.RECURSOS[k].nombre)}</button>`; }).join('');
     const colores = [0, 1, 2].map(i => `<div class="colores" style="margin-bottom:4px">${PALETA.map(p => `<button class="color ${c.colores[i] === p ? 'sel' : ''}" style="background:${p}" data-a="color" data-i="${i}" data-v="${p}" aria-label="color ${i + 1}"></button>`).join('')}</div>`).join('');
     const pats = BANDERAS.map(b => `<button class="opc ${c.bandera === b ? 'sel' : ''}" data-a="cfg" data-k="bandera" data-v="${b}" style="padding:4px 6px">${bandera(b, c.colores, 30, 20)}</button>`).join('');
@@ -198,18 +209,17 @@
       </div>
       <div class="bloque"><h3>Ubicación</h3>
         <div class="chips" style="margin-bottom:8px">${conts}</div>
-        <div class="chips" style="margin-bottom:10px">${subs}</div>
-        <div class="vecinos"><span class="nota">Vecinos:</span> ${vec} <button class="btn chico" data-a="reubicar">Otra ubicación</button></div>
+        <div class="instops">${ubics}</div>
+        <p class="nota" style="margin-top:8px">Calculadas sobre el mapa real: ninguna tapa una capital ni le quita más del 30% de su territorio a un país.</p>
       </div>
       <div class="bloque"><h3>Geografía y economía</h3>
-        <div class="campo"><label>Costa</label><div class="chips">${opc('costa', 'si', c.costa ? 'si' : 'no', 'Con salida al mar')}${opc('costa', 'no', c.costa ? 'si' : 'no', 'Sin litoral')}</div></div>
         <p class="nota" style="margin:6px 0">Riquezas naturales (elige hasta dos):</p><div class="chips" style="margin-bottom:10px">${recs}</div>
-        <div class="campo"><label>Tamaño</label><div class="chips">${Object.keys(R.TAMANOS).map(k => opc('tamano', k, c.tamano, `${R.TAMANOS[k].nombre} (~${R.TAMANOS[k].pob} M hab.)`)).join('')}</div></div>
+        <div class="campo"><label>Tamaño</label><div class="chips">${Object.keys(R.TAMANOS).map(k => { const x = N.ubicacion(c.ubic); return opc('tamano', k, c.tamano, R.TAMANOS[k].nombre + ' · ' + (x ? fmt(x.tam[k].area / 1000) + ' mil km² · ' : '') + '~' + R.TAMANOS[k].pob + ' M hab.'); }).join('')}</div></div>
         <div class="campo"><label>Desarrollo</label><div class="chips">${Object.keys(R.DESARROLLO).map(k => opc('desarrollo', k, c.desarrollo, `${R.DESARROLLO[k].nombre} (~US$ ${fmt(R.DESARROLLO[k].pibpc)} por hab.)`)).join('')}</div></div>
         <div class="campo"><label>Partida</label><div class="chips">${[10, 20, 30].map(a => opc('duracion', String(a), String(c.duracion), `${a} años`)).join('')}</div></div>
       </div>
     </div><div class="pegajoso"><div class="bloque"><h3>${esc(C.nombre)} <small class="nota">· ${esc(C.subs[c.subregion])}</small></h3>
-      ${mapa({ cont: c.continente, sub: c.subregion, vecinos: c.vecinos, yo: { lat: c.lat, lon: c.lon, colores: c.colores, nombre: c.nombre, tamano: c.tamano, semilla: c.semilla }, zoom: 'sub', clic: 'nada', px: 330 })}
+      ${mapa({ cont: c.continente, sub: c.subregion, vecinos: c.vecinos, yo: { lat: c.lat, lon: c.lon, colores: c.colores, nombre: c.nombre, tamano: c.tamano, semilla: c.forma || c.semilla, km: c.km }, zoom: 'sub', clic: 'nada', px: 330 })}
       <p class="nota" style="margin-top:8px">Los demás países son los reales, con su régimen, economía y alianzas de hoy.</p></div></div></div>`;
   }
   function pasoRegimen() {
@@ -496,7 +506,7 @@
     if (!U.sel) U.sel = E.pais.vecinos[0];
     const relDe = iso => E.mundo.p[iso].rel;
     const zooms = [['sub', 'Vecindario'], ['region', 'Continente'], ['mundo', 'Mundo']].map(([k, n]) => `<button class="opc ${U.zoom === k ? 'sel' : ''}" data-a="zoom" data-v="${k}">${n}</button>`).join('');
-    const map = mapa({ cont: E.pais.cont, sub: E.pais.sub, vecinos: E.pais.vecinos, yo: { lat: E.pais.lat, lon: E.pais.lon, colores: E.pais.colores, nombre: E.pais.nombre, tamano: E.pais.tamano, semilla: E.semilla }, rel: relDe, sel: U.sel, zoom: U.zoom, px: 480 });
+    const map = mapa({ cont: E.pais.cont, sub: E.pais.sub, vecinos: E.pais.vecinos, yo: { lat: E.pais.lat, lon: E.pais.lon, colores: E.pais.colores, nombre: E.pais.nombre, tamano: E.pais.tamano, semilla: E.pais.forma || E.semilla, km: E.pais.km }, rel: relDe, sel: U.sel, zoom: U.zoom, px: 480 });
     const al = E.pol.alin;
     const alin = `<div class="alinea"><i style="left:${50 + al / 2}%"></i></div><div class="alinea-et"><span>China / Rusia</span><span>${al > 25 ? 'Pro-occidental' : al < -25 ? 'Cercano al eje' : 'No alineado'}</span><span>Occidente</span></div>`;
     // lista de países
@@ -583,11 +593,11 @@
     inicio: () => { U.vista = 'inicio'; render(); },
     paso: d => { U.paso = Math.max(0, Math.min(3, U.paso + +d.d)); render(); window.scrollTo(0, 0); },
     cfg: d => { const c = U.cfg; let v = d.v; if (d.k === 'costa') { c.costa = v === 'si'; if (!c.costa) c.recursos = c.recursos.filter(r => !R.RECURSOS[r].costa); } else if (d.k === 'duracion') c.duracion = +v; else c[d.k] = v;
-      if (d.k === 'continente') { c.subregion = Object.keys(R.CONTINENTES[v].subs)[0]; c.reroll = 0; ubicar(c); }
-      if (d.k === 'subregion') { c.reroll = 0; ubicar(c); }
+      if (d.k === 'continente') { c.ubic = null; ubicar(c); }
+      if (d.k === 'tamano') ubicar(c);
       render(); },
     dado: d => { const o = { rng: (Date.now() ^ Math.random() * 1e9) >>> 0 }; U.cfg[d.k] = d.k === 'nombre' ? N.nombrePais(o) : d.k === 'capital' ? N.capitalAleatoria(o) : N.persona(o); render(); },
-    reubicar: () => { U.cfg.reroll++; ubicar(U.cfg); render(); },
+    ubic: d => { U.cfg.ubic = d.v; ubicar(U.cfg); render(); },
     recurso: d => { const c = U.cfg, i = c.recursos.indexOf(d.v); if (i >= 0) c.recursos.splice(i, 1); else if (c.recursos.length < 2) c.recursos.push(d.v); render(); },
     color: d => { U.cfg.colores[+d.i] = d.v; render(); },
     tipo: d => { U.cfg.tipo = d.v; U.cfg.inst = N.instPorDefecto(d.v); render(); },

@@ -5,6 +5,7 @@ var NUCLEO = (function () {
   const R = NODE ? require('./reglas.js') : REGLAS;
   const DATOS = NODE ? require('./datos/paises.js').PAISES : window.PAISES;
   const EV = NODE ? require('./eventos.js') : EVENTOS_SOB;
+  const UBIC = NODE ? require('./datos/ubicaciones.js').UBICACIONES : (window.UBICACIONES || {});
 
   // ---------------- utilidades ----------------
   function rnd(o) { o.rng = (o.rng + 0x6D2B79F5) | 0; let t = o.rng; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -40,6 +41,17 @@ var NUCLEO = (function () {
     const lat = vec.reduce((s, p) => s + p.lat, 0) / n + entre(o, -1.5, 1.5);
     const lon = vec.reduce((s, p) => s + p.lon, 0) / n + entre(o, -1.5, 1.5);
     return { vecinos: vec.map(p => p.iso), lat, lon };
+  }
+  // Ubicaciones calculadas sobre el mapa real (herramientas/ubicaciones.js): 2–3 por continente.
+  function ubicacionesDe(cont) { return UBIC[cont] || []; }
+  function ubicacion(id) { for (const c in UBIC) for (const u of UBIC[c]) if (u.id === id) return u; return null; }
+  // Completa la configuración (vecinos, costa, subregión, coordenadas) según la ubicación y el tamaño.
+  function aplicarUbicacion(cfg) {
+    const u = ubicacion(cfg.ubic); if (!u) return cfg;
+    const t = u.tam[cfg.tamano || 'mediano'];
+    cfg.lat = u.lat; cfg.lon = u.lon; cfg.subregion = u.sub; cfg.vecinos = t.vecinos.slice(); cfg.costa = t.costa; cfg.km = t.km; cfg.forma = u.forma; cfg.isla = !!u.isla;
+    if (!cfg.costa && cfg.recursos) cfg.recursos = cfg.recursos.filter(r => !R.RECURSOS[r].costa);
+    return cfg;
   }
   function dist(a, b) { const dl = (a.lon - b.lon) * Math.cos((a.lat + b.lat) / 2 * Math.PI / 180); return Math.hypot(a.lat - b.lat, dl); }
 
@@ -96,12 +108,13 @@ var NUCLEO = (function () {
   }
 
   function crearPartida(cfg) {
+    if (cfg.ubic) aplicarUbicacion(cfg);
     const E = { v: 1, rng: (cfg.semilla >>> 0) || 1, semilla: cfg.semilla >>> 0, turno: 0, anio0: 2027, durTurnos: (cfg.duracion || 20) * 4, fin: null,
       pend: [], cola: [], vistos: {}, flags: {}, noticias: [], hist: [], mods: [], cool: {}, orgs: {}, guerra: null, ultimo: null };
     const T = R.TIPOS[cfg.tipo], D = R.DESARROLLO[cfg.desarrollo || 'medio'], TM = R.TAMANOS[cfg.tamano || 'mediano'];
     const recursos = (cfg.recursos || []).filter(r => R.RECURSOS[r] && (!R.RECURSOS[r].costa || cfg.costa));
     E.pais = { nombre: cfg.nombre, capital: cfg.capital, colores: cfg.colores || ['#1d4e89', '#f2f2f2', '#c8102e'], bandera: cfg.bandera || 'h3', cont: cfg.continente, sub: cfg.subregion,
-      costa: !!cfg.costa, recursos, desarrollo: cfg.desarrollo || 'medio', tamano: cfg.tamano || 'mediano', lat: cfg.lat, lon: cfg.lon, vecinos: cfg.vecinos.slice(), lider: cfg.lider || persona(E) };
+      costa: !!cfg.costa, isla: !!cfg.isla, km: cfg.km || null, forma: cfg.forma || null, ubic: cfg.ubic || null, recursos, desarrollo: cfg.desarrollo || 'medio', tamano: cfg.tamano || 'mediano', lat: cfg.lat, lon: cfg.lon, vecinos: cfg.vecinos.slice(), lider: cfg.lider || persona(E) };
     // gobierno
     const inst = sanearInst(cfg.tipo, cfg.inst || instPorDefecto(cfg.tipo));
     E.gob = { tipo: cfg.tipo, inst, min: {}, leyes: {} };
@@ -1151,7 +1164,7 @@ var NUCLEO = (function () {
 
   return {
     R, PAISES, PX, POTENCIAS, NOMBRE_REG, DEMO_REG, ACCIONES, PERFILES,
-    rnd, gauss, clamp, fmt, persona, nombrePais, capitalAleatoria, paisesDe, sugerirUbicacion, candidatos, instPorDefecto, sanearInst, opcionesInst,
+    rnd, gauss, clamp, fmt, persona, nombrePais, capitalAleatoria, paisesDe, sugerirUbicacion, ubicacionesDe, ubicacion, aplicarUbicacion, candidatos, instPorDefecto, sanearInst, opcionesInst,
     crearPartida, estaticos, avanzar, fecha, finanzas, comercio, efArea, objetivosSoc, objetivosFac, poderRel, pesos, riesgoGolpe, milDe, legado, pronostico,
     verEvento, resolver, aplicar, chips, helpers, iniciarSuceso,
     estadoLey, aprobarLey, derogarLey, fijarPresupuesto, reaccionPrevista, desgasteDe,
