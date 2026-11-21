@@ -32,15 +32,16 @@
       let da = ha - c3.ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
       c3.ang += da * Math.min(1, dt * 2.6);
       const F = N.ficha(cam), largo = cam.remolque ? 16.5 : F.largo;
-      const D = 6 + largo * 1.45, Hc = 2.8 + largo * 0.6; // alta para ver la calle por encima de la carga
+      // como en la primera vista (la del tracto: 30 m atrás y 12,5 de alto); los vehículos chicos, algo más cerca,
+      // pero no tanto: de cerca el suelo y los sprites se agrandan demasiado y se ven pixelados
+      const D = 16 + largo * 0.85, Hc = 7 + largo * 0.34;
       const ca = Math.cos(c3.ang), sa = Math.sin(c3.ang);
       const tx = cam.x + Math.cos(ha) * 2, ty = cam.y + Math.sin(ha) * 2;
       const nx = tx - ca * D, ny = ty - sa * D;
       c3.x += (nx - c3.x) * Math.min(1, dt * 6); c3.y += (ny - c3.y) * Math.min(1, dt * 6);
       if (Math.hypot(nx - c3.x, ny - c3.y) > 30) { c3.x = nx; c3.y = ny; } // salto (cambio de vista o reubicación)
       c3.z = Hc;
-      // inclinación: el vehículo queda a unos 3/4 de la altura de la pantalla (encima de los paneles de abajo)
-      const pitch = Math.max(0.06, Math.atan2(Hc, D) - 0.2);
+      const pitch = Math.atan2(Hc - 1, D + 16);
       Cx = c3.x; Cy = c3.y; Cz = c3.z; cT = Math.cos(pitch); sT = Math.sin(pitch);
       fx = ca * cT; fy = sa * cT; fz = -sT;            // adelante
       rx = -sa; ry = ca;                                // derecha (en el suelo)
@@ -298,7 +299,18 @@
       { const dd = d.destino(); if (dd && dd.lugar.cat === 'domicilio') { const q = proy(dd.lugar.x, dd.lugar.y, 0); if (enVista(q, 30)) items.push({ p: q[2], k: 'dep', o: dd.lugar, q }); } }
       for (const a of M.sem.accesos) { const q = proy(a.poste[0], a.poste[1], 0); if (enVista(q, 20)) items.push({ p: q[2], k: 'sem', o: a, q }); }
       const qc = proy(cam.x, cam.y, 0);
-      items.push({ p: qc ? qc[2] : 0.6, k: 'camion' });
+      const pVeh = qc ? qc[2] : 0.6;
+      items.push({ p: pVeh, k: 'camion' });
+      const tapa = (b) => { // ¿el segmento cámara→vehículo cruza algún muro del edificio?
+        const ax = Cx, ay = Cy, bx = cam.x, by = cam.y, n = b.pts.length;
+        for (let k = 0, m = n - 1; k < n; m = k++) {
+          const [px, py] = b.pts[m], [qx, qy] = b.pts[k];
+          const d1 = (bx - ax) * (py - ay) - (by - ay) * (px - ax), d2 = (bx - ax) * (qy - ay) - (by - ay) * (qx - ax);
+          const d3 = (qx - px) * (ay - py) - (qy - py) * (ax - px), d4 = (qx - px) * (by - py) - (qy - py) * (bx - px);
+          if ((d1 > 0) !== (d2 > 0) && (d3 > 0) !== (d4 > 0)) return true;
+        }
+        return false;
+      };
       items.sort((a, b) => b.p - a.p);
       // flecha del próximo giro pintada en el piso, y los patios (antes de los objetos)
       d.flecha((x, y) => { const q = proy(x, y, 0.06); return q && q[2] < LEJOS ? q : null; }, 4);
@@ -308,10 +320,15 @@
       if (dest) anillo(dest.x, dest.y, 7, true);
       for (const it of items) {
         const o = it.o, q = it.q;
-        if (it.k === 'edif') edificio(o, it.i);
+        if (it.k === 'edif') {
+          // un edificio entre la cámara y el vehículo (calles con curva) se vuelve transparente para no taparlo
+          if (it.p < pVeh && tapa(o)) { ctx.globalAlpha = 0.35; edificio(o, it.i); ctx.globalAlpha = 1; } else edificio(o, it.i);
+        }
         else if (it.k === 'deco') {
           if (o.roto) continue;
-          const s = d.decoSprite(o); if (s) sprite(s, q);
+          // los que pasan pegados a la cámara se desvanecen: ampliados se verían como manchas gigantes
+          const al = Math.min(1, (q[2] - 9) / 7); if (al <= 0.05) continue;
+          const s = d.decoSprite(o); if (s) { ctx.globalAlpha = al; sprite(s, q); ctx.globalAlpha = 1; }
         } else if (it.k === 'auto') {
           const s = d.autoSpr[o.tipo][o.col][V.anguloSprite(o.ang)];
           const k = Math.min(6, F / (q[2] * PX_M));
