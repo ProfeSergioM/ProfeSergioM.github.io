@@ -9,19 +9,37 @@
     masaTracto: 8200, masaRemolque: 7000, potencia: 330000, fuerzaMax: 52000, vmax: 25, vmaxAtras: 3.6,
     freno: 5.5, cdA: 5.4, rodado: 0.0075, rodadoFuera: 0.06, vmaxFuera: 8, giroMax: 0.62, latMax: 5.0, volante: 1.6, volanteVuelta: 2.4 }; // latMax: aceleración lateral permitida (arcade: más que un camión real)
 
-  N.nuevoCamion = function (x, y, a) {
-    const C = N.CAMION;
-    const c = { x, y, a, v: 0, delta: 0, a2: a, remolque: false, carga: 0, rpm: 0.2, marcha: 1, gas: 0, freno: 0, atras: false, tAtras: 0,
+  N.CAMION.remolque = true; N.CAMION.masa = N.CAMION.masaTracto; N.CAMION.largo = N.CAMION.frente + N.CAMION.cola; N.CAMION.alto = 3.8;
+  N.CAMION.marchas = 12; N.CAMION.consumo = 0.24; N.CAMION.motor = { base: 22, esc: 62, vol: 1 };
+  // fichas de cada vehículo (el origen es el eje trasero; frente y cola, desde ahí). Arcade: giran más que los de verdad
+  const ficha = (o) => Object.assign({ vmaxAtras: 3, rodado: 0.012, rodadoFuera: 0.05, giroMax: 0.62, volante: 1.8, volanteVuelta: 2.6, cdA: 0.8, remolque: false }, o);
+  N.VEH = {
+    bici: ficha({ L1: 1.05, frente: 1.35, cola: 0.4, ancho: 0.6, alto: 1.75, masa: 85, potencia: 420, fuerzaMax: 230, vmax: 6.6, vmaxAtras: 1.2, freno: 4.5, cdA: 0.5, rodado: 0.006, rodadoFuera: 0.02, vmaxFuera: 5.5, giroMax: 0.75, latMax: 4.5, volante: 2.6, volanteVuelta: 3.4, marchas: 1, consumo: 0, motor: null }),
+    moto: ficha({ L1: 1.35, frente: 1.65, cola: 0.45, ancho: 0.8, alto: 1.6, masa: 230, potencia: 9000, fuerzaMax: 1150, vmax: 22, vmaxAtras: 1.5, freno: 6.5, cdA: 0.55, vmaxFuera: 6, giroMax: 0.7, latMax: 6, volante: 2.4, volanteVuelta: 3.2, marchas: 5, consumo: 0.035, motor: { base: 55, esc: 140, vol: 0.7 } }),
+    auto: ficha({ L1: 2.4, frente: 3.1, cola: 0.65, ancho: 1.7, alto: 1.5, masa: 1050, potencia: 52000, fuerzaMax: 5200, vmax: 28, freno: 7, cdA: 0.7, vmaxFuera: 7, giroMax: 0.65, latMax: 6, volante: 2.2, volanteVuelta: 3, marchas: 5, consumo: 0.065, motor: { base: 38, esc: 95, vol: 0.8 } }),
+    furgon: ficha({ L1: 3.0, frente: 3.9, cola: 1.05, ancho: 1.95, alto: 2.3, masa: 2100, potencia: 80000, fuerzaMax: 8500, vmax: 27, freno: 6.5, cdA: 1.6, vmaxFuera: 7, giroMax: 0.63, latMax: 5.5, volante: 2, volanteVuelta: 2.8, marchas: 5, consumo: 0.09, motor: { base: 30, esc: 80, vol: 0.9 } }),
+    camioneta: ficha({ L1: 3.1, frente: 4.1, cola: 1.2, ancho: 1.85, alto: 1.85, masa: 1950, potencia: 110000, fuerzaMax: 9500, vmax: 29, freno: 6.5, cdA: 1.3, rodadoFuera: 0.025, vmaxFuera: 12, giroMax: 0.63, latMax: 5.5, volante: 2, volanteVuelta: 2.8, marchas: 6, consumo: 0.1, motor: { base: 28, esc: 78, vol: 0.9 } }),
+    tres4: ficha({ L1: 3.4, frente: 4.6, cola: 1.8, ancho: 2.1, alto: 3.0, masa: 4300, potencia: 115000, fuerzaMax: 17000, vmax: 25, freno: 6.2, cdA: 3.2, vmaxFuera: 7, giroMax: 0.63, latMax: 5.2, volante: 1.8, volanteVuelta: 2.6, marchas: 6, consumo: 0.15, motor: { base: 26, esc: 72, vol: 1 } }),
+    rigido: ficha({ L1: 4.8, frente: 6.3, cola: 2.5, ancho: 2.5, alto: 3.6, masa: 8800, potencia: 220000, fuerzaMax: 34000, vmax: 25, freno: 5.8, cdA: 4.8, vmaxFuera: 7, giroMax: 0.62, latMax: 5, volante: 1.7, volanteVuelta: 2.5, marchas: 8, consumo: 0.22, motor: { base: 24, esc: 66, vol: 1 } }),
+    tracto: N.CAMION,
+  };
+  for (const v of Object.values(N.VEH)) if (v.largo == null) v.largo = v.frente + v.cola;
+  N.ficha = c => (c && N.VEH[c.tipo]) || N.CAMION;
+
+  N.nuevoVehiculo = function (tipo, x, y, a) {
+    const c = { tipo: N.VEH[tipo] ? tipo : 'tracto', x, y, a, v: 0, delta: 0, a2: a, remolque: false, carga: 0, rpm: 0.2, marcha: 1, gas: 0, freno: 0, atras: false, tAtras: 0,
       fuera: false, golpe: 0, km: 0, kmReal: 0, combustible: 0, tq: 0 };
     N.ponerRemolque(c, false);
     return c;
   };
-  // engancha o suelta el semirremolque, alineado con el tracto
+  N.nuevoCamion = (x, y, a) => N.nuevoVehiculo('tracto', x, y, a);
+  // carga o descarga. El tracto engancha o suelta el semirremolque, alineado; los demás solo suman el peso
   N.ponerRemolque = function (c, si, carga) {
-    const C = N.CAMION;
-    c.remolque = !!si; c.carga = si ? (carga || 0) : 0; c.a2 = c.a;
-    const hx = c.x + Math.cos(c.a) * C.quinta, hy = c.y + Math.sin(c.a) * C.quinta;
-    c.rx = hx - Math.cos(c.a) * C.L2; c.ry = hy - Math.sin(c.a) * C.L2;
+    const C = N.ficha(c);
+    c.remolque = !!si && C.remolque; c.cargado = !!si; c.carga = si ? (carga || 0) : 0; c.a2 = c.a;
+    const q = C.quinta || 0, L2 = C.L2 || 0;
+    const hx = c.x + Math.cos(c.a) * q, hy = c.y + Math.sin(c.a) * q;
+    c.rx = hx - Math.cos(c.a) * L2; c.ry = hy - Math.sin(c.a) * L2;
     c.atrapado = true; c.atrapadoT = 0;
   };
   // ¿alguna parte del camión está dentro de un edificio, del agua o de un obstáculo?
@@ -32,14 +50,16 @@
     }
     return false;
   };
-  N.masa = c => N.CAMION.masaTracto + (c.remolque ? N.CAMION.masaRemolque + c.carga : 0);
+  N.masa = c => { const C = N.ficha(c); return C.masa + (c.remolque ? C.masaRemolque : 0) + (c.carga || 0); };
 
   // puntos del contorno para choques: [x, y, radio, esRemolque]
   N.circulos = function (c, out) {
-    const C = N.CAMION; out = out || [];
+    const C = N.ficha(c); out = out || [];
     out.length = 0;
     const ca = Math.cos(c.a), sa = Math.sin(c.a);
-    for (const d of [C.frente - 1.2, 1.2]) out.push([c.x + ca * d, c.y + sa * d, 1.25, 0]);
+    // cuerpo: círculos del ancho del vehículo, separados a lo más 2,4 m
+    const r = Math.min(1.25, C.ancho / 2 + 0.05), d0 = -C.cola + r, d1 = C.frente - r, n = Math.max(1, Math.ceil((d1 - d0) / 2.4));
+    for (let k = 0; k <= n; k++) { const d = d1 - (d1 - d0) * k / n; out.push([c.x + ca * d, c.y + sa * d, r, 0]); }
     if (c.remolque) {
       const cb = Math.cos(c.a2), sb = Math.sin(c.a2);
       const hx = c.rx + cb * C.L2, hy = c.ry + sb * C.L2; // pivote
@@ -49,9 +69,11 @@
   };
 
   const tmpC = [], tmpA = [];
+  const cacheMarchas = new Map();
+  function marchas(C) { let m = cacheMarchas.get(C); if (!m) { m = [0]; for (let g = 1; g <= C.marchas; g++) m.push(C.vmax * 1.06 * Math.pow(g / C.marchas, 1.25)); cacheMarchas.set(C, m); } return m; }
   // paso de física. ent: {up, down, left, right, mano}. mundo: el de mundo.js (o null)
   N.paso = function (c, ent, dt, mundo, obst) {
-    const C = N.CAMION, m = N.masa(c);
+    const C = N.ficha(c), m = N.masa(c);
     const v = c.v, av = Math.abs(v);
     // ---- dirección: el máximo baja con la velocidad (aceleración lateral acotada)
     const dmax = Math.min(C.giroMax, Math.atan(C.latMax * C.L1 / Math.max(1, v * v)));
@@ -81,7 +103,7 @@
       F = dir * tope * Math.min(C.fuerzaMax, C.potencia / Math.max(av, 2.5));
       if (av > vmax - 1.5) F *= Math.max(0, (vmax - av) / 1.5); // limitador
     }
-    const res = (fuera ? C.rodadoFuera : C.rodado) * m * 9.8 + 0.6 * C.cdA * v * v + (gas ? 0 : 900); // freno motor suave
+    const res = (fuera ? C.rodadoFuera : C.rodado) * m * 9.8 + 0.6 * C.cdA * v * v + (gas ? 0 : m * 0.06); // freno motor suave
     let acc = F / m;
     let dec = res / m + freno * C.freno;
     if (av > vmax + 0.5) dec += (av - vmax) * 0.8; // al salir de la calzada se frena solo
@@ -141,21 +163,22 @@
     }
     c.golpe = golpe;
     if (c.atrapado && mundo) { c.atrapadoT = (c.atrapadoT || 0) + dt; if (c.atrapadoT > 0.25) { c.atrapadoT = 0; c.atrapado = N.tocaAlgo(c, mundo, null); } }
-    // ---- marcha y revoluciones (caja automática de 12 velocidades)
-    const MARCHAS = [0, 2.2, 3.4, 4.8, 6.4, 8.2, 10.2, 12.4, 14.8, 17.4, 20.2, 23.2, 26.4];
+    // ---- marcha y revoluciones (caja automática; el tracto tiene 12 marchas, una moto 5, la bici una sola)
+    const MARCHAS = C === N.CAMION ? [0, 2.2, 3.4, 4.8, 6.4, 8.2, 10.2, 12.4, 14.8, 17.4, 20.2, 23.2, 26.4] : marchas(C);
+    const nm = MARCHAS.length - 1;
     if (c.atras) { c.marcha = -1; c.rpm = 0.25 + av / C.vmaxAtras * 0.5; }
     else {
-      let g = 1; while (g < 12 && av > MARCHAS[g] * 0.92) g++;
+      let g = 1; while (g < nm && av > MARCHAS[g] * 0.92) g++;
       c.marcha = g;
       const lo = MARCHAS[g - 1], hi = MARCHAS[g];
       c.rpm = 0.25 + Math.max(0, Math.min(1, (av - lo * 0.92) / (hi - lo * 0.92))) * 0.6 + gas * 0.1;
     }
-    // ---- distancias y combustible (35 L/100 km cargado, menos vacío)
+    // ---- distancias y combustible (litros por km según el vehículo; más con carga y acelerando)
     const ds = Math.abs(c.v) * dt;
     c.km += ds / 1000;
     const real = mundo && mundo.factorReal ? mundo.factorReal(c.x, c.y) : 1;
     c.kmReal += ds * real / 1000;
-    c.combustible += ds * real / 1000 * (0.24 + 0.12 * (m - 15200) / 25000 + 0.1 * gas) ;
+    c.combustible += ds * real / 1000 * (C === N.CAMION ? 0.24 + 0.12 * (m - 15200) / 25000 + 0.1 * gas : C.consumo * (1 + (c.carga || 0) / C.masa * 0.6 + 0.3 * gas));
     return golpe;
   };
 
@@ -239,12 +262,13 @@
       // en los cruces con semáforo mandan las luces, no el que llega primero
       if (grado < 3 || aFin > 24 || (o.v < 0.5 && (o.espera || 0) > 1.2) || (mundo.sem && mundo.sem.porVert.has(finV))) continue;
       const oFinV = o.dir > 0 ? o.e.b : o.e.a, oFin = o.dir > 0 ? o.e.len - o.s : o.s;
-      if (oFinV === finV && o.e !== a.e && (oFin < aFin - 0.5 || (Math.abs(oFin - aFin) <= 0.5 && o.id < a.id)) && aFin > 3) {
-        libre = Math.min(libre, aFin - 3.5); // otro llega antes al cruce: esperar en la línea
+      const espera = (mundo.vert[finV].r || 4) + 4 + a.largo / 2; // detenerse antes de la esquina, no encima
+      if (oFinV === finV && o.e !== a.e && (oFin < aFin - 0.5 || (Math.abs(oFin - aFin) <= 0.5 && o.id < a.id)) && aFin > espera - 2) {
+        libre = Math.min(libre, aFin - espera); // otro llega antes al cruce: esperar
         continue;
       }
       const oIniV = o.dir > 0 ? o.e.a : o.e.b, oSalio = o.dir > 0 ? o.s : o.e.len - o.s;
-      if (oIniV === finV && oSalio < o.largo + 4 && aFin > 3) libre = Math.min(libre, aFin - 3.5); // todavía está en el cruce
+      if (oIniV === finV && oSalio < o.largo + 4 && aFin > espera - 2) libre = Math.min(libre, aFin - espera); // todavía está en el cruce
     }
     // semáforo: con rojo se detiene en la línea; con amarillo, solo si alcanza a frenar
     if (mundo.sem && N.SEM) {
@@ -327,7 +351,7 @@
     }
     let ang = Math.atan2(ty - c.y, tx - c.x) - c.a; while (ang > Math.PI) ang -= 2 * Math.PI; while (ang < -Math.PI) ang += 2 * Math.PI;
     // velocidad: según la curvatura de los próximos 60 m
-    let vlim = 25;
+    let vlim = N.ficha(c).vmax;
     for (let k = i + 1; k < P.length - 1 && cum[k] - sNow < 70; k++) {
       const a1 = Math.atan2(P[k][1] - P[k - 1][1], P[k][0] - P[k - 1][0]), a2 = Math.atan2(P[k + 1][1] - P[k][1], P[k + 1][0] - P[k][0]);
       let d = a2 - a1; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
@@ -340,7 +364,7 @@
     vlim = Math.min(vlim, Math.sqrt(2 * 2.0 * Math.max(0, resto - 3)) + 0.3);
     const ent = { up: c.v < vlim - 0.5, down: c.v > vlim + 1.2 || (vlim < 0.3 && c.v > 0.05), left: false, right: false };
     // dirección proporcional, con banda muerta (teclado: todo o nada, con pulsos)
-    const want = Math.atan(2 * N.CAMION.L1 * Math.sin(ang) / Math.max(4, Math.hypot(tx - c.x, ty - c.y)));
+    const want = Math.atan(2 * N.ficha(c).L1 * Math.sin(ang) / Math.max(4, Math.hypot(tx - c.x, ty - c.y)));
     st.acc = (st.acc || 0) + (want - c.delta) * 0.5;
     if (want - c.delta > 0.01) ent.right = true; else if (want - c.delta < -0.01) ent.left = true;
     return { ent, resto };

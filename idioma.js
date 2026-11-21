@@ -26,8 +26,8 @@
     'Teclado o táctil': 'Keyboard or touch',
 
     // ---- Fletes
-    'Juego de camiones tranquilo en pixel art isométrico. Llevas cargas entre Puerto Montt y Puerto Varas por sus calles reales, levantadas desde OpenStreetMap, y por la Ruta 5: salmón, mariscos, madera, leche o diésel. Con GPS, lluvia del sur, día y noche, y radios en vivo para escuchar mientras manejas. Sin carreras ni rivales.':
-      'Relaxed truck game in isometric pixel art. Haul freight between Puerto Montt and Puerto Varas on their real streets, built from OpenStreetMap, and along Route 5: salmon, seafood, timber, milk or diesel. With GPS, southern Chilean rain, day and night, and live radio stations to listen to while you drive. No races and no rivals. In Spanish.',
+    'Juego de repartos en pixel art entre Puerto Montt y Puerto Varas, por sus calles reales. Empiezas en bicicleta llevando sobres y comida a domicilio, y con lo que ganas compras moto, auto, furgón, camioneta y camiones hasta tener una flota con empleados. La meta: ser la empresa de repartos del sur en el menor tiempo. Con semáforos, lluvia del sur y radios en vivo.':
+      'Delivery game in pixel art between Puerto Montt and Puerto Varas, on their real streets. You start on a bicycle delivering envelopes and food to homes, and with what you earn you buy a motorbike, a car, a van, a pickup and trucks until you have a fleet with employees. The goal: become the delivery company of the south in the shortest time. With traffic lights, southern rain and live radio. In Spanish.',
     'Radios en vivo': 'Live radio',
 
     // ---- True o Poser

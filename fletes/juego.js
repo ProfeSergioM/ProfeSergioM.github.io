@@ -2,7 +2,7 @@
 // Motor gráfico tomado de TURBO 40 (lienzo 400x225 pixelado, vista isométrica, vóxeles, CRT).
 (function () {
   'use strict';
-  const GR = window.GR, AU = window.AU, MU = window.MUNDO, N = window.NUCLEO, C = window.CARGAS, RADIO = window.RADIO, SEM = window.SEMAFOROS;
+  const GR = window.GR, AU = window.AU, MU = window.MUNDO, N = window.NUCLEO, C = window.CARGAS, RADIO = window.RADIO, SEM = window.SEMAFOROS, EMP = window.EMPRESA;
   const W = 400, H = 225, S = GR.S;
   const cv = document.getElementById('pantalla'), ctx = cv.getContext('2d');
   cv.width = W; cv.height = H;
@@ -14,7 +14,7 @@
   const keys = { up: false, down: false, left: false, right: false };
   const pressed = new Set();
   const KM = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
-  const ACC = { ' ': 'accion', Enter: 'accion', r: 'radio', R: 'radioAtras', m: 'mapa', M: 'mapa', s: 'mudo', S: 'mudo', h: 'bocina', H: 'bocina', Escape: 'pausa', p: 'pausa', P: 'pausa', Tab: 'mapa', c: 'camara', C: 'camara' };
+  const ACC = { ' ': 'accion', Enter: 'accion', r: 'radio', R: 'radioAtras', m: 'mapa', M: 'mapa', s: 'mudo', S: 'mudo', h: 'bocina', H: 'bocina', Escape: 'pausa', p: 'pausa', P: 'pausa', Tab: 'mapa', c: 'camara', C: 'camara', e: 'empresa', E: 'empresa' };
   let audioListo = false;
   function despertarAudio() { AU.init(); if (!audioListo) { audioListo = true; } }
   function press(k) { if (!keys[k]) pressed.add(k); keys[k] = true; despertarAudio(); }
@@ -59,7 +59,7 @@
     mandos.appendChild(zona('volante', 'x', ['left', 'right'], '<div class="tecla" data-k="left">◀</div><div class="tecla" data-k="right">▶</div>'));
     mandos.appendChild(zona('pedales', 'y', ['up', 'down'], '<div class="tecla gas" data-k="up">▲<small>ACELERAR</small></div><div class="tecla freno" data-k="down">▼<small>FRENO</small></div>'));
     const botones = document.createElement('div'); botones.className = 'botones';
-    for (const [k, txt] of [['accion', 'CARGA'], ['radio', 'RADIO'], ['mapa', 'MAPA'], ['camara', 'VISTA'], ['bocina', 'BOCINA']]) {
+    for (const [k, txt] of [['accion', 'PEDIDOS'], ['empresa', 'EMPRESA'], ['radio', 'RADIO'], ['mapa', 'MAPA'], ['camara', 'VISTA']]) {
       const b = document.createElement('button'); b.type = 'button'; b.textContent = txt; b.dataset.a = k;
       b.addEventListener('pointerdown', e => { e.preventDefault(); despertarAudio(); pressed.add(k); });
       botones.appendChild(b);
@@ -106,16 +106,21 @@
   let partida = null, cam = null, camPos = { x: 0, y: 0 }, autos = [], ofertas = [], selOf = 0, depAqui = null, resumen = null;
   let gps = null, gpsSt = { i: 0 }, gpsT = 0, msgs = [], parts = [], lluvia = 0, lluviaT = 0, radioMsgT = -9, mapaZoom = 0, pausaSel = 0;
   let tractoCol = 'rojo';
+  let doms = null, empSel = 0, empSub = null, empSubSel = 0, metaVista = false; // domicilios; pantalla de empresa
   // vista: 'iso' (isométrica) o '3p' (tercera persona desde atrás); se recuerda en el navegador
   let vista = '3p', vista3 = null, dtCuadro = 1 / 60; // por defecto, la vista desde atrás
   try { if (localStorage.getItem('fletesVista') === 'iso') vista = 'iso'; } catch (e) { /* sin almacenamiento */ }
   const rnd = (a, b) => a + Math.random() * (b - a);
 
+  // la partida se guarda en el navegador (versión 2: empresa con flota). Una partida de la versión anterior no se carga.
   function guardar() {
     if (!partida || !cam) return;
-    try { localStorage.setItem('fletes', JSON.stringify({ dinero: partida.dinero, entregas: partida.entregas, t: partida.t, km: partida.km + cam.kmReal, dep: depAqui ? depAqui.id : null, col: tractoCol, hist: partida.historial.slice(-20) })); } catch (e) { /* sin almacenamiento */ }
+    const P = partida;
+    try { localStorage.setItem('fletes', JSON.stringify({ version: EMP.VERSION, dinero: P.dinero, entregas: P.entregas, t: P.t, tReal: P.tReal, vehiculo: P.vehiculo, maxTier: P.maxTier,
+      flota: P.flota, hitos: P.hitos, meta: P.meta, multas: P.multas || 0, ganadoFlota: P.ganadoFlota || 0, col: tractoCol, pos: { x: cam.x, y: cam.y, a: cam.a }, hist: P.historial.slice(-20) })); } catch (e) { /* sin almacenamiento */ }
   }
-  function leerGuardado() { try { return JSON.parse(localStorage.getItem('fletes') || 'null'); } catch (e) { return null; } }
+  function leerGuardado() { try { const g = JSON.parse(localStorage.getItem('fletes') || 'null'); return g && g.version === EMP.VERSION ? g : null; } catch (e) { return null; } }
+  function guardadoViejo() { try { const g = JSON.parse(localStorage.getItem('fletes') || 'null'); return !!g && g.version !== EMP.VERSION; } catch (e) { return false; } }
 
   function iniciar() {
     M = MU.crear(window.MAPA);
@@ -125,8 +130,9 @@
     autoSpr = GR.buildAutos();
     deco = Object.assign(GR.buildDecor(), GR.buildRuta());
     window.__fletes.M = M;
+    doms = EMP.domicilios(M);
     vista3 = window.VISTA3P.crear({ ctx, W, H, GR, M, N, suelo, DC, decoCelda, decoSprite, autoSpr,
-      cam: () => cam, autos: () => autos, gps: () => gps, gpsSt: () => gpsSt, destino, encargo: () => partida && partida.encargo, colorTracto: () => tractoCol,
+      cam: () => cam, autos: () => autos, gps: () => gps, gpsSt: () => gpsSt, destino, encargo: () => partida && partida.encargo, colorTracto: () => tractoCol, colorEmpresa,
       dibujarLetrero, dibujarSemaforo, frame: () => frame, parts: () => parts,
       flecha: (pr, ancho) => { const fl = flechaGiro(); if (fl) dibujarFlecha(fl, pr, ancho); } });
     estado = 'titulo'; stT = 0;
@@ -143,6 +149,7 @@
       const q = M.enCalzada(x, y);
       if (q) { const cl = q.e.cl; if (q.m < (cl.vereda ? cl.vereda + 0.6 : cl.berma ? cl.berma + 1.2 : 1.6) + r) return true; }
       if (M.agua(x, y) || M.chocaEdif(x, y, r + 0.8)) return true;
+      if (M.cruceCerca(x, y, 12 + r)) return true; // esquinas despejadas para que doblen los camiones
       for (const d of M.depositos) if (Math.hypot(d.x - x, d.y - y) < 18 + r) return true;
       for (const o of l) if (Math.hypot(o.x - x, o.y - y) < o.r + r + 1.2) return true;
       return false;
@@ -178,6 +185,7 @@
         const p = N.posEje(e, s, off, {});
         if (Math.floor(p.x / DC) !== gx || Math.floor(p.y / DC) !== gy) continue;
         if (M.chocaEdif(p.x, p.y, 0.4) || M.agua(p.x, p.y)) continue;
+        if (M.cruceCerca(p.x, p.y, 14)) continue; // sin postes en las esquinas
         const q = M.enCalzada(p.x, p.y); if (q && q.m < 0.5) continue;
         l.push({ k: 'poste', x: p.x, y: p.y, r: 0.3, v: 0, eje: e.id, s });
       }
@@ -206,59 +214,87 @@
   }
 
   // ---------- partida ----------
+  // la casa donde empieza todo: un domicilio de Puerto Montt cerca de la plaza
+  function casaInicial() {
+    let mejor = null, md = 1e9;
+    for (const d of doms.cerca(300, -400, 900)) { if (d.ciudad !== 0 || d.calle.e.c !== 'residential') continue; const dd = Math.hypot(d.x - 300, d.y + 400); if (dd < md) { md = dd; mejor = d; } }
+    return mejor || doms[0];
+  }
   function nuevaPartida(cont) {
-    partida = C.nuevaPartida((Math.random() * 1e9) | 0);
+    partida = EMP.nuevaPartida((Math.random() * 1e9) | 0);
     const g = cont ? leerGuardado() : null;
-    let dep = M.depositos.find(d => d.cat === 'puerto' && d.ciudad === 0) || M.depositos.find(d => d.ciudad === 0) || M.depositos[0];
-    if (g) { partida.dinero = g.dinero; partida.entregas = g.entregas; partida.t = g.t; partida.historial = g.hist || []; tractoCol = g.col || 'rojo'; if (g.dep != null && M.depositos[g.dep]) dep = M.depositos[g.dep]; partida.kmPrevios = g.km || 0; }
-    estacionar(dep);
+    let lugar = casaInicial(), pos = null;
+    if (g) {
+      Object.assign(partida, { dinero: g.dinero, entregas: g.entregas, t: g.t, tReal: g.tReal || 0, vehiculo: g.vehiculo, maxTier: g.maxTier, flota: g.flota || {}, hitos: g.hitos || {}, meta: g.meta || null,
+        multas: g.multas || 0, ganadoFlota: g.ganadoFlota || 0, historial: g.hist || [] });
+      tractoCol = g.col || 'rojo'; pos = g.pos;
+    }
+    estacionar(lugar, pos);
     autos = []; parts = []; msgs = [];
-    estado = 'manejo'; stT = 0;
-    abrirBolsa(dep);
+    estado = 'manejo'; stT = 0; metaVista = !!partida.meta;
+    if (!g) {
+      msg('TU EMPRESA DE REPARTOS EMPIEZA HOY', 6, 'big', 'UNA BICICLETA, ' + C.fmt(partida.dinero) + ' DE AHORROS Y MUCHAS GANAS');
+      msg(TACTIL ? 'TOCA PEDIDOS PARA VER ENCARGOS' : 'ESPACIO: VER PEDIDOS · E: TU EMPRESA', 6, 'small');
+    } else msg('BIENVENIDO DE VUELTA', 2, 'small');
   }
-  function estacionar(dep) {
-    // el camión queda en la calle frente al depósito, mirando a lo largo de ella
-    const c = dep.calle;
-    let a = Math.atan2(c.ty, c.tx);
-    if (c.e.ow) { /* sentido obligado */ } else if (GR.hash(dep.id, 3) < 0.5) a += Math.PI;
-    const lat = c.e.ow ? 0 : c.e.hw * 0.5;
-    const x = c.qx - Math.sin(a) * lat, y = c.qy + Math.cos(a) * lat; // a la derecha
-    cam = N.nuevoCamion(x, y, a);
+  // pone el vehículo actual en la calle de un lugar (o en una posición guardada)
+  function estacionar(lugar, pos) {
+    let x, y, a;
+    if (pos) { x = pos.x; y = pos.y; a = pos.a; }
+    else {
+      const c = lugar.calle;
+      a = Math.atan2(c.ty, c.tx); if (!c.e.ow && GR.hash(c.e.id, 3) < 0.5) a += Math.PI;
+      const lat = c.e.ow ? 0 : c.e.hw * 0.5;
+      x = c.qx - Math.sin(a) * lat; y = c.qy + Math.cos(a) * lat; // a la derecha
+    }
+    cam = N.nuevoVehiculo(partida.vehiculo, x, y, a);
     cam.kmReal = 0;
-    depAqui = dep;
     camPos = { x: cam.x, y: cam.y };
-    gps = null;
+    gps = null; if (vista3) vista3.reiniciar();
   }
-  function abrirBolsa(dep) {
-    depAqui = dep;
-    ofertas = C.ofertas(partida, M, dep, 4);
+  function abrirBolsa() {
+    ofertas = EMP.ofertas(partida, M, doms, cam.x, cam.y, 4);
     selOf = 0; estado = 'bolsa'; stT = 0; AU.blip();
   }
+  const radioLlegada = () => { const t = EMP.veh(partida).tier; return t <= 1 ? 9 : t >= 5 ? 22 : 14; };
   function aceptar(of) {
-    const enc = C.aceptar(partida, of);
+    const enc = EMP.aceptar(partida, of);
     enc.litros0 = cam.combustible;
-    const cols = GR.REMOLQUES[enc.rem];
-    enc.col = Math.floor(Math.random() * cols.length);
-    // el tracto sale del patio con el remolque enganchado, mirando hacia donde parte la ruta
-    const sal = M.salida(M.depositos[enc.de], M.depositos[enc.a]);
-    if (sal) { cam.x = sal.x; cam.y = sal.y; cam.a = sal.a; cam.v = 0; cam.delta = 0; camPos = { x: cam.x, y: cam.y }; }
-    N.ponerRemolque(cam, true, enc.peso * 1000);
-    // si quedó un remolque metido en un edificio, alinear con la calle
-    AU.caja(); AU.aire();
-    const d = M.depositos[enc.a];
-    msg('CARGA ENGANCHADA: ' + enc.n, 3.5, 'big', 'DESTINO: ' + C.nombreDep(d, M).tipo + ' · ' + C.nombreDep(d, M).ciudad);
-    if (sal) { gps = sal.ruta; gpsSt = { i: 0 }; } else calcularGPS(true);
+    if (enc.rem) { const cols = GR.REMOLQUES[enc.rem]; enc.col = Math.floor(Math.random() * cols.length); }
+    AU.blip();
     estado = 'manejo';
+    const nl = EMP.nombreLugar(enc.de, M);
+    if (Math.hypot(cam.x - enc.pDe.x, cam.y - enc.pDe.y) < radioLlegada() + 6) retirar();
+    else { msg('ACEPTASTE: ' + enc.n, 3, 'big', 'RETÍRALO EN ' + nl.tipo + ' · ' + (nl.calle || nl.ciudad)); calcularGPS(true); }
   }
-  function destino() { return partida && partida.encargo ? M.depositos[partida.encargo.a] : null; }
+  // al llegar al lugar de retiro: se carga (el tracto engancha el semirremolque) y el GPS apunta a la entrega
+  function retirar() {
+    const enc = partida.encargo;
+    enc.fase = 'entrega';
+    N.ponerRemolque(cam, true, enc.peso);
+    AU.caja(); if (EMP.veh(partida).tier >= 3) AU.aire();
+    const nl = EMP.nombreLugar(enc.a, M);
+    msg('CARGA RETIRADA: ' + enc.n, 3.5, 'big', 'LLÉVALA A ' + nl.tipo + ' · ' + (nl.calle || nl.ciudad));
+    calcularGPS(true);
+  }
+  // el punto al que hay que llegar ahora: {x, y, calle, lugar}
+  function destino() {
+    const e = partida && partida.encargo; if (!e) return null;
+    const p = e.fase === 'retiro' ? e.pDe : e.pA, l = e.fase === 'retiro' ? e.de : e.a;
+    return { x: p.x, y: p.y, calle: p.calle, lugar: l };
+  }
+  const esDestino = l => { const d = destino(); return !!d && d.lugar === l; };
   function calcularGPS(forzar) {
     const d = destino();
     if (!d) { gps = null; return; }
-    // desde el frente del camión, en el sentido en que va
-    const r = M.rutaA(cam.x + Math.cos(cam.a) * 3, cam.y + Math.sin(cam.a) * 3, cam.a, d);
+    // desde el frente del vehículo, en el sentido en que va, por las calles que puede usar
+    const r = M.rutaA(cam.x + Math.cos(cam.a) * 3, cam.y + Math.sin(cam.a) * 3, cam.a, d, EMP.opts(EMP.veh(partida)));
     if (r) { gps = r; gpsSt = { i: 0 }; }
     else if (forzar) gps = null;
   }
+  // color de la empresa (el que se elige en la pausa)
+  const COLORES = { rojo: '#d42a2a', blanco: '#eceef2', azul: '#2a58c0', verde: '#2a8a4a' };
+  const colorEmpresa = () => COLORES[tractoCol] || COLORES.rojo;
   // ---------- ayudas de giro ----------
   // posición exacta del camión a lo largo de la ruta del GPS [m]
   let gpsS = 0;
@@ -379,7 +415,7 @@
 
   // ---------- actualización ----------
   const DT = N.DT; let acc = 0;
-  let ultGolpe = 0, ultAtras = 0, frenoAire = 0, buscarT = 0, semPrev = null, semAdelante = null;
+  let ultGolpe = 0, ultAtras = 0, frenoAire = 0, buscarT = 0, semPrev = null, semAdelante = null, avisoCalle = null;
   function actualizar(dt) {
     stT += dt; frame++;
     if (M) M.semT += dt; // los semáforos andan en tiempo real
@@ -389,7 +425,9 @@
     if (estado === 'titulo') actTitulo(dt);
     else if (estado === 'manejo') actManejo(dt);
     else if (estado === 'bolsa') actBolsa();
-    else if (estado === 'entrega') { if (P('accion') || P('up') || P('right')) abrirBolsa(depAqui); }
+    else if (estado === 'entrega') { if (P('accion') || P('up') || P('right')) { estado = 'manejo'; msg(TACTIL ? 'PEDIDOS: VER MÁS ENCARGOS' : 'ESPACIO: VER MÁS PEDIDOS', 2.5, 'small'); } }
+    else if (estado === 'empresa') actEmpresa();
+    else if (estado === 'meta') { if (P('accion') || P('pausa')) estado = 'manejo'; }
     else if (estado === 'mapa') { if (P('mapa') || P('pausa') || P('accion')) estado = 'manejo'; if (P('up')) mapaZoom = Math.min(2, mapaZoom + 1); if (P('down')) mapaZoom = Math.max(0, mapaZoom - 1); }
     else if (estado === 'pausa') actPausa();
     for (const m of msgs) m.t += dt;
@@ -419,21 +457,27 @@
     if (P('pausa')) estado = 'manejo';
     if (P('accion') || P('right')) {
       if (pausaSel === 0) estado = 'manejo';
-      else if (pausaSel === 1) { const cols = Object.keys(camSpr.tractos); tractoCol = cols[(cols.indexOf(tractoCol) + 1) % cols.length]; }
+      else if (pausaSel === 1) { const cols = Object.keys(COLORES); tractoCol = cols[(cols.indexOf(tractoCol) + 1) % cols.length]; }
       else if (pausaSel === 2) { estado = 'titulo'; guardar(); RADIO.apagar(); }
     }
   }
   function actManejo(dt) {
     if (P('pausa')) { estado = 'pausa'; pausaSel = 0; return; }
     if (P('mapa')) { estado = 'mapa'; return; }
+    if (P('empresa')) { estado = 'empresa'; empSel = EMP.veh(partida).tier; empSub = null; AU.blip(); return; }
     if (P('bocina')) AU.bocina();
     if (P('camara')) {
       vista = vista === 'iso' ? '3p' : 'iso'; if (vista3) vista3.reiniciar();
       try { localStorage.setItem('fletesVista', vista); } catch (e) { /* sin almacenamiento */ }
       msg(vista === '3p' ? 'VISTA DESDE ATRÁS' : 'VISTA ISOMÉTRICA', 1.5, 'small');
     }
-    // reloj del juego y clima
-    partida.t += dt * C.ESCALA;
+    // reloj del juego y clima; la flota trabaja mientras tanto
+    partida.t += dt * C.ESCALA; partida.tReal += dt;
+    EMP.avanzar(partida, dt * C.ESCALA);
+    if ((frame & 31) === 0) for (const h of EMP.revisarHitos(partida)) {
+      if (h.id === 'meta') { estado = 'meta'; AU.jingle('win'); guardar(); guardarRecord(); }
+      else { msg('¡' + h.t + '!', 4, 'big', 'VALOR DE LA EMPRESA ' + C.fmt(EMP.valor(partida))); AU.jingle('win'); guardar(); }
+    }
     lluviaT -= dt;
     if (lluviaT <= 0) { lluviaT = rnd(60, 180); lluvia = Math.random() < 0.35 ? 1 : 0; AU.rain(lluvia > 0); }
     // física a 120 Hz
@@ -449,11 +493,11 @@
       // postes y árboles quebrados por el camión
       for (const o of obst) if (o.roto && o.deco && !o.deco.roto) {
         o.deco.roto = true; AU.thud(20 + o.vRoto * 8);
-        if (o.vRoto > 3) { const d = C.golpe(partida, o.vRoto * 0.5); if (d > 0.5) msg((o.deco.k === 'poste' ? 'DERRIBASTE UN POSTE' : 'BOTASTE UN ÁRBOL') + ' · CARGA ' + Math.round(partida.encargo.dano) + '%', 2, 'small'); }
+        if (o.vRoto > 3 && partida.encargo) { const d = C.golpe(partida, o.vRoto * 0.5); if (d > 0.5) msg((o.deco.k === 'poste' ? 'DERRIBASTE UN POSTE' : 'BOTASTE UN ÁRBOL') + ' · CARGA ' + Math.round(partida.encargo.dano) + '%', 2, 'small'); }
       }
       if (golpe > 0.6 && stT - ultGolpe > 0.5) {
         ultGolpe = stT;
-        const d = C.golpe(partida, golpe);
+        const d = partida.encargo && partida.encargo.fase === 'entrega' ? C.golpe(partida, golpe) : 0;
         AU.thud(golpe * 12); if (golpe > 3) AU.crash(golpe * 10);
         if (d > 0.5) msg('CARGA DAÑADA ' + Math.round(partida.encargo.dano) + '%', 2, 'small');
         for (const o of obst) if (o.tocado && o.a) o.a.v = 0;
@@ -463,7 +507,7 @@
     seguirRuta();
     // semáforo de adelante (para el indicador) y multa por cruzar con rojo
     {
-      const fx = cam.x + Math.cos(cam.a) * N.CAMION.frente, fy = cam.y + Math.sin(cam.a) * N.CAMION.frente;
+      const fx = cam.x + Math.cos(cam.a) * N.ficha(cam).frente, fy = cam.y + Math.sin(cam.a) * N.ficha(cam).frente;
       const prox = SEM.proximo(M.sem, fx, fy, cam.a, 90);
       // cruzó la línea: en el cuadro anterior estaba antes y ahora está después
       if (semPrev) {
@@ -477,14 +521,15 @@
     }
     // sonidos de cabina
     const vel = Math.abs(cam.v);
-    AU.car(true, cam.rpm, cam.gas, 0, cam.fuera && vel > 1);
+    { const mo = N.ficha(cam).motor; AU.motor = mo; AU.car(!!mo, cam.rpm, cam.gas, 0, cam.fuera && vel > 1); }
     AU.motorVol = RADIO.estado === 'sonando' && RADIO.actual() && !RADIO.actual().interna ? 0.55 : 1;
-    if (cam.freno && vel > 4) frenoAire = 1; else if (frenoAire && vel < 0.5) { frenoAire = 0; AU.aire(); }
+    if (cam.freno && vel > 4 && EMP.veh(partida).tier >= 5) frenoAire = 1; else if (frenoAire && vel < 0.5) { frenoAire = 0; AU.aire(); }
     if (cam.atras && vel > 0.2 && stT - ultAtras > 0.9) { ultAtras = stT; AU.retroceso(); }
     // humo del escape al acelerar
-    if (cam.gas && frame % (vel < 5 ? 3 : 6) === 0) {
+    if (cam.gas && N.ficha(cam).motor && frame % (vel < 5 ? 3 : 6) === 0) {
       const ca = Math.cos(cam.a), sa = Math.sin(cam.a);
-      parts.push({ x: cam.x + ca * 2.4 - sa * 1, y: cam.y + sa * 2.4 + ca * 1, z: 4.2, vx: rnd(-0.5, 0.5) - ca * vel * 0.3, vy: rnd(-0.5, 0.5) - sa * vel * 0.3, vz: rnd(0.8, 1.6), life: 0, max: rnd(0.6, 1.1) });
+      const F = N.ficha(cam), ex = F === N.CAMION ? 2.4 : -F.cola, ez = F === N.CAMION ? 4.2 : 0.5;
+      parts.push({ x: cam.x + ca * ex - sa * 1, y: cam.y + sa * ex + ca * 1, z: ez, vx: rnd(-0.5, 0.5) - ca * vel * 0.3, vy: rnd(-0.5, 0.5) - sa * vel * 0.3, vz: rnd(0.8, 1.6), life: 0, max: rnd(0.6, 1.1) });
     }
     // tráfico
     sumarAutos(dt);
@@ -506,19 +551,18 @@
         if (dl > 22) calcularGPS();
       }
     }
-    // llegar al destino
+    // llegar al lugar de retiro o de entrega
     const d = destino();
-    if (d && Math.abs(cam.v) < 0.6) {
-      const cx2 = cam.remolque ? (cam.rx + cam.x) / 2 : cam.x, cy2 = cam.remolque ? (cam.ry + cam.y) / 2 : cam.y;
-      if (Math.hypot(cam.x - d.x, cam.y - d.y) < 22 || Math.hypot(cx2 - d.x, cy2 - d.y) < 22) entregar(d);
+    if (d && Math.abs(cam.v) < (EMP.veh(partida).tier <= 1 ? 1.2 : 0.6)) {
+      const r = radioLlegada(), F = N.ficha(cam), mx2 = cam.x + Math.cos(cam.a) * F.frente / 2, my2 = cam.y + Math.sin(cam.a) * F.frente / 2;
+      if (Math.hypot(cam.x - d.x, cam.y - d.y) < r || Math.hypot(mx2 - d.x, my2 - d.y) < r) { if (partida.encargo.fase === 'retiro') retirar(); else entregar(d.lugar); }
     }
-    // ¿en un depósito? (para pedir cargas)
-    buscarT -= dt;
-    if (buscarT <= 0) { buscarT = 0.3; depAqui = null; for (const dp of M.depositos) if (Math.hypot(cam.x - dp.x, cam.y - dp.y) < 24) { depAqui = dp; break; } }
+    // avisos de calles: la bici no entra a la autopista; los camiones grandes, solo por vías anchas
+    { const q = M.enCalzada(cam.x, cam.y), veh = EMP.veh(partida); avisoCalle = q && q.m < 0 && veh.evitar && veh.evitar(q.e) ? (veh.id === 'bici' ? 'LAS BICICLETAS NO PUEDEN IR POR LA AUTOPISTA' : 'CALLE NO APTA PARA ESTE CAMIÓN') : null; }
     if (P('accion')) {
-      if (depAqui && !partida.encargo) { if (Math.abs(cam.v) < 1) abrirBolsa(depAqui); else msg('DETENTE PARA VER LAS CARGAS', 1.5, 'small'); }
-      else if (partida.encargo) msg('LLEVAS ' + partida.encargo.n + ' · SIGUE LA LÍNEA DEL GPS', 2, 'small');
-      else msg('BUSCA UN DEPÓSITO: LOS ROMBOS DEL MAPA', 2, 'small');
+      if (partida.encargo) msg('LLEVAS ' + partida.encargo.n + ' · SIGUE LA FLECHA Y EL MINIMAPA', 2, 'small');
+      else if (Math.abs(cam.v) < 1.2) abrirBolsa();
+      else msg('DETENTE PARA VER LOS PEDIDOS', 1.5, 'small');
     }
     // cámara: un poco adelante en la dirección de avance
     const mx = cam.remolque ? cam.x * 0.7 + cam.rx * 0.3 : cam.x, my = cam.remolque ? cam.y * 0.7 + cam.ry * 0.3 : cam.y;
@@ -529,9 +573,9 @@
   function entregar(d) {
     const litros = cam.combustible - (partida.encargo.litros0 || 0);
     const enc = partida.encargo;
-    resumen = Object.assign(C.entregar(partida, litros), { dep: d, rem: enc.rem });
+    resumen = Object.assign(EMP.entregar(partida, litros), { dep: d, rem: enc.rem });
     N.ponerRemolque(cam, false);
-    gps = null; depAqui = d;
+    gps = null;
     AU.jingle('win'); AU.aire();
     estado = 'entrega'; stT = 0;
     guardar();
@@ -550,25 +594,26 @@
     const xs = [], ys = [];
     for (const [u, v] of [[camU - W / 2 - 60, camV - H / 2 - 40], [camU + W / 2 + 60, camV - H / 2 - 40], [camU - W / 2 - 60, camV + H / 2 + 120], [camU + W / 2 + 60, camV + H / 2 + 120]]) { xs.push((v + u / 2) / S); ys.push((v - u / 2) / S); }
     const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    // patios: marca del lugar de entrega
+    // patios de los depósitos (punteados) y el lugar donde hay que retirar o entregar (parpadea)
     const dest = destino();
-    for (const d of M.depositos) {
-      if (d.x < x0 - 20 || d.x > x1 + 20 || d.y < y0 - 20 || d.y > y1 + 20) continue;
-      const esDest = d === dest;
-      const col = esDest ? ((frame >> 4) & 1 ? '#f9f871' : '#ff9a20') : '#e8e0c0';
-      const r = 9;
-      ctx.fillStyle = col;
-      for (let k = 0; k < 32; k++) { if ((k & 1) && !esDest) continue; const a = k / 32 * Math.PI * 2, [X, Y] = proj(d.x + Math.cos(a) * r, d.y + Math.sin(a) * r); ctx.fillRect(X, Y, 2, 1); }
-    }
+    const anillo = (x, y, r, esDest) => { ctx.fillStyle = esDest ? ((frame >> 4) & 1 ? '#f9f871' : '#ff9a20') : '#e8e0c0'; for (let k = 0; k < 32; k++) { if ((k & 1) && !esDest) continue; const a = k / 32 * Math.PI * 2, [X, Y] = proj(x + Math.cos(a) * r, y + Math.sin(a) * r); ctx.fillRect(X, Y, 2, 1); } };
+    for (const d of M.depositos) if (d.x > x0 - 20 && d.x < x1 + 20 && d.y > y0 - 20 && d.y < y1 + 20) anillo(d.x, d.y, 9, false);
+    if (dest && estado !== 'titulo') anillo(dest.x, dest.y, radioLlegada() * 0.7, true);
     // flecha del próximo giro pintada en el piso (la ruta completa va solo en el minimapa)
     const fl = estado !== 'titulo' && flechaGiro();
     if (fl) dibujarFlecha(fl, (x, y) => proj(x, y), 3);
     // sombras de vehículos
     ctx.globalAlpha = 0.32;
     for (const a of autos) { const [X, Y] = proj(a.x, a.y); if (!inView(X, Y, 40)) continue; ctx.fillStyle = '#000'; ctx.fillRect(X - 6, Y - 1, 12, 4); }
-    if (cam) {
-      const [X, Y] = proj(cam.x, cam.y), s1 = camSpr.sombra[GR.ang(cam.a)]; ctx.drawImage(s1.cv, X - s1.ox + 2, Y - s1.oy + 2);
-      if (cam.remolque) { const [hx, hy] = pivote(), [X2, Y2] = proj(hx, hy), s2 = camSpr.remSombra[GR.ang(cam.a2)]; ctx.drawImage(s2.cv, X2 - s2.ox + 2, Y2 - s2.oy + 2); }
+    if (cam && estado !== 'titulo') {
+      if (cam.tipo === 'tracto') {
+        const [X, Y] = proj(cam.x, cam.y), s1 = camSpr.sombra[GR.ang(cam.a)]; ctx.drawImage(s1.cv, X - s1.ox + 2, Y - s1.oy + 2);
+        if (cam.remolque) { const [hx, hy] = pivote(), [X2, Y2] = proj(hx, hy), s2 = camSpr.remSombra[GR.ang(cam.a2)]; ctx.drawImage(s2.cv, X2 - s2.ox + 2, Y2 - s2.oy + 2); }
+      } else { // sombra: el contorno del vehículo en el suelo
+        const F = N.ficha(cam), ca = Math.cos(cam.a), sa = Math.sin(cam.a), w = F.ancho / 2;
+        const pts = [[-F.cola, -w], [F.frente, -w], [F.frente, w], [-F.cola, w]].map(([lx, ly]) => proj(cam.x + ca * lx - sa * ly + 0.5, cam.y + sa * lx + ca * ly + 0.4));
+        ctx.fillStyle = '#000'; ctx.beginPath(); pts.forEach(([X, Y], i) => i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y)); ctx.closePath(); ctx.fill();
+      }
     }
     ctx.globalAlpha = 1;
     // lista ordenada por profundidad
@@ -582,6 +627,7 @@
     }
     for (const a of autos) { const [X, Y] = proj(a.x, a.y); if (inView(X, Y, 50)) list.push({ d: a.x + a.y, k: 'auto', o: a, X, Y }); }
     for (const d of M.depositos) { const [X, Y] = proj(d.x, d.y); if (inView(X, Y, 40)) list.push({ d: d.x + d.y + 6, k: 'letrero', o: d, X, Y }); }
+    if (dest && dest.lugar.cat === 'domicilio') { const [X, Y] = proj(dest.lugar.x, dest.lugar.y); if (inView(X, Y, 40)) list.push({ d: dest.lugar.x + dest.lugar.y + 3, k: 'letrero', o: dest.lugar, X, Y }); }
     for (const a of M.sem.accesos) { const [px, py] = a.poste; if (px < x0 || px > x1 || py < y0 || py > y1) continue; const [X, Y] = proj(px, py); if (inView(X, Y, 30)) list.push({ d: px + py, k: 'sem', o: a, X, Y }); }
     let pd = 0, PX = 0, PY = 0;
     if (cam && estado !== 'titulo') {
@@ -590,7 +636,7 @@
       list.push({ d: hx + hy, k: 'camion', X, Y });
       pd = cam.x + cam.y; PX = X; PY = Y - 12;
       // un auto se dibuja delante o detrás del camión según el punto del camión que le queda más cerca
-      const C = N.CAMION, ca = Math.cos(cam.a), sa = Math.sin(cam.a), cb = Math.cos(cam.a2), sb = Math.sin(cam.a2);
+      const C = N.ficha(cam), ca = Math.cos(cam.a), sa = Math.sin(cam.a), cb = Math.cos(cam.a2), sb = Math.sin(cam.a2);
       const tramos = [[cam.x - ca * C.cola, cam.y - sa * C.cola, cam.x + ca * C.frente, cam.y + sa * C.frente]];
       if (cam.remolque) tramos.push([cam.rx - cb * C.remCola, cam.ry - sb * C.remCola, hx + cb * C.remFrente, hy + sb * C.remFrente]);
       for (const e of list) {
@@ -688,8 +734,12 @@
     if (est && noche() > 0.2) { const i = ['rojo', 'amarillo', 'verde'].indexOf(est); ctx.globalAlpha = 0.35; ctx.fillStyle = LUZ[est][0]; ctx.fillRect(X - 3, Y - 26 + i * 4, 7, 7); ctx.globalAlpha = 1; }
   }
   // quinta rueda del tracto: ahí se ancla el sprite del remolque
-  function pivote() { return [cam.x + Math.cos(cam.a) * N.CAMION.quinta, cam.y + Math.sin(cam.a) * N.CAMION.quinta]; }
+  function pivote() { const q = N.ficha(cam).quinta || 0; return [cam.x + Math.cos(cam.a) * q, cam.y + Math.sin(cam.a) * q]; }
+  // sprites de los vehículos de la empresa, por tipo y color (se arman la primera vez que se usan)
+  const vehSpr = new Map();
+  function spriteVeh(tipo) { const k = tipo + ':' + tractoCol; let l = vehSpr.get(k); if (!l) { l = GR.buildVehiculo(tipo, colorEmpresa()); vehSpr.set(k, l); } return l; }
   function dibujarCamion(X, Y) {
+    if (cam.tipo !== 'tracto') { const s = spriteVeh(cam.tipo)[GR.ang(cam.a)]; ctx.drawImage(s.cv, X - s.ox, Y - s.oy); if (cam.freno && Math.abs(cam.v) > 0.3 || cam.atras) luzFreno(); return; }
     const st = camSpr.tractos[tractoCol][GR.ang(cam.a)];
     const tracto = () => { ctx.drawImage(st.cv, X - st.ox, Y - st.oy); if (cam.freno && Math.abs(cam.v) > 0.3 || cam.atras) luzFreno(); };
     if (!cam.remolque) { tracto(); return; }
@@ -702,9 +752,9 @@
     if (Math.cos(cam.a) + Math.sin(cam.a) > 0) { remolque(); tracto(); } else { tracto(); remolque(); }
   }
   function luzFreno() {
-    const ca = Math.cos(cam.remolque ? cam.a2 : cam.a), sa = Math.sin(cam.remolque ? cam.a2 : cam.a);
-    const bx = cam.remolque ? cam.rx - ca * 3 : cam.x - ca * 1.1, by = cam.remolque ? cam.ry - sa * 3 : cam.y - sa * 1.1;
-    for (const lado of [-1, 1]) { const [X, Y] = proj(bx - sa * lado * 1.1, by + ca * lado * 1.1, 1.2); ctx.fillStyle = cam.atras ? '#ffffff' : '#ff2020'; ctx.fillRect(X - 1, Y - 1, 2, 2); }
+    const F = N.ficha(cam), ca = Math.cos(cam.remolque ? cam.a2 : cam.a), sa = Math.sin(cam.remolque ? cam.a2 : cam.a);
+    const bx = cam.remolque ? cam.rx - ca * 3 : cam.x - ca * F.cola, by = cam.remolque ? cam.ry - sa * 3 : cam.y - sa * F.cola, w = Math.min(1.1, F.ancho / 2 - 0.2);
+    for (const lado of (w < 0.4 ? [0] : [-1, 1])) { const [X, Y] = proj(bx - sa * lado * w, by + ca * lado * w, Math.min(1.2, F.alto * 0.5)); ctx.fillStyle = cam.atras ? '#ffffff' : '#ff2020'; ctx.fillRect(X - 1, Y - 1, 2, 2); }
   }
   // hora del día → oscuridad 0..1 (amanece 7:00, oscurece 20:30)
   function noche() {
@@ -715,14 +765,14 @@
     if (h >= 6.5 && h < 8) return (8 - h) / 1.5 * 0.7;
     return 0.7;
   }
-  const ICONO = { puerto: '#3aa0e0', pesquera: '#f08080', combustible: '#e8c020', supermercado: '#40c060', ferreteria: '#e07030', muebles: '#a07050', repuestos: '#8080a0', feria: '#f0a040', hospital: '#f0f0f0', bodega: '#c0a070', industria: '#a0a0b0' };
+  const ICONO = { domicilio: '#f08ac8', puerto: '#3aa0e0', pesquera: '#f08080', combustible: '#e8c020', supermercado: '#40c060', ferreteria: '#e07030', muebles: '#a07050', repuestos: '#8080a0', feria: '#f0a040', hospital: '#f0f0f0', bodega: '#c0a070', industria: '#a0a0b0' };
   function dibujarLetrero(d, X, Y) {
     // poste con un cartel de color según el rubro; el destino lleva una flecha que salta
     ctx.fillStyle = '#505058'; ctx.fillRect(X, Y - 14, 1, 14);
     ctx.fillStyle = '#101014'; ctx.fillRect(X - 6, Y - 22, 13, 9);
     ctx.fillStyle = ICONO[d.cat] || '#fff'; ctx.fillRect(X - 5, Y - 21, 11, 7);
-    GR.text(ctx, d.cat[0].toUpperCase(), X - 2, Y - 21, { color: '#101014' });
-    if (d === destino() && estado !== 'titulo') {
+    GR.text(ctx, d.cat === 'domicilio' ? 'C' : d.cat[0].toUpperCase(), X - 2, Y - 21, { color: '#101014' });
+    if (esDestino(d) && estado !== 'titulo') {
       const b = Math.round(Math.sin(stT * 5) * 3);
       GR.text(ctx, '↓', X - 2, Y - 34 + b, { color: '#f9f871', outline: '#000' });
     }
@@ -756,7 +806,7 @@
         c.stroke();
       }
       if (gps) { c.strokeStyle = '#50e0ff'; c.lineWidth = 2; c.beginPath(); let n = 0; for (let k = Math.max(0, gpsSt.i - 2); k < gps.pts.length; k++) { const [u, v] = map(gps.pts[k][0], gps.pts[k][1]); n++ ? c.lineTo(u, v) : c.moveTo(u, v); if (Math.abs(u - W2 / 2) > W2 && Math.abs(v - H2 / 2) > H2) break; } c.stroke(); }
-      for (const d of M.depositos) { const [u, v] = map(d.x, d.y); if (u < -3 || v < -3 || u > W2 + 3 || v > H2 + 3) continue; c.fillStyle = d === destino() ? '#f9f871' : ICONO[d.cat]; c.fillRect(u - 2, v - 1, 4, 3); c.fillRect(u - 1, v - 2, 2, 5); }
+      for (const d of M.depositos) { const [u, v] = map(d.x, d.y); if (u < -3 || v < -3 || u > W2 + 3 || v > H2 + 3) continue; c.fillStyle = esDestino(d) ? '#f9f871' : ICONO[d.cat]; c.fillRect(u - 2, v - 1, 4, 3); c.fillRect(u - 1, v - 2, 2, 5); }
     }
     // recorte del lienzo con margen: corrido exactamente lo que avanzó el camión desde el último redibujo
     ctx.drawImage(miniCv, Math.round(MMARGEN + ou), Math.round(MMARGEN + ov), w, h, x, y, w, h);
@@ -781,8 +831,12 @@
     const enc = partida.encargo;
     // arriba a la izquierda: dinero, hora, ciudad
     panel(4, 4, 132, 30);
-    T(C.fmt(partida.dinero), 9, 9, { color: '#7cff4f' });
+    T(C.fmt(partida.dinero), 9, 9, { color: partida.dinero >= 0 ? '#7cff4f' : '#ff6060' });
     T(C.hora(partida.t) + ' · DÍA ' + (1 + Math.floor(partida.t / 86400)), 9, 19, { color: '#d1f7ff' });
+    // la empresa: vehículo propio y lo que deja la flota
+    { const f = EMP.flotaPorHora(partida), vt = EMP.veh(partida).n.split(' ')[0];
+      const t = f.vehiculos ? vt + ' · FLOTA ' + f.vehiculos + ' · ' + (f.neto >= 0 ? '+' : '') + C.fmt(f.neto) + '/H' : vt + ' · SIN EMPLEADOS';
+      if (!enc) { panel(4, 38, Math.max(132, GR.textW(t) + 10), 13); T(t, 9, 41, { color: '#c0d0ff' }); } }
     const ciu = M.ciudadEn(cam.x, cam.y);
     T(ciu ? ciu.nombre.toUpperCase() : 'RUTA 5 SUR', 136 - 5 - GR.textW(ciu ? ciu.nombre.toUpperCase() : 'RUTA 5 SUR'), 9, { color: '#f9f871' });
     if (lluvia) T('LLUVIA', 136 - 5 - GR.textW('LLUVIA'), 19, { color: '#80b0ff' });
@@ -822,25 +876,25 @@
       const resto = Math.max(0, gps.len - sNow);
       panel(116, H - 44, W - 120, 28);
       const kmR = resto * (gps.real / Math.max(1, gps.len)) / 1000;
-      T('→ ' + C.nombreDep(M.depositos[enc.a], M).tipo + ' · ' + C.nombreDep(M.depositos[enc.a], M).ciudad, 121, H - 40, { color: '#f9f871' });
+      { const nl = EMP.nombreLugar(enc.fase === 'retiro' ? enc.de : enc.a, M); T(((enc.fase === 'retiro' ? 'RETIRO: ' : 'ENTREGA: ') + (nl.tipo === 'DOMICILIO' ? nl.calle : nl.tipo + ' · ' + nl.ciudad)).slice(0, 36), 121, H - 40, { color: enc.fase === 'retiro' ? '#80e0ff' : '#f9f871' }); }
       T((kmR < 1 ? Math.round(kmR * 1000) + ' M' : kmR.toFixed(1).replace('.', ',') + ' KM'), W - 9 - GR.textW(kmR < 1 ? Math.round(kmR * 1000) + ' M' : kmR.toFixed(1).replace('.', ',') + ' KM'), H - 40, { color: '#fff' });
       if (sig && sig.s - sNow < 400) {
         const dd = Math.round((sig.s - sNow) / 10) * 10;
         const txt = (FLECHA[sig.giro] || '') + ' ' + (dd < 15 ? 'AHORA' : 'EN ' + dd + ' M') + ' ' + (sig.giro === 'AUTOPISTA' ? 'TOMA LA ' + sig.nombre.toUpperCase() : 'A LA ' + sig.giro + (sig.nombre ? ' · ' + sig.nombre.toUpperCase() : ''));
         T(txt.slice(0, 44), 121, H - 30, { color: dd < 60 && (frame >> 3) & 1 ? '#ffffff' : '#50e0ff' });
-      } else if (resto < 60) T('LLEGANDO: DETENTE EN EL PATIO', 121, H - 30, { color: '#7cff4f' });
+      } else if (resto < 60) T(enc.fase === 'retiro' ? 'LLEGANDO: DETENTE PARA CARGAR' : 'LLEGANDO: DETENTE PARA ENTREGAR', 121, H - 30, { color: '#7cff4f' });
       else { const qc = M.enCalzada(cam.x, cam.y); T(('SIGUE DERECHO' + (qc && qc.e.nombre ? ' POR ' + qc.e.nombre.toUpperCase() : '')).slice(0, 44), 121, H - 30, { color: '#50e0ff' }); }
       // datos de la carga
       panel(4, 38, 132, 40);
       T(enc.n.slice(0, 21), 9, 43, { color: '#ffd080' });
       const tarde = partida.t > enc.limite;
-      T(enc.peso + ' T · DAÑO ' + Math.round(enc.dano) + '%', 9, 53, { color: enc.dano > 20 ? '#ff6060' : '#c0c0d0' });
+      T(pesoTxt(enc.peso) + ' · ' + (enc.fase === 'retiro' ? 'POR RETIRAR' : 'DAÑO ' + Math.round(enc.dano) + '%'), 9, 53, { color: enc.dano > 20 ? '#ff6060' : '#c0c0d0' });
       T((tarde ? 'ATRASADO, ERA ' : 'ENTREGA HASTA ') + C.hora(enc.limite), 9, 63, { color: tarde ? '#ff9a20' : '#7cff4f' });
     } else if (!enc) {
-      const t = depAqui ? (TACTIL ? 'TOCA CARGA PARA VER LAS CARGAS DE AQUÍ' : 'ESPACIO: VER LAS CARGAS DE AQUÍ') : 'SIN CARGA · VE A UN DEPÓSITO (◆ EN EL MAPA)';
-      const tt = t.replace('◆', '*');
-      panel(116, H - 31, Math.min(W - 120, GR.textW(tt) + 10), 13); T(tt.slice(0, 46), 121, H - 28, { color: depAqui ? '#7cff4f' : '#d1f7ff' });
+      const t = TACTIL ? 'TOCA PEDIDOS O EMPRESA' : 'ESPACIO: PEDIDOS · E: EMPRESA';
+      panel(116, H - 31, Math.min(W - 120, GR.textW(t) + 10), 13); T(t.slice(0, 46), 121, H - 28, { color: '#7cff4f' });
     }
+    if (avisoCalle && (frame >> 4) & 1) { const w = GR.textW(avisoCalle) + 12; panel(W / 2 - w / 2, 64, w, 13, 0.8); T(avisoCalle, W / 2, 67, { color: '#ffb040', align: 'center' }); }
     // radio
     if (stT - radioMsgT < 4 || RADIO.estado === 'conectando') {
       const t = '♪ ' + RADIO.texto();
@@ -849,6 +903,7 @@
     } else if (RADIO.actual()) { T('> ' + RADIO.actual().nombre.slice(0, 20), W - 100, 72, { color: 'rgba(255,110,199,0.8)' }); }
     if (cam.fuera && Math.abs(cam.v) > 1) T('FUERA DEL CAMINO', W / 2, 60, { color: '#ffb040', align: 'center', outline: '#000' });
   }
+  const pesoTxt = kg => kg < 1000 ? kg + ' KG' : (kg / 1000).toFixed(kg < 10000 ? 1 : 0).replace('.', ',') + ' T';
   function dibujarMsgs() {
     // que no tapen el camión: en la isométrica va al centro, en la vista de atrás abajo
     let y = estado === 'mapa' ? 24 : vista === '3p' ? 98 : 136;
@@ -868,25 +923,26 @@
   function dibujarBolsa() {
     ctx.fillStyle = 'rgba(4,6,18,0.82)'; ctx.fillRect(14, 14, W - 28, H - 28);
     ctx.strokeStyle = '#05d9e8'; ctx.strokeRect(14.5, 14.5, W - 29, H - 29);
-    const n = C.nombreDep(depAqui, M);
-    T('BOLSA DE CARGAS', W / 2, 20, { color: '#f9f871', align: 'center', scale: 1 });
-    T(n.tipo + ' · ' + (n.calle || 'S/N').slice(0, 26) + ' · ' + n.ciudad, W / 2, 31, { color: '#a0e0ff', align: 'center' });
-    if (!ofertas.length) T('NO HAY CARGAS AQUÍ AHORA', W / 2, 80, { color: '#fff', align: 'center' });
+    const veh = EMP.veh(partida);
+    T('PEDIDOS PARA TU ' + veh.n, W / 2, 20, { color: '#f9f871', align: 'center', scale: 1 });
+    T('CAPACIDAD ' + pesoTxt(veh.cap) + (veh.evitar ? (veh.id === 'bici' ? ' · SIN AUTOPISTA' : veh.tier >= 6 ? ' · SOLO VÍAS ANCHAS' : ' · SIN PASAJES') : ''), W / 2, 31, { color: '#a0e0ff', align: 'center' });
+    if (!ofertas.length) T('NO HAY PEDIDOS CERCA AHORA', W / 2, 80, { color: '#fff', align: 'center' });
     ofertas.forEach((o, i) => {
       const y = 44 + i * 32, sel = i === selOf;
       ctx.fillStyle = sel ? 'rgba(5,217,232,0.22)' : 'rgba(255,255,255,0.04)'; ctx.fillRect(20, y, W - 40, 29);
       if (sel) { ctx.strokeStyle = '#05d9e8'; ctx.strokeRect(20.5, y + 0.5, W - 41, 28); }
-      const d = M.depositos[o.a], nd = C.nombreDep(d, M);
-      T(o.n, 26, y + 4, { color: sel ? '#fff' : '#d0d0e0' });
+      const nde = EMP.nombreLugar(o.de, M), nda = EMP.nombreLugar(o.a, M);
+      T(o.n.slice(0, 30), 26, y + 4, { color: sel ? '#fff' : '#d0d0e0' });
       T(C.fmt(o.pago), W - 26, y + 4, { color: '#7cff4f', align: 'right' });
-      T('→ ' + nd.tipo + ' · ' + nd.ciudad, 26, y + 13, { color: d.ciudad !== depAqui.ciudad ? '#ffd080' : '#a0a0c0' });
+      const ruta = (nde.tipo === 'DOMICILIO' ? 'CASA' : nde.tipo) + ' → ' + (nda.tipo === 'DOMICILIO' ? 'CASA' : nda.tipo) + (o.de.ciudad !== o.a.ciudad ? ' · ' + nda.ciudad : '');
+      T(ruta.slice(0, 44), 26, y + 13, { color: o.de.ciudad !== o.a.ciudad ? '#ffd080' : '#a0a0c0' });
       T(o.km.toFixed(1).replace('.', ',') + ' KM', W - 26, y + 13, { color: '#d1f7ff', align: 'right' });
-      T(o.peso + ' T · REMOLQUE ' + o.rem.toUpperCase() + ' · PLAZO ' + Math.round(o.plazo / 60) + ' MIN', 26, y + 21, { color: '#8080a0' });
+      T(pesoTxt(o.peso) + ' · RETIRO A ' + (o.aRetiro < 1000 ? Math.round(o.aRetiro / 10) * 10 + ' M' : (o.aRetiro / 1000).toFixed(1).replace('.', ',') + ' KM') + ' · PLAZO ' + Math.round(o.plazo / 60) + ' MIN', 26, y + 21, { color: '#8080a0' });
     });
     const yS = 44 + ofertas.length * 32;
     const sel = selOf === ofertas.length;
-    T(sel ? '> SEGUIR SIN CARGA <' : 'SEGUIR SIN CARGA', W / 2, yS + 4, { color: sel ? '#fff' : '#8080a0', align: 'center' });
-    T(TACTIL ? '↑↓ ELEGIR · CARGA: ACEPTAR' : '↑↓ ELEGIR · ESPACIO: ACEPTAR · ESC: CERRAR', W / 2, H - 24, { color: '#a080c0', align: 'center' });
+    T(sel ? '> CERRAR <' : 'CERRAR', W / 2, yS + 4, { color: sel ? '#fff' : '#8080a0', align: 'center' });
+    T(TACTIL ? '↑↓ ELEGIR · PEDIDOS: ACEPTAR' : '↑↓ ELEGIR · ESPACIO: ACEPTAR · ESC: CERRAR', W / 2, H - 24, { color: '#a080c0', align: 'center' });
   }
   function dibujarEntrega() {
     const r = resumen;
@@ -894,13 +950,14 @@
     T('ENTREGA COMPLETA', W / 2, 38, { color: '#7cff4f', align: 'center' });
     T(r.n, W / 2, 50, { color: '#ffd080', align: 'center' });
     const filas = [['PAGO', C.fmt(r.pago), '#fff'], [r.aTiempo ? 'BONO A TIEMPO' : 'LLEGASTE TARDE', r.aTiempo ? '+' + C.fmt(r.bono) : '$0', r.aTiempo ? '#7cff4f' : '#ff9a20'],
-      ['DAÑO A LA CARGA ' + Math.round(r.dano) + '%', '-' + C.fmt(r.desc), r.desc ? '#ff6060' : '#a0a0c0'], ['DIÉSEL', '-' + C.fmt(r.diesel), '#ff9a20']];
+      ['DAÑO A LA CARGA ' + Math.round(r.dano) + '%', '-' + C.fmt(r.desc), r.desc ? '#ff6060' : '#a0a0c0'], ['COMBUSTIBLE', '-' + C.fmt(r.diesel), r.diesel ? '#ff9a20' : '#a0a0c0']];
     filas.forEach(([a, b, c], i) => { T(a, 72, 66 + i * 11, { color: '#c0c0d0' }); T(b, W - 72, 66 + i * 11, { color: c, align: 'right' }); });
     ctx.fillStyle = '#05d9e8'; ctx.fillRect(72, 112, W - 144, 1);
     T('GANANCIA', 72, 117, { color: '#fff' }); T(C.fmt(r.neto), W - 72, 117, { color: r.neto >= 0 ? '#7cff4f' : '#ff6060', align: 'right' });
     T(r.km.toFixed(1).replace('.', ',') + ' KM EN ' + Math.round(r.duracion / 60) + ' MIN DEL JUEGO', W / 2, 134, { color: '#a0a0c0', align: 'center' });
     T('EN CAJA: ' + C.fmt(partida.dinero) + ' · ' + partida.entregas + ' ENTREGAS', W / 2, 146, { color: '#d1f7ff', align: 'center' });
-    if ((frame >> 4) & 1) T(TACTIL ? 'CARGA: VER NUEVAS CARGAS' : 'ESPACIO: VER NUEVAS CARGAS', W / 2, H - 44, { color: '#f9f871', align: 'center' });
+    T('VALOR DE LA EMPRESA ' + C.fmt(EMP.valor(partida)), W / 2, 158, { color: '#c0d0ff', align: 'center' });
+    if ((frame >> 4) & 1) T(TACTIL ? 'PEDIDOS: SEGUIR' : 'ESPACIO: SEGUIR', W / 2, H - 44, { color: '#f9f871', align: 'center' });
   }
   let mapaCache = {};
   function dibujarMapa() {
@@ -924,7 +981,8 @@
       ctx.stroke();
     }
     if (gps) { ctx.strokeStyle = '#50e0ff'; ctx.lineWidth = 2; ctx.beginPath(); gps.pts.forEach((p, k) => { const [a, b] = map(p[0], p[1]); k ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.stroke(); }
-    for (const d of M.depositos) { const [a, b] = map(d.x, d.y); ctx.fillStyle = '#000'; ctx.fillRect(a - 3, b - 3, 7, 7); ctx.fillStyle = d === destino() ? ((frame >> 3) & 1 ? '#f9f871' : '#ff9a20') : ICONO[d.cat]; ctx.fillRect(a - 2, b - 2, 5, 5); }
+    for (const d of M.depositos) { const [a, b] = map(d.x, d.y); ctx.fillStyle = '#000'; ctx.fillRect(a - 3, b - 3, 7, 7); ctx.fillStyle = esDestino(d) ? ((frame >> 3) & 1 ? '#f9f871' : '#ff9a20') : ICONO[d.cat]; ctx.fillRect(a - 2, b - 2, 5, 5); }
+    { const dd = destino(); if (dd) { const [a, b] = map(dd.x, dd.y); ctx.fillStyle = '#000'; ctx.fillRect(a - 3, b - 3, 7, 7); ctx.fillStyle = (frame >> 3) & 1 ? '#f9f871' : '#ff9a20'; ctx.fillRect(a - 2, b - 2, 5, 5); } }
     for (const ci of M.ciudades) { const [a, b] = map((ci.x0 + ci.x1) / 2, ci.y0 + 200); T(ci.nombre.toUpperCase(), a, b, { color: '#ffffff', align: 'center', outline: '#000' }); }
     const [a, b] = map(cam.x, cam.y);
     ctx.fillStyle = '#ff2a6d'; ctx.fillRect(a - 2, b - 2, 5, 5); if ((frame >> 3) & 1) { ctx.fillStyle = '#fff'; ctx.fillRect(a - 1, b - 1, 3, 3); }
@@ -937,11 +995,108 @@
     for (const c of cats) { ctx.fillStyle = ICONO[c]; ctx.fillRect(x, H - 19, 5, 5); const t = (C.CATS[c] || c).split(' ')[0].slice(0, 7); T(t, x + 7, H - 20, { color: '#c0c0d0' }); x += 9 + GR.textW(t) + 4; if (x > W - 40) break; }
     T('(C) OPENSTREETMAP', W - 9, H - 11, { color: '#707080', align: 'right' });
   }
+  // ---------- empresa: concesionario, flota y empleados ----------
+  function opcionesEmpresa(veh) {
+    const ops = [], P = partida, hay = P.flota[veh.id] || 0, propio = P.vehiculo === veh.id, abierto = EMP.disponible(P, veh);
+    if (!abierto) return [['VOLVER', null]];
+    if (!propio) ops.push(['COMPRARLO Y MANEJARLO (' + C.fmt(veh.precio) + ')', 'propio']);
+    if (veh.tier <= P.maxTier) ops.push(['COMPRAR UNO PARA UN EMPLEADO (' + C.fmt(veh.precio) + ')', 'flota']);
+    if (hay && !propio) ops.push(['MANEJAR UNO DE LA FLOTA', 'cambiar']);
+    if (hay) ops.push(['VENDER UNO DE LA FLOTA (' + C.fmt(EMP.valorVeh(veh)) + ')', 'vender']);
+    ops.push(['VOLVER', null]);
+    return ops;
+  }
+  function actEmpresa() {
+    const n = EMP.VEH.length;
+    if (!empSub) {
+      if (P('up')) { empSel = (empSel + n - 1) % n; AU.move(); }
+      if (P('down')) { empSel = (empSel + 1) % n; AU.move(); }
+      if (P('accion') || P('right')) { empSub = EMP.VEH[empSel]; empSubSel = 0; AU.blip(); }
+      if (P('pausa') || P('left') || P('empresa')) estado = 'manejo';
+      return;
+    }
+    const ops = opcionesEmpresa(empSub);
+    if (P('up')) { empSubSel = (empSubSel + ops.length - 1) % ops.length; AU.move(); }
+    if (P('down')) { empSubSel = (empSubSel + 1) % ops.length; AU.move(); }
+    if (P('pausa') || P('left')) { empSub = null; return; }
+    if (P('accion') || P('right')) {
+      const [, accion] = ops[Math.min(empSubSel, ops.length - 1)], id = empSub.id;
+      let ok = true, txt = '';
+      if (!accion) { empSub = null; return; }
+      if ((accion === 'propio' || accion === 'cambiar') && partida.encargo) { ok = false; txt = 'TERMINA EL ENCARGO ANTES DE CAMBIAR DE VEHÍCULO'; }
+      else if ((accion === 'propio' || accion === 'flota') && partida.dinero < empSub.precio) { ok = false; txt = 'TE FALTAN ' + C.fmt(empSub.precio - partida.dinero); }
+      else if (accion === 'propio') { ok = EMP.comprarPropio(partida, id); txt = '¡TU ' + EMP.art(empSub, 'NUEVA ', 'NUEVO ') + empSub.n + '!'; if (ok) cambiarVehiculo(); }
+      else if (accion === 'flota') { ok = EMP.comprarFlota(partida, id); txt = 'CONTRATASTE UN EMPLEADO CON ' + EMP.art(empSub, 'UNA ', 'UN ') + empSub.n; }
+      else if (accion === 'cambiar') { ok = EMP.cambiar(partida, id); txt = 'AHORA MANEJAS ' + empSub.n; if (ok) cambiarVehiculo(); }
+      else if (accion === 'vender') { ok = EMP.vender(partida, id); txt = 'VENDISTE ' + EMP.art(empSub, 'UNA ', 'UN ') + empSub.n; }
+      if (ok) { AU.buy(); msg(txt, 3, 'big', 'VALOR DE LA EMPRESA ' + C.fmt(EMP.valor(partida))); empSub = null; for (const h of EMP.revisarHitos(partida)) msg('¡' + h.t + '!', 4, 'big'); guardar(); }
+      else { AU.error(); msg(txt || 'NO SE PUEDE', 2, 'small'); }
+    }
+  }
+  // cambia el vehículo que manejas por el de la partida, en el mismo lugar
+  function cambiarVehiculo() {
+    const x = cam.x, y = cam.y, a = cam.a, km = cam.kmReal;
+    cam = N.nuevoVehiculo(partida.vehiculo, x, y, a); cam.kmReal = km;
+    if (vista3) vista3.reiniciar();
+  }
+  function dibujarEmpresa() {
+    const P = partida, f = EMP.flotaPorHora(P), valor = EMP.valor(P);
+    ctx.fillStyle = 'rgba(4,6,18,0.88)'; ctx.fillRect(8, 8, W - 16, H - 16); ctx.strokeStyle = '#05d9e8'; ctx.strokeRect(8.5, 8.5, W - 17, H - 17);
+    T('TU EMPRESA DE REPARTOS', W / 2, 13, { color: '#f9f871', align: 'center' });
+    // meta
+    const pr = Math.max(0, Math.min(1, valor / EMP.META));
+    T('VALOR ' + C.fmt(valor), 16, 25, { color: '#7cff4f' }); T('META ' + C.fmt(EMP.META), W - 16, 25, { color: '#c0c0d0', align: 'right' });
+    ctx.fillStyle = '#20243a'; ctx.fillRect(16, 34, W - 32, 4); ctx.fillStyle = '#7cff4f'; ctx.fillRect(16, 34, Math.round((W - 32) * pr), 4);
+    T('CAJA ' + C.fmt(P.dinero) + ' · FLOTA ' + f.vehiculos + ' · ' + (f.neto >= 0 ? '+' : '') + C.fmt(f.neto) + ' POR HORA · ' + EMP.fmtTiempo(P.tReal), W / 2, 42, { color: '#d1f7ff', align: 'center' });
+    // vehículos
+    EMP.VEH.forEach((v, i) => {
+      const y = 54 + i * 17, sel = i === empSel, abierto = EMP.disponible(P, v), hay = P.flota[v.id] || 0;
+      ctx.fillStyle = sel ? 'rgba(5,217,232,0.22)' : 'rgba(255,255,255,0.03)'; ctx.fillRect(14, y, W - 28, 15);
+      if (sel) { ctx.strokeStyle = '#05d9e8'; ctx.strokeRect(14.5, y + 0.5, W - 29, 14); }
+      const col = !abierto ? '#505068' : P.vehiculo === v.id ? '#f9f871' : '#e0e0f0';
+      T(v.n.slice(0, 24), 19, y + 4, { color: col });
+      const info = !abierto ? 'BLOQUEADO' : (P.vehiculo === v.id ? 'TUYO · ' : '') + (hay ? hay + ' EN LA FLOTA · ' : '') + pesoTxt(v.cap);
+      T(info, 178, y + 4, { color: abierto ? '#a0a0c0' : '#505068' });
+      T(C.fmt(v.precio), W - 19, y + 4, { color: abierto ? (P.dinero >= v.precio ? '#7cff4f' : '#c08080') : '#505068', align: 'right' });
+    });
+    // detalle del elegido
+    const v = EMP.VEH[empSel], y0 = 54 + EMP.VEH.length * 17 + 2;
+    if (!empSub) {
+      const neto = v.prod * EMP.rinde(v, P.flota[v.id] || 0) - v.gasto;
+      const t = EMP.disponible(P, v) ? 'CON UN EMPLEADO DEJA ' + C.fmt(neto) + ' POR HORA DEL JUEGO' + ((P.flota[v.id] || 0) >= v.mercado ? ' (MERCADO SATURADO)' : '') : 'SE DESBLOQUEA AL TENER ' + EMP.VEH[v.tier - 1].n;
+      T(t, W / 2, y0, { color: '#c0d0ff', align: 'center' });
+      T(TACTIL ? '↑↓ ELEGIR · PEDIDOS: OPCIONES · EMPRESA: SALIR' : '↑↓ ELEGIR · ESPACIO: OPCIONES · ESC: SALIR', W / 2, H - 18, { color: '#a080c0', align: 'center' });
+    } else {
+      const ops = opcionesEmpresa(empSub), h = ops.length * 11 + 16, yy = Math.round(H / 2 - h / 2);
+      panel(60, yy, W - 120, h, 0.95);
+      T(empSub.n, W / 2, yy + 4, { color: '#f9f871', align: 'center' });
+      ops.forEach(([t], i) => T((i === empSubSel ? '> ' : '  ') + t, W / 2, yy + 15 + i * 11, { color: i === empSubSel ? '#fff' : '#9090b0', align: 'center' }));
+    }
+  }
+  // ---------- meta lograda ----------
+  function leerRecord() { try { return JSON.parse(localStorage.getItem('fletesRecord') || 'null'); } catch (e) { return null; } }
+  function guardarRecord() {
+    const r = leerRecord(), m = partida.meta;
+    if (!m) return;
+    if (!r || m.real < r.real) try { localStorage.setItem('fletesRecord', JSON.stringify({ real: m.real, t: m.t })); } catch (e) { /* sin almacenamiento */ }
+  }
+  function dibujarMeta() {
+    const m = partida.meta, f = EMP.flotaPorHora(partida);
+    ctx.fillStyle = 'rgba(4,6,18,0.9)'; ctx.fillRect(30, 24, W - 60, H - 48); ctx.strokeStyle = '#f9f871'; ctx.strokeRect(30.5, 24.5, W - 61, H - 49);
+    T('¡LO LOGRASTE!', W / 2, 34, { color: '#f9f871', align: 'center', scale: 2 });
+    T('ERES LA EMPRESA DE REPARTOS DEL SUR', W / 2, 56, { color: '#7cff4f', align: 'center' });
+    T('EMPEZASTE EN BICICLETA Y HOY TIENES ' + f.vehiculos + ' VEHÍCULOS', W / 2, 72, { color: '#d1f7ff', align: 'center' });
+    T('TIEMPO DE JUEGO: ' + EMP.fmtTiempo(m.real) + ' · DÍA ' + (1 + Math.floor(m.t / 86400)), W / 2, 88, { color: '#fff', align: 'center' });
+    T('VALOR DE LA EMPRESA ' + C.fmt(EMP.valor(partida)), W / 2, 100, { color: '#c0d0ff', align: 'center' });
+    const r = leerRecord(); if (r) T('TU RÉCORD: ' + EMP.fmtTiempo(r.real), W / 2, 116, { color: '#f9f871', align: 'center' });
+    T('PUEDES SEGUIR CRECIENDO', W / 2, 140, { color: '#a0a0c0', align: 'center' });
+    if ((frame >> 4) & 1) T(TACTIL ? 'PEDIDOS: SEGUIR' : 'ESPACIO: SEGUIR', W / 2, H - 40, { color: '#fff', align: 'center' });
+  }
   function dibujarPausa() {
     ctx.fillStyle = 'rgba(4,6,18,0.8)'; ctx.fillRect(0, 0, W, H);
     T('PAUSA', W / 2, 40, { color: '#f9f871', align: 'center', scale: 2 });
-    ['SEGUIR MANEJANDO', 'COLOR DEL CAMIÓN: ' + tractoCol.toUpperCase(), 'GUARDAR Y SALIR AL TÍTULO'].forEach((t, i) => T((i === pausaSel ? '> ' : '  ') + t, W / 2, 80 + i * 14, { color: i === pausaSel ? '#fff' : '#8080a0', align: 'center' }));
-    const ayuda = ['FLECHAS: MANEJAR (ABAJO DETENIDO: REVERSA)', 'ESPACIO: CARGAS · R: RADIO (MAYÚS+R: ANTERIOR)', 'M: MAPA · C: VISTA · H: BOCINA · S: SILENCIO · ESC: PAUSA'];
+    ['SEGUIR MANEJANDO', 'COLOR DE LA EMPRESA: ' + tractoCol.toUpperCase(), 'GUARDAR Y SALIR AL TÍTULO'].forEach((t, i) => T((i === pausaSel ? '> ' : '  ') + t, W / 2, 80 + i * 14, { color: i === pausaSel ? '#fff' : '#8080a0', align: 'center' }));
+    const ayuda = ['FLECHAS: MANEJAR (ABAJO DETENIDO: REVERSA)', 'ESPACIO: PEDIDOS · E: EMPRESA · R: RADIO (MAYÚS+R: ANTERIOR)', 'M: MAPA · C: VISTA · H: BOCINA · S: SILENCIO · ESC: PAUSA'];
     ayuda.forEach((t, i) => T(t, W / 2, 140 + i * 11, { color: '#a080c0', align: 'center' }));
     T('CALLES: © COLABORADORES DE OPENSTREETMAP · RADIOS: RADIO-BROWSER.INFO', W / 2, H - 16, { color: '#606070', align: 'center' });
   }
@@ -955,11 +1110,13 @@
     if (orden) { ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); ctx.drawImage(s.cv, bx - s.ox, by - s.oy); }
     else { ctx.drawImage(s.cv, bx - s.ox, by - s.oy); ctx.drawImage(r.cv, Math.round(rx - r.ox), Math.round(ry - r.oy)); }
     T('FLETES', W / 2, 26, { color: '#f9f871', align: 'center', scale: 4, shadow: '#ff2a6d' });
-    T('CAMIONES TRANQUILOS POR EL SUR', W / 2, 62, { color: '#d1f7ff', align: 'center' });
+    T('DE LA BICICLETA A LA EMPRESA DE REPARTOS DEL SUR', W / 2, 62, { color: '#d1f7ff', align: 'center' });
     T('PUERTO MONTT · RUTA 5 · PUERTO VARAS', W / 2, 73, { color: '#05d9e8', align: 'center' });
-    const g = leerGuardado();
+    const g = leerGuardado(), rec = leerRecord();
     if ((frame >> 4) & 1) T(TACTIL ? '↑ ACELERAR PARA ' + (g ? 'SEGUIR' : 'EMPEZAR') : 'ESPACIO PARA ' + (g ? 'SEGUIR' : 'EMPEZAR'), W / 2, 178, { color: '#fff', align: 'center' });
-    if (g) T('EN CAJA ' + C.fmt(g.dinero) + ' · ' + g.entregas + ' ENTREGAS · ' + '↓' + ' PARTIDA NUEVA', W / 2, 190, { color: '#a0a0c0', align: 'center' });
+    if (g) T('EN CAJA ' + C.fmt(g.dinero) + ' · ' + (EMP.porId[g.vehiculo] || EMP.VEH[0]).n + ' · ↓ PARTIDA NUEVA', W / 2, 190, { color: '#a0a0c0', align: 'center' });
+    else if (guardadoViejo()) T('NUEVA VERSIÓN: EMPIEZAS DE CERO, EN BICICLETA', W / 2, 190, { color: '#ffd080', align: 'center' });
+    if (rec) T('RÉCORD: LA EMPRESA DEL SUR EN ' + EMP.fmtTiempo(rec.real), W / 2, 200, { color: '#f9f871', align: 'center' });
     ctx.fillStyle = 'rgba(4,6,18,0.75)'; ctx.fillRect(0, H - 16, W, 16);
     T('CALLES REALES DE OPENSTREETMAP · RADIOS EN VIVO', W / 2, H - 12, { color: '#9090b0', align: 'center' });
   }
@@ -976,7 +1133,9 @@
         if (estado === 'bolsa') dibujarBolsa();
         else if (estado === 'entrega') dibujarEntrega();
         else if (estado === 'pausa') dibujarPausa();
-        dibujarMsgs();
+        else if (estado === 'empresa') dibujarEmpresa();
+        else if (estado === 'meta') dibujarMeta();
+        if (estado === 'manejo') dibujarMsgs(); // los avisos no tapan los menús
       }
     }
     gctx.clearRect(0, 0, W, H); gctx.drawImage(cv, 0, 0);

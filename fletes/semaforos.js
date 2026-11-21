@@ -34,7 +34,7 @@
           if (dentro.has(w) || !urbana(e)) continue;
           const dir = e.b === v ? 1 : -1;
           if (dir < 0 && e.ow) continue; // sentido único que sale del cruce
-          const retiro = r + 1.8;
+          const retiro = r + 3.5; // la línea, bien antes del cruce: deja espacio para que doblen los camiones
           if (e.len < retiro + 6) continue;
           // dirección de llegada y punto de la línea de detención
           const n = e.pts.length, p1 = dir > 0 ? e.pts[n - 2] : e.pts[1], p2 = dir > 0 ? e.pts[n - 1] : e.pts[0];

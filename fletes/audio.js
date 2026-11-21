@@ -56,12 +56,13 @@
   AU.car = function (on, rpm, thr, slip, grass) {
     if (!AU.ctx) return;
     const t = AU.ctx.currentTime;
-    const f = 22 + rpm * 62;
+    const mo = AU.motor || { base: 22, esc: 62, vol: 1 };
+    const f = mo.base + rpm * mo.esc;
     eng.o1.frequency.setTargetAtTime(f, t, 0.03);
     eng.o2.frequency.setTargetAtTime(f * 1.005, t, 0.03);
     eng.o3.frequency.setTargetAtTime(f / 2, t, 0.03);
     eng.lp.frequency.setTargetAtTime(260 + rpm * 700 + thr * 300, t, 0.05);
-    eng.g.gain.setTargetAtTime(on ? (0.05 + thr * 0.05) * AU.motorVol : 0, t, 0.05);
+    eng.g.gain.setTargetAtTime(on ? (0.05 + thr * 0.05) * AU.motorVol * mo.vol : 0, t, 0.05);
     screech.g.gain.setTargetAtTime(on ? Math.min(0.14, Math.max(0, slip - 28) / 140) : 0, t, 0.04);
     rumble.g.gain.setTargetAtTime(on && grass ? 0.35 : 0, t, 0.05);
   };

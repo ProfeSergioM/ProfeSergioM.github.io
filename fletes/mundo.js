@@ -197,10 +197,12 @@
 
     // ---------- rutas (A* sobre el grafo, respetando sentido único) ----------
     const VMAXG = 25;
+    let evitar = null; // filtro de la ruta en curso: e => true si el vehículo no puede usar esa calle
     function vecinos(v) {
       const out = [];
       for (const ei of M.vert[v].ej) {
         const e = M.ejes[ei];
+        if (evitar && evitar(e)) continue;
         if (e.a === v) out.push([e.b, e, 1]);
         if (e.b === v && !e.ow) out.push([e.a, e, -1]);
       }
@@ -209,7 +211,11 @@
     // costo en segundos con preferencia por vías rápidas (los camiones van por la autopista)
     const costo = e => e.len / e.vmax * (e.c === 'residential' || e.c === 'living_street' ? 1.6 : e.c === 'unclassified' ? 1.3 : 1);
     // desde: {e, s, dir} posición en un eje y sentido de avance (dir=1 hacia b). hasta: igual (dir libre)
-    M.ruta = function (desde, hasta) {
+    M.ruta = function (desde, hasta, opts) {
+      evitar = opts && opts.evitar || null;
+      try { return rutaCon(desde, hasta); } finally { evitar = null; }
+    };
+    function rutaCon(desde, hasta) {
       const N = M.vert.length;
       const g = new Float64Array(N).fill(Infinity), prev = new Int32Array(N).fill(-1), prevE = new Int32Array(N).fill(-1);
       const open = []; // montículo binario simple [f, v]
@@ -280,7 +286,7 @@
       if (!pasos.length) real = cum[cum.length - 1] * e0.real;
       else real -= 0; // aproximación: ejes completos en los extremos
       return { pts, cum, len: cum[cum.length - 1], seg: mejor, pasos, real: Math.max(real * 0.98, cum[cum.length - 1]), indic: indicaciones(pts, cum, pasos) };
-    };
+    }
     // giros: dónde cambia el rumbo y el nombre de la calle que sigue
     function indicaciones(pts, cum, pasos) {
       const out = [];
@@ -308,8 +314,8 @@
       return out;
     }
     // posición sobre la calle para un punto y rumbo
-    M.posicion = function (x, y, ang) {
-      const c = M.cercano(x, y, 60, ang); if (!c) return null;
+    M.posicion = function (x, y, ang, opts) {
+      const c = M.cercano(x, y, 60, ang, opts && opts.evitar ? e => !opts.evitar(e) : null) || M.cercano(x, y, 60, ang); if (!c) return null;
       const al = Math.cos(ang) * c.tx + Math.sin(ang) * c.ty;
       c.dir = al >= 0 ? 1 : -1;
       return c;
@@ -327,20 +333,33 @@
       return bd;
     };
     // salida de un depósito hacia otro: el camión sale del patio ya mirando hacia donde parte la ruta
-    M.salida = function (dep, dest) {
-      const r = M.ruta(Object.assign({}, dep.calle, { dir: 0 }), dest.calle);
+    M.salida = function (dep, dest, opts) {
+      const r = M.ruta(Object.assign({}, dep.calle, { dir: 0 }), dest.calle, opts);
       if (!r || r.pts.length < 2) return null;
       let k = 1; while (k < r.pts.length - 1 && r.cum[k] < 4) k++;
       const [x0, y0] = r.pts[0], a = Math.atan2(r.pts[k][1] - y0, r.pts[k][0] - x0);
       const e = dep.calle.e, lat = e.ow ? 0 : e.hw * 0.5;
       return { x: x0 - Math.sin(a) * lat, y: y0 + Math.cos(a) * lat, a, ruta: r };
     };
-    M.rutaA = function (x, y, ang, dep) {
-      const d = M.posicion(x, y, ang);
+    M.rutaA = function (x, y, ang, dep, opts) {
+      const d = M.posicion(x, y, ang, opts);
       if (!d || !dep.calle) return null;
-      return M.ruta(d, dep.calle);
+      return M.ruta(d, dep.calle, opts);
     };
 
+    // cruces (3 o más tramos) con su radio: el semiancho de la vía más ancha que llega
+    const XG = 40, gridX = new Map();
+    M.vert.forEach((v, i) => {
+      let r = 0; for (const ei of v.ej) r = Math.max(r, M.ejes[ei].hw); v.r = r;
+      if (v.ej.length < 3) return;
+      const k = key(Math.floor(v.x / XG), Math.floor(v.y / XG)); let l = gridX.get(k); if (!l) gridX.set(k, l = []); l.push(v);
+    });
+    // ¿hay un cruce a menos de (su radio + margen) de este punto?
+    M.cruceCerca = function (x, y, margen) {
+      for (let gx = Math.floor((x - 30) / XG); gx <= Math.floor((x + 30) / XG); gx++) for (let gy = Math.floor((y - 30) / XG); gy <= Math.floor((y + 30) / XG); gy++)
+        for (const v of gridX.get(key(gx, gy)) || []) if (Math.hypot(v.x - x, v.y - y) < v.r + margen) return true;
+      return false;
+    };
     // límites del mundo
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const v of M.vert) { x0 = Math.min(x0, v.x); x1 = Math.max(x1, v.x); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }

@@ -497,6 +497,72 @@
       return 0;
     } };
   }
+  // ---------- vehículos de la empresa (1 vóxel = 1/3 m; el ancla cx es el eje trasero) ----------
+  // materiales: 0 color de la empresa, 1 neumático, 2 metal, 3 oscuro, 4 vidrio, 5 blanco (caja), 6 piel, 7 polera, 8 luces
+  const rueda = (x, z, x0, x1) => x >= x0 && x <= x1 && z <= 1;
+  const MODELOS = {
+    bici: { nx: 6, ny: 2, nz: 7, cx: 1.2, cy: 1, get(x, y, z) {
+      if ((x <= 1 || x >= 4) && z <= 1) return (z === 1 && (x === 0 || x === 5)) || (z === 0 && (x === 1 || x === 4)) ? 1 : (z === 1 ? 2 : null);
+      if (z === 2 && x >= 1 && x <= 4) return 2;                  // cuadro
+      if (x === 2 && z === 3) return 3;                           // piernas
+      if (x >= 2 && x <= 3 && z >= 4 && z <= 5) return 7;         // polera
+      if (x === 4 && z === 4) return 7;                           // brazo al manubrio
+      if (x === 3 && z === 6) return 6;                           // cabeza
+      if (x === 1 && z >= 3 && z <= 5) return 0;                  // mochila de reparto
+      return null; } },
+    moto: { nx: 7, ny: 3, nz: 7, cx: 1.35, cy: 1.5, get(x, y, z) {
+      if ((x <= 1 || x >= 5) && z <= 1 && y === 1) return 1;
+      if (z === 2 && x >= 1 && x <= 5 && y === 1) return 2;
+      if (z >= 2 && z <= 3 && x >= 3 && x <= 5) return 0;         // estanque y carenado
+      if (x >= 2 && x <= 3 && z === 3 && y === 1) return 3;       // asiento
+      if (x >= 2 && x <= 3 && z >= 4 && z <= 5 && y === 1) return 7;
+      if (x === 3 && z === 6 && y === 1) return 0;                // casco
+      if (x <= 1 && z >= 3 && z <= 5) return z === 4 ? 0 : 5;     // caja de reparto
+      return null; } },
+    auto: { nx: 12, ny: 6, nz: 5, cx: 2, cy: 3, get(x, y, z) {
+      if ((rueda(x, z, 1, 2) || rueda(x, z, 9, 10)) && (y === 0 || y === 5)) return 1;
+      if (z === 0) return null;
+      if (z <= 2) return (x === 11 && z === 2 && (y === 1 || y === 4)) ? 8 : (x === 0 && z === 2 && (y === 1 || y === 4)) ? 8 : 0;
+      if (z <= 4 && x >= 3 && x <= 8) return z === 4 ? 0 : (x === 3 || x === 8 || y === 0 || y === 5) ? 4 : 0;
+      return null; } },
+    furgon: { nx: 15, ny: 6, nz: 7, cx: 3, cy: 3, get(x, y, z) {
+      if ((rueda(x, z, 2, 3) || rueda(x, z, 11, 12)) && (y === 0 || y === 5)) return 1;
+      if (z === 0) return null;
+      if (x >= 12) { if (z > 5) return null; if (x === 14 && z >= 3 && z <= 4 && y >= 1 && y <= 4) return 4; if ((y === 0 || y === 5) && z >= 3 && z <= 4 && x === 13) return 4; return 0; }
+      if (z === 3 && (y === 0 || y === 5)) return 0;               // franja con el color de la empresa
+      return 5; } },
+    camioneta: { nx: 16, ny: 6, nz: 6, cx: 3.6, cy: 3, get(x, y, z) {
+      if ((rueda(x, z, 2, 4) || rueda(x, z, 12, 14)) && (y === 0 || y === 5)) return 1;
+      if (z === 0) return null;
+      if (x <= 7) { if (z === 1) return 0; if (z === 2 && (y === 0 || y === 5 || x === 0)) return 0; return null; } // pick-up abierto
+      if (x >= 13) return z <= 2 ? (x === 15 && z === 2 && (y === 1 || y === 4) ? 8 : 0) : null;
+      if (z <= 2) return 0;
+      if (z <= 4) return (x === 12 || y === 0 || y === 5) && z === 3 ? 4 : 0;
+      return null; } },
+    tres4: { nx: 19, ny: 7, nz: 9, cx: 5.4, cy: 3.5, get(x, y, z) {
+      if ((rueda(x, z, 3, 5) || rueda(x, z, 14, 16)) && (y === 0 || y === 6)) return 1;
+      if (z === 0) return null;
+      if (z === 1) return y >= 1 && y <= 5 ? 3 : null;
+      if (x >= 14) { if (z > 7) return null; if (x === 18 && z >= 4 && z <= 6 && y >= 1 && y <= 5) return 4; return 0; }
+      if (x === 13) return null;
+      if (z === 5 && (y === 0 || y === 6)) return 0;
+      return z >= 2 ? 5 : null; } },
+    rigido: { nx: 26, ny: 8, nz: 11, cx: 7.5, cy: 4, get(x, y, z) {
+      if ((rueda(x, z, 4, 6) || rueda(x, z, 7, 9) || rueda(x, z, 20, 22)) && (y === 0 || y === 7)) return 1;
+      if (z === 0) return null;
+      if (z === 1) return y >= 1 && y <= 6 ? 3 : null;
+      if (x >= 20) { if (z > 9) return null; if (x === 25 && z >= 5 && z <= 7 && y >= 1 && y <= 6) return 4; return 0; }
+      if (x === 19) return null;
+      if (z === 6 && (y === 0 || y === 7)) return 0;
+      return z >= 2 ? 5 : null; } },
+  };
+  const bufsVeh = {};
+  GR.buildVehiculo = function (tipo, color) {
+    const m = MODELOS[tipo]; if (!m) return null;
+    if (!bufsVeh[tipo]) bufsVeh[tipo] = rot32(m);
+    const pal = palette([color, '#18181c', '#b8bcc8', '#2a2a30', '#3a5a88', '#eef0f4', '#e8b890', darker(color, 0.75), '#fff4b0']);
+    return bufsVeh[tipo].map(b => paint(b, pal, '#0c0c10'));
+  };
   GR.REMOLQUES = { lona: ['#2a6ad0', '#e0e4ec', '#f0c020'], frigo: ['#f2f4f8', '#2a8ad0', '#d02a2a'], cisterna: ['#c8ccd4', '#e8a020', '#3a8a4a'], plataforma: ['#3a3a44', '#c8a060', '#8a5a2a'], contenedor: ['#c03a28', '#2a6aa8', '#3a8a3a', '#d08a20'] };
   GR.buildCamion = function () {
     const bt = rot32(TRACTO);

@@ -31,14 +31,16 @@
       if (!c3.ok) { c3.ang = ha; c3.ok = true; }
       let da = ha - c3.ang; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
       c3.ang += da * Math.min(1, dt * 2.6);
-      const rem = cam.remolque, D = rem ? 30 : 16, Hc = rem ? 12.5 : 7; // alta para ver la calle por encima del remolque
+      const F = N.ficha(cam), largo = cam.remolque ? 16.5 : F.largo;
+      const D = 6 + largo * 1.45, Hc = 2.8 + largo * 0.6; // alta para ver la calle por encima de la carga
       const ca = Math.cos(c3.ang), sa = Math.sin(c3.ang);
       const tx = cam.x + Math.cos(ha) * 2, ty = cam.y + Math.sin(ha) * 2;
       const nx = tx - ca * D, ny = ty - sa * D;
       c3.x += (nx - c3.x) * Math.min(1, dt * 6); c3.y += (ny - c3.y) * Math.min(1, dt * 6);
       if (Math.hypot(nx - c3.x, ny - c3.y) > 30) { c3.x = nx; c3.y = ny; } // salto (cambio de vista o reubicación)
       c3.z = Hc;
-      const pitch = Math.atan2(Hc - 1, D + 16);
+      // inclinación: el vehículo queda a unos 3/4 de la altura de la pantalla (encima de los paneles de abajo)
+      const pitch = Math.max(0.06, Math.atan2(Hc, D) - 0.2);
       Cx = c3.x; Cy = c3.y; Cz = c3.z; cT = Math.cos(pitch); sT = Math.sin(pitch);
       fx = ca * cT; fy = sa * cT; fz = -sT;            // adelante
       rx = -sa; ry = ca;                                // derecha (en el suelo)
@@ -175,11 +177,46 @@
       if (Cz > b.h) poligono(arriba, rgb(techo, 1), 'rgba(16,12,20,0.7)');
     }
     const LIBREA = { rojo: [212, 42, 42], blanco: [236, 238, 242], azul: [42, 88, 192], verde: [42, 138, 74] };
+    // volúmenes de cada vehículo (x hacia adelante desde el eje trasero, y a la derecha, z arriba)
+    const OSC = [40, 40, 46], NEU = [24, 24, 28], VID = [70, 110, 150], BLA = [232, 234, 240], PIEL = [232, 184, 144], MET = [150, 154, 164];
+    function partes(tipo, col, cargado) {
+      const rue = (x, r, w, y0) => [[x - r, x + r, y0, y0 + w], [x - r, x + r, -y0 - w, -y0]];
+      const ruedas = (xs, r, y0, w) => { const o = []; for (const x of xs) for (const [a, b, c, e] of rue(x, r, w, y0)) o.push([a, b, c, e, 0, r * 2, NEU]); return o; };
+      switch (tipo) {
+        case 'bici': return [[-0.33, 0.33, -0.04, 0.04, 0, 0.66, NEU], [0.72, 1.38, -0.04, 0.04, 0, 0.66, NEU], [-0.1, 1.15, -0.05, 0.05, 0.35, 0.7, MET],
+          [0.15, 0.55, -0.2, 0.2, 0.85, 1.45, col.map(v => v * 0.75)], [0.25, 0.5, -0.11, 0.11, 1.45, 1.72, PIEL], [-0.2, 0.15, -0.2, 0.2, 0.95, 1.45, col]];
+        case 'moto': return [[-0.32, 0.32, -0.07, 0.07, 0, 0.62, NEU], [1.03, 1.67, -0.07, 0.07, 0, 0.62, NEU], [0.1, 1.3, -0.25, 0.25, 0.35, 0.85, col],
+          [0.35, 0.8, -0.22, 0.22, 0.85, 1.4, OSC], [0.45, 0.78, -0.15, 0.15, 1.4, 1.72, col], [-0.45, 0.1, -0.27, 0.27, 0.7, 1.25, BLA]];
+        case 'auto': return [...ruedas([0, 2.4], 0.3, 0.65, 0.2), [-0.65, 3.1, -0.85, 0.85, 0.3, 0.95, col], [0.3, 2.2, -0.75, 0.75, 0.95, 1.48, col, VID]];
+        case 'furgon': return [...ruedas([0, 3.0], 0.34, 0.75, 0.22), [-1.05, 3.0, -0.97, 0.97, 0.4, 2.3, BLA], [3.0, 3.9, -0.97, 0.97, 0.4, 1.9, col, VID],
+          [-1.06, 2.95, -0.99, -0.95, 1.0, 1.25, col], [-1.06, 2.95, 0.95, 0.99, 1.0, 1.25, col]];
+        case 'camioneta': { const p = [...ruedas([0, 3.1], 0.36, 0.72, 0.22), [-1.2, 1.5, -0.92, 0.92, 0.45, 1.0, col], [1.5, 3.55, -0.92, 0.92, 0.45, 1.85, col, VID], [3.55, 4.1, -0.9, 0.9, 0.45, 1.1, col]];
+          if (cargado) p.push([-1.05, 1.35, -0.75, 0.75, 1.0, 1.55, [150, 108, 60]]); return p; }
+        case 'tres4': return [...ruedas([0, 3.4], 0.42, 0.8, 0.26), [-1.8, 4.6, -0.9, 0.9, 0.5, 0.9, OSC], [-1.8, 3.2, -1.05, 1.05, 0.9, 3.0, BLA], [3.3, 4.6, -1.02, 1.02, 0.6, 2.6, col, VID],
+          [-1.81, 3.15, -1.07, -1.03, 1.6, 1.9, col], [-1.81, 3.15, 1.03, 1.07, 1.6, 1.9, col]];
+        case 'rigido': return [...ruedas([0, -1.2, 4.8], 0.5, 0.95, 0.3), [-2.5, 6.3, -1.0, 1.0, 0.6, 1.0, OSC], [-2.5, 4.7, -1.25, 1.25, 1.0, 3.6, BLA], [4.8, 6.3, -1.25, 1.25, 0.6, 3.0, col, VID],
+          [-2.51, 4.65, -1.27, -1.23, 1.9, 2.3, col], [-2.51, 4.65, 1.23, 1.27, 1.9, 2.3, col]];
+      }
+      return [];
+    }
+    function vehiculo() {
+      const cam = d.cam(), F = N.ficha(cam), col = GR.hex(d.colorEmpresa());
+      const ps = partes(cam.tipo, col, cam.cargado).map(p => [cam.x, cam.y, cam.a, ...p]);
+      // sombra
+      { const ca = Math.cos(cam.a), sa = Math.sin(cam.a), w = F.ancho / 2; const pts = [[-F.cola, -w], [F.frente, -w], [F.frente, w], [-F.cola, w]].map(([lx, ly]) => proy(cam.x + ca * lx - sa * ly + 0.4, cam.y + sa * lx + ca * ly + 0.3, 0)); if (pts.every(Boolean)) poligono(pts, 'rgba(0,0,0,0.28)'); }
+      ps.sort((p, q) => { const cp = o => { const ca = Math.cos(o[2]), sa = Math.sin(o[2]), lx = (o[3] + o[4]) / 2, ly = (o[5] + o[6]) / 2; return Math.hypot(o[0] + ca * lx - sa * ly - Cx, o[1] + sa * lx + ca * ly - Cy); }; return cp(q) - cp(p); });
+      for (const p of ps) caja(...p);
+      if (cam.freno && Math.abs(cam.v) > 0.3 || cam.atras) {
+        const ca = Math.cos(cam.a), sa = Math.sin(cam.a), w = Math.min(1.1, F.ancho / 2 - 0.15);
+        for (const lado of (w < 0.4 ? [0] : [-1, 1])) { const q = proy(cam.x - ca * F.cola - sa * lado * w, cam.y - sa * F.cola + ca * lado * w, Math.min(1.2, F.alto * 0.45)); if (q) { const r = Math.max(1, 6 / q[2] * 3); ctx.fillStyle = cam.atras ? '#ffffff' : '#ff2020'; ctx.fillRect(q[0] - r / 2, q[1] - r / 2, r, r); } }
+      }
+    }
     function camion() {
       const cam = d.cam(), C = N.CAMION, enc = d.encargo();
+      if (cam.tipo !== 'tracto') { vehiculo(); return; }
       const partes = [];
       const hx = cam.x + Math.cos(cam.a) * C.quinta, hy = cam.y + Math.sin(cam.a) * C.quinta;
-      const col = LIBREA[d.colorTracto()] || LIBREA.rojo, oscuro = [40, 40, 46], vidrio = [70, 110, 150];
+      const col = GR.hex(d.colorEmpresa()), oscuro = [40, 40, 46], vidrio = [70, 110, 150];
       // tracto
       partes.push([cam.x, cam.y, cam.a, -C.cola, C.frente - 0.2, -1.15, 1.15, 0.45, 1.25, oscuro]);
       partes.push([cam.x, cam.y, cam.a, 2.9, C.frente, -1.25, 1.25, 1.25, 3.75, col, vidrio]);
@@ -258,6 +295,7 @@
       }
       for (const a of d.autos()) { if (a.saliendo != null && a.saliendo <= 0) continue; const q = proy(a.x, a.y, 0); if (enVista(q, 40)) items.push({ p: q[2], k: 'auto', o: a, q }); }
       for (const dep of M.depositos) { const q = proy(dep.x, dep.y, 0); if (enVista(q, 30)) items.push({ p: q[2], k: 'dep', o: dep, q }); }
+      { const dd = d.destino(); if (dd && dd.lugar.cat === 'domicilio') { const q = proy(dd.lugar.x, dd.lugar.y, 0); if (enVista(q, 30)) items.push({ p: q[2], k: 'dep', o: dd.lugar, q }); } }
       for (const a of M.sem.accesos) { const q = proy(a.poste[0], a.poste[1], 0); if (enVista(q, 20)) items.push({ p: q[2], k: 'sem', o: a, q }); }
       const qc = proy(cam.x, cam.y, 0);
       items.push({ p: qc ? qc[2] : 0.6, k: 'camion' });
@@ -265,11 +303,9 @@
       // flecha del próximo giro pintada en el piso, y los patios (antes de los objetos)
       d.flecha((x, y) => { const q = proy(x, y, 0.06); return q && q[2] < LEJOS ? q : null; }, 4);
       const dest = d.destino();
-      for (const dep of M.depositos) {
-        if (Math.abs(dep.x - Cx) > R || Math.abs(dep.y - Cy) > R) continue;
-        const es = dep === dest; ctx.fillStyle = es ? ((d.frame() >> 4) & 1 ? '#f9f871' : '#ff9a20') : 'rgba(232,224,192,0.8)';
-        for (let k = 0; k < 40; k++) { if ((k & 1) && !es) continue; const a = k / 40 * Math.PI * 2, q = proy(dep.x + Math.cos(a) * 9, dep.y + Math.sin(a) * 9, 0.05); if (q && q[2] < LEJOS) ctx.fillRect(q[0] - 1, q[1], 2, 1); }
-      }
+      const anillo = (x, y, r, es) => { ctx.fillStyle = es ? ((d.frame() >> 4) & 1 ? '#f9f871' : '#ff9a20') : 'rgba(232,224,192,0.8)'; for (let k = 0; k < 40; k++) { if ((k & 1) && !es) continue; const a = k / 40 * Math.PI * 2, q = proy(x + Math.cos(a) * r, y + Math.sin(a) * r, 0.05); if (q && q[2] < LEJOS) ctx.fillRect(q[0] - 1, q[1], 2, 1); } };
+      for (const dep of M.depositos) if (Math.abs(dep.x - Cx) < R && Math.abs(dep.y - Cy) < R) anillo(dep.x, dep.y, 9, false);
+      if (dest) anillo(dest.x, dest.y, 7, true);
       for (const it of items) {
         const o = it.o, q = it.q;
         if (it.k === 'edif') edificio(o, it.i);
